@@ -14,3 +14,7 @@ alias dotfiles='git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
 if status is-interactive
     fish_user_key_bindings
 end
+
+
+# Added by Antigravity CLI installer
+set -gx PATH "/home/paraguayo33/.local/bin" $PATH
