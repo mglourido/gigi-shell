@@ -34,6 +34,8 @@ const LAMINAS: readonly (readonly [string, string])[] = [
   ["--lamina-popup", "rgb(16, 16, 24)"],         // Popups de aviso
   ["--lamina-grafito", "rgb(24, 24, 32)"],       // Los tres paneles, tema grafito
   ["--lamina-popup-grafito", "rgb(24, 24, 32)"], // Popups de aviso, tema grafito
+  ["--lamina-gris", "rgb(32, 32, 32)"],          // Los tres paneles, tema gris
+  ["--lamina-popup-gris", "rgb(32, 32, 32)"],    // Popups de aviso, tema gris
 ]
 
 /**

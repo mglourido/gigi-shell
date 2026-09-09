@@ -32,6 +32,7 @@ import { execAsync } from "ags/process"
 import { initPuenteWakeUp } from "./servicios/energia/wakeUpSuspensionFalsa"
 import { initOpacidadAhorro } from "./servicios/energia/opacidadAhorro"
 import { initOpacidadVentanas } from "./servicios/energia/opacidadVentanas"
+import { initFondoShellVar } from "./servicios/apariencia/fondoShellVar"
 import { iniciarCierreAjustesAlCambiarEscritorio } from "./servicios/escritorios/cierreAlCambiarEscritorio"
 import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
 import { initPlanificadorFondos } from "./servicios/fondos/planificador"
@@ -212,6 +213,10 @@ app.start({
     // aquí es gratis: la primera pasada solo lanza el `hyprctl` si lo que quiere no es
     // ya lo que el config aplicó al cargarse (lo compara contra el fichero en disco).
     initOpacidadVentanas()
+    // Publica `--bg-shell` para que los tooltips y los menús emergentes sigan
+    // "Color de fondo global" igual que la barra. A t=0 y no con los init* de
+    // abajo porque el fondo del shell se ve desde el primer fotograma.
+    initFondoShellVar()
 
     // ── Trabajo de fondo, apartado del pintado inicial ────────────────────────
     // Nada de esto se ve: son vigilantes y un barrido de limpieza. Corriendo aquí

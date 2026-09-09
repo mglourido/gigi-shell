@@ -10,6 +10,7 @@ import textos from "../../../textos/ajustes/personalizacion.json" with { type: "
 const OPCIONES: { valor: FondoShell, etiqueta: string }[] = [
   { valor: "negro", etiqueta: textos.apariencia.fondo.opciones.negro },
   { valor: "grafito", etiqueta: textos.apariencia.fondo.opciones.grafito },
+  { valor: "gris", etiqueta: textos.apariencia.fondo.opciones.gris },
 ]
 
 /** Selector exclusivo del color compartido por las superficies del shell. */

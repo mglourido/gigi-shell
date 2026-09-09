@@ -4,7 +4,16 @@
 // tener el mismo hex copiado y pegado en cada fichero.
 
 $bg-bar: rgba(8, 8, 12);
+// Los dos fondos de shell ALTERNATIVOS al negro por defecto, que elige el usuario
+// en Ajustes > Personalización > "Color de fondo global". "Negro" no tiene token:
+// es `$bg-bar`. Los dos son grises planos y opacos; "gris" (más claro, neutro) se
+// estrenó como fondo de los menús emergentes nuevos y ahora es un tema completo.
 $bg-shell-grafito: rgb(24, 24, 32);
+$bg-shell-gris: rgb(32, 32, 32);
+// Filo de 1px de los menús emergentes y los tooltips. No cambia con el tema (una
+// hairline blanca funciona sobre cualquiera de los tres fondos); solo el relleno
+// sigue la selección, vía la variable `--bg-shell` (ver `servicios/apariencia/`).
+$borde-menu: rgba(255, 255, 255, 0.08);
 $bg-pill: rgba(255, 255, 255, 0.07);
 $bg-pill-hover: rgba(0, 0, 0, 0.36);
 $border: rgba(255, 255, 255, 0.308);

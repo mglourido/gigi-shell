@@ -111,6 +111,7 @@ export default function DesbordamientoBandeja({
         })
         menu.add_css_class("tray-popover")
         menu.add_css_class("tray-overflow-popover")
+        menu.set_offset(0, 8)  // despeja la barra, igual que el menú de cada icono
         menu.connect("closed", () => {
           cancelarCierreAnimado()
           controlMenu.cerrar()

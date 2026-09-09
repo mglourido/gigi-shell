@@ -599,12 +599,15 @@ popover.cpuram-popover {
   background: transparent;
 }
 
+// Mismo lenguaje visual que los menús del tray. El fondo SIGUE la selección de
+// "Color de fondo global" por `--bg-shell` (igual que la barra); sin nada que la
+// defina —tema "negro"— cae en $bg-bar.
 .fn-menu {
-  background: #0e0e1a;
-  border: 1px solid acento-azul(0.18);
-  border-radius: 8px;
+  background: var(--bg-shell, #{$bg-bar});
+  border: 1px solid $borde-menu;
+  border-radius: 4px;
   padding: 4px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
   transform-origin: top center;
   animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
 }
@@ -612,22 +615,25 @@ popover.cpuram-popover {
 .fn-menu-button {
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 3px;
   box-shadow: none;
   margin: 0;
   padding: 0;
   outline: none;
 
+  // Mismo realce que los iconos de Quick Settings (`.qs-icon-btn:hover`): un
+  // blanco al 7% que, sobre el fondo del menú —ya OPACO ($bg-menu / --bg-shell)—,
+  // compone un color sólido y además sigue el tema como el resto del shell.
   &:hover {
-    background: acento-azul(0.12);
+    background: rgba(255, 255, 255, 0.07);
   }
 
   &:active {
-    background: acento-azul(0.18);
+    background: rgba(255, 255, 255, 0.13);
   }
 
   &.active {
-    background: acento-azul(0.08);
+    background: rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -637,10 +643,10 @@ popover.cpuram-popover {
 }
 
 .fn-menu-label {
-  font-family: $font-icon;
+  font-family: 'Inter', sans-serif, $font-icon;
   font-size: 11px;
   font-weight: 500;
-  color: #cdd6f4;
+  color: #e2e2e2;
 }
 
 .fn-menu-state {
@@ -652,7 +658,7 @@ popover.cpuram-popover {
     font-family: $font-icon;
     font-size: 7px;
     font-weight: 700;
-    color: rgba($text, 0.38);
+    color: rgba(255, 255, 255, 0.38);
   }
 }
 
@@ -660,7 +666,7 @@ popover.cpuram-popover {
   background: transparent;
 
   label {
-    color: acento-azul(0.7);
+    color: rgba(255, 255, 255, 0.7);
   }
 }
 
@@ -670,7 +676,7 @@ popover.cpuram-popover {
 .fn-menu-expand {
   margin: 1px 5px 3px 9px;
   padding-left: 7px;
-  border-left: 1px solid acento-azul(0.22);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .fn-menu-subrow {
@@ -679,7 +685,7 @@ popover.cpuram-popover {
 }
 
 .fn-menu-sublabel {
-  font-family: $font-icon;
+  font-family: 'Inter', sans-serif, $font-icon;
   font-size: 10px;
   font-weight: 500;
   color: rgba($text, 0.62);
@@ -688,14 +694,14 @@ popover.cpuram-popover {
 .fn-menu-subbutton {
   background: transparent;
   border: none;
-  border-radius: 5px;
+  border-radius: 3px;
   box-shadow: none;
   margin: 0;
   padding: 0 2px;
   outline: none;
 
   &:hover {
-    background: acento-azul(0.1);
+    background: rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -703,7 +709,7 @@ popover.cpuram-popover {
 // normales cuelga de `.fn-menu-button.active`, y aquí el botón padre no es el que
 // está encendido.
 .fn-menu-state.on label {
-  color: acento-azul(0.7);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 // Campo de minutos. Vacío = sin límite, y el placeholder (∞) lo dice.
@@ -716,23 +722,23 @@ popover.cpuram-popover {
 entry.fn-menu-minutes {
   font-family: $font-icon;
   font-size: 10px;
-  color: #cdd6f4;
-  background: rgba(17, 17, 27, 0.9);
-  border: 1px solid acento-azul(0.22);
+  color: #e2e2e2;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   outline: none;
   box-shadow: none;
-  border-radius: 5px;
+  border-radius: 3px;
   padding: 0 4px;
   margin: 0;
   min-width: 0;
   min-height: 16px;
-  caret-color: acento-azul();
+  caret-color: rgba(255, 255, 255, 0.8);
 
   &:focus, &:focus-visible {
     outline: none;
     box-shadow: none;
-    border: 1px solid acento-azul(0.55);
-    background: rgba(17, 17, 27, 1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   // GTK4 pinta el placeholder en un nodo `text > placeholder`.
@@ -741,8 +747,8 @@ entry.fn-menu-minutes {
   }
 
   selection {
-    background: acento-azul(0.3);
-    color: #cdd6f4;
+    background: rgba(255, 255, 255, 0.22);
+    color: #e2e2e2;
   }
 }
 
@@ -790,14 +796,23 @@ popover.tray-popover {
     min-height: 0;
   }
 
-  // Contenedor del menú (mismo look que .fn-menu / .ws-preview-bg)
+  // Contenedor del menú: mismo lenguaje visual que el tooltip nuevo — gris plano
+  // neutro, filo de 1px blanco tenue y radio corto, en vez del marco azulado.
+  // Sombra un punto más marcada que la del tooltip: el menú flota sobre ventanas,
+  // no sobre la barra, y necesita algo más de separación.
   > contents {
-    min-width: 190px;
-    padding: 3px;
-    background: #0e0e1a;
-    border: 1px solid acento-azul(0.18);
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    // SIN `min-width`: forzarlo (antes 190px) dejaba el contenedor más ancho que
+    // la caja interna de acciones, que se ajusta a su contenido — de ahí los
+    // botones "estrechos" con aire a los lados. Sin suelo, `contents` envuelve
+    // exactamente las filas y el realce llega de borde a borde. El ancho lo pone
+    // la opción más larga; para menús muy escuetos hay un mínimo pequeño abajo.
+    padding: 4px;
+    // El fondo sigue "Color de fondo global" por `--bg-shell`, igual que la barra
+    // (fallback $bg-bar = tema "negro").
+    background: var(--bg-shell, #{$bg-bar});
+    border: 1px solid $borde-menu;
+    border-radius: 4px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
     transform-origin: top center;
     animation: pop-liquid-in 200ms cubic-bezier(0.22, 1.2, 0.36, 1);
   }
@@ -809,36 +824,44 @@ popover.tray-popover {
     background: transparent;
     border: none;
     box-shadow: none;
-    border-radius: 8px;
-    padding: 2px 5px;
-    min-width: 0;
-    min-height: 20px;
+    border-radius: 3px;
+    padding: 3px 6px;
+    // Mínimo modesto: solo para que un menú de una palabra ("Salir") no salga
+    // diminuto. No es lo que fija el ancho del menú — eso lo hace su opción más
+    // larga —, así que subirlo ensancharía todos los menús otra vez.
+    min-width: 120px;
+    min-height: 22px;
     margin: 0;
-    color: #cdd6f4;
-    font-family: $font-icon, 'Inter', sans-serif;
+    // Mismo texto que el tooltip: Inter primero (el glifo del principio de cada
+    // acción cae al nerd font por fallback), peso 500, gris claro neutro.
+    color: #e2e2e2;
+    font-family: 'Inter', sans-serif, $font-icon;
     font-size: 11px;
     font-weight: 500;
     transition: background-color 120ms ease;
 
+    // Mismo realce que los iconos de Quick Settings (`.qs-icon-btn:hover`): un
+    // blanco al 7% sobre el fondo del menú, que ya es OPACO ($bg-menu /
+    // --bg-shell), así que compone un color sólido y sigue el tema.
     &:hover,
     &:focus {
-      background: acento-azul(0.14);
+      background: rgba(255, 255, 255, 0.07);
       color: $white;
     }
 
     &:active {
-      background: acento-azul(0.22);
+      background: rgba(255, 255, 255, 0.13);
     }
 
     &:disabled {
-      color: rgba(205, 214, 244, 0.35);
+      color: rgba(226, 226, 226, 0.35);
     }
 
     // marcas de check/radio y flecha de submenú
     check,
     radio,
     arrow {
-      color: acento-azul();
+      color: rgba(255, 255, 255, 0.55);
       min-width: 14px;
       min-height: 14px;
     }
@@ -858,7 +881,7 @@ popover.tray-popover {
   separator {
     margin: 3px 2px;
     min-height: 1px;
-    background: acento-azul(0.14);
+    background: $borde-menu;
   }
 }
 
@@ -934,6 +957,29 @@ $cadena-realce-activo: rgba(255, 255, 255, 0.055);
 
   .recording {
     margin: 0;
+  }
+}
+
+// ── Hitbox vertical uniforme en la pastilla del sistema ──────────────────────
+// El tooltip nativo de GTK ancla al borde inferior de los bounds REALES del
+// widget (ver el nodo `tooltip`). Todos estos indicadores van en un
+// `<box valign=CENTER>` salvo el volumen, que es un `<button>` y por defecto
+// llena el alto: así el `<button>` anclaba ~6px más abajo que el resto y su
+// título quedaba bien debajo de la barra mientras el de los demás la pisaba.
+// Estirándolos al alto de la pastilla (30px) todos anclan a la misma altura.
+// Solo cambia la hitbox: el icono sigue centrado por su cuenta, los huecos son
+// transparentes y las cajas internas (barras de red, cuerpo de batería) llevan
+// su propio `valign` centrado, así que no se descuelgan.
+.qs-system-pill {
+  .wakeup-indicator,
+  .bluetooth-ind,
+  .mic-indicator,
+  .recording,
+  .gestos-indicador,
+  .network,
+  .volume,
+  .battery {
+    min-height: 30px;
   }
 }
 
@@ -2623,18 +2669,33 @@ button.qs-toggle {
 }
 
 // ── Tooltip Global ────────────────────────────────────────────────────────────
+// El "title" cuelga de la barra y usa SU mismo fondo: sigue "Color de fondo
+// global" por la variable `--bg-shell` (la publica servicios/apariencia/
+// fondoShellVar.ts). Sin nada que la defina —tema "negro"— cae en $bg-bar.
 tooltip {
-  background-color: rgba(24, 24, 37, 0.95);
-  border: 1px solid acento-azul(0.2);
-  border-radius: 8px;
-  padding: 2px 4px;
+  background-color: var(--bg-shell, #{$bg-bar});
+  border: 1px solid $borde-menu;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  padding: 4px 8px;
+  // El tooltip nativo de GTK4 se ancla al BORDE INFERIOR del widget (sus bounds
+  // reales + ~4px), NO al borde de la barra. Los iconos de la barra van centrados
+  // en sus 38px de alto y muchos miden 14–22px, así que ese borde cae DENTRO de la
+  // barra y el título salía pisándola en unos iconos sí y en otros no, según lo
+  // alto que fuera cada uno. Un margen vertical en el propio nodo `tooltip`
+  // desplaza la caja visible respecto al ancla (GtkNative:get_surface_transform
+  // resta el margin-rect) para separarlo de la barra; el margin-bottom cubre el
+  // simétrico cuando GTK voltea el tooltip hacia arriba (FLIP_Y) en diálogos
+  // pegados al borde inferior de la pantalla.
+  margin: 4px 0;
 
   label {
-    font-family: $font-icon, 'Inter', sans-serif;
+    font-family: 'Inter', sans-serif, $font-icon;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 500;
     color: $text;
-    margin: 2px;
+    margin: 0;
+    line-height: 1.2;
   }
 }
 
@@ -5986,93 +6047,109 @@ progressbar.alm-barra {
 }
 
 // ── Tema de fondo global ────────────────────────────────────────────────────
-// Las dos variantes se compilan una vez. La preferencia solo cambia la clase de
-// las ventanas, por lo que la selección se ve al instante y no lanza procesos ni
-// reescribe hojas de estilo durante la sesión.
-$fondo-shell-grafito-translucido: lamina("--lamina-grafito", rgba($bg-shell-grafito, 0.94));
+// Cada variante se compila una vez. La preferencia (Ajustes > Personalización >
+// "Color de fondo global") solo cambia la CLASE de las ventanas, así que la
+// selección se ve al instante y no lanza procesos ni reescribe hojas durante la
+// sesión. "Negro" no tiene bloque: es el estado por defecto del tema.
+//
+// Los tooltips y los menús emergentes NO están dentro de estas ventanas —son
+// superficies GTK aparte y la clase no les llega—: siguen la selección por la
+// variable CSS `--bg-shell`, que publica `servicios/apariencia/fondoShellVar.ts`
+// en `:root` (mismo truco que el acento adaptativo). Sin nada que la defina —tema
+// "negro"— cada `var(--bg-shell, $bg-bar)` cae en el negro de siempre.
 
-@function sobre-fondo-grafito($tinte) {
+// Aplana un tinte translúcido contra un fondo opaco EN SASS (a diferencia de
+// `acento-*-sobre()`, que lo hace en GTK): aquí el fondo es un color de Sass, no
+// un `var()`. Antes era `sobre-fondo-grafito()`, atada a un solo tema.
+@function sobre-fondo($tinte, $fondo) {
   @return color.mix(
     color.change($tinte, $alpha: 1),
-    $bg-shell-grafito,
+    $fondo,
     $weight: color.alpha($tinte) * 100%,
   );
 }
 
-.Bar.fondo-shell-grafito {
-  background-color: $bg-shell-grafito;
-}
+@mixin tema-fondo-shell($clase, $bg) {
+  $translucido: lamina("--lamina-#{$clase}", rgba($bg, 0.94));
 
-window.qs-window.fondo-shell-grafito {
-  .qs-bar-connector {
-    background-image: radial-gradient(circle at 0% 100%, transparent 18px, $fondo-shell-grafito-translucido 18.5px);
+  .Bar.fondo-shell-#{$clase} {
+    background-color: $bg;
   }
 
-  .qs-panel { background-color: $fondo-shell-grafito-translucido; }
+  window.qs-window.fondo-shell-#{$clase} {
+    .qs-bar-connector {
+      background-image: radial-gradient(circle at 0% 100%, transparent 18px, #{$translucido} 18.5px);
+    }
 
-  .qs-tile {
-    background: $bg-shell-grafito;
-    &:hover { background-color: sobre-fondo-grafito(rgba(255, 255, 255, 0.035)); }
-    &.active {
-      background: acento-cian-sobre($bg-shell-grafito, 0.12);
-      &:hover { background-color: acento-cian-sobre($bg-shell-grafito, 0.16); }
+    .qs-panel { background-color: $translucido; }
+
+    .qs-tile {
+      background: $bg;
+      &:hover { background-color: sobre-fondo(rgba(255, 255, 255, 0.035), $bg); }
+      &.active {
+        background: acento-cian-sobre($bg, 0.12);
+        &:hover { background-color: acento-cian-sobre($bg, 0.16); }
+      }
+    }
+
+    .qs-media { background-color: acento-azul-sobre($bg, 0.04); }
+    button.qs-inline-value-btn,
+    entry.qs-inline-number-input,
+    button.qs-dropdown-header,
+    button.qs-toggle {
+      background: $bg;
+    }
+
+    .qs-icon-btn {
+      background: $bg;
+
+      &:hover { background-color: rgba(255, 255, 255, 0.07); }
+    }
+
+    .qs-sink-item,
+    .qs-wifi-item {
+      background: $bg;
+      &:hover { background: sobre-fondo(rgba(255, 255, 255, 0.06), $bg); }
+    }
+    .qs-sink-item.active { background: sobre-fondo(rgba(139, 120, 255, 0.18), $bg); }
+    .qs-wifi-item.active { background: acento-cian-sobre($bg, 0.12); }
+    .qs-wifi-item.portal { background: sobre-fondo(rgba(255, 123, 0, 0.15), $bg); }
+    .qs-wifi-item.known { background: sobre-fondo(rgba(245, 50, 105, 0.03), $bg); }
+
+    .qs-audio-item {
+      background: sobre-fondo(rgba(255, 255, 255, 0.03), $bg);
+      &:hover:not(.active) { background: sobre-fondo(rgba(255, 255, 255, 0.07), $bg); }
+      &.active { background: sobre-fondo(rgba(89, 180, 250, 0.13), $bg); }
     }
   }
 
-  .qs-media { background-color: acento-azul-sobre($bg-shell-grafito, 0.04); }
-  button.qs-inline-value-btn,
-  entry.qs-inline-number-input,
-  button.qs-dropdown-header,
-  button.qs-toggle {
-    background: $bg-shell-grafito;
+  window.np-window.fondo-shell-#{$clase} {
+    .np-bar-connector {
+      background-image: radial-gradient(circle at 0% 100%, transparent 18px, #{$translucido} 18.5px);
+    }
+    .np-panel { background: $translucido; }
   }
 
-  .qs-icon-btn {
-    background: $bg-shell-grafito;
-
-    &:hover { background-color: rgba(255, 255, 255, 0.07); }
+  window.cal-window.fondo-shell-#{$clase} {
+    .cal-bar-connector {
+      background-image: radial-gradient(circle at 100% 100%, transparent 18px, #{$translucido} 18.5px);
+    }
+    .cal-superficie,
+    .cal-panel { background-color: $translucido; }
   }
 
-  .qs-sink-item,
-  .qs-wifi-item {
-    background: $bg-shell-grafito;
-    &:hover { background: sobre-fondo-grafito(rgba(255, 255, 255, 0.06)); }
+  .sp-window.fondo-shell-#{$clase} .sp-panel,
+  .nsw-window.fondo-shell-#{$clase} .nsw-panel {
+    background: $bg;
   }
-  .qs-sink-item.active { background: sobre-fondo-grafito(rgba(139, 120, 255, 0.18)); }
-  .qs-wifi-item.active { background: acento-cian-sobre($bg-shell-grafito, 0.12); }
-  .qs-wifi-item.portal { background: sobre-fondo-grafito(rgba(255, 123, 0, 0.15)); }
-  .qs-wifi-item.known { background: sobre-fondo-grafito(rgba(245, 50, 105, 0.03)); }
 
-  .qs-audio-item {
-    background: sobre-fondo-grafito(rgba(255, 255, 255, 0.03));
-    &:hover:not(.active) { background: sobre-fondo-grafito(rgba(255, 255, 255, 0.07)); }
-    &.active { background: sobre-fondo-grafito(rgba(89, 180, 250, 0.13)); }
+  .notif-popup-window.fondo-shell-#{$clase} .notif-popup-item:not(.dunst) {
+    background: lamina("--lamina-popup-#{$clase}", rgba($bg, 0.97));
   }
 }
 
-window.np-window.fondo-shell-grafito {
-  .np-bar-connector {
-    background-image: radial-gradient(circle at 0% 100%, transparent 18px, $fondo-shell-grafito-translucido 18.5px);
-  }
-  .np-panel { background: $fondo-shell-grafito-translucido; }
-}
-
-window.cal-window.fondo-shell-grafito {
-  .cal-bar-connector {
-    background-image: radial-gradient(circle at 100% 100%, transparent 18px, $fondo-shell-grafito-translucido 18.5px);
-  }
-  .cal-superficie,
-  .cal-panel { background-color: $fondo-shell-grafito-translucido; }
-}
-
-.sp-window.fondo-shell-grafito .sp-panel,
-.nsw-window.fondo-shell-grafito .nsw-panel {
-  background: $bg-shell-grafito;
-}
-
-.notif-popup-window.fondo-shell-grafito .notif-popup-item:not(.dunst) {
-  background: lamina("--lamina-popup-grafito", rgba($bg-shell-grafito, 0.97));
-}
+@include tema-fondo-shell("grafito", $bg-shell-grafito);
+@include tema-fondo-shell("gris", $bg-shell-gris);
 
 .sp-fondo-muestra {
   min-width: 12px;
@@ -6082,6 +6159,7 @@ window.cal-window.fondo-shell-grafito {
 
   &.negro { background: $bg-bar; }
   &.grafito { background: $bg-shell-grafito; }
+  &.gris { background: $bg-shell-gris; }
 }
 
 .re-error {

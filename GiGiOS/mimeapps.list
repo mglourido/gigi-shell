@@ -1,10 +1,5 @@
-
 [Default Applications]
-
-# Carpetas
 inode/directory=org.kde.dolphin.desktop;
-
-# Web y PDF
 application/pdf=firefox.desktop;
 application/rdf+xml=firefox.desktop;
 application/rss+xml=firefox.desktop;
@@ -13,8 +8,6 @@ application/x-xpinstall=firefox.desktop;
 x-scheme-handler/chrome=firefox.desktop;
 x-scheme-handler/http=brave-origin.desktop
 x-scheme-handler/https=brave-origin.desktop
-
-# Documentos de Okular, excepto PDF
 application/epub+zip=okularApplication_epub.desktop;
 application/oxps=okularApplication_xps.desktop;
 application/postscript=okularApplication_ghostview.desktop;
@@ -39,8 +32,6 @@ image/vnd.djvu=okularApplication_djvu.desktop;
 image/x-bzeps=okularApplication_ghostview.desktop;
 image/x-eps=okularApplication_ghostview.desktop;
 image/x-gzeps=okularApplication_ghostview.desktop;
-
-# Imágenes: Gwenview para ver y KolourPaint para formatos de edición menos comunes
 application/x-krita=org.kde.gwenview.desktop;
 image/avif=org.kde.gwenview.desktop;
 image/bmp=org.kde.gwenview.desktop;
@@ -76,8 +67,6 @@ image/x-pcx=org.kde.kolourpaint.desktop;
 image/x-pic=org.kde.kolourpaint.desktop;
 image/x-rgb=org.kde.kolourpaint.desktop;
 image/x-sun-raster=org.kde.kolourpaint.desktop;
-
-# Vídeo
 video/mp2t=org.kde.haruna.desktop;
 video/mp4=org.kde.haruna.desktop;
 video/mpeg=org.kde.haruna.desktop;
@@ -87,8 +76,6 @@ video/vnd.avi=org.kde.haruna.desktop;
 video/webm=org.kde.haruna.desktop;
 video/x-matroska=org.kde.haruna.desktop;
 video/x-ms-wmv=org.kde.haruna.desktop;
-
-# Audio y listas de reproducción
 application/x-ogm-audio=org.kde.elisa.desktop;
 audio/aac=org.kde.elisa.desktop;
 audio/ac3=org.kde.elisa.desktop;
@@ -115,8 +102,6 @@ audio/x-speex+ogg=org.kde.elisa.desktop;
 audio/x-vorbis=org.kde.elisa.desktop;
 audio/x-vorbis+ogg=org.kde.elisa.desktop;
 audio/x-wav=org.kde.elisa.desktop;
-
-# Código y configuración de proyectos
 application/ecmascript=code.desktop;
 application/javascript=code.desktop;
 application/json=code.desktop;
@@ -161,14 +146,10 @@ text/x-configuration=code.desktop;
 text/x-typescript-jsx=code.desktop;
 text/xml=code.desktop;
 text/yaml=code.desktop;
-
-# Texto y documentación ligera
 application/octet-stream=org.kde.kate.desktop;
 text/markdown=code.desktop;obsidian.desktop;org.kde.kate.desktop;
 text/plain=org.kde.kate.desktop;
 text/x-xresources=org.kde.kate.desktop;
-
-# Archivos comprimidos, paquetes e imágenes de disco
 application/arj=org.kde.ark.desktop;
 application/gzip=org.kde.ark.desktop;
 application/vnd.debian.binary-package=org.kde.ark.desktop;
@@ -216,8 +197,6 @@ application/x-zstd-compressed-tar=org.kde.ark.desktop;
 application/zip=org.kde.ark.desktop;
 application/zlib=org.kde.ark.desktop;
 application/zstd=org.kde.ark.desktop;
-
-# LibreOffice Writer
 application/docbook+xml=libreoffice-writer.desktop;
 application/macwriteii=libreoffice-writer.desktop;
 application/msword=libreoffice-writer.desktop;
@@ -255,8 +234,6 @@ application/x-sony-bbeb=libreoffice-writer.desktop;
 application/x-starwriter=libreoffice-writer.desktop;
 application/x-starwriter-global=libreoffice-writer.desktop;
 application/x-t602=libreoffice-writer.desktop;
-
-# LibreOffice Calc
 application/csv=libreoffice-calc.desktop;
 application/excel=libreoffice-calc.desktop;
 application/msexcel=libreoffice-calc.desktop;
@@ -297,8 +274,6 @@ text/spreadsheet=libreoffice-calc.desktop;
 text/tab-separated-values=libreoffice-calc.desktop;
 text/x-comma-separated-values=libreoffice-calc.desktop;
 text/x-csv=libreoffice-calc.desktop;
-
-# LibreOffice Impress
 application/mspowerpoint=libreoffice-impress.desktop;
 application/vnd.apple.keynote=libreoffice-impress.desktop;
 application/vnd.ms-powerpoint=libreoffice-impress.desktop;
@@ -317,8 +292,6 @@ application/vnd.sun.xml.impress=libreoffice-impress.desktop;
 application/vnd.sun.xml.impress.template=libreoffice-impress.desktop;
 application/x-iwork-keynote-sffkey=libreoffice-impress.desktop;
 application/x-starimpress=libreoffice-impress.desktop;
-
-# LibreOffice Draw, Math, Base y formatos ambiguos
 application/clarisworks=libreoffice-startcenter.desktop;
 application/mathml+xml=libreoffice-math.desktop;
 application/vnd.corel-draw=libreoffice-draw.desktop;
@@ -356,8 +329,6 @@ x-scheme-handler/vnd.libreoffice.cmis=libreoffice-startcenter.desktop;
 x-scheme-handler/vnd.libreoffice.command=libreoffice-startcenter.desktop;
 x-scheme-handler/vnd.sun.star.webdav=libreoffice-startcenter.desktop;
 x-scheme-handler/vnd.sun.star.webdavs=libreoffice-startcenter.desktop;
-
-# Protocolos de aplicaciones instaladas
 x-scheme-handler/antigravity=antigravity.desktop;
 x-scheme-handler/claude-cli=claude-code-url-handler.desktop
 x-scheme-handler/gh=github-handler.desktop;
@@ -365,9 +336,9 @@ x-scheme-handler/ghapp=github-handler.desktop;
 x-scheme-handler/github-app=github-handler.desktop;
 x-scheme-handler/about=brave-origin.desktop
 x-scheme-handler/unknown=brave-origin.desktop
+x-scheme-handler/tonsite=org.telegram.desktop.desktop
 
 [Added Associations]
-# Alternativas útiles que Dolphin mostrará en «Abrir con…».
 application/pdf=okularApplication_pdf.desktop;libreoffice-draw.desktop;
 inode/directory=org.kde.filelight.desktop;org.kde.kfind.desktop;kitty-open.desktop;
 image/avif=org.kde.kolourpaint.desktop;
@@ -393,3 +364,4 @@ image/x-xbitmap=org.kde.kolourpaint.desktop;
 image/x-xcf=org.kde.kolourpaint.desktop;
 image/x-xpixmap=org.kde.kolourpaint.desktop;
 text/markdown=code.desktop;okularApplication_md.desktop;
+x-scheme-handler/tonsite=org.telegram.desktop.desktop;

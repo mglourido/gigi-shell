@@ -1,4 +1,3 @@
-@charset "UTF-8";
 .Orion {
   background: transparent;
 }
@@ -844,6 +843,16 @@ popover.background {
 .Orion.fondo-shell-grafito .apps-cat-btn,
 .Orion.fondo-shell-grafito .apps-mode-toggle {
   background: rgb(24, 24, 32);
+}
+
+.Orion.fondo-shell-gris .orion-panel {
+  background: rgba(32, 32, 32, 0.94);
+}
+.Orion.fondo-shell-gris .ns,
+.Orion.fondo-shell-gris .sys-strip-fixed,
+.Orion.fondo-shell-gris .apps-cat-btn,
+.Orion.fondo-shell-gris .apps-mode-toggle {
+  background: rgb(32, 32, 32);
 }
 
 .rice-thumb.inactivo {
@@ -1811,11 +1820,11 @@ popover.cpuram-popover > arrow {
 }
 
 .fn-menu {
-  background: #0e0e1a;
-  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 18%, transparent);
-  border-radius: 8px;
+  background: var(--bg-shell, rgb(8, 8, 12));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
   padding: 4px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
   transform-origin: top center;
   animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
 }
@@ -1823,20 +1832,20 @@ popover.cpuram-popover > arrow {
 .fn-menu-button {
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 3px;
   box-shadow: none;
   margin: 0;
   padding: 0;
   outline: none;
 }
 .fn-menu-button:hover {
-  background: color-mix(in srgb, var(--acento-2, #89b4fa) 12%, transparent);
+  background: rgba(255, 255, 255, 0.07);
 }
 .fn-menu-button:active {
-  background: color-mix(in srgb, var(--acento-2, #89b4fa) 18%, transparent);
+  background: rgba(255, 255, 255, 0.13);
 }
 .fn-menu-button.active {
-  background: color-mix(in srgb, var(--acento-2, #89b4fa) 8%, transparent);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .fn-menu-row {
@@ -1845,10 +1854,10 @@ popover.cpuram-popover > arrow {
 }
 
 .fn-menu-label {
-  font-family: "MesloLGS Nerd Font";
+  font-family: "Inter", sans-serif, "MesloLGS Nerd Font";
   font-size: 11px;
   font-weight: 500;
-  color: #cdd6f4;
+  color: #e2e2e2;
 }
 
 .fn-menu-state {
@@ -1860,20 +1869,20 @@ popover.cpuram-popover > arrow {
   font-family: "MesloLGS Nerd Font";
   font-size: 7px;
   font-weight: 700;
-  color: rgba(226, 226, 226, 0.38);
+  color: rgba(255, 255, 255, 0.38);
 }
 
 .fn-menu-button.active .fn-menu-state {
   background: transparent;
 }
 .fn-menu-button.active .fn-menu-state label {
-  color: color-mix(in srgb, var(--acento-2, #89b4fa) 70%, transparent);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .fn-menu-expand {
   margin: 1px 5px 3px 9px;
   padding-left: 7px;
-  border-left: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 22%, transparent);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .fn-menu-subrow {
@@ -1882,7 +1891,7 @@ popover.cpuram-popover > arrow {
 }
 
 .fn-menu-sublabel {
-  font-family: "MesloLGS Nerd Font";
+  font-family: "Inter", sans-serif, "MesloLGS Nerd Font";
   font-size: 10px;
   font-weight: 500;
   color: rgba(226, 226, 226, 0.62);
@@ -1891,47 +1900,47 @@ popover.cpuram-popover > arrow {
 .fn-menu-subbutton {
   background: transparent;
   border: none;
-  border-radius: 5px;
+  border-radius: 3px;
   box-shadow: none;
   margin: 0;
   padding: 0 2px;
   outline: none;
 }
 .fn-menu-subbutton:hover {
-  background: color-mix(in srgb, var(--acento-2, #89b4fa) 10%, transparent);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .fn-menu-state.on label {
-  color: color-mix(in srgb, var(--acento-2, #89b4fa) 70%, transparent);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 entry.fn-menu-minutes {
   font-family: "MesloLGS Nerd Font";
   font-size: 10px;
-  color: #cdd6f4;
-  background: rgba(17, 17, 27, 0.9);
-  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 22%, transparent);
+  color: #e2e2e2;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   outline: none;
   box-shadow: none;
-  border-radius: 5px;
+  border-radius: 3px;
   padding: 0 4px;
   margin: 0;
   min-width: 0;
   min-height: 16px;
-  caret-color: var(--acento-2, #89b4fa);
+  caret-color: rgba(255, 255, 255, 0.8);
 }
 entry.fn-menu-minutes:focus, entry.fn-menu-minutes:focus-visible {
   outline: none;
   box-shadow: none;
-  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 55%, transparent);
-  background: rgb(17, 17, 27);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
 }
 entry.fn-menu-minutes > text > placeholder {
   color: rgba(226, 226, 226, 0.3);
 }
 entry.fn-menu-minutes selection {
-  background: color-mix(in srgb, var(--acento-2, #89b4fa) 30%, transparent);
-  color: #cdd6f4;
+  background: rgba(255, 255, 255, 0.22);
+  color: #e2e2e2;
 }
 
 .Bar .tray-item {
@@ -1966,12 +1975,11 @@ popover.tray-popover > arrow {
   min-height: 0;
 }
 popover.tray-popover > contents {
-  min-width: 190px;
-  padding: 3px;
-  background: #0e0e1a;
-  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 18%, transparent);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  background: var(--bg-shell, rgb(8, 8, 12));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
   transform-origin: top center;
   animation: pop-liquid-in 200ms cubic-bezier(0.22, 1.2, 0.36, 1);
 }
@@ -1980,13 +1988,13 @@ popover.tray-popover modelbutton {
   background: transparent;
   border: none;
   box-shadow: none;
-  border-radius: 8px;
-  padding: 2px 5px;
-  min-width: 0;
-  min-height: 20px;
+  border-radius: 3px;
+  padding: 3px 6px;
+  min-width: 120px;
+  min-height: 22px;
   margin: 0;
-  color: #cdd6f4;
-  font-family: "MesloLGS Nerd Font", "Inter", sans-serif;
+  color: #e2e2e2;
+  font-family: "Inter", sans-serif, "MesloLGS Nerd Font";
   font-size: 11px;
   font-weight: 500;
   transition: background-color 120ms ease;
@@ -1994,16 +2002,16 @@ popover.tray-popover modelbutton {
 popover.tray-popover button.model:hover, popover.tray-popover button.model:focus,
 popover.tray-popover modelbutton:hover,
 popover.tray-popover modelbutton:focus {
-  background: color-mix(in srgb, var(--acento-2, #89b4fa) 14%, transparent);
+  background: rgba(255, 255, 255, 0.07);
   color: #ffffff;
 }
 popover.tray-popover button.model:active,
 popover.tray-popover modelbutton:active {
-  background: color-mix(in srgb, var(--acento-2, #89b4fa) 22%, transparent);
+  background: rgba(255, 255, 255, 0.13);
 }
 popover.tray-popover button.model:disabled,
 popover.tray-popover modelbutton:disabled {
-  color: rgba(205, 214, 244, 0.35);
+  color: rgba(226, 226, 226, 0.35);
 }
 popover.tray-popover button.model check,
 popover.tray-popover button.model radio,
@@ -2011,7 +2019,7 @@ popover.tray-popover button.model arrow,
 popover.tray-popover modelbutton check,
 popover.tray-popover modelbutton radio,
 popover.tray-popover modelbutton arrow {
-  color: var(--acento-2, #89b4fa);
+  color: rgba(255, 255, 255, 0.55);
   min-width: 14px;
   min-height: 14px;
 }
@@ -2026,7 +2034,7 @@ popover.tray-popover label.title {
 popover.tray-popover separator {
   margin: 3px 2px;
   min-height: 1px;
-  background: color-mix(in srgb, var(--acento-2, #89b4fa) 14%, transparent);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .tray-overflow {
@@ -2084,6 +2092,17 @@ popover.tray-overflow-popover.closing > contents {
 }
 .bar-pill .recording {
   margin: 0;
+}
+
+.qs-system-pill .wakeup-indicator,
+.qs-system-pill .bluetooth-ind,
+.qs-system-pill .mic-indicator,
+.qs-system-pill .recording,
+.qs-system-pill .gestos-indicador,
+.qs-system-pill .network,
+.qs-system-pill .volume,
+.qs-system-pill .battery {
+  min-height: 30px;
 }
 
 .bar-end-box {
@@ -3482,17 +3501,20 @@ button.qs-toggle:disabled {
 }
 
 tooltip {
-  background-color: rgba(24, 24, 37, 0.95);
-  border: 1px solid color-mix(in srgb, var(--acento-2, #89b4fa) 20%, transparent);
-  border-radius: 8px;
-  padding: 2px 4px;
+  background-color: var(--bg-shell, rgb(8, 8, 12));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  padding: 4px 8px;
+  margin: 4px 0;
 }
 tooltip label {
-  font-family: "MesloLGS Nerd Font", "Inter", sans-serif;
+  font-family: "Inter", sans-serif, "MesloLGS Nerd Font";
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: #e2e2e2;
-  margin: 2px;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .qs-icon-btn {
@@ -7130,6 +7152,97 @@ window.cal-window.fondo-shell-grafito .cal-panel {
   background: var(--lamina-popup-grafito, rgba(24, 24, 32, 0.97));
 }
 
+.Bar.fondo-shell-gris {
+  background-color: rgb(32, 32, 32);
+}
+
+window.qs-window.fondo-shell-gris .qs-bar-connector {
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, var(--lamina-gris, rgba(32, 32, 32, 0.94)) 18.5px);
+}
+window.qs-window.fondo-shell-gris .qs-panel {
+  background-color: var(--lamina-gris, rgba(32, 32, 32, 0.94));
+}
+window.qs-window.fondo-shell-gris .qs-tile {
+  background: rgb(32, 32, 32);
+}
+window.qs-window.fondo-shell-gris .qs-tile:hover {
+  background-color: rgb(15.6098039216%, 15.6098039216%, 15.6098039216%);
+}
+window.qs-window.fondo-shell-gris .qs-tile.active {
+  background: color-mix(in srgb, var(--acento-3c, #00f2ff) 12%, rgb(32, 32, 32));
+}
+window.qs-window.fondo-shell-gris .qs-tile.active:hover {
+  background-color: color-mix(in srgb, var(--acento-3c, #00f2ff) 16%, rgb(32, 32, 32));
+}
+window.qs-window.fondo-shell-gris .qs-media {
+  background-color: color-mix(in srgb, var(--acento-2, #89b4fa) 4%, rgb(32, 32, 32));
+}
+window.qs-window.fondo-shell-gris button.qs-inline-value-btn,
+window.qs-window.fondo-shell-gris entry.qs-inline-number-input,
+window.qs-window.fondo-shell-gris button.qs-dropdown-header,
+window.qs-window.fondo-shell-gris button.qs-toggle {
+  background: rgb(32, 32, 32);
+}
+window.qs-window.fondo-shell-gris .qs-icon-btn {
+  background: rgb(32, 32, 32);
+}
+window.qs-window.fondo-shell-gris .qs-icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+window.qs-window.fondo-shell-gris .qs-sink-item,
+window.qs-window.fondo-shell-gris .qs-wifi-item {
+  background: rgb(32, 32, 32);
+}
+window.qs-window.fondo-shell-gris .qs-sink-item:hover,
+window.qs-window.fondo-shell-gris .qs-wifi-item:hover {
+  background: rgb(17.7960784314%, 17.7960784314%, 17.7960784314%);
+}
+window.qs-window.fondo-shell-gris .qs-sink-item.active {
+  background: rgb(20.1019607843%, 18.7607843137%, 28.2901960784%);
+}
+window.qs-window.fondo-shell-gris .qs-wifi-item.active {
+  background: color-mix(in srgb, var(--acento-3c, #00f2ff) 12%, rgb(32, 32, 32));
+}
+window.qs-window.fondo-shell-gris .qs-wifi-item.portal {
+  background: rgb(25.6666666667%, 17.9019607843%, 10.6666666667%);
+}
+window.qs-window.fondo-shell-gris .qs-wifi-item.known {
+  background: rgb(15.0549019608%, 12.7607843137%, 13.4078431373%);
+}
+window.qs-window.fondo-shell-gris .qs-audio-item {
+  background: rgb(15.1725490196%, 15.1725490196%, 15.1725490196%);
+}
+window.qs-window.fondo-shell-gris .qs-audio-item:hover:not(.active) {
+  background: rgb(18.6705882353%, 18.6705882353%, 18.6705882353%);
+}
+window.qs-window.fondo-shell-gris .qs-audio-item.active {
+  background: rgb(15.4549019608%, 20.0941176471%, 23.662745098%);
+}
+
+window.np-window.fondo-shell-gris .np-bar-connector {
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, var(--lamina-gris, rgba(32, 32, 32, 0.94)) 18.5px);
+}
+window.np-window.fondo-shell-gris .np-panel {
+  background: var(--lamina-gris, rgba(32, 32, 32, 0.94));
+}
+
+window.cal-window.fondo-shell-gris .cal-bar-connector {
+  background-image: radial-gradient(circle at 100% 100%, transparent 18px, var(--lamina-gris, rgba(32, 32, 32, 0.94)) 18.5px);
+}
+window.cal-window.fondo-shell-gris .cal-superficie,
+window.cal-window.fondo-shell-gris .cal-panel {
+  background-color: var(--lamina-gris, rgba(32, 32, 32, 0.94));
+}
+
+.sp-window.fondo-shell-gris .sp-panel,
+.nsw-window.fondo-shell-gris .nsw-panel {
+  background: rgb(32, 32, 32);
+}
+
+.notif-popup-window.fondo-shell-gris .notif-popup-item:not(.dunst) {
+  background: var(--lamina-popup-gris, rgba(32, 32, 32, 0.97));
+}
+
 .sp-fondo-muestra {
   min-width: 12px;
   min-height: 12px;
@@ -7142,6 +7255,9 @@ window.cal-window.fondo-shell-grafito .cal-panel {
 .sp-fondo-muestra.grafito {
   background: rgb(24, 24, 32);
 }
+.sp-fondo-muestra.gris {
+  background: rgb(32, 32, 32);
+}
 
 .re-error {
   font-size: 10px;
@@ -7152,3 +7268,5 @@ window.cal-window.fondo-shell-grafito .cal-panel {
   border-radius: 6px;
   padding: 6px 8px;
 }
+
+/*# sourceMappingURL=file:///home/paraguayo33/.cache/gigios/out.css.map */

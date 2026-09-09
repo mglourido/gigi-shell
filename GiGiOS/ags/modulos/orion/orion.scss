@@ -838,20 +838,26 @@ popover.background {
   transform: scale(1.02);
 }
 
-// Variante global más clara. Va al final para prevalecer sobre las superficies
-// opacas declaradas por cada sección sin aumentar la especificidad de todo Orion.
-.Orion.fondo-shell-grafito {
-  .orion-panel { background: rgba(c.$bg-shell-grafito, 0.94); }
+// Variantes globales más claras ("Color de fondo global" de Ajustes). Van al
+// final para prevalecer sobre las superficies opacas de cada sección sin subir la
+// especificidad de todo Orion. "Negro" es el estado por defecto y no tiene bloque.
+@mixin orion-fondo-shell($clase, $bg) {
+  .Orion.fondo-shell-#{$clase} {
+    .orion-panel { background: rgba($bg, 0.94); }
 
-  // Estas franjas deben ser opacas para tapar el blur, igual que en el tema
-  // histórico; se actualizan junto al fondo principal para evitar costuras.
-  .ns,
-  .sys-strip-fixed,
-  .apps-cat-btn,
-  .apps-mode-toggle {
-    background: c.$bg-shell-grafito;
+    // Estas franjas deben ser opacas para tapar el blur, igual que en el tema
+    // histórico; se actualizan junto al fondo principal para evitar costuras.
+    .ns,
+    .sys-strip-fixed,
+    .apps-cat-btn,
+    .apps-mode-toggle {
+      background: $bg;
+    }
   }
 }
+
+@include orion-fondo-shell("grafito", c.$bg-shell-grafito);
+@include orion-fondo-shell("gris", c.$bg-shell-gris);
 
 // ── Temas: grupos, franjas horarias y editores ───────────────
 // Añadido con el sistema de franjas y variantes. La rejilla pasó de listar

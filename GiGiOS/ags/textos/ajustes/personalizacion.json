@@ -37,7 +37,8 @@
       "descripcion": "Cambia el fondo principal del Shell",
       "opciones": {
         "negro": "Negro actual",
-        "grafito": "Grafito"
+        "grafito": "Grafito",
+        "gris": "Gris"
       }
     },
     "acento": {

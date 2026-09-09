@@ -42,6 +42,12 @@ export default function BotonElementoBandeja({
     popover.add_css_class("tray-popover")
     popover.set_has_arrow(false)
     popover.set_autohide(false)
+    // El menú cuelga del alto REAL del menubutton, centrado en la barra (~30px de
+    // los 38), así que sin desplazamiento su borde superior nace DENTRO de la
+    // barra. GtkPopover ignora el `margin` CSS para posicionarse (a diferencia de
+    // los tooltips), así que se baja por API. Mismo problema y misma familia
+    // visual que el nodo `tooltip` de style.scss.
+    popover.set_offset(0, 8)
 
     if (popoverConfigurado === popover) return
     if (popoverConfigurado) controlMenu.cerrar()

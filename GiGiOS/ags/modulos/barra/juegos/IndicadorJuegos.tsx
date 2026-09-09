@@ -135,6 +135,10 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
       nuevoPopover.set_has_arrow(false)
       nuevoPopover.set_autohide(false)
       nuevoPopover.set_position(Gtk.PositionType.BOTTOM)
+      // Igual que el menú de la bandeja: el icono va centrado en la barra, así
+      // que sin este desplazamiento el menú nace pisándola (GtkPopover ignora el
+      // `margin` CSS para posicionarse).
+      nuevoPopover.set_offset(0, 8)
       // Un Gtk.Popover vive en una superficie GTK separada. Al crearlo y
       // parentarlo manualmente no siempre resuelve los grupos de acciones del
       // botón ancla, así que el grupo debe estar también en el propio popover.

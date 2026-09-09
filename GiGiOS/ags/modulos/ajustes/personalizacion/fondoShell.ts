@@ -1,5 +1,5 @@
 /** Temas disponibles para las superficies principales del shell. */
-export const FONDOS_SHELL = ["negro", "grafito"] as const
+export const FONDOS_SHELL = ["negro", "grafito", "gris"] as const
 
 export type FondoShell = typeof FONDOS_SHELL[number]
 
