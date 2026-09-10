@@ -49,9 +49,16 @@ save_current() {
     local wp="$1" grupo="$2"
     command -v jq >/dev/null 2>&1 || return 0
     mkdir -p "$(dirname "$CONFIG")"
+    # ⚠️ EL TEMPORAL VA EN LA MISMA CARPETA QUE EL DESTINO, no en /tmp. /tmp es
+    # tmpfs y ~/.config otro sistema de ficheros, así que el `mv` no podía ser un
+    # rename(): borraba wallpaper.json y lo creaba de nuevo (inode nuevo, medido
+    # con inotifywait: DELETE + CREATE + MODIFY). Eso deja una ventana sin fichero
+    # y obliga al Gio.FileMonitor de AGS a re-engancharse a otro inode — de ese
+    # monitor dependen el acento adaptativo y el resaltado de Orion. En la misma
+    # carpeta el mv es un rename atómico (MOVED_TO) y el fichero nunca falta.
     if [[ -s "$CONFIG" ]] && jq -e 'type == "object"' "$CONFIG" >/dev/null 2>&1; then
         local tmp
-        tmp="$(mktemp)"
+        tmp="$(mktemp -p "$(dirname "$CONFIG")" .wallpaper.json.XXXXXX)" || return 0
         if jq --arg c "$wp" --arg g "$grupo" \
               '.current = $c | .currentGroup = $g' "$CONFIG" > "$tmp" 2>/dev/null \
            && [[ -s "$tmp" ]]; then
@@ -60,8 +67,15 @@ save_current() {
             rm -f "$tmp"
         fi
     else
-        jq -n --arg c "$wp" --arg g "$grupo" \
-            '{randomOnStart: true, current: $c, currentGroup: $g}' > "$CONFIG"
+        local tmp
+        tmp="$(mktemp -p "$(dirname "$CONFIG")" .wallpaper.json.XXXXXX)" || return 0
+        if jq -n --arg c "$wp" --arg g "$grupo" \
+              '{randomOnStart: true, current: $c, currentGroup: $g}' > "$tmp" \
+           && [[ -s "$tmp" ]]; then
+            mv "$tmp" "$CONFIG"
+        else
+            rm -f "$tmp"
+        fi
     fi
 }
 

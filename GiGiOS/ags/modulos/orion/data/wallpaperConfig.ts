@@ -159,6 +159,21 @@ export function entidadesAhora(): Entidad[] {
 }
 
 // ── Acciones sobre el fondo ───────────────────────────────────────────────────
+
+/**
+ * Ejecuta `wallpaper.sh` y, AL TERMINAR, relee el estado.
+ *
+ * Es una guarda, no el camino normal: lo normal es que el FileMonitor de
+ * `wallpaper.json` avise. Pero de ese aviso cuelgan el resaltado de la rejilla y
+ * el acento adaptativo (`servicios/fondos/acento.ts`), y un evento perdido deja
+ * el shell con los colores del fondo anterior sin ningún error. Releer aquí no
+ * cuesta nada: si el monitor ya lo trajo, `createState` no notifica un valor
+ * igual y el acento no vuelve a calcular.
+ */
+function ejecutarWallpaper(args: string[]) {
+  execAsync([WALLPAPER_SH, ...args]).catch(() => {}).finally(cargarEstado)
+}
+
 export function setRandomOnStart(on: boolean) {
   _setRandomOnStart(on)
   guardarRandomOnStart(on)
@@ -168,7 +183,7 @@ export function setRandomOnStart(on: boolean) {
 export function applyWallpaper(path: string) {
   _setCurrentWallpaper(path)          // resaltado inmediato
   _setCurrentGroup("")
-  execAsync([WALLPAPER_SH, path]).catch(() => {})
+  ejecutarWallpaper([path])
 }
 
 /**
@@ -177,7 +192,7 @@ export function applyWallpaper(path: string) {
  * cuando el fondo ya está puesto de verdad.
  */
 export function applyGrupo(gid: string) {
-  execAsync([WALLPAPER_SH, "--grupo", gid]).catch(() => {})
+  ejecutarWallpaper(["--grupo", gid])
 }
 
 export function applyEntidad(e: Entidad) {
@@ -186,7 +201,7 @@ export function applyEntidad(e: Entidad) {
 }
 
 export function applyRandom() {
-  execAsync([WALLPAPER_SH, "--random"]).catch(() => {})
+  ejecutarWallpaper(["--random"])
 }
 
 /**
@@ -195,7 +210,7 @@ export function applyRandom() {
  * de en el próximo límite horario.
  */
 export function reevaluar() {
-  execAsync([WALLPAPER_SH, "--auto"]).catch(() => {})
+  ejecutarWallpaper(["--auto"])
 }
 
 // ── Acciones sobre las franjas globales ───────────────────────────────────────
