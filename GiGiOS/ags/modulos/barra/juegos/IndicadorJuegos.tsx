@@ -8,6 +8,8 @@ import { describirJuego, GLIFO_JUEGO } from "../../../servicios/juegos/iconos"
 import { PANTALLA_COMPLETA_REAL } from "../../../servicios/juegos/deteccion"
 import { clientesJuego, iniciarRegistroJuegos } from "../../../servicios/juegos/registro"
 import { panelAutoClose } from "../../../estado/shell"
+import { colgarDeBarra } from "../componentes/anclaBarra"
+import { tituloBarra } from "../componentes/tituloBarra"
 import { crearControlPopoverAnclado } from "../componentes/controlPopoverAnclado"
 import type { ControlVisibilidadBarra } from "../../../estado/visibilidadBarra"
 
@@ -134,16 +136,12 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
       nuevoPopover.add_css_class("tray-popover")
       nuevoPopover.set_has_arrow(false)
       nuevoPopover.set_autohide(false)
-      nuevoPopover.set_position(Gtk.PositionType.BOTTOM)
-      // Igual que el menú de la bandeja: el icono va centrado en la barra, así
-      // que sin este desplazamiento el menú nace pisándola (GtkPopover ignora el
-      // `margin` CSS para posicionarse).
-      nuevoPopover.set_offset(0, 8)
       // Un Gtk.Popover vive en una superficie GTK separada. Al crearlo y
       // parentarlo manualmente no siempre resuelve los grupos de acciones del
       // botón ancla, así que el grupo debe estar también en el propio popover.
       nuevoPopover.insert_action_group("game", grupoAcciones)
       nuevoPopover.set_parent(boton)
+      colgarDeBarra(nuevoPopover)
 
       const movimiento = new Gtk.EventControllerMotion()
       movimiento.connect("enter", () => cierreAutomatico.onEnter())
@@ -169,11 +167,13 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
 
     return (
       <button
-        $={(self: Gtk.Widget) => { boton = self }}
+        $={(self: Gtk.Widget) => {
+          boton = self
+          tituloBarra(self, entrada((actual) => nombreParaAyuda(actual.nombre)))
+        }}
         cssClasses={["game-tray-icon"]}
         valign={Gtk.Align.CENTER}
         onClicked={() => enfocarJuego(direccion, true)}
-        tooltipText={entrada((actual) => nombreParaAyuda(actual.nombre))}
       >
         {/* Botón secundario: Gtk.Button solo se queda el clic primario, así que este
             gesto sí llega (mismo motivo que el comentario de Actualizaciones). */}

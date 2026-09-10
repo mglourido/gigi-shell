@@ -1347,7 +1347,7 @@ popover.background {
 
 .np-panel button, popover.upd-popover-container > contents, .qs-wifi-list-scroll scrollbar,
 .qs-wifi-list-scroll scrollbar slider,
-.qs-wifi-list-scroll scrollbar button, button.qs-toggle, scale.qs-slider slider, button.sp-add-rule, button.sp-rule-del, button.sp-step-btn, button.qs-display-select-opt, button.qs-display-select, button.qs-display-monitor-pill, button.qs-inline-value-btn, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, .game-tray .game-tray-icon {
+.qs-wifi-list-scroll scrollbar button, popover.titulo-barra > arrow, popover.titulo-barra, button.qs-toggle, scale.qs-slider slider, button.sp-add-rule, button.sp-rule-del, button.sp-step-btn, button.qs-display-select-opt, button.qs-display-select, button.qs-display-monitor-pill, button.qs-inline-value-btn, .Bar .bar-pill-btn, popover.tray-popover > arrow, popover.tray-popover, popover.cpuram-popover > contents, .game-tray .game-tray-icon {
   background: transparent;
   border: none;
   box-shadow: none;
@@ -3500,21 +3500,37 @@ button.qs-toggle:disabled {
   margin: 0;
 }
 
-tooltip {
+popover.titulo-barra > contents, tooltip {
   background-color: var(--bg-shell, rgb(8, 8, 12));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 4px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
   padding: 4px 8px;
-  margin: 4px 0;
 }
-tooltip label {
+popover.titulo-barra > contents label, tooltip label {
   font-family: "Inter", sans-serif, "MesloLGS Nerd Font";
   font-size: 11px;
   font-weight: 500;
   color: #e2e2e2;
   margin: 0;
   line-height: 1.2;
+}
+
+tooltip {
+  margin: 4px 0;
+}
+
+popover.titulo-barra {
+  padding: 0;
+  margin: 0;
+}
+popover.titulo-barra > arrow {
+  min-width: 0;
+  min-height: 0;
+}
+popover.titulo-barra > contents {
+  min-width: 0;
+  min-height: 0;
 }
 
 .qs-icon-btn {

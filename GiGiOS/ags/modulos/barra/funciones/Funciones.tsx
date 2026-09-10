@@ -8,7 +8,7 @@ import {
   setFunctionsMenuVisible,
 } from "../../../estado/shell"
 import { crearCicloVida } from "../../../utilidades/cicloVida"
-import { barTopMargin } from "../../ajustes/preferences"
+import { margenBajoBarra } from "../componentes/anclaBarra"
 import FilaFuncion from "./FilaFuncion"
 import { FUNCIONES_BARRA } from "./registro"
 
@@ -47,7 +47,7 @@ export function MenuFunciones(monitorGdk: Gdk.Monitor) {
       anchor={TOP | LEFT}
       application={app}
       widthRequest={ANCHO_MENU}
-      marginTop={barTopMargin(37)}
+      marginTop={margenBajoBarra()}
       marginLeft={47}
       decorated={false}
       cssClasses={["fn-menu-window"]}

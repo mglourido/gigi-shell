@@ -10,6 +10,7 @@ import type { EscritorioVisible, IconoClienteEscritorio } from "./modelo"
 import { claseAplicacionCssSegura, etiquetaEscritorio } from "./modelo"
 import { enfocarEscritorio } from "../../../servicios/escritorios/operaciones"
 import type { GestorVistaPreviaEscritorios } from "./gestorVistaPrevia"
+import { tituloBarra } from "../componentes/tituloBarra"
 
 export interface InteraccionesBotonEscritorio {
   cambiarArrastre: (arrastrando: boolean) => void
@@ -90,27 +91,11 @@ export default function BotonEscritorio({
       ])}
       widthRequest={clientes((iconos) => iconos[indice]?.esGlifo ? 16 : 24)}
       visible={clientes((iconos) => indice < iconos.length)}
-      // `query-tooltip` en vez de `tooltipText`: GTK lo emite justo cuando va a
-      // enseñar el tooltip, así que el texto —lo único que hay que construir para
-      // el icono— se arma en ese instante y no en cada señal de Hyprland. Devolver
-      // `false` deja el tooltip sin abrir (títulos desactivados o icono ya sin
-      // cliente), que es el mismo efecto que tenía el `null` de antes.
-      $={(self: Gtk.Widget) => {
-        self.set_has_tooltip(true)
-        self.connect("query-tooltip", (
-          _widget: Gtk.Widget,
-          _x: number,
-          _y: number,
-          _porTeclado: boolean,
-          ayuda: Gtk.Tooltip,
-        ) => {
-          if (!titulosAppsWorkspaceActivos.get()) return false
-          const texto = clientes()[indice]?.descripcion()
-          if (!texto) return false
-          ayuda.set_text(texto)
-          return true
-        })
-      }}
+      // Función y no accessor: el texto —lo único que hay que construir para el
+      // icono— se arma al abrir el título y no en cada señal de Hyprland. Vacío deja
+      // el título sin abrir (títulos desactivados o icono ya sin cliente).
+      $={(self: Gtk.Widget) => tituloBarra(self, () =>
+        titulosAppsWorkspaceActivos.get() ? clientes()[indice]?.descripcion() : null)}
     >
       <Gtk.GestureClick
         button={Gdk.BUTTON_SECONDARY}

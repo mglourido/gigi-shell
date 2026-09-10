@@ -4,6 +4,7 @@ import { Gtk } from "ags/gtk4"
 
 import { crearCicloVida } from "../../../utilidades/cicloVida"
 import { panelAutoClose } from "../../../estado/shell"
+import { colgarDeBarra } from "../componentes/anclaBarra"
 import { crearControlPopoverAnclado } from "../componentes/controlPopoverAnclado"
 import { limitarMenuBandeja } from "./limitesMenu"
 import type { ControlVisibilidadBarra } from "../../../estado/visibilidadBarra"
@@ -42,12 +43,7 @@ export default function BotonElementoBandeja({
     popover.add_css_class("tray-popover")
     popover.set_has_arrow(false)
     popover.set_autohide(false)
-    // El menú cuelga del alto REAL del menubutton, centrado en la barra (~30px de
-    // los 38), así que sin desplazamiento su borde superior nace DENTRO de la
-    // barra. GtkPopover ignora el `margin` CSS para posicionarse (a diferencia de
-    // los tooltips), así que se baja por API. Mismo problema y misma familia
-    // visual que el nodo `tooltip` de style.scss.
-    popover.set_offset(0, 8)
+    colgarDeBarra(popover)
 
     if (popoverConfigurado === popover) return
     if (popoverConfigurado) controlMenu.cerrar()
@@ -100,6 +96,15 @@ export default function BotonElementoBandeja({
       }}
     >
       <Gtk.EventControllerMotion onEnter={autoCierre.onEnter} onLeave={autoCierre.onLeave} />
+      {/* El menubutton abre su popover él solo, y `notify::active` llega DESPUÉS del
+          popup: el ancla se recalcula aquí, en CAPTURE, antes del toggle. No reclama. */}
+      <Gtk.GestureClick
+        $={(gesto: Gtk.GestureClick) => gesto.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)}
+        onPressed={() => {
+          const popover = boton?.get_popover()
+          if (popover && !popover.get_visible()) colgarDeBarra(popover)
+        }}
+      />
       <image gicon={createBinding(elemento, "gicon")} pixelSize={17} />
     </menubutton>
   )

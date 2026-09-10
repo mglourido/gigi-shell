@@ -4,6 +4,7 @@ import { Gtk, Gdk } from "ags/gtk4"
 import { crearCicloVida } from "../../../../utilidades/cicloVida"
 import { auricularSilenciado, iconoVolumen } from "./datosVolumen"
 import type { EstadoVisibilidadBarra } from "../../../../estado/visibilidadBarra"
+import { tituloBarra } from "../../componentes/tituloBarra"
 
 // ¿La salida por defecto son auriculares/cascos (BT o cable)?
 //
@@ -120,7 +121,7 @@ export default function Volumen({ visibilidad }: { visibilidad: EstadoVisibilida
       cssClasses={appearance((state) => state === "no-output"
         ? ["volume", "no-output"]
         : state === "muted" ? ["volume", "bt-muted"] : ["volume"])}
-      tooltipText={tooltip}
+      $={(self: Gtk.Widget) => tituloBarra(self, tooltip)}
       onClicked={toggleMute}
     >
       <Gtk.GestureClick

@@ -24,6 +24,7 @@ import { createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import { crearCicloVida } from "../../../../utilidades/cicloVida"
 import { descripcionUso, usoCamara } from "../../../../servicios/camara/uso"
+import { tituloBarra } from "../../componentes/tituloBarra"
 
 export default function Camara() {
   const cicloVida = crearCicloVida()
@@ -43,7 +44,7 @@ export default function Camara() {
   return (
     <box
       valign={Gtk.Align.CENTER}
-      tooltipText={descripcion}
+      $={(self: Gtk.Widget) => tituloBarra(self, descripcion)}
       cssClasses={["recording", "camara-indicador"]}
     >
       <label cssClasses={["icon"]} label="󰄀" />

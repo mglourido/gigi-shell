@@ -5,6 +5,7 @@ import { notifications, notifPanelVisible } from "../../../notificaciones/store"
 import { alternarPanelNotificaciones } from "../../../../estado/shell"
 import { crearCicloVida } from "../../../../utilidades/cicloVida"
 import { ESLABON, SensorCadena, type CadenaEstado } from "../../componentes/cadenaEstado"
+import { tituloBarra } from "../../componentes/tituloBarra"
 
 export default function BotonNotificaciones({ cadena }: { cadena: CadenaEstado }) {
   const cicloVida = crearCicloVida()
@@ -51,7 +52,7 @@ export default function BotonNotificaciones({ cadena }: { cadena: CadenaEstado }
     <button
       visible={hasNotifs((hn) => hn)}
       cssClasses={["bar-pill-btn"]}
-      tooltipText={unread((u) => String(u))}
+      $={(self: Gtk.Widget) => tituloBarra(self, unread((u) => String(u)))}
       onClicked={alternarPanelNotificaciones}
     >
       <Gtk.GestureClick

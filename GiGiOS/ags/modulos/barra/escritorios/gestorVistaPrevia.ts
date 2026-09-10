@@ -5,7 +5,7 @@ import Graphene from "gi://Graphene"
 import { Astal, Gtk } from "ags/gtk4"
 import app from "ags/gtk4/app"
 
-import { barTopMargin } from "../../ajustes/preferences"
+import { margenBajoBarra } from "../componentes/anclaBarra"
 
 const ANCHO_VISTA_PREVIA = 280
 const ALTO_VISTA_PREVIA = 158
@@ -54,7 +54,7 @@ export function crearGestorVistaPreviaEscritorios(
   monitorGdk: Gdk.Monitor,
   alCambiarVisibilidad: (visible: boolean) => void,
 ) {
-  const margenSuperior = barTopMargin(38)
+  const margenSuperior = margenBajoBarra()
   const geometriaMonitor = monitorGdk.get_geometry()
   const nombreMonitor = (monitorGdk.get_connector() ?? "monitor")
     .replace(/[^a-zA-Z0-9_-]/g, "-")

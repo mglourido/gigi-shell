@@ -12,6 +12,8 @@ import { Gtk } from "ags/gtk4"
 import { panelAutoClose } from "../../../../estado/shell"
 import { datosActualizaciones } from "../../../../servicios/sistema/actualizaciones"
 import { abrirEnTerminal } from "../../../../utilidades/abrirTerminal"
+import { colgarDeBarra } from "../../componentes/anclaBarra"
+import { tituloBarra } from "../../componentes/tituloBarra"
 import { crearControlPopoverAnclado } from "../../componentes/controlPopoverAnclado"
 import { ESLABON, SensorCadena, type CadenaEstado } from "../../componentes/cadenaEstado"
 import type { ControlVisibilidadBarra } from "../../../../estado/visibilidadBarra"
@@ -126,9 +128,9 @@ export default function Actualizaciones({
       // instante un `leave` y `panelAutoClose` cierra el popover recién abierto. El
       // cierre lo gobierna el motion controller (botón + tarjeta) y el propio botón.
       pop.set_autohide(false)
-      pop.set_position(Gtk.PositionType.BOTTOM)
       pop.set_child(buildCard())
       pop.set_parent(btnRef)
+      colgarDeBarra(pop)
       activePopover = pop
       controlMenu.abrir()
       pop.connect("closed", () => finalizarPopover(pop))
@@ -146,21 +148,25 @@ export default function Actualizaciones({
       btnRef = null
     })
 
+    const titulo = data((d) => {
+      const names = d[kind].map((p) => p.name).join(", ")
+      if (!names) return `Sin actualizaciones de ${meta.noun}`
+      const tail = d.system > 0 ? ` — y ${d.system} paquete${d.system === 1 ? "" : "s"} más` : ""
+      return `${meta.title}: ${names}${tail}`
+    })
+
     return (
       <button
         // El popover se ancla al propio botón. Usamos onClicked (no un GestureClick
         // de botón primario): Gtk.Button reclama esa secuencia de clic para sí, así
         // que un gesture primario encima no llegaría a dispararse.
-        $={(self: Gtk.Widget) => { btnRef = self }}
+        $={(self: Gtk.Widget) => {
+          btnRef = self
+          tituloBarra(self, titulo)
+        }}
         visible={list((l) => l.length > 0)}
         cssClasses={["bar-pill-btn"]}
         onClicked={openPopover}
-        tooltipText={data((d) => {
-          const names = d[kind].map((p) => p.name).join(", ")
-          if (!names) return `Sin actualizaciones de ${meta.noun}`
-          const tail = d.system > 0 ? ` — y ${d.system} paquete${d.system === 1 ? "" : "s"} más` : ""
-          return `${meta.title}: ${names}${tail}`
-        })}
       >
         <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
         <SensorCadena cadena={cadena} indice={indice} />

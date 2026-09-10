@@ -8,6 +8,7 @@ import {
   avisoAlarmas,
   lineaAvisoAlarma,
 } from "../../../calendario/reloj/planificadorAlarmas.ts"
+import { tituloBarra } from "../../componentes/tituloBarra"
 
 /**
  * Aviso de alarma próxima. Vive DENTRO de la pastilla del reloj, a la izquierda de la hora.
@@ -20,9 +21,8 @@ import {
  *
  * **No lleva ni un gesto propio.** Está dentro del botón del reloj, así que hereda los dos que ya
  * tenía (izquierdo abre el calendario, derecho es del cronómetro) y no añade ninguno: pulsarlo
- * abre el calendario, que es justo donde se editan las alarmas. Lo que sí es suyo es el **tooltip**:
- * GTK resuelve el tooltip del widget más profundo bajo el puntero, así que sobre el icono sale la
- * lista de alarmas y sobre el resto de la pastilla el del reloj.
+ * abre el calendario, que es justo donde se editan las alarmas. Lo que sí es suyo es el **título**
+ * (`tituloBarra`, colgado del icono y no de la pastilla): sobre el icono sale la lista de alarmas.
  *
  * **El refresco va con `ticReloj`, el tic global del minuto**, y no con un temporizador propio: los
  * dos umbrales son de minutos enteros y las alarmas suenan en punto de minuto, así que un tic por
@@ -64,7 +64,7 @@ export default function IndicadorAlarma(): Gtk.Widget {
       )}
       valign={Gtk.Align.CENTER}
       visible={aviso((a) => a.visible)}
-      tooltipText={aviso((a) => a.tooltip)}
+      $={(self: Gtk.Widget) => tituloBarra(self, aviso((a) => a.tooltip))}
       label="󰀠"
     />
   ) as unknown as Gtk.Widget

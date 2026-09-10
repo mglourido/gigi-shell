@@ -10,6 +10,7 @@ import {
   formatearTiempoBateria,
 } from "./datosBateria"
 import type { EstadoVisibilidadBarra } from "../../../../estado/visibilidadBarra"
+import { tituloBarra } from "../../componentes/tituloBarra"
 
 export default function Bateria({ visibilidad }: { visibilidad: EstadoVisibilidadBarra }) {
   const cicloVida = crearCicloVida()
@@ -113,7 +114,7 @@ export default function Bateria({ visibilidad }: { visibilidad: EstadoVisibilida
       spacing={3}
       halign={Gtk.Align.CENTER}
       valign={Gtk.Align.CENTER}
-      tooltipText={tooltip}
+      $={(self: Gtk.Widget) => tituloBarra(self, tooltip)}
     >
       <Gtk.EventControllerMotion onEnter={alEntrar} onLeave={alSalir} />
       <box

@@ -6,6 +6,7 @@ import {
   tiempoRestanteMantenerDespierto,
 } from "../../../servicios/energia/mantenerDespierto"
 import { textoTooltipMantenerDespierto } from "../../../servicios/energia/tiempoMantenerDespierto"
+import { tituloBarra } from "../componentes/tituloBarra"
 
 export default function IndicadorMantenerDespierto() {
   const tooltip = createComputed(
@@ -19,7 +20,7 @@ export default function IndicadorMantenerDespierto() {
       visible={mantenerDespiertoActivo}
       valign={Gtk.Align.CENTER}
       cssClasses={["wakeup-indicator"]}
-      tooltipText={tooltip}
+      $={(self: Gtk.Widget) => tituloBarra(self, tooltip)}
     >
       <label cssClasses={["wakeup-icon"]} label="󰅶" />
     </box>

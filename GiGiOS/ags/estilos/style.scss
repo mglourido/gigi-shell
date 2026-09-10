@@ -2672,22 +2672,14 @@ button.qs-toggle {
 // El "title" cuelga de la barra y usa SU mismo fondo: sigue "Color de fondo
 // global" por la variable `--bg-shell` (la publica servicios/apariencia/
 // fondoShellVar.ts). Sin nada que la defina —tema "negro"— cae en $bg-bar.
-tooltip {
+// Lo comparten el `tooltip` nativo (Ajustes, paneles) y los títulos de la barra
+// (`popover.titulo-barra`, ver modulos/barra/componentes/tituloBarra.ts).
+%titulo-flotante {
   background-color: var(--bg-shell, #{$bg-bar});
   border: 1px solid $borde-menu;
   border-radius: 4px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
   padding: 4px 8px;
-  // El tooltip nativo de GTK4 se ancla al BORDE INFERIOR del widget (sus bounds
-  // reales + ~4px), NO al borde de la barra. Los iconos de la barra van centrados
-  // en sus 38px de alto y muchos miden 14–22px, así que ese borde cae DENTRO de la
-  // barra y el título salía pisándola en unos iconos sí y en otros no, según lo
-  // alto que fuera cada uno. Un margen vertical en el propio nodo `tooltip`
-  // desplaza la caja visible respecto al ancla (GtkNative:get_surface_transform
-  // resta el margin-rect) para separarlo de la barra; el margin-bottom cubre el
-  // simétrico cuando GTK voltea el tooltip hacia arriba (FLIP_Y) en diálogos
-  // pegados al borde inferior de la pantalla.
-  margin: 4px 0;
 
   label {
     font-family: 'Inter', sans-serif, $font-icon;
@@ -2696,6 +2688,39 @@ tooltip {
     color: $text;
     margin: 0;
     line-height: 1.2;
+  }
+}
+
+tooltip {
+  @extend %titulo-flotante;
+  // El tooltip nativo de GTK4 se ancla al BORDE INFERIOR del widget (sus bounds
+  // reales + ~4px). Un margen vertical en el propio nodo `tooltip` desplaza la
+  // caja visible respecto al ancla (GtkNative:get_surface_transform resta el
+  // margin-rect) para despegarlo del widget; el margin-bottom cubre el simétrico
+  // cuando GTK voltea el tooltip hacia arriba (FLIP_Y). En la BARRA no sirve: sus
+  // iconos miden de 14 a 30 px centrados en 38, así que cada título salía a una
+  // altura distinta — por eso ahí no hay tooltips nativos sino `titulo-barra`.
+  margin: 4px 0;
+}
+
+// Título de la barra: un popover sin flecha. Solo se ve `contents`; la sombra la
+// declara GTK como `shadow_width` y queda fuera de la geometría, así que no mueve
+// la separación con la barra.
+popover.titulo-barra {
+  @extend %chrome-reset;
+  padding: 0;
+  margin: 0;
+
+  > arrow {
+    @extend %chrome-reset;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  > contents {
+    @extend %titulo-flotante;
+    min-width: 0;
+    min-height: 0;
   }
 }
 

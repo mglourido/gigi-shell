@@ -5,6 +5,7 @@ import { crearCicloVida } from "../../../../utilidades/cicloVida"
 import { clasesBarrasRed, determinarTipoRed } from "./datosRed"
 import type { CalidadRed, TipoRed } from "./datosRed"
 import type { EstadoVisibilidadBarra } from "../../../../estado/visibilidadBarra"
+import { tituloBarra } from "../../componentes/tituloBarra"
 
 const GLIFO_ETHERNET = "󰈀"
 
@@ -75,7 +76,7 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
     <box
       cssClasses={instantanea((dato) => ["network", dato.tipo === "wired" ? "wired" : dato.calidad])}
       valign={Gtk.Align.CENTER}
-      tooltipText={instantanea((dato) => dato.tooltip)}
+      $={(self: Gtk.Widget) => tituloBarra(self, instantanea((dato) => dato.tooltip))}
       visible={instantanea((dato) => dato.tipo !== "none")}
     >
       <box

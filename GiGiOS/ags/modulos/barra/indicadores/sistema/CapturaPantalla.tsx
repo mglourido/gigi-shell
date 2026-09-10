@@ -13,6 +13,7 @@ import { Gtk } from "ags/gtk4"
 import { datosCapturaPantalla } from "../../../../servicios/pantalla/captura"
 import { tooltipCaptura } from "../../../../servicios/pantalla/capturaDatos"
 import { ESLABON, SensorCadena, type CadenaEstado } from "../../componentes/cadenaEstado"
+import { tituloBarra } from "../../componentes/tituloBarra"
 
 export default function CapturaPantalla({ cadena }: { cadena: CadenaEstado }) {
   const indice = ESLABON.capturaPantalla
@@ -21,7 +22,7 @@ export default function CapturaPantalla({ cadena }: { cadena: CadenaEstado }) {
     <box
       visible={datosCapturaPantalla((datos) => datos.active)}
       valign={Gtk.Align.CENTER}
-      tooltipText={datosCapturaPantalla(tooltipCaptura)}
+      $={(self: Gtk.Widget) => tituloBarra(self, datosCapturaPantalla(tooltipCaptura))}
     >
       <SensorCadena cadena={cadena} indice={indice} />
       {/* El pulso vive en el ICONO, no en la pastilla: en la pastilla haría

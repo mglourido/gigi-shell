@@ -5,6 +5,7 @@ import { Gtk } from "ags/gtk4"
 
 import { panelAutoClose } from "../../../estado/shell"
 import { crearCicloVida } from "../../../utilidades/cicloVida"
+import { colgarDeBarra } from "../componentes/anclaBarra"
 import { crearControlPopoverAnclado } from "../componentes/controlPopoverAnclado"
 import BotonElementoBandeja from "./BotonElementoBandeja"
 import { agruparEnFilas } from "./rejilla"
@@ -111,13 +112,13 @@ export default function DesbordamientoBandeja({
         })
         menu.add_css_class("tray-popover")
         menu.add_css_class("tray-overflow-popover")
-        menu.set_offset(0, 8)  // despeja la barra, igual que el menú de cada icono
         menu.connect("closed", () => {
           cancelarCierreAnimado()
           controlMenu.cerrar()
         })
         popover = menu
         self.set_popover(menu)
+        colgarDeBarra(menu)
         cicloVida.conectarSenales(self, ["notify::active"], () =>
           controlMenu.establecer(self.active),
         )
@@ -131,6 +132,8 @@ export default function DesbordamientoBandeja({
             cerrarAnimado()
             gesture.set_state(Gtk.EventSequenceState.CLAIMED)
           } else {
+            // Antes del toggle del menubutton, que es quien lo abre (ver anclaBarra.ts).
+            if (popover && !popover.get_visible()) colgarDeBarra(popover)
             gesture.set_state(Gtk.EventSequenceState.DENIED)
           }
         }}

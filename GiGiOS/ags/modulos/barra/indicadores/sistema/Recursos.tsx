@@ -10,6 +10,7 @@ import {
   usoCpu,
 } from "../../../../servicios/sistema/recursos"
 import { crearCicloVida } from "../../../../utilidades/cicloVida"
+import { colgarDeBarra } from "../../componentes/anclaBarra"
 import { crearControlPopoverAnclado } from "../../componentes/controlPopoverAnclado"
 import type { ControlVisibilidadBarra } from "../../../../estado/visibilidadBarra"
 
@@ -104,9 +105,9 @@ export default function Recursos({ visibilidad }: { visibilidad: ControlVisibili
     popover.add_css_class("cpuram-popover")
     popover.set_has_arrow(true)
     popover.set_autohide(false)
-    popover.set_position(Gtk.PositionType.TOP)
     popover.set_child(construirTarjeta())
     popover.set_parent(ancla)
+    colgarDeBarra(popover)
     popoverActivo = popover
     soltarDetalle = adquirirDetalleProcesos()
     controlMenu.abrir()

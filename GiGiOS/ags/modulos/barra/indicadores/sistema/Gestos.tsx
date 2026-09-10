@@ -35,6 +35,7 @@ import { createComputed, createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import { crearCicloVida } from "../../../../utilidades/cicloVida"
 import { descripcionGestos, gestos } from "../../../../servicios/gestos/estado"
+import { tituloBarra } from "../../componentes/tituloBarra"
 
 /** Glifos del indicador: normal y en espera. */
 const ICONO = "󱄄"
@@ -63,7 +64,7 @@ export default function Gestos() {
   return (
     <box
       valign={Gtk.Align.CENTER}
-      tooltipText={descripcion}
+      $={(self: Gtk.Widget) => tituloBarra(self, descripcion)}
       cssClasses={["gestos-indicador"]}
     >
       <label

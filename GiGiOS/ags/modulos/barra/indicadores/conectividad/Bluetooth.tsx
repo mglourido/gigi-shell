@@ -3,6 +3,7 @@ import { Gtk } from "ags/gtk4"
 import { createBinding, createState } from "ags"
 
 import { crearCicloVida } from "../../../../utilidades/cicloVida"
+import { tituloBarra } from "../../componentes/tituloBarra"
 
 type BluetoothAstal = ReturnType<typeof AstalBluetooth.get_default>
 type DispositivoBluetooth = ReturnType<BluetoothAstal["get_devices"]>[number]
@@ -75,7 +76,7 @@ export default function Bluetooth() {
       cssClasses={conectado((activo) => activo ? ["bluetooth-ind", "connected"] : ["bluetooth-ind"])}
       visible={encendido}
       valign={Gtk.Align.CENTER}
-      tooltipText={nombre}
+      $={(self: Gtk.Widget) => tituloBarra(self, nombre)}
     >
       <label cssClasses={["bluetooth-icon"]} label="󰂱" />
     </box>
