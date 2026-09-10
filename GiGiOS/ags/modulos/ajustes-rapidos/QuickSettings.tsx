@@ -4861,7 +4861,15 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   // guardadas + escaneo activo (throttled). Reemplaza el rescan que hacía onWifiClick
   // y el `nmcli device wifi list` de arranque por monitor; ahora todo es perezoso.
   qsView.subscribe(() => {
-    if (qsView.get() !== "wifi") return
+    if (qsView.get() !== "wifi") {
+      // Al salir de la vista se descarta el intento de contraseña a medias: el
+      // menú no se desmonta (solo se oculta con `visible`), así que sin esto el
+      // formulario seguía ahí al volver a entrar.
+      setPasswordTarget(null)
+      setPasswordStr("")
+      setPasswordError(false)
+      return
+    }
     setApsVar(wifi.get_access_points())
     setWifiState({ ...wifiState(), ssid: wifi.ssid || "" })
     updateSaved()
@@ -4885,10 +4893,95 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   searchEntry.set_text(search())
   searchEntry.connect("changed", () => setSearch(searchEntry.text))
 
+  // El formulario de contraseña vive FIJO entre la cabecera y la lista, NO dentro
+  // del <For>. Metido en la lista, cada refresco de APs (el rescan manual, pero
+  // sobre todo los notify::access-points que NM emite solo al fluctuar la señal)
+  // reconstruía el Gtk.Entry: al re-pedir el foco por código GTK selecciona todo
+  // el texto (gtk-entry-select-on-focus), y el reordenado de la lista además lo
+  // desplazaba de sitio. Fijo y construido una sola vez —solo se rehace si cambia
+  // `passwordTarget`, nunca al teclear— el campo queda quieto y sin reselección.
+  const connectWithPassword = () => {
+    const ssid = passwordTarget()
+    if (!ssid) return
+    const pass = passwordStr()
+    if (!pass) return
+    setWifiState({ ...wifiState(), connecting: ssid })
+    setPasswordTarget(null)
+    setPasswordError(false)
+    execAsync(["bash", "-c", `timeout 20 nmcli device wifi connect "${ssid}" password "${pass}"`])
+      .then(() => {
+        setPasswordStr("")
+        setWifiState({ ...wifiState(), connecting: null })
+        updateSaved()
+      })
+      .catch(e => {
+        console.error("WiFi Connect Error:", e)
+        setWifiState({ ...wifiState(), connecting: null })
+        setPasswordStr("")
+        setPasswordError(true)
+        setPasswordTarget(ssid)   // contraseña incorrecta: volver a pedirla
+      })
+  }
+
+  const cerrarPassword = () => {
+    setPasswordTarget(null)
+    setPasswordStr("")
+    setPasswordError(false)
+  }
+
+  const formularioPassword = (target: string) => (
+    <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["qs-wifi-item", "password-prompt"]} spacing={6}>
+      <label
+        label={passwordError((err) => err
+          ? `Contraseña incorrecta · ${target}`
+          : `Contraseña para ${target}`)}
+        halign={Gtk.Align.START}
+        cssClasses={passwordError((err) => err
+          ? ["qs-wifi-password-label", "error"]
+          : ["qs-wifi-password-label"])}
+      />
+      <box spacing={6}>
+        <Gtk.Entry
+          $={(self: Gtk.Entry) => {
+            // grab_focus() en el `$` es prematuro: el widget todavía no está
+            // insertado, así que no toma el foco. Se pide en un idle, ya montado.
+            // set_position(-1) deshace la selección total que GTK hace al enfocar
+            // por código, dejando el cursor al final.
+            GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+              if (self.get_root()) {
+                self.grab_focus()
+                self.set_position(-1)
+              }
+              return GLib.SOURCE_REMOVE
+            })
+          }}
+          placeholderText="Escribe y presiona Enter"
+          visibility={false}
+          hexpand
+          text={passwordStr()}
+          onChanged={(self) => setPasswordStr(self.text)}
+          onActivate={connectWithPassword}
+        />
+        <button cssClasses={["qs-icon-btn"]} onClicked={connectWithPassword}>
+          <label label="󰄬" />
+        </button>
+        <button cssClasses={["qs-icon-btn"]} onClicked={cerrarPassword}>
+          <label label="󰅖" />
+        </button>
+      </box>
+    </box>
+  )
+
   return (
     <box cssClasses={["qs-wifi-menu"]} orientation={Gtk.Orientation.VERTICAL} spacing={8}>
       <Gtk.EventControllerKey
-        onKeyPressed={(self, keyval, _keycode, state) => handleSearchSectionKey(self, searchEntry, keyval, state)}
+        onKeyPressed={(self, keyval, _keycode, state) => {
+          // Con el formulario de contraseña abierto, las pulsaciones van a ese
+          // campo, no al buscador de redes (si no, escribir la contraseña
+          // filtraba la lista y el foco saltaba al buscador).
+          if (passwordTarget()) return false
+          return handleSearchSectionKey(self, searchEntry, keyval, state)
+        }}
       />
       <QsMenuHeader title="Wi-Fi" onBack={onBack} titleHexpand={false}>
         <box cssClasses={["qs-wifi-search"]} spacing={0} hexpand valign={Gtk.Align.CENTER}>
@@ -4907,6 +5000,18 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
           alAlternar={() => execAsync(["bash", "-c", wifi.enabled ? "nmcli radio wifi off" : "nmcli radio wifi on"])}
         />
       </QsMenuHeader>
+
+      {/* La <box> NO es decorativa: un <With> cuyo valor cambia DESPUÉS de construirse
+          añade su hijo con `append`, o sea AL FINAL del contenedor. Colgado a pelo de
+          `qs-wifi-menu`, el formulario acababa debajo de la lista en vez de aquí.
+          Dentro de su propia caja es el único hijo y el final es su sitio. El caso
+          cerrado devuelve `<box />` y no `false` (ver la sección de `<With>` en
+          CLAUDE.md: sin hijo, el scope anterior no se dispone). */}
+      <box orientation={Gtk.Orientation.VERTICAL} visible={passwordTarget((t) => !!t)}>
+        <With value={passwordTarget}>
+          {(target: string | null) => target ? formularioPassword(target) : <box />}
+        </With>
+      </box>
 
       <Gtk.ScrolledWindow
         cssClasses={["qs-wifi-list-scroll"]}
@@ -4944,89 +5049,8 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
               else if (ap.wpaFlags > 0) secType = "WPA"
               else if (ap.flags > 0) secType = "WEP"
 
-              // El formulario de contraseña se monta/desmonta de forma REACTIVA. Antes se
-              // decidía con un `if (passwordTarget() === ap.ssid)` evaluado al CONSTRUIR la
-              // fila, y `For` sólo reconstruye hijos cuando cambia la lista de APs: al enviar
-              // la contraseña, `setPasswordTarget(null)` no reconstruía nada y el formulario
-              // se quedaba en pantalla hasta el siguiente escaneo (efecto sin ningún error).
-              const pidiendoPassword = passwordTarget((t) => t === ap.ssid)
-
-              const connectWithPassword = () => {
-                const pass = passwordStr()
-                if (!pass) return
-                setWifiState({ ...wifiState(), connecting: ap.ssid })
-                setPasswordTarget(null)
-                setPasswordError(false)
-                execAsync(["bash", "-c", `timeout 20 nmcli device wifi connect "${ap.ssid}" password "${pass}"`])
-                  .then(() => {
-                    setPasswordStr("")
-                    setWifiState({ ...wifiState(), connecting: null })
-                    updateSaved()
-                  })
-                  .catch(e => {
-                    console.error("WiFi Connect Error:", e)
-                    setWifiState({ ...wifiState(), connecting: null })
-                    setPasswordStr("")
-                    setPasswordError(true)
-                    setPasswordTarget(ap.ssid)   // contraseña incorrecta: volver a pedirla
-                  })
-              }
-
-              const cerrarPassword = () => {
-                setPasswordTarget(null)
-                setPasswordStr("")
-                setPasswordError(false)
-              }
-
-              const formularioPassword = () => (
-                <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["qs-wifi-item", "password-prompt"]} spacing={6}>
-                  <label
-                    label={passwordError((err) => err
-                      ? `Contraseña incorrecta · ${ap.ssid}`
-                      : `Contraseña para ${ap.ssid}`)}
-                    halign={Gtk.Align.START}
-                    cssClasses={passwordError((err) => err
-                      ? ["qs-wifi-password-label", "error"]
-                      : ["qs-wifi-password-label"])}
-                  />
-                  <box spacing={6}>
-                    <Gtk.Entry
-                      $={(self: Gtk.Entry) => {
-                        // grab_focus() en el `$` es prematuro: el widget todavía no está
-                        // insertado en la lista, así que no toma el foco y tampoco da error.
-                        // Se pide en un idle, ya montado.
-                        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-                          if (self.get_root()) self.grab_focus()
-                          return GLib.SOURCE_REMOVE
-                        })
-                      }}
-                      placeholderText="Escribe y presiona Enter"
-                      visibility={false}
-                      hexpand
-                      text={passwordStr()}
-                      onChanged={(self) => setPasswordStr(self.text)}
-                      onActivate={connectWithPassword}
-                    />
-                    <button cssClasses={["qs-icon-btn"]} onClicked={connectWithPassword}>
-                      <label label="󰄬" />
-                    </button>
-                    <button cssClasses={["qs-icon-btn"]} onClicked={cerrarPassword}>
-                      <label label="󰅖" />
-                    </button>
-                  </box>
-                </box>
-              )
-
               return (
                 <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
-                  <With value={pidiendoPassword}>
-                    {(pidiendo: boolean) => pidiendo && formularioPassword()}
-                  </With>
-                  <box
-                    orientation={Gtk.Orientation.VERTICAL}
-                    spacing={0}
-                    visible={passwordTarget((t) => t !== ap.ssid)}
-                  >
                   <button
                     cssClasses={wifiState((s) => {
                     const active = s.ssid === ap.ssid
@@ -5127,7 +5151,6 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
                     </box>
                   </box>
                 </revealer>
-                  </box>
               </box>
             )
             }}
@@ -5484,6 +5507,11 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
 
   reclipInput = clipWindowInputToContent(result, qsPanelRef, {
     superficieCompletaMientras: () => entranceActive,
+    // El panel cambia de alto sin que nadie avise al recorte: el formulario de
+    // contraseña Wi-Fi, las fichas de info de cada red, los desplegables… Sin
+    // esto la franja nueva de abajo se quedaba sin entrada y, al pasar el ratón
+    // por ella, el panel se daba por abandonado y se cerraba.
+    seguirAsignacion: true,
   })
   return result
 }

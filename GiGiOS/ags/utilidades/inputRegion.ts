@@ -21,6 +21,16 @@ interface OpcionesRecorteEntrada {
    * de CSS en la asignación del widget), así que cualquier silueta que se calcule
    * durante el recorrido deja muerta la parte del panel que aún no ha llegado. */
   superficieCompletaMientras?: () => boolean
+  /** Vuelve a medir tras cada frame PINTADO y reaplica si la silueta cambió.
+   * Hace falta cuando el contenido cambia de alto dentro de la ventana: al crecer,
+   * `notify::height` de la superficie llega ANTES de que GTK reasigne los hijos a
+   * la medida nueva (medido: superficie 348 px, contenido aún 198), así que el
+   * tick+idle mide la asignación vieja, aplica una región corta y nada vuelve a
+   * medir — la franja nueva de abajo se queda sin entrada. `after-paint` corre
+   * con el layout ya hecho, y sin frames no corre: con la ventana quieta no cuesta
+   * nada. Es opt-in porque un contenido que se mueve cada frame (el lagarto)
+   * reaplicaría la región en cada uno. */
+  seguirAsignacion?: boolean
 }
 
 function anadirRectanguloRedondeado(
@@ -102,7 +112,8 @@ function anadirCurvasInferioresLaterales(
 // posición transformada y, sin esa segunda medición, el recorte quedaría desplazado.
 // Los cambios de tamaño de la superficie y de visibilidad de los contenidos se
 // observan automáticamente más abajo. Si cambia la geometría interna sin cambiar
-// la superficie, el llamador debe invocar la función devuelta.
+// la superficie, el llamador debe invocar la función devuelta — o pedir
+// `seguirAsignacion`, que además cubre el crecimiento de la superficie (ver la opción).
 export function clipWindowInputToContent(
   win: any,
   contenido: any,
@@ -118,6 +129,32 @@ export function clipWindowInputToContent(
     try { surface.set_input_region(new (cairo as any).Region()) } catch (_) {}
   }
 
+  // Firma de los rectángulos de la última región aplicada, para que el seguimiento
+  // tras cada frame (`seguirAsignacion`) solo hable con el compositor si cambió.
+  let ultimaFirma: string | null = null
+
+  const medirContenidos = () => {
+    const rectangulos: { x: number; y: number; width: number; height: number }[] = []
+    for (const contenido of contenidos) {
+      if (!contenido || contenido.get_visible?.() === false) continue
+      const res = contenido.compute_bounds(win)
+      // gjs devuelve [ok, Graphene.Rect].
+      const ok = Array.isArray(res) ? res[0] : false
+      const rect = Array.isArray(res) ? res[1] : null
+      if (!ok || !rect) continue
+      const x = Math.floor(rect.origin.x)
+      const y = Math.floor(rect.origin.y)
+      const w = Math.ceil(rect.size.width)
+      const h = Math.ceil(rect.size.height)
+      if (w <= 0 || h <= 0) continue
+      rectangulos.push({ x, y, width: w, height: h })
+    }
+    return rectangulos
+  }
+
+  const firmaDe = (rectangulos: { x: number; y: number; width: number; height: number }[]) =>
+    rectangulos.map((r) => `${r.x},${r.y},${r.width},${r.height}`).join(";")
+
   const apply = () => {
     try {
       const surface = win.get_surface?.()
@@ -132,26 +169,17 @@ export function clipWindowInputToContent(
         const completa = new (cairo as any).Region()
         completa.unionRectangle({ x: 0, y: 0, width: ancho, height: alto })
         surface.set_input_region(completa)
+        ultimaFirma = null
         return
       }
 
+      const rectangulos = medirContenidos()
+      // No sustituir una región anterior por una vacía durante el desmontaje de
+      // la ventana; el siguiente map volverá a medir todos los contenidos.
+      if (rectangulos.length === 0) return
+
       const region = new (cairo as any).Region()
-      let contenidosValidos = 0
-
-      for (const contenido of contenidos) {
-        if (!contenido || contenido.get_visible?.() === false) continue
-        const res = contenido.compute_bounds(win)
-        // gjs devuelve [ok, Graphene.Rect].
-        const ok = Array.isArray(res) ? res[0] : false
-        const rect = Array.isArray(res) ? res[1] : null
-        if (!ok || !rect) continue
-        const x = Math.floor(rect.origin.x)
-        const y = Math.floor(rect.origin.y)
-        const w = Math.ceil(rect.size.width)
-        const h = Math.ceil(rect.size.height)
-        if (w <= 0 || h <= 0) continue
-
-        const rectangulo = { x, y, width: w, height: h }
+      for (const rectangulo of rectangulos) {
         if (opciones.radioEsquinas) {
           anadirRectanguloRedondeado(region, rectangulo, opciones.radioEsquinas)
         } else {
@@ -164,17 +192,39 @@ export function clipWindowInputToContent(
             opciones.radioCurvasInferioresLaterales,
           )
         }
-        contenidosValidos++
       }
-
-      // No sustituir una región anterior por una vacía durante el desmontaje de
-      // la ventana; el siguiente map volverá a medir todos los contenidos.
-      if (contenidosValidos === 0) return
       surface.set_input_region(region)
+      ultimaFirma = firmaDe(rectangulos)
     } catch (e) {
       // Si algo no está disponible, se conserva de forma segura la región predeterminada.
       console.error("[inputRegion] clip failed:", e)
     }
+  }
+
+  // `seguirAsignacion`: tras cada frame pintado el layout ya es el definitivo.
+  // Si la silueta difiere de la aplicada se reaplica, y se pide un frame más para
+  // que la región nueva viaje en un commit sin esperar a que otra cosa repinte.
+  const alPintar = () => {
+    if (opciones.superficieCompletaMientras?.()) return
+    try {
+      const rectangulos = medirContenidos()
+      if (rectangulos.length === 0 || firmaDe(rectangulos) === ultimaFirma) return
+    } catch (_) {
+      return
+    }
+    apply()
+    try { win.queue_draw?.() } catch (_) {}
+  }
+
+  let relojHandler: { reloj: any; id: number } | null = null
+  const engancharReloj = () => {
+    if (!opciones.seguirAsignacion) return
+    const reloj = win.get_frame_clock?.()
+    if (!reloj || relojHandler?.reloj === reloj) return
+    if (relojHandler) {
+      try { relojHandler.reloj.disconnect(relojHandler.id) } catch (_) {}
+    }
+    relojHandler = { reloj, id: reloj.connect("after-paint", alPintar) }
   }
 
   function programarAplicacionIdle(): void {
@@ -248,8 +298,8 @@ export function clipWindowInputToContent(
   // `realize` ocurre antes del primer `map`: cuando GDK ya ofrece la superficie,
   // se elimina su rectángulo de entrada incluso antes de anunciarla visible.
   win.connect("realize", () => vaciarRegionEntrada(win.get_surface?.()))
-  win.connect("map", () => { hookSurface(); scheduleApply() })
-  if (win.get_mapped?.()) { hookSurface(); scheduleApply() }
+  win.connect("map", () => { hookSurface(); engancharReloj(); scheduleApply() })
+  if (win.get_mapped?.()) { hookSurface(); engancharReloj(); scheduleApply() }
 
   // El llamador debe invocarla al terminar cualquier animación de entrada con transform.
   return scheduleApply
