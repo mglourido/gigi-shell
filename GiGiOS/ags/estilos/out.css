@@ -4493,15 +4493,6 @@ window.np-window.csd decoration {
 .np-filter-scroll {
   margin-top: 6px;
 }
-.np-filter-scroll scrollbar, .np-filter-scroll scrollbar slider {
-  opacity: 0;
-  min-height: 0;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  margin: 0;
-  padding: 0;
-}
 
 .np-filter-row {
   padding: 0;

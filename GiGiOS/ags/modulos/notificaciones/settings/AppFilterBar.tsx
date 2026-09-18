@@ -10,8 +10,27 @@ export default function AppFilterBar(props: {
   active: Accessor<string>
   onSelect: (app: string) => void
 }) {
+  // La barra no lleva scrollbar: la política EXTERNAL evita que GTK la dibuje y la reserve
+  // (con una barra "invisible" por CSS seguía siendo pulsable). La rueda se maneja a mano
+  // desde un controlador puesto en TODA la fila, no solo sobre el ScrolledWindow.
+  let ventanaScroll: Gtk.ScrolledWindow | null = null
+
+  function conectarRueda(fila: Gtk.Box): void {
+    const controlador = new Gtk.EventControllerScroll({
+      flags: Gtk.EventControllerScrollFlags.BOTH_AXES,
+    })
+    controlador.connect("scroll", (_controlador, dx, dy) => {
+      if (!ventanaScroll) return false
+      const ajuste = ventanaScroll.get_hadjustment()
+      const delta = dx !== 0 ? dx : dy
+      ajuste.set_value(ajuste.get_value() + delta * 40)
+      return true
+    })
+    fila.add_controller(controlador)
+  }
+
   return (
-    <box cssClasses={["np-filter-row"]} spacing={2}>
+    <box cssClasses={["np-filter-row"]} spacing={2} $={conectarRueda}>
       <button
         cssClasses={props.active((f) => f === "all" ? ["np-filter-chip", "active"] : ["np-filter-chip"])}
         onClicked={() => props.onSelect("all")}
@@ -21,8 +40,9 @@ export default function AppFilterBar(props: {
 
       <Gtk.ScrolledWindow
         cssClasses={["np-filter-scroll"]}
-        hscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+        hscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
         vscrollbarPolicy={Gtk.PolicyType.NEVER}
+        $={(ventana: Gtk.ScrolledWindow) => { ventanaScroll = ventana }}
         kineticScrolling={false}
         propagateNaturalHeight={true}
         hexpand
