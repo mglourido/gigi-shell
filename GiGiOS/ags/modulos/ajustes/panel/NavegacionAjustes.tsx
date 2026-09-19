@@ -12,6 +12,17 @@ import textos from "../../../textos/ajustes/general.json" with { type: "json" }
 // que de verdad le queda.
 const MARCO_NAV = 76
 
+// Alto de una fila de nav: `.sp-nav-item` fija `min-height: 32px` en `estilos/style.scss`
+// y las filas se apilan en cajas con `spacing={2}`, así que cada una ocupa 34px de verdad.
+const ALTO_FILA_NAV = 34
+
+// Filas si TODOS los grupos estuvieran desplegados a la vez: los destinos sueltos de
+// `ITEMS_NAVEGACION` más los hijos de cada grupo. Se calcula de los datos, nunca a mano,
+// para que añadir o quitar una sección no desincronice este número.
+const FILAS_NAV_EXPANDIDA =
+  ITEMS_NAVEGACION.length +
+  ITEMS_NAVEGACION.reduce((total, item) => total + (esGrupo(item) ? item.hijos.length : 0), 0)
+
 function FilaDestino({
   destino, seccion, seleccionar, indentado,
 }: {
@@ -76,15 +87,16 @@ export default function NavegacionAjustes({
   // El alto del panel lo estira ESTA lista, no la sección abierta: la nav es lo único
   // constante entre secciones, así que el panel deja de cambiar de tamaño al navegar. El
   // techo es lo que quepa en la pantalla; a partir de ahí la lista se desplaza.
+  // Además, min == max: así el panel se planta en el alto que le tocaría con TODOS los
+  // grupos desplegados (acotado por la pantalla) desde el principio, y abrir o cerrar un
+  // acordeón no cambia el alto que pide la lista — la ventana deja de "respirar" al navegar.
   const aplicarTecho = () => {
-    lista?.set_max_content_height(Math.max(1, espacioDisponible(gdkmonitor).alto - MARCO_NAV))
+    const techoPantalla = Math.max(1, espacioDisponible(gdkmonitor).alto - MARCO_NAV)
+    const altoExpandido = FILAS_NAV_EXPANDIDA * ALTO_FILA_NAV
+    const alto = Math.min(techoPantalla, altoExpandido)
+    lista?.set_min_content_height(alto)
+    lista?.set_max_content_height(alto)
   }
-
-  // Snapshot al construir la nav (una vez por ventana/monitor, como `seccion`
-  // misma): decide solo qué grupo arranca desplegado, el que contiene la
-  // sección activa, para que reabrir Ajustes no la deje escondida detrás de
-  // un acordeón cerrado. No se vuelve a leer después.
-  const seccionInicial = seccion.get()
 
   return (
     // `hexpand={false}` EXPLÍCITO, y es obligatorio: en GTK4 el hexpand de un hijo sube
@@ -122,7 +134,13 @@ export default function NavegacionAjustes({
             }
 
             const grupo = item
-            const [abierto, setAbierto] = createState(grupo.hijos.includes(seccionInicial))
+            // Todos los grupos arrancan cerrados. El estado de abierto/cerrado sobrevive a
+            // cerrar y reabrir la ventana de ajustes porque esta nav (y sus `createState` de
+            // acordeón) se construye una sola vez, al arrancar el shell, y vive tanto como la
+            // ventana: `SettingsPanel` solo alterna su `visible`, nunca la reconstruye. Es eso
+            // —no releer `seccion`— lo que hace que reabrir Ajustes encuentre el grupo tal
+            // como se dejó.
+            const [abierto, setAbierto] = createState(false)
 
             return (
               <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
