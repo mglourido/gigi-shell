@@ -5587,7 +5587,11 @@ window.cal-window.csd decoration {
 }
 
 .sp-nav {
-  min-width: 225px;
+  /* Los hijos del acordeón van sangrados, así que su etiqueta necesita más sitio que
+     una de primer nivel para no salir recortada. El tope de ancho NO se pone aquí:
+     GTK4 no implementa `max-width` y lo ignora en silencio — lo acota
+     `MAX_CARACTERES_ETIQUETA` en `panel/NavegacionAjustes.tsx`. */
+  min-width: 252px;
   padding: 16px 10px;
   background: rgba(255, 255, 255, 0.02);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -5640,8 +5644,16 @@ window.cal-window.csd decoration {
   font-size: 10px;
   color: rgba($text, 0.35);
 }
+/* La guía vertical del acordeón abierto. Va en la CAJA de los hijos, no en cada fila:
+   así es una sola línea continua de arriba abajo del grupo, y no un trocito por fila
+   con huecos en el `spacing={2}` que las separa. */
+.sp-nav-grupo-hijos {
+  margin-left: 15px;
+  border-left: 1px solid rgba($text, 0.14);
+}
 .sp-nav-item-hijo {
-  .sp-nav-content { padding-left: 18px; }
+  /* 15 de margen + 1 de línea + estos 8 = la sangría total del hijo. */
+  .sp-nav-content { padding-left: 8px; }
 }
 
 .sp-content {

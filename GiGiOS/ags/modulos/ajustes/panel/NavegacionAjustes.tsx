@@ -1,5 +1,6 @@
 import { createState, type Accessor } from "ags"
 import { Gtk, Gdk } from "ags/gtk4"
+import Pango from "gi://Pango"
 import { espacioDisponible, seguirGeometriaMonitor } from "../../../utilidades/tamanoLamina"
 import {
   ITEMS_NAVEGACION, SECCIONES_POR_ID, esGrupo,
@@ -15,6 +16,16 @@ const MARCO_NAV = 76
 // Alto de una fila de nav: `.sp-nav-item` fija `min-height: 32px` en `estilos/style.scss`
 // y las filas se apilan en cajas con `spacing={2}`, así que cada una ocupa 34px de verdad.
 const ALTO_FILA_NAV = 34
+
+// Tope de ancho NATURAL de una etiqueta de la nav, en caracteres. Es lo que impide que
+// un destino de nombre largo ensanche la nav entera: la nav mide lo que mide su etiqueta
+// más ancha, y un hijo de acordeón suma además su sangría, así que "Información del
+// sistema" colgando de Sistema empujaba el ancho de toda la lista. **En GTK4 esto NO se
+// arregla con CSS**: su motor no implementa `max-width` y lo ignora sin dar ningún error.
+// `ellipsize` por sí solo tampoco basta —acorta el texto pintado, pero la etiqueta sigue
+// PIDIENDO su ancho natural completo—, así que hacen falta los dos: el tope de caracteres
+// acota lo que pide y `ellipsize` decide qué hacer cuando no cabe.
+const MAX_CARACTERES_ETIQUETA = 24
 
 // Filas si TODOS los grupos estuvieran desplegados a la vez: los destinos sueltos de
 // `ITEMS_NAVEGACION` más los hijos de cada grupo. Se calcula de los datos, nunca a mano,
@@ -67,6 +78,8 @@ function FilaDestino({
           halign={Gtk.Align.START}
           valign={Gtk.Align.CENTER}
           heightRequest={22}
+          maxWidthChars={MAX_CARACTERES_ETIQUETA}
+          ellipsize={Pango.EllipsizeMode.END}
           overflow={Gtk.Overflow.VISIBLE}
         />
       </box>
@@ -158,11 +171,11 @@ export default function NavegacionAjustes({
                     overflow={Gtk.Overflow.VISIBLE}
                   >
                     <label cssClasses={["sp-nav-icon"]} label={grupo.icon} valign={Gtk.Align.CENTER} heightRequest={22} overflow={Gtk.Overflow.VISIBLE} />
-                    <label cssClasses={["sp-nav-label"]} label={grupo.label} hexpand halign={Gtk.Align.START} valign={Gtk.Align.CENTER} heightRequest={22} overflow={Gtk.Overflow.VISIBLE} />
+                    <label cssClasses={["sp-nav-label"]} label={grupo.label} hexpand halign={Gtk.Align.START} valign={Gtk.Align.CENTER} heightRequest={22} maxWidthChars={MAX_CARACTERES_ETIQUETA} ellipsize={Pango.EllipsizeMode.END} overflow={Gtk.Overflow.VISIBLE} />
                     <label cssClasses={["sp-nav-chevron"]} label={abierto((a: boolean) => a ? "▾" : "▸")} valign={Gtk.Align.CENTER} />
                   </box>
                 </button>
-                <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={abierto}>
+                <box cssClasses={["sp-nav-grupo-hijos"]} orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={abierto}>
                   {grupo.hijos.map((idHijo) => (
                     <FilaDestino
                       destino={SECCIONES_POR_ID[idHijo]}
