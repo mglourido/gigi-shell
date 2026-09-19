@@ -29,6 +29,16 @@
     "escaneos": "Antivirus",
     "supervision": "Supervisor",
     "sistema": "Información del sistema",
-    "atajos": "Atajos de teclado"
+    "atajos": "Atajos de teclado",
+    "diseno": "Diseño",
+    "comportamiento": "Comportamiento"
+  },
+  "grupos": {
+    "general": "General",
+    "controles": "Controles",
+    "dispositivos": "Dispositivos",
+    "almacenamiento": "Almacenamiento",
+    "seguridad": "Seguridad",
+    "sistema": "Sistema"
   }
 }
