@@ -5633,6 +5633,18 @@ window.cal-window.csd decoration {
   }
 }
 
+.sp-nav-item-grupo {
+  font-weight: 600;
+}
+.sp-nav-chevron {
+  font-size: 10px;
+  color: rgba($text, 0.35);
+  font-family: $font-icon;
+}
+.sp-nav-item-hijo {
+  .sp-nav-content { padding-left: 18px; }
+}
+
 .sp-content {
   /* Sin min-width: este ScrolledWindow ocupa lo que sobra del ancho del panel. */
   padding: 18px 20px;
