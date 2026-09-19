@@ -1,55 +1,21 @@
 import { Gtk } from "ags/gtk4"
 import { AjusteInterruptor, TarjetaAjustes, TituloSeccion } from "../componentes"
 import LimpiezaPortapapeles from "./LimpiezaPortapapeles"
-import SelectorFondoShell from "./SelectorFondoShell"
 import {
-  acentoAdaptativoEnabled, setAcentoAdaptativoEnabled,
-  startupVolumeMuted, setStartupVolumeMuted,
-  startupMicMuted, setStartupMicMuted,
-  startupBluetoothOff, setStartupBluetoothOff,
-  volumeOsdEnabled, setVolumeOsdEnabled,
-  micOsdEnabled, setMicOsdEnabled,
-  brightnessOsdEnabled, setBrightnessOsdEnabled,
   orionEnabled, setOrionEnabled,
   orionAppsDefault, setOrionAppsDefault,
   orionRecordarUltimaSeccion, setOrionRecordarUltimaSeccion,
-  anclarVentanasRofi, setAnclarVentanasRofi,
-  escanerAppsInicio, setEscanerAppsInicio,
-  absorberSuperSinAtajo, setAbsorberSuperSinAtajo,
   clipboardHistoryEnabled, setClipboardHistoryEnabled,
   limpiezaPortapapelesAlIniciar, setLimpiezaPortapapelesAlIniciar,
 } from "../preferences"
 import textos from "../../../textos/ajustes/personalizacion.json" with { type: "json" }
 
-type VistaFunciones = "personalizacion" | "orion" | "portapapeles"
+type VistaFunciones = "orion" | "portapapeles"
 
 export default function SeccionFuncionesShell({ vista }: { vista: VistaFunciones }) {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
       <TituloSeccion titulo={textos.vistasFunciones[vista]} />
-
-      {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.apariencia} icono="󰏘">
-        <SelectorFondoShell />
-        <AjusteInterruptor titulo={textos.apariencia.acento.titulo} informacion={textos.apariencia.acento.descripcion} activo={acentoAdaptativoEnabled} alAlternar={() => setAcentoAdaptativoEnabled(!acentoAdaptativoEnabled.get())} />
-      </TarjetaAjustes>}
-
-      {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.sonidoInicio} icono="󰍃">
-        <AjusteInterruptor titulo={textos.inicioAudio.volumen.titulo} informacion={textos.inicioAudio.volumen.descripcion} activo={startupVolumeMuted} alAlternar={() => setStartupVolumeMuted(!startupVolumeMuted.get())} />
-        <AjusteInterruptor titulo={textos.inicioAudio.microfono.titulo} informacion={textos.inicioAudio.microfono.descripcion} activo={startupMicMuted} alAlternar={() => setStartupMicMuted(!startupMicMuted.get())} />
-        <AjusteInterruptor titulo={textos.inicioConectividad.bluetooth.titulo} informacion={textos.inicioConectividad.bluetooth.descripcion} activo={startupBluetoothOff} alAlternar={() => setStartupBluetoothOff(!startupBluetoothOff.get())} />
-      </TarjetaAjustes>}
-
-      {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.indicadores} icono="󰕾">
-        <AjusteInterruptor titulo={textos.osd.volumen.titulo} informacion={textos.osd.volumen.descripcion} activo={volumeOsdEnabled} alAlternar={() => setVolumeOsdEnabled(!volumeOsdEnabled.get())} />
-        <AjusteInterruptor titulo={textos.osd.microfono.titulo} informacion={textos.osd.microfono.descripcion} activo={micOsdEnabled} alAlternar={() => setMicOsdEnabled(!micOsdEnabled.get())} />
-        <AjusteInterruptor titulo={textos.osd.brillo.titulo} informacion={textos.osd.brillo.descripcion} activo={brightnessOsdEnabled} alAlternar={() => setBrightnessOsdEnabled(!brightnessOsdEnabled.get())} />
-      </TarjetaAjustes>}
-
-      {vista === "personalizacion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.ventanas} icono="󰖯">
-        <AjusteInterruptor titulo={textos.ventanas.anclaje.titulo} informacion={textos.ventanas.anclaje.descripcion} activo={anclarVentanasRofi} alAlternar={() => setAnclarVentanasRofi(!anclarVentanasRofi.get())} />
-        <AjusteInterruptor titulo={textos.ventanas.escanerInicio.titulo} informacion={textos.ventanas.escanerInicio.descripcion} activo={escanerAppsInicio} alAlternar={() => setEscanerAppsInicio(!escanerAppsInicio.get())} />
-        <AjusteInterruptor titulo={textos.ventanas.superSordo.titulo} informacion={textos.ventanas.superSordo.descripcion} activo={absorberSuperSinAtajo} alAlternar={() => setAbsorberSuperSinAtajo(!absorberSuperSinAtajo.get())} />
-      </TarjetaAjustes>}
 
       {vista === "orion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.orion} icono="󰆍">
         <AjusteInterruptor titulo={textos.orion.menu.titulo} informacion={textos.orion.menu.descripcion} activo={orionEnabled} alAlternar={() => setOrionEnabled(!orionEnabled.get())} />

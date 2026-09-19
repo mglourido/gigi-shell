@@ -40,7 +40,7 @@ function SliderRow({ setting, label, hint, min, max, step, format }: {
   scale.cssClasses = ["qs-slider", "dev-slider"]
   conectarCambioDeslizador(scale, (value) =>
     updateDeviceSettings({ [setting]: Math.round(value / step) * step }))
-  // onCleanup, NUNCA connect("destroy"): ver SeccionBarraEscritorios.tsx.
+  // onCleanup, NUNCA connect("destroy"): ver SettingsPanel.tsx (CLAUDE.md raíz).
   // El handler de `destroy` no corría al desmontar con <With>, así que cada visita a
   // Ratón/Touchpad/Teclado/Impresoras añadía un suscriptor permanente a deviceSettings.
   onCleanup(deviceSettings.subscribe(() => { adjustment.value = Number(deviceSettings.get()[setting]) }))
