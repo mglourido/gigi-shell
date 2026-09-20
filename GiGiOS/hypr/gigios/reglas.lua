@@ -229,6 +229,10 @@ hl.layer_rule({
     name  = "notificaciones-popup-sin-anim",
     match = { namespace = "notification-popups" },
     animation = "none",
+    -- La misma pila de AGS se ve sobre hyprlock, con título y cuerpo completos.
+    -- El valor 1 solo permite verla: los clics, botones y acciones del popup
+    -- no deben funcionar sin desbloquear.
+    above_lock = 1,
 })
 
 hl.layer_rule({

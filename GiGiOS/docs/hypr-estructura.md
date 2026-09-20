@@ -29,7 +29,8 @@ hypr/                       (symlink: ~/.config/hypr)
 │   ├── pantalla.lua         lee display.json (Ajustes > Pantalla)
 │   ├── dispositivos.lua     lee devices.json (Ajustes > Dispositivos)
 ├── hypridle.conf            otro binario; lo lanza el autostart
-├── hyprlock.conf            otro binario; lo invoca hypridle/idle-action.sh
+├── hyprlock.conf            pantalla de bloqueo, base sin meteorología
+├── hyprlock-tiempo.conf     añade meteorología si hay ubicación permitida
 ├── hyprpaper.conf           vacío, sin uso (el wallpaper va por awww)
 ├── shaders/                 shaders de corrección de color (daltonismo)
 │   └── daltonismo-{protanopia,deuteranopia,tritanopia}.frag
@@ -107,8 +108,21 @@ propósito (así lo dice el anuncio oficial de Hyprland 0.55: no necesitan un
 lenguaje Turing-completo). `hypridle` lo lanza `gigios/autostart.lua`, y sus
 `on-timeout` no ejecutan la acción directamente sino que pasan por
 `scripts/idle-action.sh` (la puerta del "Wake up" — ver `CLAUDE.md`).
-`hyprlock.conf` no se lanza nunca por sí solo: lo invoca `hypridle` (`lock_cmd`,
-`before_sleep_cmd`) o el propio `idle-action.sh` en su rama `lock`.
+`hyprlock.conf` no se lanza nunca por sí solo: `hypridle` (`lock_cmd`,
+`before_sleep_cmd`), `idle-action.sh` y AGS pasan por `scripts/bloquear.sh`.
+Este avanza la cola de `scripts/fondo-bloqueo.py`, incluso entre bloqueos:
+hyprlock recarga cada 30 s con fundido y recorre los fondos sin repetir hasta
+agotar cada vuelta. El widget
+del tiempo solo se añade si `~/.config/gigios/datetime.json` permite una ubicación
+con coordenadas; entonces consulta Open-Meteo cada diez minutos mientras dura el bloqueo.
+
+**Primera tecla tras despertar.** Si la pantalla estaba apagada, Hyprland puede
+usar esa tecla para activar DPMS antes de entregarla al bloqueo. Tras suspensión
+también hay [un fallo abierto en hyprlock](https://github.com/hyprwm/hyprlock/issues/499)
+por el que la primera pulsación puede perderse con la pantalla ya visible. Las
+opciones visuales del campo no reenvían ese evento: no se deben simular teclas
+ni modificar PAM para compensarlo. El campo mantiene los puntos visibles para
+que el usuario vea cuántos caracteres se registraron.
 
 ## Perfiles de GPU: `gigios/gpu/`
 

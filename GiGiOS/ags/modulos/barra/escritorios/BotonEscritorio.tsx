@@ -134,7 +134,7 @@ export default function BotonEscritorio({
         <Gtk.Image
           cssClasses={["ws-app-icon", "ws-image-icon"]}
           gicon={clientes((iconos) => iconos[indice]?.iconoGio ?? null)}
-          pixelSize={19}
+          pixelSize={20}
           visible={clientes((iconos) => !!(
             iconos[indice] && !iconos[indice].esGlifo && iconos[indice].iconoGio
           ))}
@@ -146,7 +146,7 @@ export default function BotonEscritorio({
           iconName={clientes((iconos) =>
             iconos[indice]?.esGlifo ? "" : (iconos[indice]?.icono ?? "")
           )}
-          pixelSize={19}
+          pixelSize={20}
           visible={clientes((iconos) => !!(
             iconos[indice] && !iconos[indice].esGlifo && !iconos[indice].iconoGio
           ))}

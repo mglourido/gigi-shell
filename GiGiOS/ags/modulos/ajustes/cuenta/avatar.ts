@@ -10,7 +10,7 @@ import textos from "../../../textos/ajustes/cuenta.json" with { type: "json" }
 export const AVATAR_PATH = `${GLib.get_user_data_dir()}/gigios/face.png`
 
 // Lado de la copia que se guarda. Los consumidores pintan círculos pequeños —AGS a
-// 30 px (barra) y 46 px (Ajustes > Cuenta), hyprlock a 130 px con `rounding = -1`—,
+// 30 px (barra) y 46 px (Ajustes > Cuenta), hyprlock a 26 px con `rounding = -1`—,
 // así que 1024 es holgado a propósito: la foto se importa UNA vez y es la única que
 // queda (el original puede desaparecer), mientras que guardarla a la medida de hoy
 // obligaría a volver a pedirla el día que un consumidor crezca o el monitor tenga

@@ -345,7 +345,7 @@ export function alternarSuspensionFalsa(): boolean {
  * no hay ni UI donde apagarlo. Hyprland tampoco publica un evento de session-lock que se
  * pueda escuchar.
  *
- * Por eso hyprlock se lanza DESDE AQUÍ con `Gio.Subprocess` en vez de por `idle-action.sh`:
+ * Por eso el lanzador de hyprlock se invoca DESDE AQUÍ con `Gio.Subprocess` en vez de por `idle-action.sh`:
  * así hay un hijo al que esperar, y `wait_async` avisa exactamente cuando el usuario
  * desbloquea. Cero sondeo y cero latencia.
  *
@@ -363,8 +363,18 @@ function bloquearYEsperarDesbloqueo() {
   }
 
   try {
-    const hyprlock = Gio.Subprocess.new(["hyprlock"], Gio.SubprocessFlags.NONE)
-    hyprlock.wait_async(null, () => {
+    // bloquear.sh prepara la misma cola de fondos que los demás caminos y hace exec,
+    // así que wait_async sigue observando al proceso hyprlock, sin shell intermedia.
+    const hyprlock = Gio.Subprocess.new([`${GLib.get_home_dir()}/.config/hypr/scripts/bloquear.sh`], Gio.SubprocessFlags.NONE)
+    hyprlock.wait_async(null, (_origen, resultado) => {
+      try { hyprlock.wait_finish(resultado) }
+      catch (error) { console.error("[suspension-falsa] espera del bloqueo falló:", error) }
+      // Si otro camino bloqueó entre hayHyprlock() y la guarda del lanzador,
+      // este hijo termina enseguida. Seguimos al bloqueo real antes de salir.
+      if (hayHyprlock()) {
+        vigilarDesbloqueoPorSondeo()
+        return
+      }
       // El desbloqueo es la orden de volver. Si la salida ya ocurrió por otra vía (el atajo,
       // el plazo), `salirSuspensionFalsa()` sale sola por su guarda.
       salirSuspensionFalsa().catch((e) => console.error("[suspension-falsa] salida tras desbloqueo:", e))

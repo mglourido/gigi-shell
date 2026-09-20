@@ -188,13 +188,13 @@ gobierna el último interruptor de la tarjeta (`writeBloqueoAlSuspender` en
 conservar el comando escrito. Ojo al tocar ese regex: `after_sleep_cmd` comparte sufijo con
 `before_sleep_cmd` y es lo único que vuelve a encender la pantalla al despertar.
 
-### Bloquear la pantalla: un solo camino (`bloquear.sh`) y el fondo aleatorio
+### Bloquear la pantalla: un solo camino (`bloquear.sh`) y la cola de fondos
 
-`hyprlock` **no se llama nunca directamente**. Los cuatro sitios que bloquean la sesión —
+`hyprlock` **no se llama nunca directamente**. Los cinco sitios que bloquean la sesión —
 `lock_cmd` de `hypridle.conf`, `lock_screen()` de `idle-action.sh`, la acción `bloquear` de
-`gigios/boton-apagado.lua` y el botón «Bloquear» del menú de energía de AGS
-(`modulos/menu-energia/acciones.ts`) — entran por `hypr/scripts/bloquear.sh`, que sortea el fondo
-y hace `exec hyprlock`.
+`gigios/boton-apagado.lua`, el botón «Bloquear» del menú de energía de AGS
+(`modulos/menu-energia/acciones.ts`) y la suspensión falsa — entran por
+`hypr/scripts/bloquear.sh`, que avanza la cola de fondos y hace `exec hyprlock`.
 
 **Por qué el sorteo no puede vivir en `hyprlock.conf`.** `hyprlock.conf` es hyprlang y hyprlang
 **no tiene sustitución de comandos**. El `cmd[update:N]` que usan las etiquetas de la hora es una
@@ -203,20 +203,27 @@ su config, la ruta del fondo ya tiene que estar escrita. Por eso alguien tiene q
 y ese alguien es el script.
 
 **El enlace del fondo no lleva extensión, y es a propósito.** `background { path = ... }` apunta a
-`~/.cache/gigios/hyprlock-fondo`, un symlink que el script reapunta a un `.jpg`/`.jpeg`/`.png`/
-`.webp` al azar de `Wallpapers/`. Con los cuatro formatos mezclados, un enlace con extensión fija
+`~/.cache/gigios/hyprlock-fondo`, un symlink que `fondo-bloqueo.py` reapunta a un `.jpg`/`.jpeg`/`.png`/
+`.webp` de `Wallpapers/`. Con los cuatro formatos mezclados, un enlace con extensión fija
 mentiría la mitad de las veces. Funciona porque hyprlock 0.9.6 carga las imágenes por
 **hyprgraphics**, que enlaza **libmagic** y decide el formato por los bytes del fichero, no por el
 nombre — comprobable con `ldd /usr/lib/libhyprgraphics.so.4 | grep magic`. Ojo si algún día se
 sustituye ese cargador: el fallo sería mudo (fondo negro, bloqueo por lo demás correcto).
 
-Está en la **caché** y no en `~/.config/gigios/` porque se regenera en cada bloqueo y no es una
-preferencia de nadie; borrarlo no rompe nada, el siguiente bloqueo lo repone.
+Está en la **caché** y no en `~/.config/gigios/` porque no es una preferencia de nadie;
+borrarlo no rompe nada, el siguiente bloqueo lo repone. En la misma caché queda la cola
+barajada: hyprlock cambia cada 30 s con fundido, no repite antes de agotar una vuelta y
+continúa los pendientes tras desbloquear y volver a bloquear.
 
-**El sorteo es fail-open, y aquí eso es seguridad, no comodidad.** Carpeta vacía, sin `shuf`, sin
+**La selección no puede impedir el bloqueo.** Carpeta vacía, sin Python, sin
 permisos de escritura en la caché: da igual, se bloquea igual con el fondo anterior o sin fondo. Un
 bloqueo de pantalla que no llega a ponerse porque no encontró una imagen bonita deja la sesión
 abierta, que es infinitamente peor que un rectángulo negro.
+
+La tarjeta meteorológica se añade mediante `hyprlock-tiempo.conf` solo si
+`datetime.json` permite la ubicación y guarda coordenadas válidas. La consulta a
+Open-Meteo ocurre después de aparecer el bloqueo y se repite cada diez minutos;
+si no hay red, la tarjeta muestra que el dato no está disponible.
 
 **La guarda de instancia única se mudó al script, y ahora es una sola.** hyprlock no la tiene
 (0.9.6: ni siquiera una cadena "already running" en el binario), así que llamarlo con uno ya puesto
@@ -4417,4 +4424,3 @@ largo con margen de sobra) para reducir despertares. Los tres leen su interrupto
   que hay otros dos a punto de decir lo mismo. Efecto lateral bueno: una reconexión dentro de la
   gracia ahora **anula** la pérdida pendiente en memoria en vez de resolverse con dos consultas más
   a `bluetoothctl`.
-

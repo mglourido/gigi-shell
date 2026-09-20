@@ -234,13 +234,8 @@ como fuente principal (glifos de icono incluidos), no JetBrainsMono:
 sudo pacman -S ttf-meslo-nerd
 ```
 
-`hyprlock.conf` usa además dos fuentes que **no están empaquetadas** — hay que copiar los
-`.otf` a mano al nuevo PC (están en `~/.local/share/fonts/` en esta máquina):
-
-- `SF Pro Display` (Bold y Regular) — `~/.local/share/fonts/SF Pro Display/`
-- `Steelfish Outline Regular` — `~/.local/share/fonts/steelfish outline regular/`
-
-Cópialas y corre `fc-cache -f` en el PC destino.
+`hyprlock.conf` usa `Noto Sans` y `Noto Sans Mono`, instaladas por `install.sh` mediante `noto-fonts`.
+No requiere copiar fuentes privadas al nuevo PC.
 
 ## 4. Bar / atajos / herramientas de escritorio
 
@@ -765,7 +760,7 @@ La foto de perfil es opcional y privada. Vive en **una sola ruta**,
 La forma normal de ponerla es **Ajustes > Cuenta**, que **no copia el original tal cual**:
 lo endereza por su orientación EXIF, lo recorta al cuadrado centrado más grande que quepa y
 lo reduce a 512x512 PNG (`ags/modulos/ajustes/cuenta/avatar.ts`). Los tres sitios donde se ve
-pintan un círculo pequeño —30 y 46 px en AGS, 130 px en hyprlock—, así que 512 sobra incluso a
+pintan un círculo pequeño —30 y 46 px en AGS, 26 px en hyprlock—, así que 512 sobra incluso a
 escala 2x; guardar la foto de móvil entera solo significaba decodificar 12 MP en cada
 redibujado y que el encuadre saliera distinto en el escritorio y en el bloqueo.
 
