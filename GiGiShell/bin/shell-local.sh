@@ -5,9 +5,9 @@
 #
 #   compartida, versionada          local de cada equipo, SIN versionar
 #   ~/.config/bash/bashrc           ~/.bashrc
-#   ~/.config/zsh/gigios.zshenv     ~/.config/zsh/.zshenv
-#   ~/.config/zsh/gigios.zshrc      ~/.config/zsh/.zshrc
-#   ~/.config/fish/conf.d/gigios.fish  ~/.config/fish/config.fish
+#   ~/.config/zsh/gigishell.zshenv     ~/.config/zsh/.zshenv
+#   ~/.config/zsh/gigishell.zshrc      ~/.config/zsh/.zshrc
+#   ~/.config/fish/conf.d/gigishell.fish  ~/.config/fish/config.fish
 #
 # El fichero local es el que la shell lee de verdad y el que tocan los
 # instaladores (rustup, bun, fnm, opam...): empieza cargando el compartido y
@@ -55,14 +55,14 @@ plantilla_bashrc() {
 }
 plantilla_zshenv() {
   printf '#!/usr/bin/env zsh\n\n'
-  cabecera '$ZDOTDIR/gigios.zshenv'
-  printf 'source "$ZDOTDIR/gigios.zshenv"\n'
+  cabecera '$ZDOTDIR/gigishell.zshenv'
+  printf 'source "$ZDOTDIR/gigishell.zshenv"\n'
 }
 plantilla_zshrc() {
   # Tiene que ser lo PRIMERO: el compartido arranca con el prompt instantáneo de
   # Powerlevel10k, que deja de servir si algo se ejecuta antes.
-  cabecera '$ZDOTDIR/gigios.zshrc'
-  printf 'source "$ZDOTDIR/gigios.zshrc"\n'
+  cabecera '$ZDOTDIR/gigishell.zshrc'
+  printf 'source "$ZDOTDIR/gigishell.zshrc"\n'
 }
 plantilla_fish() {
   # Fish carga conf.d/*.fish por su cuenta antes que config.fish: no hace falta
@@ -70,7 +70,7 @@ plantilla_fish() {
   cat <<'EOF'
 # LOCAL de este equipo: NO se versiona (ver ~/GiGiShell/docs/shell-local.md).
 #
-# La configuración compartida está en ~/.config/fish/conf.d/gigios.fish, y Fish
+# La configuración compartida está en ~/.config/fish/conf.d/gigishell.fish, y Fish
 # la carga sola antes que este fichero. Aquí va solo lo propio de esta máquina:
 # rutas de herramientas instaladas y lo que añadan sus instaladores, que
 # escriben siempre en este fichero.
@@ -80,8 +80,8 @@ EOF
 # "fichero_local::patrón que demuestra que carga el compartido::plantilla"
 LOCALES=(
   "$HOME/.bashrc::.config/bash/bashrc::plantilla_bashrc"
-  "$HOME/.config/zsh/.zshenv::gigios.zshenv::plantilla_zshenv"
-  "$HOME/.config/zsh/.zshrc::gigios.zshrc::plantilla_zshrc"
+  "$HOME/.config/zsh/.zshenv::gigishell.zshenv::plantilla_zshenv"
+  "$HOME/.config/zsh/.zshrc::gigishell.zshrc::plantilla_zshrc"
   "$HOME/.config/fish/config.fish::shell-local.md::plantilla_fish"
 )
 

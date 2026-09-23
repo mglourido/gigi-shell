@@ -30,7 +30,7 @@
 //
 // Contrato, deliberadamente mínimo — el fichero contiene el epoch en segundos del veto:
 //
-//     ~/.config/gigios/idle-suspend-vetado        →  "1756480000"
+//     ~/.config/gigishell/idle-suspend-vetado        →  "1756480000"
 //
 // Mientras el lado bash no lo escriba, este módulo es INERTE: monitoriza un fichero que no
 // aparece nunca y no pasa nada. Ese es el modo de fallo que se quiere (la opción no hace
@@ -45,7 +45,7 @@ import {
 import { entrarSuspensionFalsa, suspensionFalsaActiva } from "./suspensionFalsa"
 import { sfSustituirReal } from "./powerState"
 
-const RUTA_SENAL = `${GLib.get_user_config_dir()}/gigios/idle-suspend-vetado`
+const RUTA_SENAL = `${GLib.get_user_config_dir()}/gigishell/idle-suspend-vetado`
 
 /** Ventana de validez del aviso. Un veto de hace media hora —el fichero que dejó la sesión
  *  anterior— no puede meter al usuario en una suspensión falsa nada más arrancar el shell:
@@ -119,7 +119,7 @@ export function initPuenteWakeUp(): void {
   try {
     const archivo = Gio.File.new_for_path(RUTA_SENAL)
     // El monitor se pone sobre el fichero AUNQUE NO EXISTA todavía: Gio avisa igualmente de
-    // su creación. Vigilar el directorio entero traería el ruido de todo `~/.config/gigios`,
+    // su creación. Vigilar el directorio entero traería el ruido de todo `~/.config/gigishell`,
     // que es donde escriben media docena de módulos.
     monitor = archivo.monitor_file(Gio.FileMonitorFlags.NONE, null)
     monitor.connect("changed", (_m, _f, _o, evento: Gio.FileMonitorEvent) => {

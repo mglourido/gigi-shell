@@ -3,7 +3,7 @@
 // desactivado: sin este destino los atajos solo se podían consultar abriendo el launcher.
 //
 // La fuente de datos NO se duplica: se reutiliza el estado reactivo `keybinds` de
-// `modulos/orion/data/keybinds.ts`, que parsea `hypr/gigios/keybinds.lua` y se re-parsea
+// `modulos/orion/data/keybinds.ts`, que parsea `hypr/gigishell/keybinds.lua` y se re-parsea
 // solo cuando ese fichero cambia en disco. Ese módulo ya se carga al arrancar el shell
 // (`app.ts` importa Orion siempre, y su buscador usa `getKeybinds`), así que este destino
 // no añade ni un `Gio.FileMonitor` más ni depende de que Orion esté activado.

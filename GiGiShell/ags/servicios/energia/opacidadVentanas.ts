@@ -6,7 +6,7 @@
 //
 // QUÉ SE AHORRA
 // -------------
-// `decoration:inactive_opacity` está en 0.92 (ver `hypr/gigios/ventanas.lua`), así que
+// `decoration:inactive_opacity` está en 0.92 (ver `hypr/gigishell/ventanas.lua`), así que
 // toda ventana sin foco es semitransparente. Una superficie con alfa < 1 obliga a
 // Hyprland a componer lo que hay DEBAJO —el resto del mosaico y el fondo de pantalla— en
 // cada fotograma que se redibuje, y la excluye de los atajos de región opaca. Con las dos
@@ -26,7 +26,7 @@
 //    invocaría y el error saldría por stdout (con código de salida 0, que es justo lo que
 //    hace que estos fallos pasen inadvertidos).
 //
-// 2. EN DISCO: `~/.config/gigios/opacidad-ventanas.json` = `{ "forzada": bool }`. Hace
+// 2. EN DISCO: `~/.config/gigishell/opacidad-ventanas.json` = `{ "forzada": bool }`. Hace
 //    falta porque un `hyprctl reload` RE-EJECUTA `ventanas.lua`, que reaplicaría el 0.92
 //    sin que AGS se entere — no hay señal de recarga; es exactamente el motivo por el que
 //    `display.json` lo lee también el compositor. Y cubre el otro sentido: si la sesión
@@ -47,7 +47,7 @@ import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
 import { opacidadVentanasForzada } from "./powerState"
 
-const RUTA = `${GLib.get_user_config_dir()}/gigios/opacidad-ventanas.json`
+const RUTA = `${GLib.get_user_config_dir()}/gigishell/opacidad-ventanas.json`
 
 let arrancado = false
 /** Último valor publicado, para no repetir escritura ni `hyprctl` en un cambio que no cambia. */

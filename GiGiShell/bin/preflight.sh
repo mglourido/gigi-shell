@@ -3,7 +3,7 @@
 # máquina instalada tiene las herramientas principales.
 set -uo pipefail
 
-GIGIOS="${GIGIOS:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
+GIGISHELL="${GIGISHELL:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
 mode="${1:-}"
 errors=0
 warnings=0
@@ -40,9 +40,9 @@ required=(
   ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx ags/modulos/ajustes/seguridad/preferencias.ts
   ags/modulos/ajustes/accesibilidad/OpcionDaltonismo.tsx ags/modulos/ajustes/accesibilidad/daltonismo.ts
   ags/textos/ajustes/accesibilidad.json
-  hypr/hyprland.lua hypr/gigios/util.lua hypr/gigios/json.lua hypr/gigios/variables.lua
+  hypr/hyprland.lua hypr/gigishell/util.lua hypr/gigishell/json.lua hypr/gigishell/variables.lua
   hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
-  hypr/gigios/gpu.lua hypr/gigios/gpu/laptop-hibrida.lua hypr/gigios/gpu/sobremesa-nvidia.lua hypr/gigios/gpu/integrada.lua
+  hypr/gigishell/gpu.lua hypr/gigishell/gpu/laptop-hibrida.lua hypr/gigishell/gpu/sobremesa-nvidia.lua hypr/gigishell/gpu/integrada.lua
   hypr/scripts/bloquear.sh
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/emoji-picker.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
@@ -54,16 +54,16 @@ required=(
   ags/estilos/_gestos.scss
   hypr/scripts/run-untrusted.sh hypr/scripts/desinstalar-app.sh
   hypr/scripts/wallpaper.sh hypr/scripts/wallpaper-select.py hypr/scripts/lib/seleccion_fondos.py
-  system/modules-load.d/i2c-dev.conf system/udev/99-gigios-usb-writeback.rules
-  system/logind.conf.d/99-gigios-powerkey.conf
-  system/sddm/zz-gigios.conf.in
+  system/modules-load.d/i2c-dev.conf system/udev/99-gigishell-usb-writeback.rules
+  system/logind.conf.d/99-gigishell-powerkey.conf
+  system/sddm/zz-gigishell.conf.in
   system/sddm/tema/metadata.desktop system/sddm/tema/theme.conf system/sddm/tema/Main.qml
   system/sddm/tema/Backgrounds/jake_the_dog.mp4 system/sddm/tema/Backgrounds/jake_the_dog.png
   system/sddm/tema/Fonts/Thunderman.ttf
   rofi/config.rasi rofi/emoji-grid.rasi
 )
 for path in "${required[@]}"; do
-  [[ -f "$GIGIOS/$path" ]] || fail "falta $path"
+  [[ -f "$GIGISHELL/$path" ]] || fail "falta $path"
 done
 
 # Guardia contra la regresión que rompió el instalador: una ruta IGNORADA por git no
@@ -77,13 +77,13 @@ PREFLIGHT_GIT=()
 if command -v git >/dev/null 2>&1; then
   if git --git-dir="$HOME/.dotfiles" --work-tree="$HOME" rev-parse --git-dir >/dev/null 2>&1; then
     PREFLIGHT_GIT=(git --git-dir="$HOME/.dotfiles" --work-tree="$HOME")
-  elif git -C "$GIGIOS" rev-parse --show-toplevel >/dev/null 2>&1; then
-    PREFLIGHT_GIT=(git -C "$GIGIOS")
+  elif git -C "$GIGISHELL" rev-parse --show-toplevel >/dev/null 2>&1; then
+    PREFLIGHT_GIT=(git -C "$GIGISHELL")
   fi
 fi
 if ((${#PREFLIGHT_GIT[@]})); then
   for path in "${required[@]}"; do
-    "${PREFLIGHT_GIT[@]}" check-ignore -q "$GIGIOS/$path" 2>/dev/null \
+    "${PREFLIGHT_GIT[@]}" check-ignore -q "$GIGISHELL/$path" 2>/dev/null \
       && fail "required exige un fichero que .gitignore excluye: $path (un checkout limpio nunca lo tendrá)"
   done
 fi
@@ -96,49 +96,49 @@ fi
 # (monitor-settings/input-settings), así que todo lo que se carga está versionado.
 while IFS= read -r modulo; do
   relative="${modulo//.//}"
-  [[ -f "$GIGIOS/hypr/$relative.lua" ]] || fail "módulo Lua de Hyprland ausente: $relative.lua"
-done < <(sed -nE 's/^[[:space:]]*util\.carga\("([^"]+)"\).*/\1/p' "$GIGIOS/hypr/hyprland.lua")
+  [[ -f "$GIGISHELL/hypr/$relative.lua" ]] || fail "módulo Lua de Hyprland ausente: $relative.lua"
+done < <(sed -nE 's/^[[:space:]]*util\.carga\("([^"]+)"\).*/\1/p' "$GIGISHELL/hypr/hyprland.lua")
 
 # Los perfiles de GPU no se cargan por nombre fijo (los elige el fichero local
-# ~/.config/gigios/gpu-perfil), así que se validan contra la tabla de válidos.
+# ~/.config/gigishell/gpu-perfil), así que se validan contra la tabla de válidos.
 while IFS= read -r perfil; do
-  [[ -f "$GIGIOS/hypr/gigios/gpu/$perfil.lua" ]] || fail "perfil de GPU ausente: gigios/gpu/$perfil.lua"
-done < <(sed -nE 's/^[[:space:]]*\["([^"]+)"\][[:space:]]*=[[:space:]]*true.*/\1/p' "$GIGIOS/hypr/gigios/gpu.lua")
+  [[ -f "$GIGISHELL/hypr/gigishell/gpu/$perfil.lua" ]] || fail "perfil de GPU ausente: gigishell/gpu/$perfil.lua"
+done < <(sed -nE 's/^[[:space:]]*\["([^"]+)"\][[:space:]]*=[[:space:]]*true.*/\1/p' "$GIGISHELL/hypr/gigishell/gpu.lua")
 
 while IFS= read -r reference; do
   case "$reference" in
-    '~/.config/hypr/'*) target="$GIGIOS/hypr/${reference#'~/.config/hypr/'}" ;;
-    '~/.config/inicializador/'*) target="$GIGIOS/inicializador/${reference#'~/.config/inicializador/'}" ;;
+    '~/.config/hypr/'*) target="$GIGISHELL/hypr/${reference#'~/.config/hypr/'}" ;;
+    '~/.config/inicializador/'*) target="$GIGISHELL/inicializador/${reference#'~/.config/inicializador/'}" ;;
     *) continue ;;
   esac
   [[ -e "$target" ]] || fail "autostart ausente: $reference"
-done < <(grep -oE '~/.config/(hypr|inicializador)/[^ ;"]+' "$GIGIOS/hypr/gigios/autostart.lua" | sort -u)
+done < <(grep -oE '~/.config/(hypr|inicializador)/[^ ;"]+' "$GIGISHELL/hypr/gigishell/autostart.lua" | sort -u)
 
 # El config Lua tiene que parsear: un error de sintaxis deja la sesión SIN
 # ATAJOS (solo el SUPER+Q de emergencia), así que es lo más caro que puede
 # colarse en un commit. `--verify-config` no detecta errores de EJECUCIÓN, pero
 # los de parseo sí, que son los que introduce una edición a mano.
 if command -v Hyprland >/dev/null 2>&1; then
-  Hyprland --verify-config -c "$GIGIOS/hypr/hyprland.lua" 2>&1 | grep -q 'config ok' \
+  Hyprland --verify-config -c "$GIGISHELL/hypr/hyprland.lua" 2>&1 | grep -q 'config ok' \
     || fail "hypr/hyprland.lua no pasa --verify-config"
 fi
 
 while IFS= read -r script; do
-  bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGIOS"/}"
+  bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGISHELL"/}"
   # Lo que vive en un `lib/` se SOURCEA, no se ejecuta (hoy: lib/gaming-gate.sh),
   # así que exigirle el bit +x era un falso positivo: el bit invitaría a ejecutar
   # algo que ejecutado no hace nada. La comprobación de sintaxis sí aplica.
   case "$script" in */scripts/lib/*) continue ;; esac
-  [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGIOS"/}"
-done < <(find "$GIGIOS/hypr/scripts" "$GIGIOS/ags/scripts" -type f -name '*.sh' -print)
+  [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGISHELL"/}"
+done < <(find "$GIGISHELL/hypr/scripts" "$GIGISHELL/ags/scripts" -type f -name '*.sh' -print)
 for script in \
-  "$GIGIOS/install.sh" "$GIGIOS/bin/link.sh" "$GIGIOS/bin/preflight.sh" \
-  "$GIGIOS/bin/kitty-profile.sh" "$GIGIOS/bin/firefox-profile.sh" \
-  "$GIGIOS/bin/configurar-dolphin.sh" \
-  "$GIGIOS/bin/configurar-vscode.sh" \
-  "$GIGIOS/inicializador/init.sh"; do
-  bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGIOS"/}"
-  [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGIOS"/}"
+  "$GIGISHELL/install.sh" "$GIGISHELL/bin/link.sh" "$GIGISHELL/bin/preflight.sh" \
+  "$GIGISHELL/bin/kitty-profile.sh" "$GIGISHELL/bin/firefox-profile.sh" \
+  "$GIGISHELL/bin/configurar-dolphin.sh" \
+  "$GIGISHELL/bin/configurar-vscode.sh" \
+  "$GIGISHELL/inicializador/init.sh"; do
+  bash -n "$script" || fail "sintaxis Bash: ${script#"$GIGISHELL"/}"
+  [[ -x "$script" ]] || fail "no es ejecutable: ${script#"$GIGISHELL"/}"
 done
 
 # Los scripts de Python no los cubría nada. Un error de sintaxis aquí no es
@@ -147,9 +147,9 @@ done
 # hace nada". Compilar es instantáneo y lo destapa.
 if command -v python3 >/dev/null 2>&1; then
   while IFS= read -r script; do
-    python3 -m py_compile "$script" 2>/dev/null || fail "sintaxis Python: ${script#"$GIGIOS"/}"
-  done < <(find "$GIGIOS/hypr/scripts" -type f -name '*.py' -print)
-  find "$GIGIOS/hypr/scripts" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null
+    python3 -m py_compile "$script" 2>/dev/null || fail "sintaxis Python: ${script#"$GIGISHELL"/}"
+  done < <(find "$GIGISHELL/hypr/scripts" -type f -name '*.py' -print)
+  find "$GIGISHELL/hypr/scripts" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null
 
   # El motor de selección de fondos decide qué fondo toca a cada hora, y sus casos
   # límite (la vuelta de medianoche, el tramo vacío) fallan de forma muda: el
@@ -160,14 +160,14 @@ if command -v python3 >/dev/null 2>&1; then
   # instalación por una decisión tomada a propósito — el mismo ruido que ya rompió el
   # instalador cuando `required` exigía los `*.test.ts`. Los tests son de la máquina de
   # desarrollo; ahí es donde este bloque tiene algo que ejecutar.
-  if [[ -f "$GIGIOS/hypr/scripts/lib/seleccion_fondos_test.py" ]]; then
-    (cd "$GIGIOS/hypr/scripts/lib" && python3 -m unittest discover -p '*_test.py' -q >/dev/null 2>&1) \
+  if [[ -f "$GIGISHELL/hypr/scripts/lib/seleccion_fondos_test.py" ]]; then
+    (cd "$GIGISHELL/hypr/scripts/lib" && python3 -m unittest discover -p '*_test.py' -q >/dev/null 2>&1) \
       || fail "las pruebas del motor de fondos (hypr/scripts/lib) no pasan"
   fi
 fi
 
-[[ -s "$GIGIOS/ags/estilos/out.css" ]] || warn "ags/estilos/out.css aún no está compilado (lo genera ags/scripts/compilar-css.sh al arrancar AGS)"
-app_icons="$GIGIOS/ags/config/app_icons.json"
+[[ -s "$GIGISHELL/ags/estilos/out.css" ]] || warn "ags/estilos/out.css aún no está compilado (lo genera ags/scripts/compilar-css.sh al arrancar AGS)"
+app_icons="$GIGISHELL/ags/config/app_icons.json"
 if [[ ! -s "$app_icons" ]]; then
   warn "sin ags/config/app_icons.json (los workspaces usarán iconos gráficos)"
 elif command -v jq >/dev/null 2>&1; then
@@ -175,7 +175,7 @@ elif command -v jq >/dev/null 2>&1; then
     "$app_icons" >/dev/null 2>&1 \
     || warn "ags/config/app_icons.json no es un mapa válido (se usarán iconos gráficos)"
 fi
-if [[ -e "$HOME/.local/share/gigios/face.png" ]]; then
+if [[ -e "$HOME/.local/share/gigishell/face.png" ]]; then
   ok "avatar opcional presente"
 else
   warn "sin foto de perfil (se usarán iniciales; se pone en Ajustes > Cuenta)"
@@ -255,8 +255,8 @@ if [[ "$mode" == "--installed" ]]; then
   # mismo commit que el mimeapps.list; si no, el fallo avisa de que una app te ha robado
   # una asociación por la espalda, que era invisible hasta que abrías el archivo.
   while IFS='|' read -r mime application; do
-    grep -Fqx "$mime=$application;" "$GIGIOS/mimeapps.list" \
-      || fail "asociación MIME ausente: $mime -> $application (actual: $(grep -m1 "^$mime=" "$GIGIOS/mimeapps.list" || echo 'sin entrada'))"
+    grep -Fqx "$mime=$application;" "$GIGISHELL/mimeapps.list" \
+      || fail "asociación MIME ausente: $mime -> $application (actual: $(grep -m1 "^$mime=" "$GIGISHELL/mimeapps.list" || echo 'sin entrada'))"
   done <<'EOF'
 inode/directory|org.kde.dolphin.desktop
 application/pdf|firefox.desktop
@@ -275,36 +275,36 @@ application/octet-stream|org.kde.kate.desktop
 application/zip|org.kde.ark.desktop
 application/vnd.openxmlformats-officedocument.wordprocessingml.document|libreoffice-writer.desktop
 EOF
-  grep -Fqx 'TerminalApplication=kitty' "$GIGIOS/kdeglobals" \
+  grep -Fqx 'TerminalApplication=kitty' "$GIGISHELL/kdeglobals" \
     || fail "kdeglobals no configura Kitty como terminal"
-  grep -Fqx 'ColorScheme=BreezeDark' "$GIGIOS/kdeglobals" \
+  grep -Fqx 'ColorScheme=BreezeDark' "$GIGISHELL/kdeglobals" \
     || fail "kdeglobals no configura Breeze Dark como esquema de colores"
   awk '
     /^\[UiSettings\]$/ { en_ajustes=1; next }
     /^\[/ { en_ajustes=0 }
     en_ajustes && /^ColorScheme=BreezeDark$/ { encontrado=1 }
     END { exit !encontrado }
-  ' "$GIGIOS/kdeglobals" \
+  ' "$GIGISHELL/kdeglobals" \
     || fail "kdeglobals no activa Breeze Dark para KColorSchemeManager"
-  grep -Fqx 'BackgroundNormal=20,22,24' "$GIGIOS/kdeglobals" \
+  grep -Fqx 'BackgroundNormal=20,22,24' "$GIGISHELL/kdeglobals" \
     || fail "kdeglobals no contiene la paleta materializada de Breeze Dark"
-  grep -Fqx 'hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")' "$GIGIOS/hypr/gigios/env.lua" \
+  grep -Fqx 'hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")' "$GIGISHELL/hypr/gigishell/env.lua" \
     || fail "Hyprland no activa qt6ct como tema de plataforma Qt"
-  grep -Fq 'reparar-kdeglobals.sh' "$GIGIOS/hypr/gigios/autostart.lua" \
+  grep -Fq 'reparar-kdeglobals.sh' "$GIGISHELL/hypr/gigishell/autostart.lua" \
     || fail "el autostart no repone [UiSettings] en kdeglobals (lo borra cualquier app KDE al guardar ajustes)"
-  grep -Fqx 'hl.env("QT_SCALE_FACTOR", "0.9")' "$GIGIOS/hypr/gigios/env.lua" \
+  grep -Fqx 'hl.env("QT_SCALE_FACTOR", "0.9")' "$GIGISHELL/hypr/gigishell/env.lua" \
     || fail "Hyprland no configura la densidad compacta de las aplicaciones Qt"
-  grep -Fqx 'color_scheme_path=/usr/share/qt6ct/colors/darker.conf' "$GIGIOS/qt6ct/qt6ct.conf" \
+  grep -Fqx 'color_scheme_path=/usr/share/qt6ct/colors/darker.conf' "$GIGISHELL/qt6ct/qt6ct.conf" \
     || fail "qt6ct no configura la paleta oscura"
-  grep -Fqx 'custom_palette=true' "$GIGIOS/qt6ct/qt6ct.conf" \
+  grep -Fqx 'custom_palette=true' "$GIGISHELL/qt6ct/qt6ct.conf" \
     || fail "qt6ct no activa la paleta personalizada"
-  grep -Fqx 'style=Breeze' "$GIGIOS/qt6ct/qt6ct.conf" \
+  grep -Fqx 'style=Breeze' "$GIGISHELL/qt6ct/qt6ct.conf" \
     || fail "qt6ct no configura el estilo Breeze"
-  grep -Fqx 'general="Noto Sans,10,-1,5,50,0,0,0,0,0,Regular"' "$GIGIOS/qt6ct/qt6ct.conf" \
+  grep -Fqx 'general="Noto Sans,10,-1,5,50,0,0,0,0,0,Regular"' "$GIGISHELL/qt6ct/qt6ct.conf" \
     || fail "qt6ct no configura la fuente general compacta"
-  grep -Fqx 'fixed="Noto Sans Mono,10,-1,5,50,0,0,0,0,0,Regular"' "$GIGIOS/qt6ct/qt6ct.conf" \
+  grep -Fqx 'fixed="Noto Sans Mono,10,-1,5,50,0,0,0,0,0,Regular"' "$GIGISHELL/qt6ct/qt6ct.conf" \
     || fail "qt6ct no configura la fuente monoespaciada compacta"
-  grep -Fqx 'Theme=Tela-circle-grey' "$GIGIOS/kdeglobals" \
+  grep -Fqx 'Theme=Tela-circle-grey' "$GIGISHELL/kdeglobals" \
     || fail "kdeglobals no configura Tela circle grey como tema de iconos"
   [[ -r /usr/share/color-schemes/BreezeDark.colors ]] \
     || fail "falta Breeze Dark (sudo pacman -S --needed breeze)"
@@ -322,7 +322,7 @@ EOF
     || fail "falta el miniaturizador de vídeo (sudo pacman -S --needed ffmpegthumbs)"
   [[ -r /usr/lib/qt6/plugins/kf6/thumbcreator/gsthumbnail.so ]] \
     || fail "falta el miniaturizador de PDF (sudo pacman -S --needed kdegraphics-thumbnailers)"
-  "$GIGIOS/bin/configurar-dolphin.sh" --check \
+  "$GIGISHELL/bin/configurar-dolphin.sh" --check \
     || fail "el perfil ligero de Dolphin no está aplicado"
   if [[ ! -d /usr/share/icons/Tela-circle-grey && ! -d "$HOME/.local/share/icons/Tela-circle-grey" ]]; then
     fail "falta el tema Tela circle grey (sudo pacman -S --needed tela-circle-icon-theme-grey)"
@@ -339,12 +339,12 @@ EOF
   done
   # Shells partidas en compartido (versionado) + local de cada equipo (sin
   # versionar, lo crea bin/shell-local.sh). Ver docs/shell-local.md.
-  "$GIGIOS/bin/shell-local.sh" --check >/dev/null \
+  "$GIGISHELL/bin/shell-local.sh" --check >/dev/null \
     || fail "ficheros locales de las shells ausentes o sin cargar el compartido (bin/shell-local.sh)"
   # Lo propio de una máquina no puede colarse en lo compartido: otro equipo puede
   # no tener esa herramienta, o tenerla en otra ruta o con otro usuario.
-  for shared_file in "$HOME/.config/bash/bashrc" "$HOME/.config/zsh/gigios.zshenv" \
-    "$HOME/.config/zsh/gigios.zshrc" "$HOME/.config/fish/conf.d/gigios.fish" \
+  for shared_file in "$HOME/.config/bash/bashrc" "$HOME/.config/zsh/gigishell.zshenv" \
+    "$HOME/.config/zsh/gigishell.zshrc" "$HOME/.config/fish/conf.d/gigishell.fish" \
     "$HOME/.config/zsh/functions/"*.zsh; do
     [[ -f "$shared_file" ]] || continue
     if grep -vE '^[[:space:]]*#' "$shared_file" \
@@ -353,7 +353,7 @@ EOF
     fi
   done
   bash -n "$HOME/.config/bash/bashrc" 2>/dev/null || fail "sintaxis Bash: ~/.config/bash/bashrc"
-  for zsh_file in "$HOME/.zshenv" "$HOME/.config/zsh/gigios.zshenv" "$HOME/.config/zsh/gigios.zshrc" \
+  for zsh_file in "$HOME/.zshenv" "$HOME/.config/zsh/gigishell.zshenv" "$HOME/.config/zsh/gigishell.zshrc" \
     "$HOME/.config/zsh/.zshenv" "$HOME/.config/zsh/.zshrc" "$HOME/.config/zsh/functions/"*.zsh; do
     [[ -f "$zsh_file" ]] || { fail "falta configuración Zsh: $zsh_file"; continue; }
     zsh -n "$zsh_file" || fail "sintaxis Zsh: $zsh_file"
@@ -381,16 +381,16 @@ EOF
     print -r -- "globdots=${${_comp_options[(r)globdots]}:-no}"
   ' 2>/dev/null)"
   [[ "$zsh_runtime" == *"autosuggest=1"* ]] \
-    || fail "zsh-autosuggestions no está cargado (revisá el source en ~/.config/zsh/gigios.zshrc)"
+    || fail "zsh-autosuggestions no está cargado (revisá el source en ~/.config/zsh/gigishell.zshrc)"
   [[ "$zsh_runtime" == *"highlight=no"* ]] \
-    && fail "zsh-syntax-highlighting no está cargado (revisá el source en ~/.config/zsh/gigios.zshrc)"
+    && fail "zsh-syntax-highlighting no está cargado (revisá el source en ~/.config/zsh/gigishell.zshrc)"
   [[ "$zsh_runtime" == *"substring=1"* ]] \
     || fail "zsh-history-substring-search no está cargado (lo sourcea fish-parity.zsh)"
   [[ "$zsh_runtime" == *"globdots=globdots"* ]] \
-    || fail "Tab no completa ficheros ocultos: falta '_comp_options+=(globdots)' en ~/.config/zsh/gigios.zshrc"
-  grep -q 'p10k-instant-prompt' "$HOME/.config/zsh/gigios.zshrc" \
-    || fail "falta el prompt instantáneo de Powerlevel10k en ~/.config/zsh/gigios.zshrc (cada terminal espera a que cargue todo)"
-  for fish_file in "$HOME/.config/fish/conf.d/gigios.fish" "$HOME/.config/fish/config.fish" "$HOME/.config/fish/functions/"*.fish; do
+    || fail "Tab no completa ficheros ocultos: falta '_comp_options+=(globdots)' en ~/.config/zsh/gigishell.zshrc"
+  grep -q 'p10k-instant-prompt' "$HOME/.config/zsh/gigishell.zshrc" \
+    || fail "falta el prompt instantáneo de Powerlevel10k en ~/.config/zsh/gigishell.zshrc (cada terminal espera a que cargue todo)"
+  for fish_file in "$HOME/.config/fish/conf.d/gigishell.fish" "$HOME/.config/fish/config.fish" "$HOME/.config/fish/functions/"*.fish; do
     [[ -f "$fish_file" ]] || { fail "falta configuración Fish: $fish_file"; continue; }
     fish -n "$fish_file" || fail "sintaxis Fish: $fish_file"
   done
@@ -537,7 +537,7 @@ browser.safebrowsing.downloads.enabled|true
 media.peerconnection.enabled|true
 reader.parse-on-load.enabled|true
 EOF
-  "$GIGIOS/bin/firefox-profile.sh" status >/dev/null 2>&1 \
+  "$GIGISHELL/bin/firefox-profile.sh" status >/dev/null 2>&1 \
     || fail "el perfil de Firefox no está compuesto o enlazado correctamente"
 
   # VS Code sin almacén de secretos fijado = un cartel modal pidiendo el llavero del
@@ -546,7 +546,7 @@ EOF
   # que VS Code se abre por primera vez, así que en una instalación recién hecha faltar
   # es lo normal y el paso `vscode` lo dejará puesto en cuanto haya fichero.
   if command -v code >/dev/null 2>&1; then
-    "$GIGIOS/bin/configurar-vscode.sh" --check >/dev/null 2>&1 \
+    "$GIGISHELL/bin/configurar-vscode.sh" --check >/dev/null 2>&1 \
       || warn "VS Code no tiene password-store fijado (pedirá el llavero del sistema en cada arranque): bin/configurar-vscode.sh aplicar"
   fi
 
@@ -585,22 +585,22 @@ EOF
       || fail "falta Astal${namespace} (AUR: paru -S --needed libastal-meta; también sirve yay)"
   done
   if command -v ags >/dev/null 2>&1; then
-    bundle="$(mktemp "${TMPDIR:-/tmp}/gigios-ags.XXXXXX")"
-    if ags bundle "$GIGIOS/ags/app.ts" "$bundle" >/dev/null 2>&1; then
+    bundle="$(mktemp "${TMPDIR:-/tmp}/gigishell-ags.XXXXXX")"
+    if ags bundle "$GIGISHELL/ags/app.ts" "$bundle" >/dev/null 2>&1; then
       ok "AGS resuelve todos los imports"
     else
       fail "AGS no puede empaquetar app.ts; revisa imports y bibliotecas Astal"
     fi
     rm -f "$bundle"
   fi
-  # Perfil de GPU. Sin él gigios/gpu.lua avisa en pantalla EN CADA INICIO DE SESIÓN, y
+  # Perfil de GPU. Sin él gigishell/gpu.lua avisa en pantalla EN CADA INICIO DE SESIÓN, y
   # como el escritorio arranca igual el aviso se vuelve ruido de fondo que nadie atiende.
   # El instalador lo escribe solo (paso `gpu`); aquí sólo se comprueba que quedó puesto y
   # que el nombre existe como módulo — un nombre inválido no aplica NADA y avisa igual.
-  gpu_perfil_ruta="$HOME/.config/gigios/gpu-perfil"
+  gpu_perfil_ruta="$HOME/.config/gigishell/gpu-perfil"
   if [[ -s "$gpu_perfil_ruta" ]]; then
     gpu_perfil="$(tr -d '[:space:]' < "$gpu_perfil_ruta")"
-    if [[ -f "$GIGIOS/hypr/gigios/gpu/$gpu_perfil.lua" ]]; then
+    if [[ -f "$GIGISHELL/hypr/gigishell/gpu/$gpu_perfil.lua" ]]; then
       ok "perfil de GPU: $gpu_perfil"
       # Que el nombre EXISTA no quiere decir que CORRESPONDA a esta máquina. El paso
       # `gpu` del instalador nunca pisa un perfil ya escrito (correcto: la elección es
@@ -648,7 +648,7 @@ EOF
           ;;
       esac
     else
-      fail "perfil de GPU desconocido: '$gpu_perfil' (no existe hypr/gigios/gpu/$gpu_perfil.lua)"
+      fail "perfil de GPU desconocido: '$gpu_perfil' (no existe hypr/gigishell/gpu/$gpu_perfil.lua)"
     fi
   else
     warn "sin perfil de GPU en $gpu_perfil_ruta (Hyprland avisará en cada inicio; ejecutá install.sh --solo gpu)"
@@ -661,11 +661,11 @@ EOF
   # instalación nueva donde el paso `sistema` no llegó a correr, o un /usr/local limpiado— el
   # interruptor de la UI no puede apagarlo y la cámara se queda muerta sin que nada explique
   # por qué. Se comprueba el par entero, no cada mitad por su lado.
-  if [[ -f /etc/udev/rules.d/71-gigios-camara-bloqueada.rules ]]; then
-    if [[ -x /usr/local/bin/gigios-camara ]]; then
+  if [[ -f /etc/udev/rules.d/71-gigishell-camara-bloqueada.rules ]]; then
+    if [[ -x /usr/local/bin/gigishell-camara ]]; then
       ok "cámara bloqueada a propósito (el interruptor de Ajustes > Cámara puede desbloquearla)"
     else
-      fail "la cámara está bloqueada y falta /usr/local/bin/gigios-camara para desbloquearla (bash install.sh --solo sistema, o sudo rm /etc/udev/rules.d/71-gigios-camara-bloqueada.rules)"
+      fail "la cámara está bloqueada y falta /usr/local/bin/gigishell-camara para desbloquearla (bash install.sh --solo sistema, o sudo rm /etc/udev/rules.d/71-gigishell-camara-bloqueada.rules)"
     fi
   fi
 
@@ -677,7 +677,7 @@ EOF
   # Python que ya no existe (Arch sube de versión mayor y el enlace del venv queda colgando)
   # conserva todos sus ficheros y pasa cualquier test de existencia, pero no arranca. Ese es
   # justo el fallo que este bloque existe para cazar, porque desde fuera parece instalado.
-  gestos_dir="${XDG_DATA_HOME:-$HOME/.local/share}/gigios/gestos"
+  gestos_dir="${XDG_DATA_HOME:-$HOME/.local/share}/gigishell/gestos"
   if [[ -e "$gestos_dir/venv" || -e "$gestos_dir/hand_landmarker.task" ]]; then
     if [[ ! -x "$gestos_dir/venv/bin/python" ]]; then
       fail "el entorno del modo gestos está a medias: falta el intérprete del venv (bash install.sh --solo gestos)"
@@ -733,13 +733,13 @@ EOF
   # una línea en el journal. La UI ya se apaga sola si logind dice que no; esto es para el caso
   # en que se apagó DESPUÉS (alguien quitó el swapfile, o un cambio de bootloader se llevó el
   # resume= por delante) y el ajuste quedó encendido creyendo que sigue valiendo.
-  archivo_hibernacion="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/hibernacion.json"
+  archivo_hibernacion="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/hibernacion.json"
   if [[ -r "$archivo_hibernacion" ]] && command -v jq >/dev/null 2>&1 &&
      jq -e '.enabled == true' "$archivo_hibernacion" >/dev/null 2>&1; then
-    if [[ ! -x /usr/local/bin/gigios-hibernacion ]]; then
+    if [[ ! -x /usr/local/bin/gigishell-hibernacion ]]; then
       fail "la hibernación está activada pero falta su ayudante (bash install.sh --solo hibernacion)"
     else
-      case "$(/usr/local/bin/gigios-hibernacion estado 2>/dev/null | sed -n 's/^disponible=//p')" in
+      case "$(/usr/local/bin/gigishell-hibernacion estado 2>/dev/null | sed -n 's/^disponible=//p')" in
         si) ok "hibernación disponible (tiempo en Ajustes > Pantalla > Suspensión)" ;;
         *)  fail "la hibernación está activada en Ajustes pero el equipo NO puede hibernar: falta swap persistente o resume= en el kernel (bash install.sh --solo hibernacion, y reiniciá)" ;;
       esac
@@ -766,28 +766,28 @@ EOF
     else
       ok "SDDM activado (display-manager.service -> sddm.service)"
     fi
-    if [[ -r /etc/sddm.conf.d/zz-gigios.conf ]]; then
-      ok "configuración de SDDM de GiGiShell en /etc/sddm.conf.d/zz-gigios.conf"
+    if [[ -r /etc/sddm.conf.d/zz-gigishell.conf ]]; then
+      ok "configuración de SDDM de GiGiShell en /etc/sddm.conf.d/zz-gigishell.conf"
       # Que exista NUESTRO fichero no significa que mande. conf.d se lee en orden
       # alfabético y gana el último: cualquier drop-in que ordene DESPUÉS de zz- y fije
       # una de nuestras claves nos pisa sin dar error. Y /etc/sddm.conf, pese al nombre,
       # gana sobre todo el directorio (`man 5 sddm.conf`).
       for otro in /etc/sddm.conf.d/*; do
         [[ -f "$otro" ]] || continue
-        [[ "$(basename "$otro")" > "zz-gigios.conf" ]] || continue
+        [[ "$(basename "$otro")" > "zz-gigishell.conf" ]] || continue
         if grep -qE '^[[:space:]]*(Current|User|Session|InputMethod)[[:space:]]*=' "$otro"; then
-          warn "$otro se lee DESPUÉS de zz-gigios.conf y fija claves nuestras: manda él (revisalo o borralo)"
+          warn "$otro se lee DESPUÉS de zz-gigishell.conf y fija claves nuestras: manda él (revisalo o borralo)"
         fi
       done
       if [[ -e /etc/sddm.conf.d/99-gigios.conf ]]; then
         warn "queda /etc/sddm.conf.d/99-gigios.conf, de una instalación vieja y con el nombre malo (bash install.sh --solo sddm lo retira)"
       fi
     else
-      warn "falta /etc/sddm.conf.d/zz-gigios.conf: SDDM usará su configuración de fábrica (bash install.sh --solo sddm)"
+      warn "falta /etc/sddm.conf.d/zz-gigishell.conf: SDDM usará su configuración de fábrica (bash install.sh --solo sddm)"
     fi
     # El tema del saludador. Su ausencia no rompe nada: SDDM cae a su aspecto de fábrica.
-    if [[ -r /usr/share/sddm/themes/gigios/metadata.desktop ]]; then
-      ok "tema del saludador instalado en /usr/share/sddm/themes/gigios"
+    if [[ -r /usr/share/sddm/themes/gigishell/metadata.desktop ]]; then
+      ok "tema del saludador instalado en /usr/share/sddm/themes/gigishell"
       # La fuente NO viaja dentro del tema: no hay FontLoader, el .conf pide "Thunderman"
       # por nombre y la resuelve fontconfig. Si falta, Qt sustituye en silencio y el
       # saludador se ve con otra tipografía sin ningún error.
@@ -801,13 +801,13 @@ EOF
         warn "falta qt6-multimedia-ffmpeg: el fondo animado del saludador no se reproducirá (se queda el PNG)"
       fi
     else
-      warn "falta el tema del saludador en /usr/share/sddm/themes/gigios (bash install.sh --solo sddm)"
+      warn "falta el tema del saludador en /usr/share/sddm/themes/gigishell (bash install.sh --solo sddm)"
     fi
   else
     fail "SDDM no está instalado: nada lanzará Hyprland al arrancar (sudo pacman -S --needed sddm && bash install.sh --solo sddm)"
   fi
 
-  "$GIGIOS/bin/link.sh" --check || fail "symlinks incompletos"
+  "$GIGISHELL/bin/link.sh" --check || fail "symlinks incompletos"
 fi
 
 if ((errors)); then

@@ -1,5 +1,5 @@
 // Lógica PURA de la sección "Atajos" de Orion: convierte el texto de
-// `hypr/gigios/keybinds.lua` (+ `gigios/variables.lua`) en grupos legibles.
+// `hypr/gigishell/keybinds.lua` (+ `gigishell/variables.lua`) en grupos legibles.
 // Sin acceso a disco ni a GI, para que los tests de node puedan ejecutarla;
 // el envoltorio con IO y estado reactivo es `keybinds.ts`.
 // Antes se parseaba `keybinds.conf` + `variables.conf`. Con la migración de
@@ -8,7 +8,7 @@
 // no tenía y que este parser sí debe entender:
 //
 //   1. **Expresiones**, no literales: la tecla se escribe `mod .. " + SHIFT + F"`,
-//      con `mod`/`vars.*` viniendo de `gigios/variables.lua` (el sustituto de
+//      con `mod`/`vars.*` viniendo de `gigishell/variables.lua` (el sustituto de
 //      las `$variables`). `evaluarConcat` las resuelve.
 //   2. **Bucles**: los 20 binds de workspace y los 8 de movimiento/foco ya no
 //      están escritos uno a uno, sino en un `for`. `expandirBucles` los
@@ -23,7 +23,7 @@
 export interface Keybind { binding: string; description: string }
 export interface KeybindGroup { name: string; binds: Keybind[] }
 
-/** `gigios/variables.lua` → { mainMod: "SUPER", terminal: "kitty", … }.
+/** `gigishell/variables.lua` → { mainMod: "SUPER", terminal: "kitty", … }.
  *  Es una tabla de literales (`clave = "valor",`), así que no hace falta
  *  evaluar Lua: basta con leer los pares. */
 function loadVars(fuente: string): Record<string, string> {
@@ -120,7 +120,7 @@ function describeExec(cmd: string): string {
 
 // Los binds inlineados en Lua no ejecutan un script: llaman a una función del
 // global GiGiShell que define su propio módulo (ver el CLAUDE.md raíz).
-const GIGIOS_LABELS: Record<string, string> = {
+const GIGISHELL_LABELS: Record<string, string> = {
   compactar: "Compactar workspaces",
   toggle_gaps: "Pegar ventanas (toggle)",
   boton_apagado: "Acción del botón de encendido",
@@ -144,8 +144,8 @@ function describeDispatcher(expr: string, vars: Record<string, string>): string 
   const e = expr.trim()
 
   // Closure: `function() … GiGiShell.compactar() … end`
-  const gigios = e.match(/GiGiShell\.(\w+)\s*\(/)
-  if (gigios) return GIGIOS_LABELS[gigios[1]] ?? `GiGiShell: ${gigios[1]}`
+  const gigishell = e.match(/GiGiShell\.(\w+)\s*\(/)
+  if (gigishell) return GIGISHELL_LABELS[gigishell[1]] ?? `GiGiShell: ${gigishell[1]}`
 
   const exec = e.match(/hl\.dsp\.exec_cmd\s*\(/)
   if (exec) {
@@ -399,14 +399,14 @@ export function parseKeybindsFrom(fuenteKeybinds: string, fuenteVariables: strin
     // UNA fila por COMBINACIÓN, no por llamada a bind(). Hyprland ejecuta todos
     // los binds de una combinación, y el config se apoya en eso: SUPER + clic
     // izquierdo lleva TRES (el arrastre nativo más los dos enganches con los que
-    // gigios/reparto-ventanas.lua sabe cuándo empieza y acaba). Los enganches no
+    // gigishell/reparto-ventanas.lua sabe cuándo empieza y acaba). Los enganches no
     // son atajos que el usuario pueda pulsar por separado, así que listarlos
     // duplicaba la fila y la llenaba de nombres internos
     // (`GiGiShell: reparto_arrastre_inicio`). Gana el PRIMERO: es el que describe lo
     // que la combinación hace de cara al usuario, porque los enganches se
     // registran después a propósito (conviven con el bindm, no lo sustituyen).
     // Esto es además lo que hace que el recuento cuadre con la tabla `usados` de
-    // gigios/keybinds.lua, que también es un conjunto de combinaciones.
+    // gigishell/keybinds.lua, que también es un conjunto de combinaciones.
     if (vistos.has(binding)) continue
     vistos.add(binding)
 

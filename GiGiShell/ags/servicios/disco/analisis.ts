@@ -5,7 +5,7 @@
 // eso cuesta segundos con la caché de inodos fría. Se **cachea en disco**, así que al abrir la
 // sección se pinta el análisis anterior de inmediato y el nuevo entra por detrás cuando llega.
 //
-// LA CACHÉ VA EN ~/.cache/gigios/, NO en ~/.config/gigios/: es una medición, o sea justo lo que
+// LA CACHÉ VA EN ~/.cache/gigishell/, NO en ~/.config/gigishell/: es una medición, o sea justo lo que
 // se puede volver a obtener. En `config` acabaría restaurándose desde un backup y enseñando el
 // desglose de otro momento —o de otro equipo— como si fuera el de ahora.
 //
@@ -48,7 +48,7 @@ export interface Analisis {
 // análisis de la versión 1 —sin esa columna— se descarta y se vuelve a medir, en vez de alimentar
 // la estimación con `liberable: null` en todo y dejarla en "no se ha podido calcular" para siempre.
 const VERSION_CACHE = 2
-const CACHE = GLib.build_filenamev([GLib.get_user_cache_dir(), "gigios", "almacenamiento.json"])
+const CACHE = GLib.build_filenamev([GLib.get_user_cache_dir(), "gigishell", "almacenamiento.json"])
 const SCRIPT = `${GLib.get_user_config_dir()}/hypr/scripts/analizar-almacenamiento.sh`
 
 export const ANALISIS_VACIO: Analisis = { version: VERSION_CACHE, epoch: 0, discos: [], categorias: [], apps: [] }

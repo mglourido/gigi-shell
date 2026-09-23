@@ -7,7 +7,7 @@
 // nuevo" cuando ya existe algo que la controla llevaría al usuario a crear una segunda regla
 // que compite con la primera, que es exactamente el lío que este botón viene a evitar:
 //
-//   1. Aviso del sistema con identidad (`x-gigios-event` del catálogo) → SU entrada del
+//   1. Aviso del sistema con identidad (`x-gigishell-event` del catálogo) → SU entrada del
 //      catálogo, la misma que enseña la pestaña Sistema. Se guarda en `notif-sistema.json`.
 //   2. Ya casa con una regla de usuario o predefinida → esa regla, para editarla de verdad.
 //      `matchedRules` viene ordenado de mayor a menor prioridad, así que la primera que no

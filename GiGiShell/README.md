@@ -128,7 +128,7 @@ This will:
 6. Compile the shell's SCSS, rebuild the Dolphin thumbnail cache.
 7. Enable the services the desktop needs (NetworkManager, Bluetooth, and — on a laptop —
    TLP, disabling `power-profiles-daemon` first because the two fight over the same knobs).
-8. Detect the GPU and write this machine's profile to `~/.config/gigios/gpu-perfil`
+8. Detect the GPU and write this machine's profile to `~/.config/gigishell/gpu-perfil`
    (never overwriting one you wrote yourself).
 9. Run a final preflight check.
 
@@ -157,7 +157,7 @@ checkout, and re-verifies every symlink.
 A couple of one-time, per-machine choices that are intentionally **not** versioned (they're local
 state, not code — see `docs/anadir-perfiles-por-equipo.md`):
 
-- **GPU profile**: the installer detects it and writes `~/.config/gigios/gpu-perfil` for you
+- **GPU profile**: the installer detects it and writes `~/.config/gigishell/gpu-perfil` for you
   (`laptop-hibrida`, `sobremesa-nvidia`, or `integrada` for plain Intel/AMD). It never
   overwrites a file you already wrote, so override it by hand whenever the guess is wrong.
 - **Region/locale**: set once from Settings → Region (nothing is assumed on your behalf).
@@ -231,7 +231,7 @@ bin/            link.sh (symlink manager), profile selectors, small install help
 docs/           setup guide and per-topic specs
 ```
 
-Runtime state, preferences and secrets (`~/.config/gigios/`, Spotify/Calendar credentials, the
+Runtime state, preferences and secrets (`~/.config/gigishell/`, Spotify/Calendar credentials, the
 profile photo, calendar events, wallpaper JSON) deliberately live **outside** this repo — nothing
 personal or machine-specific is versioned.
 
@@ -241,9 +241,9 @@ deep-dive (why things are built the way they are, not just what they do), and
 
 ## 🔒 Private data
 
-`~/.config/gigios/spotify-creds.json` and `~/.config/gigios/google-calendar-creds.json` are never
+`~/.config/gigishell/spotify-creds.json` and `~/.config/gigishell/google-calendar-creds.json` are never
 versioned — restore them from a secure backup or run `~/.config/ags/scripts/spotify-auth.sh` /
-`google-calendar-auth.sh`. The profile photo (`~/.local/share/gigios/face.png`, also outside the
+`google-calendar-auth.sh`. The profile photo (`~/.local/share/gigishell/face.png`, also outside the
 repo) is optional too: set it from Settings → Account, and AGS shows your initials without it.
 
 ## ⚠️ Before you install

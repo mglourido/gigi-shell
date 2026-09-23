@@ -4,8 +4,8 @@
 // separada la parte de sistema (comandos, ficheros) de la vista JSX.
 //
 // Qué toca y con qué privilegios:
-//   · Idioma del sistema (LANG)  → clave `locale` de ~/.config/gigios/datetime.json,
-//     que lee el config de Hyprland (gigios/env.lua) y convierte en `hl.env(...)`.
+//   · Idioma del sistema (LANG)  → clave `locale` de ~/.config/gigishell/datetime.json,
+//     que lee el config de Hyprland (gigishell/env.lua) y convierte en `hl.env(...)`.
 //     SIN contraseña; se aplica al reiniciar la sesión (igual que hace KDE).
 //   · Zona horaria y NTP         → timedatectl. Pide contraseña vía polkit
 //     (hyprpolkitagent), como cualquier ajuste de reloj del sistema.
@@ -13,7 +13,7 @@
 //     otras apps puedan o no leer tu ubicación (polkit). Si GeoClue no está
 //     instalado, se cae a un flag local que respetan los widgets de GiGiShell.
 //   · Ubicación (dato)           → automática por IP o manual por ciudad; se
-//     guarda en ~/.config/gigios/datetime.json y alimenta la zona horaria auto.
+//     guarda en ~/.config/gigishell/datetime.json y alimenta la zona horaria auto.
 //
 // El teclado (distribución/variante) NO se gestiona aquí: es propiedad de
 // servicios/dispositivos/service.ts (deviceSettings). La vista reutiliza ese servicio
@@ -26,8 +26,8 @@ import { withPrivilegedPrompt } from "../../../estado/shell"
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
 // Único fichero que escribe esta sección: ubicación, zona horaria automática e
-// idioma. El config de Hyprland (gigios/env.lua) lee de aquí el `locale`.
-const DATA_PATH = `${GLib.get_user_config_dir()}/gigios/datetime.json`
+// idioma. El config de Hyprland (gigishell/env.lua) lee de aquí el `locale`.
+const DATA_PATH = `${GLib.get_user_config_dir()}/gigishell/datetime.json`
 
 // ── Tipos ───────────────────────────────────────────────────────────────────
 export type LocationSource = "auto" | "manual"
@@ -54,7 +54,7 @@ export interface LocationPrefs {
   source: LocationSource
   location: LocationData
   // LANG/LC_ALL elegidos por el usuario. Cadena vacía = nunca se ha tocado el
-  // ajuste, y entonces gigios/env.lua NO emite ningún hl.env: pisar el LANG de
+  // ajuste, y entonces gigishell/env.lua NO emite ningún hl.env: pisar el LANG de
   // la sesión con un valor de fábrica sería cambiar el idioma sin que nadie lo
   // pida. Lo lee el config de Hyprland (ver applyLocale).
   locale: string
@@ -196,9 +196,9 @@ export function listTimezones(): Promise<string[]> {
 // ── Idioma del sistema ──────────────────────────────────────────────────────────
 // Dos partes:
 //   1. Guardar el locale en datetime.json (SIN contraseña). Lo lee el config de
-//      Hyprland (gigios/env.lua), que emite el `hl.env("LANG"/"LC_ALL", …)`; la
+//      Hyprland (gigishell/env.lua), que emite el `hl.env("LANG"/"LC_ALL", …)`; la
 //      sesión lo recoge al reiniciarse, como hace KDE. Antes esto reescribía un
-//      bloque entre marcadores DENTRO de gigios/env.lua, que está versionado —
+//      bloque entre marcadores DENTRO de gigishell/env.lua, que está versionado —
 //      estado de máquina ensuciando git, y un marcador tocado a mano dejaba el
 //      bloque huérfano y AGS añadía otro debajo.
 //   2. Asegurar que el locale está GENERADO para que las apps puedan usarlo. Si

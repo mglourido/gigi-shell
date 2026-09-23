@@ -50,8 +50,8 @@ import { alReanudar } from "../sistema/reanudacion.ts"
 const SCRIPTS      = `${GLib.get_user_config_dir()}/hypr/scripts`
 const WALLPAPER_SH = `${SCRIPTS}/wallpaper.sh`
 const SELECT_PY    = `${SCRIPTS}/wallpaper-select.py`
-const CONFIG_PATH  = `${GLib.get_user_config_dir()}/gigios/wallpapers.json`
-const ESTADO_PATH  = `${GLib.get_user_config_dir()}/gigios/wallpaper.json`
+const CONFIG_PATH  = `${GLib.get_user_config_dir()}/gigishell/wallpapers.json`
+const ESTADO_PATH  = `${GLib.get_user_config_dir()}/gigishell/wallpaper.json`
 
 /** Colchón para no despertar en el filo del límite y leer todavía la franja vieja. */
 const MARGEN_S = 2
@@ -146,7 +146,7 @@ function vigilarSuspension() {
  * Va con el resto de `init*` de fondo (el `setTimeout` de 4 s de `app.ts`): no se
  * ve, y no siembra de eventos —lee la hora del reloj de pared, que no depende de
  * cuándo se le pregunte—. El fondo del arranque ya lo puso `wallpaper.sh` desde
- * `gigios/autostart.lua`, así que estos segundos no dejan la pantalla sin nada.
+ * `gigishell/autostart.lua`, así que estos segundos no dejan la pantalla sin nada.
  */
 export function initPlanificadorFondos() {
   if (arrancado) return

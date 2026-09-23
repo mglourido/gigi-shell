@@ -26,14 +26,14 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 
 f="${1:-}"
 
 # ── Toggle (ausente/ilegible → activado) ──────────────────────────────────────
-SEC_CONFIG="$HOME/.config/gigios/security.json"
+SEC_CONFIG="$HOME/.config/gigishell/security.json"
 if command -v jq >/dev/null 2>&1 && [[ -f "$SEC_CONFIG" ]]; then
     enabled=$(jq -r 'if has("sandboxLaunch") then (.sandboxLaunch|tostring) else "true" end' \
         "$SEC_CONFIG" 2>/dev/null)

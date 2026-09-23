@@ -5,7 +5,7 @@
 # Desmonta TODAS las particiones montadas del disco y luego lo apaga. El unmount
 # de udisks hace el flush de la caché sucia y espera a que termine: cuando esto
 # vuelve con éxito, los datos están físicamente en el pendrive. Ese es justo el
-# paso que se salta arrancarlo a pelo (ver 99-gigios-usb-writeback.rules).
+# paso que se salta arrancarlo a pelo (ver 99-gigishell-usb-writeback.rules).
 #
 # Va por udisksctl (no `umount`) porque los montajes de /run/media/$USER son de
 # udisks y son del usuario: no hace falta sudo. power-off corta la alimentación
@@ -21,7 +21,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 

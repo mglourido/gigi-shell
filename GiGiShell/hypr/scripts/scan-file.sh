@@ -22,12 +22,12 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 
 # Actualización de firmas cuando el motor no puede analizar: SIEMPRE con botón, nunca sola. Lo
-# automático ocurre una vez, al arrancar Hyprland (`gigios/autostart.lua` →
+# automático ocurre una vez, al arrancar Hyprland (`gigishell/autostart.lua` →
 # `actualizar-firmas.sh --auto`); a mitad de sesión descargar ~200 MB porque un análisis falló es
 # una decisión del usuario, y aquí basta con un clic derecho sobre el popup. `firmas_aviso_con_boton`
 # bloquea hasta el clic o su techo de espera, pero este script ya ha terminado su trabajo, así que

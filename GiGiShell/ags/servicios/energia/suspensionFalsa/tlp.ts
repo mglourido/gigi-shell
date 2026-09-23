@@ -7,7 +7,7 @@
 // usuario o el modo ahorro se habría perdido en cada suspensión falsa.
 //
 // AGS NO TOCA /etc. Todo pasa por `../tlp.ts`, que delega en el helper root-owned
-// `/usr/local/bin/gigios-tlp-apply` autorizado en sudoers SOLO para sus dos argumentos
+// `/usr/local/bin/gigishell-tlp-apply` autorizado en sudoers SOLO para sus dos argumentos
 // fijos. Aquí no se lanza ningún proceso propio: reescribir esa llamada duplicaría la
 // gestión de `tlpBusy` y dos `tlp start` a la vez se pisan.
 //
@@ -22,7 +22,7 @@
 // TLP escribe /etc y sobrevive al proceso: un AGS que muera aquí deja el portátil en
 // "ahorro" para siempre (visible solo si el usuario abre Ajustes > Energía). Contra eso no
 // hay apunte en disco propio porque no hace falta: el helper anota el modo activo en
-// `/etc/gigios/tlp/active`, así que el valor real nunca se pierde — lo que se pierde es la
+// `/etc/gigishell/tlp/active`, así que el valor real nunca se pierde — lo que se pierde es la
 // INTENCIÓN de volver, y eso lo resuelve el usuario con un clic. Lo que sí hay que evitar es
 // perder la restauración por una carrera: `setTlpMode` se traga la llamada si `tlpBusy` está
 // puesto (guarda contra dos `tlp start` simultáneos), y una restauración tragada dejaría el

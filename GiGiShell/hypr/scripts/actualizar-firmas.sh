@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # actualizar-firmas.sh — actualiza la base de firmas de ClamAV. Es el lado de USUARIO del helper
-# root-owned /usr/local/bin/gigios-clamav-update (ver system/clamav/ y CLAUDE.md, "Firmas de ClamAV").
+# root-owned /usr/local/bin/gigishell-clamav-update (ver system/clamav/ y CLAUDE.md, "Firmas de ClamAV").
 #
 # **NO HAY NINGÚN TEMPORIZADOR DE ACTUALIZACIÓN DE CLAMAV EN TODO EL SISTEMA.** Ni aquí, ni en un
 # servicio, ni en los escáneres. Este script se ejecuta exactamente en dos situaciones:
@@ -8,7 +8,7 @@
 #   actualizar-firmas.sh          Lo ha pedido el usuario: el botón del popup "ClamAV no puede
 #                                 analizar", o una llamada a mano. Notifica lo que pasa — si nadie
 #                                 ve el resultado, el botón no sirve de nada.
-#   actualizar-firmas.sh --auto   UNA vez por arranque de Hyprland (`gigios/autostart.lua`, t=40).
+#   actualizar-firmas.sh --auto   UNA vez por arranque de Hyprland (`gigishell/autostart.lua`, t=40).
 #                                 NO notifica NUNCA —ni al empezar, ni al acabar, ni al fallar— y
 #                                 solo descarga si el interruptor está encendido y la base falta o
 #                                 tiene más de un día. Cuando no toca sale en ~4 ms sin forkear
@@ -32,8 +32,8 @@
 set -u
 
 APP="Antivirus"
-HELPER=/usr/local/bin/gigios-clamav-update
-LOCK="${XDG_RUNTIME_DIR:-/tmp}/gigios-clamav-update.lock"
+HELPER=/usr/local/bin/gigishell-clamav-update
+LOCK="${XDG_RUNTIME_DIR:-/tmp}/gigishell-clamav-update.lock"
 
 # Edad a partir de la cual la base se considera vieja al arrancar. freshclam publica varias veces
 # al día, pero descargar en cada arranque solo gasta red: con firmas de menos de un día ClamAV
@@ -55,7 +55,7 @@ source "$HOME/.config/hypr/scripts/lib/firmas.sh" 2>/dev/null || {
     $modo_auto && exit 0
     # A mano se sigue adelante, pero la marca tiene que existir igual (la lee el bloque de
     # abajo y `set -u` no perdona una variable sin definir).
-    FIRMAS_MARCA="$HOME/.cache/gigios/firmas-auto"
+    FIRMAS_MARCA="$HOME/.cache/gigishell/firmas-auto"
 }
 
 NOTIF_APP="$APP"
@@ -66,7 +66,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 
@@ -144,7 +144,7 @@ else
     # `sudo -n` no está: el helper existe pero la regla sudoers no, o freshclam falló (sin red,
     # espejo caído). Se distingue porque el mensaje de sudo es inconfundible.
     if [[ "$err" == *"password is required"* || "$err" == *"sudo:"* ]]; then
-        err="falta la regla /etc/sudoers.d/gigios-clamav (ejecuta ~/GiGiShell/install.sh)"
+        err="falta la regla /etc/sudoers.d/gigishell-clamav (ejecuta ~/GiGiShell/install.sh)"
     fi
     avisar antivirus.fallo-actualizacion -u critical "No se pudieron actualizar las firmas" \
         "${err:-freshclam falló (código $rc)}" -t 0

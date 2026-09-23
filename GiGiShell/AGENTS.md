@@ -11,7 +11,7 @@ GiGiShell es un árbol personal de dotfiles para Hyprland/Wayland. Los archivos 
 - `bin/link.sh --force`: hace copia de seguridad de los archivos en conflicto y luego crea los enlaces.
 - `ags quit` seguido de `ags run ~/.config/ags/app.ts`: detiene primero cualquier instancia de AGS y después lanza o recarga el shell tras cambios en la interfaz.
 - `hyprctl reload`: aplica cambios de configuración de Hyprland sin reiniciar los `exec-once`.
-- `hyprctl reload full-reset`: reinicia Hyprland correctamente y vuelve a ejecutar el autostart de `hypr/gigios/autostart.lua`; usarlo cuando haya que actualizar el autostart o reiniciar el compositor.
+- `hyprctl reload full-reset`: reinicia Hyprland correctamente y vuelve a ejecutar el autostart de `hypr/gigishell/autostart.lua`; usarlo cuando haya que actualizar el autostart o reiniciar el compositor.
 - `node --test $(rg --files ags -g '*.test.ts')`: ejecuta todas las pruebas TypeScript locales.
 
 ## Control de versiones
@@ -21,7 +21,7 @@ Aplica esto también a los archivos de pruebas cuando formen parte del cambio. N
 
 ## Estilo de código y convenciones de nombres
 
-Sigue el estilo existente de TypeScript/TSX en `ags/`: widgets funcionales, imports explícitos de `ags/gtk4` y `gi://...`, y módulos locales por funcionalidad. Mantén `ags/estilos/out.css` fuera de ediciones manuales; cambia `ags/estilos/style.scss` en su lugar (su `.map` ya no vive en el repo, se genera en `~/.cache/gigios/`). Los archivos de Hyprland usan nombres descriptivos en minúsculas terminados en `.conf`; los scripts usan nombres en kebab-case y minúsculas terminados en `.sh`.
+Sigue el estilo existente de TypeScript/TSX en `ags/`: widgets funcionales, imports explícitos de `ags/gtk4` y `gi://...`, y módulos locales por funcionalidad. Mantén `ags/estilos/out.css` fuera de ediciones manuales; cambia `ags/estilos/style.scss` en su lugar (su `.map` ya no vive en el repo, se genera en `~/.cache/gigishell/`). Los archivos de Hyprland usan nombres descriptivos en minúsculas terminados en `.conf`; los scripts usan nombres en kebab-case y minúsculas terminados en `.sh`.
 
 Usa español de forma consistente en los nombres y la documentación orientados al código en este repositorio: variables, funciones, comentarios y documentación deben mantener el mismo idioma y estilo de nombres, salvo que una API, dependencia o interfaz externa exija otro idioma. Esto mejora la coherencia y la mantenibilidad.
 
@@ -87,5 +87,5 @@ Este checkout tiene un `.git` vacío; el historial viene del repositorio bare en
 
 ## Consejos de seguridad y configuración
 
-Los datos de ejecución y los secretos viven fuera del repositorio en `~/.config/gigios/`, incluido `spotify-creds.json`; no copies secretos a este árbol. Trata los perfiles de GPU específicos de máquina y las preferencias del usuario como configuración local salvo que el cambio se quiera compartir de forma intencionada.
+Los datos de ejecución y los secretos viven fuera del repositorio en `~/.config/gigishell/`, incluido `spotify-creds.json`; no copies secretos a este árbol. Trata los perfiles de GPU específicos de máquina y las preferencias del usuario como configuración local salvo que el cambio se quiera compartir de forma intencionada.
 - No asumas que todo `config` es temporal. La configuración explícita de AGS que forma parte del código, como `apps_icons`, mapeos internos o recursos estáticos, pertenece al config de GiGiShell. El estado temporal o editable por el usuario desde la UI, como paneles, preferencias cambiables o valores de sesión, va al `~/.config` del usuario/sistema según corresponda.

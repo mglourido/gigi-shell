@@ -1,5 +1,5 @@
 [SddmGreeterTheme]
-Name=gigios
+Name=gigishell
 Description=Saludador de GiGiShell (jake_the_dog, sobre sddm-astronaut-theme)
 Author=keyitdev
 Website=https://github.com/Keyitdev/sddm-astronaut-theme
@@ -11,6 +11,6 @@ Type=sddm-theme
 ConfigFile=theme.conf
 Screenshot=Backgrounds/jake_the_dog.png
 MainScript=Main.qml
-Theme-Id=gigios
+Theme-Id=gigishell
 Theme-API=2.0
 QtVersion=6

@@ -1,7 +1,7 @@
 // servicios/aplicaciones/appsInicio.ts — la lista de apps que se abren al
 // iniciar la sesión.
 //
-// El dato vive en ~/.config/gigios/apps-inicio.json y lo consume un script de
+// El dato vive en ~/.config/gigishell/apps-inicio.json y lo consume un script de
 // shell, `inicializador/apps-inicio.sh`, al que llama el autostart de Hyprland
 // (una sola línea, a t=7). Aquí solo está la mitad de escritura: el estado
 // reactivo que pinta Ajustes > Apps al inicio y su persistencia.

@@ -25,7 +25,7 @@ DATA_HOME_LIMPIEZA=${XDG_DATA_HOME:-$HOME/.local/share}
 
 # Nombres de primer nivel de ~/.cache que `cacheUsuario` NO toca. Dos motivos distintos:
 #
-#   · no son caché de verdad (gigios guarda ahí el mapa de fuentes del CSS y el sondeo de hardware,
+#   · no son caché de verdad (gigishell guarda ahí el mapa de fuentes del CSS y el sondeo de hardware,
 #     que nada regenera);
 #   · o tienen su propia acción, y borrarlas desde dos sitios es lo que rompía la estimación
 #     (paru/yay → cacheAur, thumbnails → miniaturas, pip/go-build → cacheDesarrollo, y todo lo de
@@ -38,7 +38,7 @@ DATA_HOME_LIMPIEZA=${XDG_DATA_HOME:-$HOME/.local/share}
 # NVIDIA. Lo mismo con `qtshadercache-<arch>-<endianness>-<abi>`, cuyo nombre lleva el triplete de
 # la máquina dentro.
 CACHE_PRESERVADO=(
-    gigios
+    gigishell
     paru yay
     'mesa_shader_cache*' nvidia 'radv_builtin_shaders*' AMD 'qtshadercache-*'
     thumbnails
@@ -140,7 +140,7 @@ rutas_desarrollo() {
 # Las protegidas se leen y se podan ANTES que las personalizadas, porque `ruta_personalizada_valida`
 # consulta la lista de protegidas para rechazar «borra esto» y «no borres esto» a la vez.
 leer_preferencias_limpieza() {
-    local config="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/almacenamiento.json"
+    local config="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/almacenamiento.json"
     local -a lineas=()
     mapfile -t lineas < <(
         jq -rn --slurpfile c "$config" '

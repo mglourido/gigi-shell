@@ -14,7 +14,7 @@ export interface HypridleConfig {
    * contándolo hypridle?" — que es solo uno de los dos caminos posibles. El otro (el normal) es
    * suspender primero y que systemd hiberne desde la suspensión con una alarma RTC, y entonces
    * este listener está APAGADO aunque la hibernación esté encendida. Quién manda de verdad es
-   * `~/.config/gigios/hibernacion.json`; esto es su espejo. Ver `servicios/energia/hibernacion.ts`.
+   * `~/.config/gigishell/hibernacion.json`; esto es su espejo. Ver `servicios/energia/hibernacion.ts`.
    */
   hibernate: ListenerState
   /** ¿Bloquea la pantalla al suspender? (before_sleep_cmd del bloque general) */
@@ -64,11 +64,11 @@ const DEFAULT: ListenerState = { timeout: 0, enabled: false }
 // los casos. Por eso apagar el listener de bloqueo NO evitaba encontrarse el
 // bloqueo al despertar: era este comando, que no tenía interruptor.
 //
-// Se desactiva comentando la línea con el mismo sentinel GIGIOS-OFF que los
+// Se desactiva comentando la línea con el mismo sentinel GIGISHELL-OFF que los
 // listeners, para no perder el comando escrito (con su envoltura, sea `loginctl
 // lock-session` o cualquier otro) y poder reactivarlo tal cual.
 const RE_BEFORE_SLEEP = /^([ \t]*)(#[ \t]*)?before_sleep_cmd[ \t]*=[ \t]*(.*)$/m
-const SENTINEL = /[ \t]*#[ \t]*GIGIOS-OFF[ \t]*$/
+const SENTINEL = /[ \t]*#[ \t]*GIGISHELL-OFF[ \t]*$/
 
 function parseBloqueoAlSuspender(text: string): boolean {
   const m = text.match(RE_BEFORE_SLEEP)
@@ -90,7 +90,7 @@ export function writeBloqueoAlSuspender(text: string, enabled: boolean): string 
       const cmd = resto.replace(SENTINEL, "").trim()
       return enabled
         ? `${sangria}before_sleep_cmd = ${cmd}`
-        : `${sangria}# before_sleep_cmd = ${cmd}   # GIGIOS-OFF`
+        : `${sangria}# before_sleep_cmd = ${cmd}   # GIGISHELL-OFF`
     })
   }
   if (!enabled) return text
@@ -111,7 +111,7 @@ export function parseHypridle(text: string): HypridleConfig {
     if (!kind) continue
     // timeout, incluso si está comentado con el sentinel
     const active = block.match(/^\s*timeout\s*=\s*(\d+)/m)
-    const disabled = block.match(/^\s*#\s*timeout\s*=\s*(\d+)\s*#\s*GIGIOS-OFF/m)
+    const disabled = block.match(/^\s*#\s*timeout\s*=\s*(\d+)\s*#\s*GIGISHELL-OFF/m)
     if (active) cfg[kind] = { timeout: Number(active[1]), enabled: true }
     else if (disabled) cfg[kind] = { timeout: Number(disabled[1]), enabled: false }
   }
@@ -127,8 +127,8 @@ export function writeHypridle(text: string, values: Partial<Record<ListenerKind,
     const v = values[kind]!
     const line = v.enabled
       ? `timeout = ${v.timeout}`
-      : `# timeout = ${v.timeout}   # GIGIOS-OFF`
+      : `# timeout = ${v.timeout}   # GIGISHELL-OFF`
     // Reemplaza la línea timeout activa o la comentada, preservando indentación.
-    return block.replace(/^(\s*)(#\s*)?timeout\s*=\s*\d+(\s*#\s*GIGIOS-OFF)?/m, `$1${line}`)
+    return block.replace(/^(\s*)(#\s*)?timeout\s*=\s*\d+(\s*#\s*GIGISHELL-OFF)?/m, `$1${line}`)
   })
 }

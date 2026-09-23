@@ -9,14 +9,14 @@
 // cambio aquí solo surte efecto reiniciando el sistema (o relanzando el script);
 // la UI lo avisa de forma destacada.
 //
-// Se persiste en su PROPIO archivo ~/.config/gigios/security.json para no
+// Se persiste en su PROPIO archivo ~/.config/gigishell/security.json para no
 // mezclarlo con las preferencias de personalización (preferences.json).
 
 import GLib from "gi://GLib"
 import { createState } from "ags"
 import textos from "../../../textos/ajustes/seguridad.json" with { type: "json" }
 
-const SEC_PATH = `${GLib.get_user_config_dir()}/gigios/security.json`
+const SEC_PATH = `${GLib.get_user_config_dir()}/gigishell/security.json`
 
 export type SecurityKey =
   | "oomKiller" | "kernelPanic" | "hungTask" | "hwErrors" | "kernelModules"
@@ -95,7 +95,7 @@ for (const k of DL_PAUSE_KEYS) dlPauseStates[k] = createState(DL_PAUSE_DEFAULTS[
 // `clamav-freshclam.service`: el estado vivía en systemd y la actualización ocurría POR
 // PERIODO, corriera o no falta, también con el equipo sin hacer nada. Ahora el estado es
 // del usuario y vive aquí, y quien actualiza es `hypr/scripts/actualizar-firmas.sh --auto`
-// **una sola vez, al arrancar Hyprland** (`gigios/autostart.lua`), y solo si la base falta
+// **una sola vez, al arrancar Hyprland** (`gigishell/autostart.lua`), y solo si la base falta
 // o pasa de un día. Durante la sesión no hay reloj, ni servicio, ni reintentos por barrido:
 // si un análisis se queda sin motor, los escáneres ofrecen un botón y decide el usuario.
 // En el arranque no se notifica nada — el interruptor promete que se hace solo.

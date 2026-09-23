@@ -9,12 +9,12 @@
 # Son DOS ficheros de estado, los dos escritos por AGS, los dos con el mismo
 # contrato (active / until absoluto / pid) y la misma guarda:
 #
-#   ~/.config/gigios/wakeup.json  (ags/servicios/energia/mantenerDespierto.ts)
+#   ~/.config/gigishell/wakeup.json  (ags/servicios/energia/mantenerDespierto.ts)
 #     { "active": bool, "until": <epoch seg|null>, "screen": bool, "pid": <pid de AGS> }
 #     until = null  → sin límite (el campo de minutos vacío)
 #     screen = true → el Wake up también protege la pantalla (no se apaga ni bloquea)
 #
-#   ~/.config/gigios/suspension-falsa.json  (ags/servicios/energia/suspensionFalsa.ts)
+#   ~/.config/gigishell/suspension-falsa.json  (ags/servicios/energia/suspensionFalsa.ts)
 #     { "active": bool, "until": <epoch seg|null>, "pid": <pid de AGS>, "thenSuspend": bool }
 #     Sin `screen`: la suspensión falsa APAGA la pantalla ella misma como primer
 #     paso de su secuencia de entrada, así que no tiene nada que proteger de
@@ -64,7 +64,7 @@
 
 set -uo pipefail
 
-CFG="${XDG_CONFIG_HOME:-$HOME/.config}/gigios"
+CFG="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell"
 STATE="$CFG/wakeup.json"
 STATE_SF="$CFG/suspension-falsa.json"
 # Aviso de "hypridle ha querido suspender y se le ha vetado". No es estado: es un epoch
@@ -220,7 +220,7 @@ lock_screen() {
 
 # Suspender. Con la hibernación en modo "retardo" NO se usa `systemctl suspend` a secas sino
 # `suspend-then-hibernate`, que es el mismo S3 de siempre MÁS una alarma RTC armada antes de
-# dormirse: al vencer `HibernateDelaySec` (/etc/systemd/sleep.conf.d/99-gigios-hibernacion.conf,
+# dormirse: al vencer `HibernateDelaySec` (/etc/systemd/sleep.conf.d/99-gigishell-hibernacion.conf,
 # lo escribe el helper root) el equipo despierta solo y se hiberna.
 #
 # Por qué no lo decide AGS cambiando este comando: porque suspender no siempre pasa por aquí

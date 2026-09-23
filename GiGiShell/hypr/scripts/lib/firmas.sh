@@ -4,8 +4,8 @@
 # EL MODELO, y lo importante es lo que NO hay: **no existe ningún temporizador de actualización de
 # ClamAV**. Ni un servicio periódico, ni un bucle, ni un reintento por barrido, ni un despertar a
 # mitad de sesión. La única actualización automática ocurre **una vez, al arrancar Hyprland**
-# (`gigios/autostart.lua` llama a `actualizar-firmas.sh --auto`), y solo si el interruptor
-# `clamavAutoUpdate` de ~/.config/gigios/security.json está encendido (lo está por defecto) y la
+# (`gigishell/autostart.lua` llama a `actualizar-firmas.sh --auto`), y solo si el interruptor
+# `clamavAutoUpdate` de ~/.config/gigishell/security.json está encendido (lo está por defecto) y la
 # base falta o tiene más de un día. Con eso basta: una sesión de escritorio empieza casi a diario,
 # así que las firmas entran al día y se quedan al día durante toda la sesión.
 #
@@ -22,13 +22,13 @@
 #     source "$HOME/.config/hypr/scripts/lib/firmas.sh"
 #     firmas_aviso_con_boton analisis.sin-firmas normal "Título" "Cuerpo"   # BLOQUEA: ver abajo
 
-FIRMAS_CONFIG="${FIRMAS_CONFIG:-$HOME/.config/gigios/security.json}"
+FIRMAS_CONFIG="${FIRMAS_CONFIG:-$HOME/.config/gigishell/security.json}"
 FIRMAS_SCRIPT="${FIRMAS_SCRIPT:-$HOME/.config/hypr/scripts/actualizar-firmas.sh}"
 # Resultado del último intento automático: "<epoch> <rc>". Su único uso es el antirrebote de
 # `actualizar-firmas.sh --auto`: `hyprctl reload full-reset` vuelve a ejecutar el autostart, y sin
 # esto cada recarga reintentaría la descarga cuando el arranque anterior falló (sin red, por
 # ejemplo). No es un temporizador: nadie lo consulta si nadie arranca la sesión.
-FIRMAS_MARCA="${FIRMAS_MARCA:-$HOME/.cache/gigios/firmas-auto}"
+FIRMAS_MARCA="${FIRMAS_MARCA:-$HOME/.cache/gigishell/firmas-auto}"
 
 # ¿Está encendido el interruptor "actualizar las firmas al iniciar sesión"? Ausente o ilegible =
 # SÍ (es el valor por defecto en la UI, y con la base vacía el escáner de descargas no da NADA por
@@ -64,7 +64,7 @@ FIRMAS_ESPERA_CLIC_S="${FIRMAS_ESPERA_CLIC_S:-120}"
 #
 # El `timeout` NO puede envolver a `notificar` —es una función de shell, no un binario—, así que el
 # techo se implementa con un vigilante que mata al notify-send. Un `timeout bash -c` perdería la
-# función y el aviso saldría sin identidad (sin `x-gigios-event`, o sea inconfigurable desde
+# función y el aviso saldría sin identidad (sin `x-gigishell-event`, o sea inconfigurable desde
 # Ajustes).
 firmas_aviso_con_boton() {   # $1 evento  $2 urgencia  $3 título  $4 cuerpo
     local evento=$1 urgencia=$2 titulo=$3 cuerpo=$4

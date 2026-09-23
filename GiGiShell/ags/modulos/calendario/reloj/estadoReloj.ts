@@ -128,7 +128,7 @@ function emitirAlerta(titulo: string, cuerpo: string, sonido: string) {
     "-a", "Reloj",
     "-u", "critical", // permanece hasta que se atienda; una alarma que se va sola no es una alarma
     "-h", esRuta(sonido) ? `string:sound-file:${sonido}` : `string:sound-name:${sonido}`,
-    "-h", "string:x-gigios-source:alarm",
+    "-h", "string:x-gigishell-source:alarm",
     titulo,
     cuerpo,
   ]).catch((e) => console.warn(`[${ETIQUETA}] no se pudo notificar:`, e))

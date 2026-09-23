@@ -8,9 +8,9 @@ versionar. No se compila nada: el fichero local carga el compartido con
 | Shell | Compartido (versionado)             | Local (NO versionado)       |
 |-------|-------------------------------------|-----------------------------|
 | Bash  | `~/.config/bash/bashrc`             | `~/.bashrc`                 |
-| Zsh   | `~/.config/zsh/gigios.zshenv`       | `~/.config/zsh/.zshenv`     |
-| Zsh   | `~/.config/zsh/gigios.zshrc`        | `~/.config/zsh/.zshrc`      |
-| Fish  | `~/.config/fish/conf.d/gigios.fish` | `~/.config/fish/config.fish`, `conf.d/rustup.fish`, `fish_variables` |
+| Zsh   | `~/.config/zsh/gigishell.zshenv`       | `~/.config/zsh/.zshenv`     |
+| Zsh   | `~/.config/zsh/gigishell.zshrc`        | `~/.config/zsh/.zshrc`      |
+| Fish  | `~/.config/fish/conf.d/gigishell.fish` | `~/.config/fish/config.fish`, `conf.d/rustup.fish`, `fish_variables` |
 
 `~/.zshenv` (el que fija `ZDOTDIR`) y `~/.config/zsh/functions/*.zsh` siguen
 versionados tal cual: no tienen nada propio de un equipo.

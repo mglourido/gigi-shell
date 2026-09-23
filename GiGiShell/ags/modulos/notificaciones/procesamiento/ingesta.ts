@@ -54,13 +54,13 @@ function readBoolHint(n: AstalNotifd.Notification, key: string): boolean {
   } catch (_) { return false }
 }
 
-/** Lee SOLO los hints `x-gigios-source` / `x-gigios-event` (los ponen los scripts de
+/** Lee SOLO los hints `x-gigishell-source` / `x-gigishell-event` (los ponen los scripts de
  *  `hypr/scripts/` vía `lib/notif.sh`). Deliberadamente NO pasa por `extractHints()`: ese hace
  *  `recursiveUnpack()` de todo el a{sv}, y un `image-data` trae los píxeles en crudo —
  *  materializarlos en JS por cada notificación saldría caro. Hoy solo se libra porque únicamente
  *  corre cuando una regla reescribe texto. `lookup_value` desenvuelve la 'v' él solo. */
 function readSourceHint(n: AstalNotifd.Notification): string | undefined {
-  return readStringHint(n, "x-gigios-source")
+  return readStringHint(n, "x-gigishell-source")
 }
 
 /** No molestar, leído del daemon en el momento. No se cachea: el auto-DND lo cambia solo. */
@@ -100,7 +100,7 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
   // `match.event`). Del primero depende la builtin que da el skin dunst a lo que sale de
   // hypr/scripts; del segundo, la configuración individual de cada aviso del sistema.
   const source = readSourceHint(n)
-  const event = readStringHint(n, "x-gigios-event")
+  const event = readStringHint(n, "x-gigishell-event")
 
   const input: NotifInput = {
     appName: n.app_name || "Sistema",

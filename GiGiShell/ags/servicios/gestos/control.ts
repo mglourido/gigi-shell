@@ -22,10 +22,10 @@ import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import { gestos } from "./estado.ts"
 
-const RUTA = `${GLib.get_user_config_dir()}/gigios/gestos.json`
+const RUTA = `${GLib.get_user_config_dir()}/gigishell/gestos.json`
 const GUION = `${GLib.get_home_dir()}/.config/hypr/scripts/gestos.sh`
-const VENV = `${GLib.get_user_data_dir()}/gigios/gestos/venv/bin/python`
-const MODELO = `${GLib.get_user_data_dir()}/gigios/gestos/hand_landmarker.task`
+const VENV = `${GLib.get_user_data_dir()}/gigishell/gestos/venv/bin/python`
+const MODELO = `${GLib.get_user_data_dir()}/gigishell/gestos/hand_landmarker.task`
 
 /** 1 → 2: el ritmo por defecto pasó de 15 a 30 fps. La cámara entrega 29,6
  *  reales, así que a 15 se tiraba uno de cada dos frames — y el que se tiraba

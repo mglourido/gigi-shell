@@ -17,7 +17,7 @@
 # Esto sale de un clic en una interfaz gráfica: no hay terminal donde teclear una
 # contraseña, así que `sudo` se colgaría esperando en un stdin que no existe.
 # `pkexec` es lo que abre el diálogo gráfico (hyprpolkitagent, ya lanzado desde
-# gigios/autostart.lua) y su acción por defecto es `auth_admin` — pide la
+# gigishell/autostart.lua) y su acción por defecto es `auth_admin` — pide la
 # contraseña del usuario porque está en `wheel`, y NO la recuerda: cada
 # desinstalación la vuelve a pedir, que es lo correcto para algo irreversible.
 #
@@ -46,7 +46,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 

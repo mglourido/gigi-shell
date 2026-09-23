@@ -56,7 +56,7 @@ import { fijarVolumenEndpoint } from "./escrituraVolumen"
 
 export type TipoMezcla = "speaker" | "mic"
 
-const RUTA_PRESETS = `${GLib.get_user_config_dir()}/gigios/audioPresets.json`
+const RUTA_PRESETS = `${GLib.get_user_config_dir()}/gigishell/audioPresets.json`
 
 function cargarPresets(): Record<string, number> {
   try {

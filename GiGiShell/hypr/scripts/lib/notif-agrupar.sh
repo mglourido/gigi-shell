@@ -35,7 +35,7 @@
 # veces? Sucesos (sudo, SSH, GPU) → por defecto; el mismo (rutas de fichero) → unico.
 #
 # RELACIÓN CON lib/notif.sh: son capas distintas y ortogonales. Aquella da IDENTIDAD a
-# cada aviso (`x-gigios-event`, para que Ajustes > Notificaciones lo pueda configurar);
+# cada aviso (`x-gigishell-event`, para que Ajustes > Notificaciones lo pueda configurar);
 # esta decide CUÁNDO y CUÁNTOS avisos salen. Un grupo declara su id igual que lo haría
 # una llamada suelta, y el resumen de una ráfaga sale con el MISMO id que el aviso
 # individual — quien silencia "errores de GPU" quiere callados los dos. Si `notificar`
@@ -211,7 +211,7 @@ notif_volcar() {
             notificar "${_NG_EV[$cat]}" -u "${_NG_URG[$cat]}" ${_NG_EXT[$cat]} \
                 "$titulo" "$cuerpo" -t "${_NG_TMO[$cat]}"
         else
-            notify-send -h string:x-gigios-source:system -u "${_NG_URG[$cat]}" ${_NG_EXT[$cat]} \
+            notify-send -h string:x-gigishell-source:system -u "${_NG_URG[$cat]}" ${_NG_EXT[$cat]} \
                 "$titulo" "$cuerpo" -t "${_NG_TMO[$cat]}"
         fi
 

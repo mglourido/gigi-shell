@@ -21,7 +21,7 @@ import { componerAviso, decidirAvisos, leerAvisados, serializarAvisados } from "
  *
  * En `~/.cache` y no en `~/.config` porque es estado regenerable: perderlo solo adelanta un aviso.
  */
-const MARCA = GLib.build_filenamev([GLib.get_user_cache_dir(), "gigios", "disco-avisos"])
+const MARCA = GLib.build_filenamev([GLib.get_user_cache_dir(), "gigishell", "disco-avisos"])
 
 function leerMarca(): Map<string, number> {
   try {
@@ -63,10 +63,10 @@ export function revisarDiscos(discos: readonly Disco[]): void {
     try {
       Gio.Subprocess.new(
         ["notify-send", "-u", "critical",
-         "-h", "string:x-gigios-source:system",
+         "-h", "string:x-gigishell-source:system",
          // El MISMO id que emite `disk-monitor.sh`: quien silencia el aviso del arranque quiere
          // callado también este. Ver `modulos/notificaciones/rules/catalogoSistema.ts`.
-         "-h", "string:x-gigios-event:disco.casi-lleno",
+         "-h", "string:x-gigishell-event:disco.casi-lleno",
          "-a", "Disco", "-i", "drive-harddisk", "-t", "15000",
          aviso.titulo, aviso.cuerpo],
         Gio.SubprocessFlags.NONE,

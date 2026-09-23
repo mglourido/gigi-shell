@@ -5,7 +5,7 @@
 # EL PORQUÉ. VS Code guarda sus secretos (tokens de GitHub, cuentas de extensiones,
 # Settings Sync) cifrados con la clave del keyring del escritorio, que pide por D-Bus
 # como `org.freedesktop.secrets`. En una sesión de GiGiShell NO HAY NADIE que ofrezca ese
-# nombre: KWallet/ksecretd está retirado a propósito (ver hypr/gigios/autostart.lua,
+# nombre: KWallet/ksecretd está retirado a propósito (ver hypr/gigishell/autostart.lua,
 # pedía la contraseña del monedero en CADA arranque) y gnome-keyring no se instala. Con
 # autologin tampoco serviría: PAM no ve ninguna contraseña con la que desbloquear el
 # llavero, así que gnome-keyring volvería a preguntar una vez por sesión.
@@ -15,7 +15,7 @@
 # cuales recuerda la respuesta de forma fiable. `password-store=basic` es el segundo de
 # esos botones, pero escrito de forma permanente: VS Code cifra con una clave fija en vez
 # de con el keyring. Es el mismo modelo de amenaza que el resto de credenciales del
-# sistema (~/.config/gigios/spotify-creds.json y google-calendar-creds.json, en texto
+# sistema (~/.config/gigishell/spotify-creds.json y google-calendar-creds.json, en texto
 # plano con chmod 600): quien pueda leer tu $HOME puede leerlas.
 #
 # OJO CON EL FORMATO: argv.json es JSONC — JSON *con comentarios*, y VS Code los escribe

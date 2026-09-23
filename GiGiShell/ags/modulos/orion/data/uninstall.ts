@@ -87,8 +87,8 @@ export async function desinstalarApp(objetivo: AppDesinstalable): Promise<Result
   // mirando un escritorio en el que no ha pasado absolutamente nada.
   if (!GLib.file_test(SCRIPT, GLib.FileTest.IS_EXECUTABLE)) {
     execAsync([
-      "notify-send", "-h", "string:x-gigios-source:system",
-      "-h", "string:x-gigios-event:desinstalar.falta-script", "-u", "critical",
+      "notify-send", "-h", "string:x-gigishell-source:system",
+      "-h", "string:x-gigishell-event:desinstalar.falta-script", "-u", "critical",
       "-a", "Desinstalar", `No se pudo desinstalar «${objetivo.name}»`,
       "Falta hypr/scripts/desinstalar-app.sh: ejecuta bin/link.sh.",
     ]).catch(() => {})

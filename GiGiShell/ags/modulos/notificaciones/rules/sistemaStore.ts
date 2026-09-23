@@ -1,6 +1,6 @@
 // modulos/notificaciones/rules/sistemaStore.ts
 // Configuración POR AVISO del sistema. Vive en su propio fichero,
-// `~/.config/gigios/notif-sistema.json`, separado de `notif-rules.json` a propósito.
+// `~/.config/gigishell/notif-sistema.json`, separado de `notif-rules.json` a propósito.
 //
 // POR QUÉ UN FICHERO APARTE. `notif-rules.json` guarda reglas: objetos con `match`, `effects`,
 // `priority` y `stopOnMatch`, pensados para que el usuario cace notificaciones de apps por
@@ -40,7 +40,7 @@ import type { EffectSpec, NotifRule } from "./types.ts"
 import { CATALOGO_SISTEMA, eventoSistema } from "./catalogoSistema.ts"
 import { cargarJson, crearGuardadoJsonProgramado } from "../estado/persistencia.ts"
 
-const SISTEMA_PATH = `${GLib.get_user_config_dir()}/gigios/notif-sistema.json`
+const SISTEMA_PATH = `${GLib.get_user_config_dir()}/gigishell/notif-sistema.json`
 
 /** Prioridad de las reglas generadas desde el catálogo. Por encima de las builtin (10..50) y
  *  de la prioridad por defecto de una regla de usuario (100), porque apuntar a UN aviso

@@ -26,7 +26,7 @@
 # preferences.json, así que un cambio en la UI solo surte efecto reiniciando el
 # sistema o relanzando este script. Archivo ausente/ilegible → todo ON (por
 # defecto). Fuente: ags/modulos/ajustes/seguridad/preferencias.ts → security.json.
-SEC_CONFIG="$HOME/.config/gigios/security.json"
+SEC_CONFIG="$HOME/.config/gigishell/security.json"
 sec_oomKiller=true   sec_kernelPanic=true   sec_hungTask=true    sec_hwErrors=true
 sec_kernelModules=true sec_cpuThrottling=true sec_diskError=true sec_diskHealth=true
 sec_gpuError=true    sec_serviceFailure=true sec_serviceHealth=true
@@ -47,8 +47,8 @@ if command -v jq >/dev/null 2>&1 && [[ -f "$SEC_CONFIG" ]]; then
     done < <(jq -r 'to_entries[] | "\(.key)=\(.value)"' "$SEC_CONFIG" 2>/dev/null)
 fi
 
-# ── Escalonado de arranque (ver hypr/gigios/autostart.lua) ──────────────────────────
-# Este script NO se retrasa entero desde gigios/autostart.lua, y esa asimetría es el
+# ── Escalonado de arranque (ver hypr/gigishell/autostart.lua) ──────────────────────────
+# Este script NO se retrasa entero desde gigishell/autostart.lua, y esa asimetría es el
 # diseño: sus 6 sub-monitores no corren el mismo riesgo si empiezan tarde.
 #
 #   - kernel/system/files → SIN retardo. Siguen el journal con `-n 0` (que salta el
@@ -74,7 +74,7 @@ SCAN_FILE="$HOME/.config/hypr/scripts/scan-file.sh"
 # Actualización de firmas que dispara el botón del aviso "sin base de firmas".
 UPDATE_SIGS="$HOME/.config/hypr/scripts/actualizar-firmas.sh"
 # Estado "jugando" que escribe AGS (servicios/energia/gamingState.ts) y umbral de ahorro.
-RUNTIME_STATE="$HOME/.config/gigios/runtime-state.json"
+RUNTIME_STATE="$HOME/.config/gigishell/runtime-state.json"
 POWER_CONFIG="$HOME/.config/power-save/config.json"
 
 # Gate compartido de "estoy jugando" (lee ese mismo RUNTIME_STATE). Lo usan los dos
@@ -100,7 +100,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 
@@ -987,7 +987,7 @@ monitor_units() {
 # grave: una vez visto un fichero NO se volvía a analizar JAMÁS, ni tras borrarlo
 # y recrearlo, ni tras reiniciar (el estado persistía). Y como no miraba el
 # contenido, reemplazar un fichero por otro DISTINTO del mismo tamaño pasaba
-# desapercibido. Ahora hay dos estados en ~/.cache/gigios/:
+# desapercibido. Ahora hay dos estados en ~/.cache/gigishell/:
 #   • download-index  (mtime|tamaño|ruta por fichero existente) — memo BARATO para
 #     saltarse en cada pasada lo que no ha cambiado sin volver a hashear. Se PODA
 #     a los ficheros que existen ahora, así no crece sin control.
@@ -1092,7 +1092,7 @@ monitor_downloads() {
         command -v "$cand" >/dev/null 2>&1 && { hasher="$cand"; break; }
     done
 
-    local cache="$HOME/.cache/gigios"
+    local cache="$HOME/.cache/gigishell"
     local idx_file="$cache/download-index"     # mtime|tamaño|ruta (podado)
     local hash_file="$cache/download-hashes"   # hashes ya analizados (persistente)
     mkdir -p "$cache" 2>/dev/null
@@ -1322,7 +1322,7 @@ monitor_downloads() {
                     # barrido de fondo en un disparador de ~200 MB a mitad de sesión, y porque
                     # reintentarlo barrido tras barrido es un temporizador de actualización con
                     # otro nombre — justo lo que no se quiere. Lo automático ocurre UNA vez, al
-                    # arrancar Hyprland (`gigios/autostart.lua` → `actualizar-firmas.sh --auto`).
+                    # arrancar Hyprland (`gigishell/autostart.lua` → `actualizar-firmas.sh --auto`).
                     #
                     # Aquí solo se avisa, con BOTÓN (clic derecho en el popup) para arreglarlo sin
                     # abrir una terminal: es el único fallo de esta lista con una cura de un solo

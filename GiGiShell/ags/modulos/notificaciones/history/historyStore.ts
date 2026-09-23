@@ -14,7 +14,7 @@ import {
   upsertEntry, collapseDuplicates, trimByRecency, sortByRecency, applyRuleExclusion,
 } from "./historyLogic.ts"
 
-const HISTORY_PATH = `${GLib.get_user_config_dir()}/gigios/notif-history.json`
+const HISTORY_PATH = `${GLib.get_user_config_dir()}/gigishell/notif-history.json`
 
 const historialCargado = cargarJson<{ entries?: HistoryEntry[] }>(HISTORY_PATH, {}, "history")
 // Se ordena AL CARGAR, no solo al escribir: los ficheros que dejaron las versiones anteriores

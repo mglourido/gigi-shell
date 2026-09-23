@@ -10,21 +10,21 @@
 // notificaciones. No compensa para un botón que se usa diez segundos.
 //
 // Se lanza `mpv` como ventana aparte, con su regla de Hyprland (flotante,
-// centrada, tamaño fijo) en `hypr/gigios/reglas.lua`. Si el proceso muere, se
+// centrada, tamaño fijo) en `hypr/gigishell/reglas.lua`. Si el proceso muere, se
 // muere él solo.
 import { execAsync } from "ags/process"
 import type { Camara } from "./dispositivos.ts"
 
 /** Clase de ventana propia, para que la `windowrule` de Hyprland la reconozca
  *  sin casar con cualquier otro mpv que el usuario tenga abierto viendo una
- *  película. Debe coincidir con la regla de `hypr/gigios/reglas.lua`.
+ *  película. Debe coincidir con la regla de `hypr/gigishell/reglas.lua`.
  *
  *  Se fija por partida DOBLE y no es redundante: `--x11-name` solo tiene efecto
  *  bajo XWayland, y en una sesión Wayland nativa —la nuestra— mpv se anuncia con
  *  el `app_id` de `--wayland-app-id`, que por defecto es `mpv` a secas. Con solo
  *  el primero, la regla no casaría nunca aquí y la ventana saldría en mosaico
  *  sin ningún error a la vista. Verificado con `hyprctl clients`. */
-export const CLASE_VISTA_PREVIA = "gigios-camara-preview"
+export const CLASE_VISTA_PREVIA = "gigishell-camara-preview"
 
 /** Abre la vista previa. No espera a que se cierre.
  *

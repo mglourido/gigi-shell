@@ -2,7 +2,7 @@
 //
 // "¿Hay una app mirando por la cámara ahora mismo?" — el lado AGS. Aquí no se
 // detecta nada: se LEE lo que `hypr/scripts/camara-monitor.sh` deja escrito en
-// `~/.config/gigios/camara-uso.json`. La detección vive allí por un motivo que
+// `~/.config/gigishell/camara-uso.json`. La detección vive allí por un motivo que
 // conviene no olvidar al tocar esto.
 //
 // ── POR QUÉ NO SE DETECTA DESDE AQUÍ ────────────────────────────────────────
@@ -49,7 +49,7 @@ export interface UsoCamara {
 
 const VACIO: UsoCamara = { enUso: false, desde: null, camaras: [] }
 
-const RUTA = `${GLib.get_user_config_dir()}/gigios/camara-uso.json`
+const RUTA = `${GLib.get_user_config_dir()}/gigishell/camara-uso.json`
 
 export const usoCamara = crearFuenteArchivoJson<UsoCamara>({
   ruta: RUTA,

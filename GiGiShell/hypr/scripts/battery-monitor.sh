@@ -39,7 +39,7 @@
 
 BATTERY=/sys/class/power_supply/BAT0
 POWER_SAVE_CONFIG="$HOME/.config/power-save/config.json"
-AGS_PREFS_CONFIG="$HOME/.config/gigios/preferences.json"
+AGS_PREFS_CONFIG="$HOME/.config/gigishell/preferences.json"
 LOW_THRESHOLDS=(10 8 6 4 2 0)
 DEFAULT_POWER_SAVE_THRESHOLD=15
 THRESHOLD_REFRESH_SECS=600   # re-read power-save config at most every 10min
@@ -139,7 +139,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 

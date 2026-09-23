@@ -7,7 +7,7 @@
 // (`notif-history.json` siempre vacío) parece un bug de persistencia.
 //
 // Astal **sí** se queja al no conseguir el nombre ("proxy.vala: cannot get proxy: dunst is
-// already running"), pero por el **stdout de `ags`**: arrancando desde `gigios/autostart.lua` esa
+// already running"), pero por el **stdout de `ags`**: arrancando desde `gigishell/autostart.lua` esa
 // línea no acaba ni en `hyprland.log` ni en el journal, o sea que solo la ve quien lanza el
 // shell a mano en una terminal. Y aunque la vea, dice *qué* pasa pero no *qué rompe* ni *cómo
 // se arregla*. Este módulo no descubre nada nuevo: comprueba el invariante de verdad ("¿es

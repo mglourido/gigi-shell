@@ -5,7 +5,7 @@ import GLib from "gi://GLib"
 import { parseBtime } from "./btime.ts"
 export { parseBtime }
 
-const MARKER_PATH = `${GLib.get_user_config_dir()}/gigios/notif-cleanup-state.json`
+const MARKER_PATH = `${GLib.get_user_config_dir()}/gigishell/notif-cleanup-state.json`
 
 export function readBtime(): number | null {
   try {

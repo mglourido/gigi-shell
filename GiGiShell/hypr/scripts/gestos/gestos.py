@@ -54,11 +54,11 @@ CONFIG_DIR = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"
 DATA_DIR = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
 RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
 
-RUTA_CONFIG = f"{CONFIG_DIR}/gigios/gestos.json"
-RUTA_ESTADO = f"{CONFIG_DIR}/gigios/gestos-estado.json"
-RUTA_MODELO = f"{DATA_DIR}/gigios/gestos/hand_landmarker.task"
-RUTA_CERROJO = f"{RUNTIME_DIR}/gigios-gestos.lock"
-HELPER_CAMARA = "/usr/local/bin/gigios-camara"
+RUTA_CONFIG = f"{CONFIG_DIR}/gigishell/gestos.json"
+RUTA_ESTADO = f"{CONFIG_DIR}/gigishell/gestos-estado.json"
+RUTA_MODELO = f"{DATA_DIR}/gigishell/gestos/hand_landmarker.task"
+RUTA_CERROJO = f"{RUNTIME_DIR}/gigishell-gestos.lock"
+HELPER_CAMARA = "/usr/local/bin/gigishell-camara"
 
 #: `fullscreen` de Hyprland es un MODO: 0 nada, 1 maximizada, 2 pantalla
 #: completa de verdad. Solo la 2 impide arrastrar.
@@ -154,7 +154,7 @@ def crear_detector(mpp, vision):
     utilizable, y eso puede fallar por driver, por cómo esté montada la sesión o
     por VRAM ocupada. Un modo que no arranca es mucho peor que uno lento, así
     que un fallo aquí degrada a CPU y lo dice por stderr (que acaba en
-    `~/.cache/gigios/gestos.log`) en vez de tumbar el arranque.
+    `~/.cache/gigishell/gestos.log`) en vez de tumbar el arranque.
 
     `num_hands=2` aunque solo se use una: ver `elegir_mano`.
     """
@@ -188,8 +188,8 @@ def notificar(evento: str, titulo: str, cuerpo: str = "", urgencia: str = "norma
     try:
         subprocess.run(
             ["notify-send", "-a", "Gestos", "-u", urgencia,
-             "-h", "string:x-gigios-source:system",
-             "-h", f"string:x-gigios-event:{evento}",
+             "-h", "string:x-gigishell-source:system",
+             "-h", f"string:x-gigishell-event:{evento}",
              titulo, cuerpo],
             check=False, capture_output=True, timeout=5,
         )
@@ -669,10 +669,10 @@ class Demonio:
         # como «no se pudo abrir /dev/video0», que manda al usuario a buscar un
         # problema de hardware que no existe.
         #
-        # Y el caso no es hipotético: si un `gigios-camara block` se deshizo con
+        # Y el caso no es hipotético: si un `gigishell-camara block` se deshizo con
         # una versión del helper anterior al arreglo del `unblock`, los nodos se
         # quedan en `c--------- root root` con la ACL enmascarada — o sea la
-        # cámara muerta — mientras `gigios-camara status` responde `unblocked`.
+        # cámara muerta — mientras `gigishell-camara status` responde `unblocked`.
         # Por eso el mensaje nombra la reparación en vez de repetir "no se pudo".
         if not os.access(nodo, os.R_OK | os.W_OK):
             raise SystemExit(

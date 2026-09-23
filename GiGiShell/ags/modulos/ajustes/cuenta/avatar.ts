@@ -7,7 +7,7 @@ import textos from "../../../textos/ajustes/cuenta.json" with { type: "json" }
 // XDG_DATA_HOME, no el cache: la foto se elige en Ajustes y no se regenera desde
 // ningún master, así que en ~/.cache un limpiador la borraría para siempre. La
 // comparten hyprlock (hyprlock.conf) y bin/link.sh (que migra la ruta vieja).
-export const AVATAR_PATH = `${GLib.get_user_data_dir()}/gigios/face.png`
+export const AVATAR_PATH = `${GLib.get_user_data_dir()}/gigishell/face.png`
 
 // Lado de la copia que se guarda. Los consumidores pintan círculos pequeños —AGS a
 // 30 px (barra) y 46 px (Ajustes > Cuenta), hyprlock a 26 px con `rounding = -1`—,

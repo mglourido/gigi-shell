@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 #
 # Historial del portapapeles (cliphist + wl-clipboard), gobernado por la
-# preferencia clipboardHistory de ~/.config/gigios/preferences.json (la escribe
+# preferencia clipboardHistory de ~/.config/gigishell/preferences.json (la escribe
 # AGS › Ajustes › Personalización, ver modulos/ajustes/preferences.ts).
 #
 #   start   arranca el watcher `wl-paste --watch cliphist store` si la pref lo
 #           permite y no hay ya uno. Se lanza DESACOPLADO (setsid --fork) para
 #           que sobreviva a reinicios de quien lo invoque: tanto Hyprland
-#           (gigios/autostart.lua) como AGS (execAsync) lo llaman, y antes el watcher
+#           (gigishell/autostart.lua) como AGS (execAsync) lo llaman, y antes el watcher
 #           moría con AGS al usar `exec`.
 #   stop    mata el watcher, cierra el selector y borra el historial guardado.
 #   picker  abre el selector Rofi (SUPER+V). Toggle: si ya está abierto, lo cierra.
 
-prefs="$HOME/.config/gigios/preferences.json"
+prefs="$HOME/.config/gigishell/preferences.json"
 limite_historial=500
 ruta_miniatura="$HOME/.config/hypr/scripts/miniatura-portapapeles.sh"
 # Patrones del watcher, compartidos por start/stop. (^|/) tolera ruta absoluta.

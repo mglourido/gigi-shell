@@ -23,7 +23,7 @@ import { clientesJuego, revisionVentanas } from "../juegos/registro"
 import { algunaVentanaCoincide } from "../ventanas/coincidenciaClases"
 import { pausaLuzNocturnaApps, pausaLuzNocturnaJuegos } from "../../modulos/ajustes/preferences"
 
-const DISPLAY_CONFIG_PATH = `${GLib.get_user_config_dir()}/gigios/display.json`
+const DISPLAY_CONFIG_PATH = `${GLib.get_user_config_dir()}/gigishell/display.json`
 
 export interface GlobalDisplay {
   vrrMode: number             // 0 off, 1 on, 2 solo fullscreen
@@ -133,7 +133,7 @@ export function saveDisplayConfig() {
 
 // Guardado SÍNCRONO, sin esperar al debounce. Lo usa el guardado de prefs por
 // monitor porque display.json dejó de ser solo la fuente de verdad de AGS: lo lee
-// también el config de Hyprland (hypr/gigios/pantalla.lua). Con los 2 s de por
+// también el config de Hyprland (hypr/gigishell/pantalla.lua). Con los 2 s de por
 // medio, un `hyprctl reload` disparado justo después de tocar la resolución
 // releería el fichero VIEJO y devolvería la pantalla al valor anterior.
 export function saveDisplayConfigNow() {
@@ -143,9 +143,9 @@ export function saveDisplayConfigNow() {
 
 // ── Cómo llegan estas prefs a Hyprland ───────────────────────────────────────
 // display.json NO es solo la fuente de verdad de AGS: lo lee también el config
-// del compositor (hypr/gigios/pantalla.lua), que recorre `monitors` y emite un
+// del compositor (hypr/gigishell/pantalla.lua), que recorre `monitors` y emite un
 // `hl.monitor{ output = "desc:…" }` por entrada, DESPUÉS del comodín de
-// gigios/monitores.lua — una spec concreta gana a la comodín, que sigue cubriendo
+// gigishell/monitores.lua — una spec concreta gana a la comodín, que sigue cubriendo
 // los monitores sin preferencia guardada.
 //
 // Hace falta porque el comodín no lleva más que `preferred/auto/1`: sin nadie que
@@ -660,7 +660,7 @@ export function initDisplayService() {
   }
 
   // Re-aplicar preferencias por monitor (solo lo que difiera, para no pelear con
-  // el comodín ni parpadear). Con gigios/pantalla.lua leyendo display.json esto ya
+  // el comodín ni parpadear). Con gigishell/pantalla.lua leyendo display.json esto ya
   // no debería tener nada que hacer — se queda como red por si la spec `desc:` no
   // casa o el config no llegó a cargar ese módulo. idle_add = siguiente tick, sin
   // delay fijo.
@@ -680,7 +680,7 @@ export function initDisplayService() {
           if (!monitorNeedsUpdate(mon, pref)) continue
           execAsync(["hyprctl", "eval", `hl.monitor(${buildMonitorSpecLua({ name: mon.name, position: pref.position, pref })})`]).catch(() => {})
         }
-        // Síncrono: el backfill es justo lo que gigios/pantalla.lua necesita leer
+        // Síncrono: el backfill es justo lo que gigishell/pantalla.lua necesita leer
         // en la próxima recarga, y esa recarga puede llegar antes que el debounce.
         if (backfilled) saveDisplayConfigNow()
       }).catch(() => {})

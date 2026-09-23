@@ -64,7 +64,7 @@ function reconciliar(): void {
 
 /**
  * Arranca el vigilante. Va con el resto de `init*` de fondo del `setTimeout` de 4 s de
- * `app.ts`: siembra del estado (`tlpMode` se lee de `/etc/gigios/tlp/active` al cargar el
+ * `app.ts`: siembra del estado (`tlpMode` se lee de `/etc/gigishell/tlp/active` al cargar el
  * módulo), no de eventos ocurridos mientras espera.
  *
  * NO hay recuperación de estado huérfano, y a diferencia del brillo aquí no hace falta: si

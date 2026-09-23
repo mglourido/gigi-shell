@@ -10,7 +10,7 @@
 // ── El nivel de privilegio no es decorativo ──────────────────────────────────
 // `privilegio` es lo que decide si una acción puede formar parte de la autolimpieza:
 //   "usuario"  bajo $HOME, sin sudo
-//   "helper"   root vía /usr/local/bin/gigios-limpieza con NOPASSWD → automatizable
+//   "helper"   root vía /usr/local/bin/gigishell-limpieza con NOPASSWD → automatizable
 //   "pkexec"   root con diálogo de contraseña → NUNCA automatizable
 // `ACCIONES_AUTOMATIZABLES` sale de aquí en vez de estar escrita a mano, así que añadir una acción
 // de pkexec no puede colarla por error en el lote desatendido — donde el diálogo aparecería solo,

@@ -10,5 +10,5 @@ tocar la lógica de la interfaz ni los servicios.
   elimines si quieres que el dato siga apareciendo.
 - Tras editar un JSON, reinicia AGS con `ags quit` y
   `ags run ~/.config/ags/app.ts`.
-- `ags bundle app.ts /tmp/gigios.js`, ejecutado desde `ags/`, valida todos los
+- `ags bundle app.ts /tmp/gigishell.js`, ejecutado desde `ags/`, valida todos los
   JSON importados y sus rutas.

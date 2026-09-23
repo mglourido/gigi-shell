@@ -14,7 +14,7 @@
 #   - The poll interval is adaptive: wide (idle) normally, and only tightens
 #     up once a reading gets close to WARN_TEMP.
 
-AGS_PREFS_CONFIG="$HOME/.config/gigios/preferences.json"
+AGS_PREFS_CONFIG="$HOME/.config/gigishell/preferences.json"
 
 # Ajuste "Monitor de temperatura" en Personalización (ags). Se lee UNA sola
 # vez aquí al arrancar — nada de polling — así que activar/desactivar el
@@ -87,7 +87,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 

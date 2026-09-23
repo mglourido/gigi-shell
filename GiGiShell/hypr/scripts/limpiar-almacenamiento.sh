@@ -16,7 +16,7 @@
 #
 #   1. usuario           todo lo que vive bajo $HOME. Sin sudo, sin diálogos.
 #   2. sudo -n (helper)  lo de root que se REGENERA solo: caché de pacman, journal, /var/tmp,
-#                        huérfanos. Va por /usr/local/bin/gigios-limpieza con NOPASSWD, que es lo
+#                        huérfanos. Va por /usr/local/bin/gigishell-limpieza con NOPASSWD, que es lo
 #                        que permite la autolimpieza desatendida. Ver system/limpieza/.
 #   3. pkexec            lo de root IRREVERSIBLE: vaciar la caché entera. Pide contraseña siempre
 #                        y por eso NO puede formar parte de la autolimpieza — se marca `manual`.
@@ -52,13 +52,13 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 
 DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
-CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/almacenamiento.json"
-HELPER=/usr/local/bin/gigios-limpieza
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/almacenamiento.json"
+HELPER=/usr/local/bin/gigishell-limpieza
 
 # Define `CACHE_HOME`, `CACHE_PRESERVADO`, `cache_preservado_find` y `rutas_desarrollo`. Es la
 # lista única de qué borra cada acción, compartida con `analizar-almacenamiento.sh` para que la
@@ -202,7 +202,7 @@ _vaciar() {
 _helper() {
     if [[ ! -x "$HELPER" ]]; then
         estado="sin-permisos"
-        mensaje="Falta /usr/local/bin/gigios-limpieza (se instala con install.sh)."
+        mensaje="Falta /usr/local/bin/gigishell-limpieza (se instala con install.sh)."
         return 1
     fi
     local salida rc
@@ -499,7 +499,7 @@ printf '%s' "$resultados" | jq -R -s '
 
 # El aviso solo lo emite el modo desatendido. Desde un botón de Ajustes el resultado ya se ve en el
 # propio panel, y notificar además lo que acabas de pulsar es ruido.
-if [[ "${GIGIOS_LIMPIEZA_NOTIFICAR:-0}" == 1 && $total -gt 0 ]]; then
+if [[ "${GIGISHELL_LIMPIEZA_NOTIFICAR:-0}" == 1 && $total -gt 0 ]]; then
     legible=$(_legible "$total")
     notificar limpieza.completada -u low -t 8000 "Limpieza automática" "Se han liberado $legible."
 fi

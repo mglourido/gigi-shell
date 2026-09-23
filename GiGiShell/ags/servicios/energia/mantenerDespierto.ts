@@ -7,7 +7,7 @@ import { createState } from "ags"
 import { reiniciarHypridle } from "../pantalla/reinicioHypridle"
 import { interpretarMinutos, normalizarTextoMinutos } from "./tiempoMantenerDespierto"
 
-const RUTA_ESTADO = `${GLib.get_user_config_dir()}/gigios/wakeup.json`
+const RUTA_ESTADO = `${GLib.get_user_config_dir()}/gigishell/wakeup.json`
 /** AJUSTES del Wake up, que NO es lo mismo que su estado. `wakeup.json` es estado vivo con
  *  guarda de pid y se reescribe a `active:false` en cada arranque (`inicializarMantenerDespierto`),
  *  así que guardar ahí una preferencia sería guardarla en un fichero que se borra solo.
@@ -16,7 +16,7 @@ const RUTA_ESTADO = `${GLib.get_user_config_dir()}/gigios/wakeup.json`
  *  JSON se pisa (es la misma razón por la que la suspensión falsa tiene fichero propio en
  *  vez de colarse en `runtime-state.json`). De ahí este tercer fichero, minúsculo y con un
  *  solo escritor: este módulo. */
-const RUTA_OPCIONES = `${GLib.get_user_config_dir()}/gigios/wakeup-opciones.json`
+const RUTA_OPCIONES = `${GLib.get_user_config_dir()}/gigishell/wakeup-opciones.json`
 const instanteActual = () => Math.floor(Date.now() / 1000)
 
 export const [mantenerDespiertoActivo, establecerMantenerDespiertoActivo] = createState(false)
@@ -106,13 +106,13 @@ function escribirEstado(activo: boolean) {
 /**
  * Avisa de que el plazo se ha agotado. Solo se emite en la CADUCIDAD, nunca cuando el usuario
  * apaga la función a mano: ahí ya sabe lo que ha hecho y el aviso sobra. Va con identidad
- * (`x-gigios-event`) para que sea configurable desde Ajustes > Notificaciones > Sistema.
+ * (`x-gigishell-event`) para que sea configurable desde Ajustes > Notificaciones > Sistema.
  */
 function notificarFin() {
   try {
     Gio.Subprocess.new(
-      ["notify-send", "-a", "Wake up", "-h", "string:x-gigios-source:system",
-       "-h", "string:x-gigios-event:energia.wake-up-fin",
+      ["notify-send", "-a", "Wake up", "-h", "string:x-gigishell-source:system",
+       "-h", "string:x-gigishell-event:energia.wake-up-fin",
        "Wake up", "Se acabó el plazo: el equipo vuelve a suspenderse con normalidad."],
       Gio.SubprocessFlags.NONE,
     )

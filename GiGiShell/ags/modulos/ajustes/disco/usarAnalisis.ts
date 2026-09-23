@@ -18,7 +18,7 @@
 // Al soltar la última referencia se descarta el análisis (`ANALISIS_VACIO`), igual que antes hacía
 // el desmontaje: el catálogo son ~1600 aplicaciones con su descripción —el JSON en disco pesa
 // ~260 KB— y retenerlo el resto de la sesión por si vuelves a abrir Ajustes no compra nada, porque
-// el siguiente montaje lo relee de `~/.cache/gigios/almacenamiento.json` en ~1 ms. Lo que se
+// el siguiente montaje lo relee de `~/.cache/gigishell/almacenamiento.json` en ~1 ms. Lo que se
 // comparte es el sondeo entre vistas SIMULTÁNEAS, no el resultado a lo largo de la sesión.
 //
 // El contador es de referencias y no un booleano por el orden de `<With>` al navegar entre

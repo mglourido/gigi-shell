@@ -6,7 +6,7 @@
 // (son ruido); se listan como contexto al abrir el popover.
 //
 // No hay polling aquí: hypr/scripts/updates-monitor.sh escribe
-// ~/.config/gigios/updates.json y esto lo observa con un Gio.FileMonitor, igual que
+// ~/.config/gigishell/updates.json y esto lo observa con un Gio.FileMonitor, igual que
 // el bar-toggle de state.tsx.
 import { onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"

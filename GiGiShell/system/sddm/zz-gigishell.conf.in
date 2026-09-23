@@ -1,0 +1,59 @@
+# GiGiShell — configuración de SDDM (plantilla).
+#
+# NO se copia tal cual: la materializa `install.sh` (paso `sddm`) en
+# /etc/sddm.conf.d/zz-gigishell.conf sustituyendo los campos que son PROPIOS DE
+# CADA MÁQUINA y por eso no pueden vivir versionados:
+#
+#   __GIGISHELL_USER__     usuario del autologin (el que corre el instalador).
+#                       Vacío = sin autologin; se controla con SDDM_AUTOLOGIN=0.
+#   __GIGISHELL_SESSION__  fichero .desktop de la sesión (hyprland.desktop).
+#   __GIGISHELL_THEME__    tema del saludador, sólo si existe en el equipo.
+#                       Vacío = el tema empotrado de SDDM (que siempre funciona).
+#                       Normalmente "gigishell", el que instala el propio paso desde
+#                       system/sddm/tema/ (ver su README.md).
+#   __GIGISHELL_INPUTMETHOD__  teclado en pantalla, sólo si el módulo QML está instalado.
+#                       Vacío = ninguno. OJO: fijar "qtvirtualkeyboard" SIN el paquete
+#                       qt6-virtualkeyboard deja el saludador SIN ARRANCAR — pantalla
+#                       negra al encender, que es por qué esto es un campo y no una
+#                       línea fija.
+#
+# Un valor VACÍO es "no lo fijes", no "ponlo en blanco": así lo trata SDDM y así
+# lo trata el instalador cuando no encuentra sesión o tema.
+#
+# POR QUÉ zz-: /etc/sddm.conf.d/ se lee en orden alfabético y gana EL ÚLTIMO. En
+# esta máquina conviven los restos del instalador de HyDE
+# (the_hyde_project.conf), que fija [Theme] Current=Candy.
+#
+# Este fichero se llamó "99-gigios.conf" y ESO ESTABA MAL: en el orden de bytes
+# los dígitos van ANTES que las letras ('9' es 0x39, 't' es 0x74), así que
+# 99-gigios.conf se leía PRIMERO y HyDE lo pisaba entero — el tema, el autologin
+# y todo lo demás. Sin un solo error: el saludador salía con el aspecto de HyDE
+# y parecía que el paso `sddm` no se hubiera ejecutado. El prefijo numérico
+# funciona entre ficheros numerados (10- < 20- < 99-), no contra un nombre que
+# empieza por letra. "zz-" sí queda el último frente a los dos.
+#
+# Y OJO CON /etc/sddm.conf: pese al nombre, el fichero suelto tiene MÁS
+# precedencia que todo el directorio (ver `man 5 sddm.conf`). Si define una clave
+# que también está aquí, gana él y esto no se nota. El instalador lo comprueba y
+# avisa; no lo toca, porque es de la distribución.
+
+[Autologin]
+# Relogin=false: al cerrar sesión se vuelve al saludador en vez de reentrar solo,
+# que si no deja la sesión imposible de abandonar sin apagar.
+Relogin=false
+Session=__GIGISHELL_SESSION__
+User=__GIGISHELL_USER__
+
+[General]
+HaltCommand=/usr/bin/systemctl poweroff
+RebootCommand=/usr/bin/systemctl reboot
+InputMethod=__GIGISHELL_INPUTMETHOD__
+
+[Theme]
+Current=__GIGISHELL_THEME__
+
+[Users]
+# Rango de UID que se ofrece en la lista de usuarios: por debajo de 1000 son
+# cuentas de sistema y no deben aparecer.
+MaximumUid=60513
+MinimumUid=1000

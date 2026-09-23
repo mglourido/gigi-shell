@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Setup único: obtiene un refresh_token de Spotify y lo guarda en texto plano en
-# ~/.config/gigios/spotify-creds.json (chmod 600). Específico del escritorio ags.
+# ~/.config/gigishell/spotify-creds.json (chmod 600). Específico del escritorio ags.
 set -euo pipefail
 
 REDIRECT="http://127.0.0.1:8888/callback"
@@ -9,7 +9,7 @@ REDIRECT="http://127.0.0.1:8888/callback"
 # cambias esta lista hay que volver a ejecutar este script: el refresh_token guardado
 # conserva para siempre los scopes con los que se emitió.
 SCOPES="user-library-read user-library-modify user-read-playback-state user-modify-playback-state"
-CREDS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/spotify-creds.json"
+CREDS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/spotify-creds.json"
 
 command -v python3 >/dev/null || { echo "Falta python3"; exit 1; }
 

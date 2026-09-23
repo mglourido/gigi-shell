@@ -25,7 +25,7 @@
 // tienen apunte en disco y restauración diferida en su propio módulo.
 //
 // ── EL FICHERO DE ESTADO ES PARA BASH, Y LLEVA GUARDA DE PID ──────────────────────────
-// `~/.config/gigios/suspension-falsa.json`, mismo contrato que `wakeup.json`, porque el
+// `~/.config/gigishell/suspension-falsa.json`, mismo contrato que `wakeup.json`, porque el
 // consumidor es el mismo: `blocked()` de `hypr/scripts/idle-action.sh`, que sin esto
 // suspendería de verdad a los 20 min con las descargas que se quería proteger. El `pid` no
 // es información, es la mitad de una guarda: sin él un AGS caído dejaría la suspensión real
@@ -52,7 +52,7 @@ import { reiniciarHypridle } from "../pantalla/reinicioHypridle"
 import { EFECTORES } from "./suspensionFalsa/efectores"
 import { closeAllPanels } from "../../estado/shell"
 
-const RUTA_ESTADO = `${GLib.get_user_config_dir()}/gigios/suspension-falsa.json`
+const RUTA_ESTADO = `${GLib.get_user_config_dir()}/gigishell/suspension-falsa.json`
 const IDLE_ACTION = `${GLib.get_home_dir()}/.config/hypr/scripts/idle-action.sh`
 const instanteActual = () => Math.floor(Date.now() / 1000)
 

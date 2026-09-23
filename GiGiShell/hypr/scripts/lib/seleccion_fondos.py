@@ -9,7 +9,7 @@ rutas que existen en disco y el generador aleatorio). Quien hace la E/S es
 POR QUÉ ESTO NO VIVE NI EN BASH NI EN AGS
 -----------------------------------------
 Hay DOS disparadores para la misma decisión: el arranque de la sesión
-(`wallpaper.sh` desde `gigios/autostart.lua`, en t=0, cuando AGS todavía no
+(`wallpaper.sh` desde `gigishell/autostart.lua`, en t=0, cuando AGS todavía no
 existe) y el cambio de franja horaria (AGS, con el escritorio ya vivo). Si cada
 uno eligiera por su cuenta acabarían discrepando en silencio — el escritorio
 mostraría un fondo que el planificador cree que es otro — así que la elección

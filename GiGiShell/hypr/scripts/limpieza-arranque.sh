@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # limpieza-arranque.sh — decide al iniciar sesión si toca autolimpiar, y si no, sale.
 #
-# Lo lanza gigios/autostart.lua (t=45). **No es un daemon: no hay bucle ni proceso residente.**
+# Lo lanza gigishell/autostart.lua (t=45). **No es un daemon: no hay bucle ni proceso residente.**
 #
 #   limpieza-arranque.sh          comprobación de arranque (lo que corre en la sesión)
 #   limpieza-arranque.sh --ahora  limpia ya, saltándose intervalo y umbral (botón "Ejecutar ahora")
@@ -26,8 +26,8 @@ set -uo pipefail
 
 export LC_ALL=C
 
-CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/almacenamiento.json"
-ESTADO="${XDG_CACHE_HOME:-$HOME/.cache}/gigios/limpieza.json"
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/almacenamiento.json"
+ESTADO="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/limpieza.json"
 LIMPIAR="$HOME/.config/hypr/scripts/limpiar-almacenamiento.sh"
 
 # Debe coincidir con `ACCIONES_AUTOMATIZABLES` de ags/servicios/disco/catalogo.ts, que a su vez se
@@ -107,9 +107,9 @@ done
 # adelanta una limpieza) y porque AGS reescribe la configuración entera con un `replace_contents`:
 # se llevaría la marca por delante. Se escribe con `printf`, no con `jq`: es un objeto de un campo
 # y no vale otro fork.
-ESTADO="${XDG_CACHE_HOME:-$HOME/.cache}/gigios/limpieza.json"
+ESTADO="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/limpieza.json"
 mkdir -p "${ESTADO%/*}"
 printf '{"ultima":%d}\n' "$ahora" > "$ESTADO"
 
-GIGIOS_LIMPIEZA_NOTIFICAR=$([[ "$notificar" == false ]] && echo 0 || echo 1) \
+GIGISHELL_LIMPIEZA_NOTIFICAR=$([[ "$notificar" == false ]] && echo 0 || echo 1) \
     "$LIMPIAR" "${lote[@]}" >/dev/null 2>&1

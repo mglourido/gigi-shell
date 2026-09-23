@@ -49,7 +49,7 @@ export function resolverAccionesPopup(notificacion: StoredNotification): Accione
 export interface DuracionesPopup {
   /** Notificación corriente de una app, sin acciones. */
   normal: number
-  /** Aviso del sistema (`x-gigios-source:system`) sin acciones. */
+  /** Aviso del sistema (`x-gigishell-source:system`) sin acciones. */
   sistema: number
   /** Cualquier popup con botones de acción. */
   conAcciones: number
@@ -72,7 +72,7 @@ export function acotarDuracionPopup(ms: number): number {
 }
 
 // Los popups con acciones necesitan tiempo para poder leerse y accionarse. Los del
-// sistema (`x-gigios-source:system`, o sea lo que emiten los scripts de `hypr/scripts/`)
+// sistema (`x-gigishell-source:system`, o sea lo que emiten los scripts de `hypr/scripts/`)
 // también, aunque no traigan botón: informan del resultado de una función del equipo
 // —reparar un USB, un análisis, una alerta de disco— y 5,5 s no dan ni para leerlos.
 // El tiempo solicitado por el emisor se respeta dentro de unos límites para que ni un
@@ -126,7 +126,7 @@ export function crearResumenRafaga(id: number, cantidad: number): StoredNotifica
       noHistory: true,
       muteAudio: true,
       dontShow: false,
-      dedupKey: "gigios-popup-burst-summary",
+      dedupKey: "gigishell-popup-burst-summary",
       conditions: [],
       matchedRules: [],
     },

@@ -4,7 +4,7 @@
 // iconos StatusNotifierItem de BandejaSistema, ver
 // modulos/barra/bandeja/BandejaSistema.tsx).
 //
-// Dos piezas persistidas en ~/.config/gigios/tray-apps.json:
+// Dos piezas persistidas en ~/.config/gigishell/tray-apps.json:
 //   - known:  toda app que ha aparecido alguna vez en el tray {id, title, iconName}.
 //             Se alimenta con un watcher único (initTrayApps) suscrito a los items
 //             del tray: NO hay polling, sólo reacciona cuando el tray cambia. Sirve
@@ -19,7 +19,7 @@ import GLib from "gi://GLib"
 import AstalTray from "gi://AstalTray"
 import { createState } from "ags"
 
-const PATH = `${GLib.get_user_config_dir()}/gigios/tray-apps.json`
+const PATH = `${GLib.get_user_config_dir()}/gigishell/tray-apps.json`
 
 export type TrayAppInfo = { id: string; title: string; iconName: string }
 

@@ -8,7 +8,7 @@ set -uo pipefail
 
 umask 077
 
-directorio_estado="${XDG_RUNTIME_DIR:-/tmp}/gigios"
+directorio_estado="${XDG_RUNTIME_DIR:-/tmp}/gigishell"
 archivo_estado="$directorio_estado/grabacion-pantalla.estado"
 archivo_bloqueo="$directorio_estado/grabacion-pantalla.lock"
 archivo_log="$directorio_estado/grabacion-pantalla.log"
@@ -21,7 +21,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 
@@ -150,7 +150,7 @@ directorio_videos="$(xdg-user-dir VIDEOS 2>/dev/null || true)"
 if [[ -z "$directorio_videos" || "$directorio_videos" == "$HOME" ]]; then
     directorio_videos="$HOME/Videos"
 fi
-directorio_grabaciones="${GIGIOS_GRABACION_DIRECTORIO:-$directorio_videos/Grabaciones_Pantalla}"
+directorio_grabaciones="${GIGISHELL_GRABACION_DIRECTORIO:-$directorio_videos/Grabaciones_Pantalla}"
 mkdir -p "$directorio_grabaciones" \
     || fallar "No se pudo crear $directorio_grabaciones."
 

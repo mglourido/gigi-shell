@@ -572,7 +572,7 @@ function toggleBluetoothPower(bt: any) {
 }
 
 // ── System State Persistence (Wifi, BT, Vol) ──────────────────────────────────
-const RUTA_ESTADO_SISTEMA = `${GLib.get_user_config_dir()}/gigios/system_state.json`
+const RUTA_ESTADO_SISTEMA = `${GLib.get_user_config_dir()}/gigishell/system_state.json`
 
 function cargarEstadoSistemaGuardado(): Record<string, unknown> {
   if (!GLib.file_test(RUTA_ESTADO_SISTEMA, GLib.FileTest.EXISTS)) return {}

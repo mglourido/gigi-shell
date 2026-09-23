@@ -9,12 +9,12 @@
 #   bin/link.sh --force    respalda lo que estorbe (a $LINK_BACKUP) y enlaza
 #
 # Variables:
-#   GIGIOS       raíz (por defecto, el directorio padre de este script)
+#   GIGISHELL       raíz (por defecto, el directorio padre de este script)
 #   LINK_BACKUP  destino de respaldos en --force (por defecto ~/.dotfiles-backup-<fecha>)
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-GIGIOS="${GIGIOS:-$(cd -- "$script_dir/.." && pwd)}"
+GIGISHELL="${GIGISHELL:-$(cd -- "$script_dir/.." && pwd)}"
 LINK_BACKUP="${LINK_BACKUP:-$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)}"
 
 # "ruta_relativa_en_GiGiShell::ruta_canonica_absoluta"
@@ -52,15 +52,15 @@ backup() {  # respalda $1 preservando su ruta relativa a $HOME
   echo "BACKUP $dst -> $LINK_BACKUP/$rel"
 }
 
-gigios_phys="$(readlink -f "$GIGIOS")"
+gigishell_phys="$(readlink -f "$GIGISHELL")"
 
 # git que versiona GiGiShell: el repo bare de dotfiles (lo normal, ver install.sh)
 # o, si el árbol fuera un clon corriente, el repo del propio directorio.
 GIT=()
 if git --git-dir="$HOME/.dotfiles" --work-tree="$HOME" rev-parse --git-dir >/dev/null 2>&1; then
   GIT=(git --git-dir="$HOME/.dotfiles" --work-tree="$HOME")
-elif git -C "$GIGIOS" rev-parse --show-toplevel >/dev/null 2>&1; then
-  GIT=(git -C "$GIGIOS")
+elif git -C "$GIGISHELL" rev-parse --show-toplevel >/dev/null 2>&1; then
+  GIT=(git -C "$GIGISHELL")
 fi
 
 # ¿El destino cae FÍSICAMENTE dentro del repo? Eso sólo pasa si algún ancestro
@@ -70,7 +70,7 @@ fi
 dst_lands_in_repo() {
   local phys
   phys="$(readlink -f "$(dirname "$1")" 2>/dev/null || true)"
-  [[ -n "$phys" && ( "$phys" == "$gigios_phys" || "$phys" == "$gigios_phys"/* ) ]]
+  [[ -n "$phys" && ( "$phys" == "$gigishell_phys" || "$phys" == "$gigishell_phys"/* ) ]]
 }
 
 # Symlinks heredados de un mapeo viejo. Cuando una entrada enlazaba un
@@ -87,7 +87,7 @@ prune_legacy_dirlinks() {
   while [[ "$p" == "$HOME"/* ]]; do
     if [[ -L "$p" ]]; then
       phys="$(readlink -f "$p" 2>/dev/null || true)"
-      if [[ -n "$phys" && ( "$phys" == "$gigios_phys" || "$phys" == "$gigios_phys"/* ) ]]; then
+      if [[ -n "$phys" && ( "$phys" == "$gigishell_phys" || "$phys" == "$gigishell_phys"/* ) ]]; then
         if [[ "$mode" == check ]]; then
           echo "HEREDADO $p -> $phys (symlink viejo al repo; $dst caería dentro de GiGiShell)"
           return 1
@@ -122,7 +122,7 @@ repair_clobbered_src() {
 
 status=0
 for entry in "${LINKS[@]}"; do
-  src="$GIGIOS/${entry%%::*}"
+  src="$GIGISHELL/${entry%%::*}"
   dst="${entry##*::}"
 
   if ! prune_legacy_dirlinks "$dst" || ! repair_clobbered_src "$src"; then
@@ -132,7 +132,7 @@ for entry in "${LINKS[@]}"; do
   # Red de seguridad: si tras la limpieza el destino sigue cayendo dentro del
   # repo, es un mapeo mal puesto en LINKS. Enlazarlo destruiría el origen.
   if dst_lands_in_repo "$dst"; then
-    echo "ABORTO $dst resuelve dentro de $GIGIOS; no lo enlazo (destruiría el origen)."
+    echo "ABORTO $dst resuelve dentro de $GIGISHELL; no lo enlazo (destruiría el origen)."
     status=1; continue
   fi
 
@@ -174,6 +174,27 @@ for entry in "${LINKS[@]}"; do
   echo "LINK  $dst -> $src"
 done
 
+# ── Migración: gigios -> gigishell (renombrado del proyecto, 2026-09-23) ──────
+# Las carpetas de datos de usuario se llamaban ~/.config/gigios,
+# ~/.local/share/gigios y ~/.cache/gigios. Se mueven una sola vez a su nombre
+# nuevo y en la vieja queda un symlink hacia la nueva: una sesión que ya estaba
+# corriendo (AGS, monitores de hypr/scripts) sigue escribiendo en la ruta vieja
+# hasta que se reinicie, y sin el enlace esos datos acabarían en un directorio
+# que ya nadie lee. Si existen las dos como carpetas reales, no se toca nada y
+# se avisa: fusionarlas a ciegas podría pisar datos.
+for base in "$HOME/.config" "$HOME/.local/share" "$HOME/.cache"; do
+  old="$base/gigios"; new="$base/gigishell"
+  [[ -e "$old" && ! -L "$old" ]] || continue
+  if [[ -e "$new" ]]; then
+    echo "AVISO $old y $new existen a la vez; revísalo a mano"; status=1; continue
+  fi
+  if [[ "$mode" == check ]]; then
+    echo "MIGRAR $old -> $new"; status=1; continue
+  fi
+  mv "$old" "$new" && ln -s "gigishell" "$old"
+  echo "MOVE  $new <- $old (queda symlink de compatibilidad)"
+done
+
 # ── Datos de runtime que ya NO viven dentro del repo ─────────────────────────
 # power-save y orion se enlazaban antes con un symlink XDG -> GiGiShell (mismo
 # esquema que el resto de LINKS), pero eso deja el dato REAL dentro del árbol
@@ -187,12 +208,12 @@ MIGRATE_OUT=(
   "state/orion::$HOME/.local/share/orion"
 )
 for entry in "${MIGRATE_OUT[@]}"; do
-  src="$GIGIOS/${entry%%::*}"
+  src="$GIGISHELL/${entry%%::*}"
   dst="${entry##*::}"
 
   if [[ -L "$dst" ]]; then
     phys="$(readlink -f "$dst" 2>/dev/null || true)"
-    if [[ -n "$phys" && ( "$phys" == "$gigios_phys" || "$phys" == "$gigios_phys"/* ) ]]; then
+    if [[ -n "$phys" && ( "$phys" == "$gigishell_phys" || "$phys" == "$gigishell_phys"/* ) ]]; then
       if [[ "$mode" == check ]]; then
         echo "MIGRAR $dst (symlink viejo al repo; debería ser un directorio real)"; status=1; continue
       fi
@@ -220,12 +241,12 @@ for entry in "${MIGRATE_OUT[@]}"; do
 done
 
 # ── Foto de perfil ───────────────────────────────────────────────────────────
-# Copia única en el data dir XDG (~/.local/share/gigios/face.png); la leen AGS
+# Copia única en el data dir XDG (~/.local/share/gigishell/face.png); la leen AGS
 # (modulos/ajustes/cuenta/avatar.ts) y hyprlock. Fuera del repo y sin versionar, porque es
 # personal — pero tampoco en ~/.cache: se elige desde Ajustes > Cuenta y no se
 # regenera desde ningún master, así que un limpiador de cache la borraría para
 # siempre. Aquí solo se migra la ubicación vieja; ponerla es cosa de Ajustes.
-face_dst="$HOME/.local/share/gigios/face.png"
+face_dst="$HOME/.local/share/gigishell/face.png"
 face_old="$HOME/.cache/gigios/face.png"
 if [[ -e "$face_dst" ]]; then
   echo "OK    $face_dst"
@@ -239,16 +260,16 @@ else
   echo "MOVE  $face_dst <- $face_old"
 fi
 
-# ── Migración: ajustes de AGS -> ~/.config/gigios ────────────────────────────
+# ── Migración: ajustes de AGS -> ~/.config/gigishell ────────────────────────────
 # Antes los JSON de usuario/estado de AGS vivían en ~/.config/ags/config/ (dentro
 # del symlink al repo, así que caían versionados). Ahora la UI de AGS escribe en
-# ~/.config/gigios/, una carpeta real fuera del repo. Se mueve una sola vez lo que
+# ~/.config/gigishell/, una carpeta real fuera del repo. Se mueve una sola vez lo que
 # quede en la ruta vieja; no se pisa lo ya migrado.
 #
 # ags/config/ NO desapareció: sigue siendo la carpeta de datos versionados del
 # shell (app_icons.json). Solo migran los JSON de usuario, así que KEEP_IN_REPO
 # se queda donde está — sin esta lista la migración se lo llevaba a
-# ~/.config/gigios/ y AGS dejaba de encontrarlo (workspaces sin iconos).
+# ~/.config/gigishell/ y AGS dejaba de encontrarlo (workspaces sin iconos).
 #
 # NO se migra aquí ~/.config/ags/calendar-events.json (el almacén viejo del
 # calendario, que también caía dentro del repo por el symlink). Lo hace el propio
@@ -256,7 +277,7 @@ fi
 # convertir el formato antiguo al esquema nuevo, y moverlo a ciegas desde aquí
 # dejaría un fichero que el panel no entiende.
 old_cfg="$HOME/.config/ags/config"
-new_cfg="$HOME/.config/gigios"
+new_cfg="$HOME/.config/gigishell"
 KEEP_IN_REPO=(app_icons.json)
 if [[ "$mode" != check ]]; then
   mkdir -p "$new_cfg"
@@ -292,22 +313,22 @@ fi
 # KColorSchemeManager: sin él las apps Qt se abren en CLARO sin dar ningún error.
 # El porqué completo, y por qué basta con mirarlo de vez en cuando en vez de
 # vigilar el fichero, están en la cabecera del script. Lo llama también
-# gigios/autostart.lua una vez por sesión, que es lo que hace que se repare solo
+# gigishell/autostart.lua una vez por sesión, que es lo que hace que se repare solo
 # sin tener que acordarse de correr link.sh.
 #
 # Se le pasa la ruta del REPO, no la canónica: en una instalación nueva link.sh
 # corre antes de que exista el symlink, y dejar ahí un fichero real le estorbaría
 # el enlazado de más abajo.
-reparador="$GIGIOS/hypr/scripts/reparar-kdeglobals.sh"
+reparador="$GIGISHELL/hypr/scripts/reparar-kdeglobals.sh"
 if [[ -x "$reparador" ]]; then
   if [[ "$mode" == check ]]; then
-    if "$reparador" --check "$GIGIOS/kdeglobals"; then
+    if "$reparador" --check "$GIGISHELL/kdeglobals"; then
       echo "OK    kdeglobals [UiSettings] ColorScheme=BreezeDark"
     else
       status=1
     fi
   else
-    salida="$("$reparador" "$GIGIOS/kdeglobals")"
+    salida="$("$reparador" "$GIGISHELL/kdeglobals")"
     if [[ -n "$salida" ]]; then echo "$salida"
     else echo "OK    kdeglobals [UiSettings] ColorScheme=BreezeDark"; fi
   fi
@@ -317,7 +338,7 @@ fi
 # ~/.bashrc, $ZDOTDIR/.zshrc|.zshenv y fish/config.fish no se versionan: son de
 # cada equipo y cargan la configuración compartida. Una instalación nueva no los
 # trae del checkout, así que se crean aquí. Ver docs/shell-local.md.
-shell_local="$GIGIOS/bin/shell-local.sh"
+shell_local="$GIGISHELL/bin/shell-local.sh"
 if [[ -x "$shell_local" ]]; then
   case "$mode" in
     check) "$shell_local" --check || status=1 ;;
@@ -332,7 +353,7 @@ fi
 # máquina nueva sin un paso manual aparte. Ver .githooks/pre-push y
 # bin/verify-files.sh en la raíz del repo.
 if [[ "$mode" != check ]]; then
-  repo_root="$(git -C "$GIGIOS" rev-parse --show-toplevel 2>/dev/null || true)"
+  repo_root="$(git -C "$GIGISHELL" rev-parse --show-toplevel 2>/dev/null || true)"
   if [[ -n "$repo_root" && -d "$repo_root/.githooks" ]]; then
     current="$(git -C "$repo_root" config --local --get core.hooksPath || true)"
     if [[ "$current" != "$repo_root/.githooks" ]]; then

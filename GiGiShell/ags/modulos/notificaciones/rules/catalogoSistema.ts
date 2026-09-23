@@ -2,7 +2,7 @@
 // CATÁLOGO de las notificaciones del sistema: una entrada por aviso que puede emitir
 // `hypr/scripts/` (y los pocos que manda AGS por `notify-send`). Módulo puro, sin GTK.
 //
-// POR QUÉ EXISTE. El hint `x-gigios-event` (ver `hypr/scripts/lib/notif.sh`) da identidad a
+// POR QUÉ EXISTE. El hint `x-gigishell-event` (ver `hypr/scripts/lib/notif.sh`) da identidad a
 // cada aviso, pero eso solo sirve para CASAR: sin una lista, Ajustes no podría enseñar un
 // aviso que todavía no se ha disparado nunca — y ese es justo el que interesa configurar
 // (nadie quiere esperar a que le falle un disco para poder decidir cómo avisa). El catálogo
@@ -10,7 +10,7 @@
 // defecto, y es lo que pinta la pestaña Sistema.
 //
 // NO es la configuración del usuario. Aquí van los DEFAULTS que vienen con GiGiShell; lo que el
-// usuario cambia vive fuera del repo, en `~/.config/gigios/notif-sistema.json`, y se
+// usuario cambia vive fuera del repo, en `~/.config/gigishell/notif-sistema.json`, y se
 // superpone a esto (`sistemaStore.ts`). Un aviso sin entrada en ese fichero usa lo de aquí.
 //
 // AL AÑADIR UN AVISO NUEVO a un script, da de alta su id aquí. Si no, el aviso funciona
@@ -38,7 +38,7 @@ export const CATEGORIAS_SISTEMA = [
 export type CategoriaSistema = (typeof CATEGORIAS_SISTEMA)[number]
 
 export interface EventoSistema {
-  /** El hint `x-gigios-event` que manda el emisor. Clave primaria. */
+  /** El hint `x-gigishell-event` que manda el emisor. Clave primaria. */
   id: string
   nombre: string
   categoria: CategoriaSistema
@@ -105,7 +105,7 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   // al iniciar sesión, y `servicios/disco/alerta.ts` cada vez que Ajustes > Almacenamiento mide
   // (reaprovechando su `df`, sin sondeo propio — el espacio libre no tiene fuente de eventos en
   // Linux; ver la cabecera de `servicios/disco/vigilancia.ts`). Comparten umbrales, texto y una
-  // marca en `~/.cache/gigios/disco-avisos` para no avisar dos veces de lo mismo.
+  // marca en `~/.cache/gigishell/disco-avisos` para no avisar dos veces de lo mismo.
   ev("disco.casi-lleno", "almacenamiento", "disk-monitor.sh + servicios/disco/alerta.ts"),
   // `clearOnBoot`: informa de algo que ya pasó y no requiere ninguna acción; arrastrarlo al
   // siguiente arranque solo ensucia el panel.

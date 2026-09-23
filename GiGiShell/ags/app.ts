@@ -102,7 +102,7 @@ app.start({
       return
     }
     // Entrada SIN alternar. La pide la TAPA del portátil («Suspensión falsa» en
-    // Ajustes > Energía, hypr/gigios/tapa.lua): cerrar la tapa estando ya dentro
+    // Ajustes > Energía, hypr/gigishell/tapa.lua): cerrar la tapa estando ya dentro
     // tiene que dejarla puesta, y `toggle-suspension-falsa` haría justo lo
     // contrario — sacar de ella con la tapa cerrada y nadie delante de la pantalla.
     // Es un request aparte y no un parámetro del de arriba porque `suspend` significa
@@ -127,7 +127,7 @@ app.start({
       response("ok")
       return
     }
-    // Lo usa GiGiShell.boton_apagado() (hypr/gigios/boton-apagado.lua) cuando el botón físico
+    // Lo usa GiGiShell.boton_apagado() (hypr/gigishell/boton-apagado.lua) cuando el botón físico
     // está configurado para abrir el menú en vez de ejecutar una acción directa.
     if (argv.includes("toggle-power-menu")) {
       alternarMenuEnergia()

@@ -17,7 +17,7 @@
  * ruido de fondo y satura si la fuente ya venía alta. Por eso el tope solo
  * existe en Quick Settings, donde se pone a mano; las teclas de volumen de
  * Hyprland siguen llamando a `wpctl set-volume -l 1`, o sea con techo en el
- * 100 % (`hypr/gigios/keybinds.lua`).
+ * 100 % (`hypr/gigishell/keybinds.lua`).
  *
  * ── El imán del 100 % ───────────────────────────────────────────────────────
  *

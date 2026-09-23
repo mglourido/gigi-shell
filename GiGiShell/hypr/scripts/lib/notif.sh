@@ -2,7 +2,7 @@
 # lib/notif.sh — IDENTIDAD por notificación del sistema. Se SOURCEA, no se ejecuta.
 #
 # EL PROBLEMA: todo lo que sale de `hypr/scripts/` llegaba a AGS con el mismo hint
-# (`x-gigios-source:system`) y, en la mayoría de los scripts, sin `-a`, o sea con
+# (`x-gigishell-source:system`) y, en la mayoría de los scripts, sin `-a`, o sea con
 # `app_name` = "notify-send". Vistas desde el motor de reglas, «USB desconectado»,
 # «Disco casi lleno» y «Escalada de privilegios» eran EXACTAMENTE la misma cosa:
 # el único gancho para distinguirlas era el texto del título, que cambia con el
@@ -15,7 +15,7 @@
 # LA SOLUCIÓN: cada punto de emisión declara QUIÉN es, con un identificador estable
 # que no depende del texto:
 #
-#     -h string:x-gigios-event:<id>
+#     -h string:x-gigishell-event:<id>
 #
 # El id es la clave primaria del aviso. Sobrevive a que se reescriba el título, a que
 # el cuerpo lleve cifras variables y a que dos ramas del script emitan textos
@@ -59,9 +59,9 @@ notificar() {
     local -a extra=()
     [[ -n "$NOTIF_APP" ]] && extra+=(-a "$NOTIF_APP")
     if _notif_id_valido "$evento"; then
-        extra+=(-h "string:x-gigios-event:$evento")
+        extra+=(-h "string:x-gigishell-event:$evento")
     else
         printf 'notificar: id de evento inválido: %q (se emite sin identidad)\n' "$evento" >&2
     fi
-    notify-send -h string:x-gigios-source:system "${extra[@]}" "$@"
+    notify-send -h string:x-gigishell-source:system "${extra[@]}" "$@"
 }

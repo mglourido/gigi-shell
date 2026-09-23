@@ -4,7 +4,7 @@
 //
 // Aquí no se detecta nada ni se lanza nada: se LEE lo que el demonio
 // (`hypr/scripts/gestos/gestos.py`) deja escrito en
-// `~/.config/gigios/gestos-estado.json`. Mismo reparto que la pareja
+// `~/.config/gigishell/gestos-estado.json`. Mismo reparto que la pareja
 // `camara-monitor.sh` / `servicios/camara/uso.ts`, y por el mismo motivo: el
 // trabajo caro (33 ms de inferencia por frame) no puede vivir en el proceso que
 // pinta la barra.
@@ -59,7 +59,7 @@ const ESTADOS: EstadoGestos[] = [
   "apagado", "buscando", "neutro", "armado", "reposo", "arrastrando", "espera",
 ]
 
-const RUTA = `${GLib.get_user_config_dir()}/gigios/gestos-estado.json`
+const RUTA = `${GLib.get_user_config_dir()}/gigishell/gestos-estado.json`
 
 const cadena = (v: unknown): string | null => (typeof v === "string" && v ? v : null)
 const entero = (v: unknown): number | null => (Number.isFinite(v) ? Number(v) : null)

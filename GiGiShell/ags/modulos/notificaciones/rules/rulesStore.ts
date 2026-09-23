@@ -9,7 +9,7 @@ import { compileRules, type RuleIndex } from "./engine.ts"
 import { archivoSistema, reglasSistema } from "./sistemaStore.ts"
 import { cargarJson, crearGuardadoJsonProgramado } from "../estado/persistencia.ts"
 
-const RULES_PATH = `${GLib.get_user_config_dir()}/gigios/notif-rules.json`
+const RULES_PATH = `${GLib.get_user_config_dir()}/gigishell/notif-rules.json`
 
 interface RulesFile {
   userRules: NotifRule[]

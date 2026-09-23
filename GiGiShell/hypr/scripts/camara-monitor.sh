@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Detector de USO de la cámara — el equivalente para vídeo del indicador de
-# micrófono de la barra. Escribe `~/.config/gigios/camara-uso.json`, que AGS lee
+# micrófono de la barra. Escribe `~/.config/gigishell/camara-uso.json`, que AGS lee
 # con un Gio.FileMonitor (`ags/servicios/camara/uso.ts`).
 #
 # ── POR QUÉ ESTO NO PUEDE VIVIR DENTRO DE AGS, Y POR QUÉ NO SONDEA ───────────
@@ -51,11 +51,11 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 
-ESTADO="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/camara-uso.json"
+ESTADO="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/camara-uso.json"
 # Margen entre el evento y la comprobación. Cubre el abrir-y-cerrar del sondeo
 # de dispositivos de Chromium/Firefox sin que se note al empezar una llamada.
 ASENTADO=0.4

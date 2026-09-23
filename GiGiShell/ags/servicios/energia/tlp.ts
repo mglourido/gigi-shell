@@ -3,12 +3,12 @@
 // Selector manual del perfil TLP en batería: "normal" (equilibrado) vs "ahorro"
 // (autonomía al máximo). TLP vive en /etc y aplicarlo (`tlp start`) necesita root,
 // así que AGS NO toca /etc directamente: delega en un helper root-owned instalado
-// por install.sh (/usr/local/bin/gigios-tlp-apply), autorizado sin contraseña por
-// /etc/sudoers.d/gigios-tlp SOLO para los dos argumentos fijos. La copia versionada
-// vive en ~/GiGiShell/system/tlp/; las de confianza en /etc/gigios/tlp/, root-owned.
+// por install.sh (/usr/local/bin/gigishell-tlp-apply), autorizado sin contraseña por
+// /etc/sudoers.d/gigishell-tlp SOLO para los dos argumentos fijos. La copia versionada
+// vive en ~/GiGiShell/system/tlp/; las de confianza en /etc/gigishell/tlp/, root-owned.
 // Ver la sección "Perfiles TLP" del CLAUDE.md raíz para el porqué de esta separación.
 //
-// Estado inicial = el modo activo que el helper dejó anotado en /etc/gigios/tlp/active
+// Estado inicial = el modo activo que el helper dejó anotado en /etc/gigishell/tlp/active
 // (lectura directa del fichero, world-readable, sin sudo). Ausente = "normal".
 
 import GLib from "gi://GLib"
@@ -18,8 +18,8 @@ import { createState } from "ags"
 
 export type TlpMode = "normal" | "ahorro"
 
-const HELPER = "/usr/local/bin/gigios-tlp-apply"
-const ACTIVE_FILE = "/etc/gigios/tlp/active"
+const HELPER = "/usr/local/bin/gigishell-tlp-apply"
+const ACTIVE_FILE = "/etc/gigishell/tlp/active"
 
 function batteryPresent(): boolean {
   try {
@@ -59,8 +59,8 @@ export const [tlpBusy, _setTlpBusy] = createState(false)
 function notify(urgency: string, body: string): void {
   try {
     Gio.Subprocess.new(
-      ["notify-send", "-u", urgency, "-h", "string:x-gigios-source:system",
-       "-h", "string:x-gigios-event:energia.perfil-tlp", "Perfil TLP", body],
+      ["notify-send", "-u", urgency, "-h", "string:x-gigishell-source:system",
+       "-h", "string:x-gigishell-event:energia.perfil-tlp", "Perfil TLP", body],
       Gio.SubprocessFlags.NONE,
     )
   } catch (e) {

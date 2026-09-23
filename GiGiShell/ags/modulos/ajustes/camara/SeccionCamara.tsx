@@ -476,7 +476,7 @@ export default function SeccionCamara() {
 
         {/* ── Killswitch ──────────────────────────────────────────────────────────────
             El bloqueo NO lo aplica AGS: los nodos `/dev/video*` son de `root:video` y sus
-            permisos los decide udev. Lo hace el helper root-owned `/usr/local/bin/gigios-camara`
+            permisos los decide udev. Lo hace el helper root-owned `/usr/local/bin/gigishell-camara`
             vía una regla sudoers acotada a sus dos verbos (mismo esquema que TLP y ClamAV). El
             detalle que no se ve y que sostiene todo esto es el NÚMERO de la regla udev que
             instala —`71-`, entre el `70-uaccess` que etiqueta y el `73-seat-late` que concede la

@@ -1,6 +1,6 @@
 # Hyprland: estructura, GPU/pantalla/idioma y módulos individuales
 
-Detalle completo de la estructura de `hypr/gigios/*.lua` (perfil de GPU, dispositivos, pantalla, idioma) y
+Detalle completo de la estructura de `hypr/gigishell/*.lua` (perfil de GPU, dispositivos, pantalla, idioma) y
 el porqué de cada script/módulo individual del sistema (Wake up, gaming-gate, USB, TLP, ClamAV, monitores de
 recursos, etc). Referenciado desde `CLAUDE.md` — leer la sección correspondiente antes de tocar el script o
 módulo que nombra su título. Para el mapa de directorios y orden de carga, ver `docs/hypr-estructura.md`.
@@ -11,27 +11,27 @@ For the directory layout, the module load order, and which script fires from whe
 [`docs/hypr-estructura.md`](docs/hypr-estructura.md) — this section only covers the *why* behind
 specific decisions, not a structural map.
 
-**El razonamiento de abajo sigue vigente aunque la sintaxis haya cambiado**: `gigios/*.lua` es un
+**El razonamiento de abajo sigue vigente aunque la sintaxis haya cambiado**: `gigishell/*.lua` es un
 port fiel de los `.conf`, así que donde se lea "`keybinds.conf`" o "un `source =`" hay que entender
 su módulo equivalente. `hypr/hyprland.lua` is a thin entry point that loads the split modules
 (`env`, `monitores`, `input`, `ventanas`, `animaciones`, `reglas`, `keybinds`, `autostart`,
 `permisos`, …). Note:
 
-- **GPU profile is machine-specific**: exactly one module under `hypr/gigios/gpu/` is loaded
+- **GPU profile is machine-specific**: exactly one module under `hypr/gigishell/gpu/` is loaded
   (`laptop-hibrida.lua` / `sobremesa-nvidia.lua` / `integrada.lua` / …), y **ya no se descomenta a
-  mano** — lo elige `~/.config/gigios/gpu-perfil`, un fichero local de una línea fuera del repo que
+  mano** — lo elige `~/.config/gigishell/gpu-perfil`, un fichero local de una línea fuera del repo que
   escribe el instalador (paso `gpu`) y que nunca se pisa si ya existe. `integrada.lua` es el «no
   hay nada que configurar» explícito de una Intel/AMD sola: sin él, la única forma de decirlo era
   dejar el fichero ausente, y eso disparaba el aviso de `gpu.lua` en cada inicio de sesión.
-- `gigios/dispositivos.lua` **lee `~/.config/gigios/devices.json`** (Ajustes > Dispositivos, vía
-  `ags/servicios/dispositivos/service.ts`) y se carga después de `gigios/userprefs.lua` para pisar
+- `gigishell/dispositivos.lua` **lee `~/.config/gigishell/devices.json`** (Ajustes > Dispositivos, vía
+  `ags/servicios/dispositivos/service.ts`) y se carga después de `gigishell/userprefs.lua` para pisar
   lo de ahí. Fichero ausente = no se aplica nada y manda `userprefs`. Los defaults del módulo son
   el espejo de `DEFAULT_DEVICE_SETTINGS` y solo entran por clave ausente o de tipo raro: AGS ya
   escribe el JSON normalizado. De ahí sale también el **tema del puntero** (ver la sección de
   hyprcursor, abajo).
-- `gigios/pantalla.lua` **lee `~/.config/gigios/display.json`** (Ajustes > Pantalla, vía
+- `gigishell/pantalla.lua` **lee `~/.config/gigishell/display.json`** (Ajustes > Pantalla, vía
   `ags/servicios/pantalla/service.ts`), recorre `monitors` y emite un `hl.monitor` por entrada
-  **después de `gigios/monitores.lua`**, cuya única regla es la comodín (preferido, escala 1).
+  **después de `gigishell/monitores.lua`**, cuya única regla es la comodín (preferido, escala 1).
   Resolución/Hz/escala/VRR/posición se aplicaban antes solo **en vivo** (`hyprctl keyword monitor`)
   y al arrancar AGS, guardándose únicamente en el JSON — que Hyprland no leía. Resultado: cualquier
   **`hyprctl reload`** releía los configs y devolvía la pantalla a modo preferido y escala 1
@@ -42,7 +42,7 @@ su módulo equivalente. `hypr/hyprland.lua` is a thin entry point that loads the
   **Por eso `saveMonitorPref` escribe SÍNCRONO** (`saveDisplayConfigNow`) y no por el debounce de
   2 s que usa el resto de `display.json`: el fichero dejó de ser solo de AGS, y un `hyprctl reload`
   disparado justo después de tocar la resolución releería el JSON viejo y desharía el cambio.
-- **El idioma (LANG/LC_ALL) lo lee `gigios/env.lua` de `~/.config/gigios/datetime.json`** (clave
+- **El idioma (LANG/LC_ALL) lo lee `gigishell/env.lua` de `~/.config/gigishell/datetime.json`** (clave
   `locale`, Ajustes > Región, fecha y hora). Antes AGS reescribía un bloque entre marcadores dentro
   del propio `env.lua`, que está **versionado**: estado de máquina ensuciando git, y un marcador
   tocado a mano dejaba el bloque huérfano con AGS añadiendo otro debajo. **Clave ausente = no se
@@ -52,7 +52,7 @@ su módulo equivalente. `hypr/hyprland.lua` is a thin entry point that loads the
 - Colour management (`render.cm_enabled`) is deliberately **off** because `hyprsunset` owns the
   KMS CTM for night light; enabling Hyprland's CM too washes out the image.
 
-`hypr/gigios/autostart.lua` launches the shell (`ags run ~/.config/ags/`), `hypridle`, `init.sh`,
+`hypr/gigishell/autostart.lua` launches the shell (`ags run ~/.config/ags/`), `hypridle`, `init.sh`,
 `wallpaper.sh`, and a set of `hypr/scripts/*-monitor.sh` background daemons (battery, temp,
 ram, disk, oom, wifi, usb, bt, screencast, updates). Todo ello cuelga de un
 `hl.on("hyprland.start", …)`, que es el equivalente EXACTO de `exec-once`: se dispara una vez por
@@ -62,7 +62,7 @@ re-ejecuta en cada reload — esa es la semántica del viejo `exec =`, y es dond
 correctly —including re-running the autostart— use the newer `hyprctl reload full-reset`; a plain
 reload does not restart those commands. Relaunch AGS separately when its code changes.
 
-**El arranque está ESCALONADO, y `gigios/autostart.lua` es el único sitio donde se lee el
+**El arranque está ESCALONADO, y `gigishell/autostart.lua` es el único sitio donde se lee el
 calendario entero.** Todo esto salía a la vez y competía con la carga de Hyprland y del shell con la caché
 fría. La regla: lo que se ve (wallpaper, AGS, `init.sh`) o lo que no puede perder eventos va a
 t=0; lo que solo consulta el estado del PC se aparta — eventos a t=1..3,5 (bt, usb, wifi,
@@ -84,7 +84,7 @@ reinicia, mientras que `hyprctl reload full-reset` sí vuelve a ejecutar el auto
 ya tiene el bucle parseado en memoria, de
 modo que el proceso vivo sigue ejecutando el código **anterior** a tu edición: el fichero en disco
 y lo que corre divergen sin ningún aviso. Se manifiesta como "mi cambio no hace nada" horas
-después — así se coló una tanda de notificaciones de USB sin el hint `x-gigios-source` cuando ya
+después — así se coló una tanda de notificaciones de USB sin el hint `x-gigishell-source` cuando ya
 estaba puesto en el script. Tras editar: `pkill -f ~/.config/hypr/scripts/<x>-monitor.sh` y
 relanzarlo (`setsid nohup … &`), o cerrar sesión. Ojo al comprobarlo: `battery-monitor` y
 `temp-monitor` **salen solos** si su toggle está a `false` en `preferences.json`, y `disk-monitor`
@@ -121,7 +121,7 @@ Hizo falta una puerta porque hypridle **no tiene API en caliente**: no se le pue
 listener suelto ni recargarle el config. Las dos alternativas se descartaron con motivo.
 `systemd-inhibit --what=idle` (que hypridle sí respeta) apaga **todos** los listeners a la vez, y
 entonces "que no se suspenda **pero la pantalla sí se apague**" —el modo por defecto— es
-inexpresable. Y reutilizar el `# GIGIOS-OFF` que ya sabe comentar listeners (Ajustes > Pantalla)
+inexpresable. Y reutilizar el `# GIGISHELL-OFF` que ya sabe comentar listeners (Ajustes > Pantalla)
 significaría **escribir en el config del usuario** para un estado temporal: si AGS muere a mitad,
 sus tiempos quedan desactivados para siempre y la UI de Ajustes los enseña apagados, confundiendo
 "lo apagué yo" con "lo apagó el Wake up".
@@ -131,9 +131,9 @@ a los 11, como siempre. Con la subopción **Pantalla** veta además `dpms-off` *
 bloqueo va atado a la pantalla porque hyprlock la taparía, que es justo lo que la opción evita.
 `on-resume` **no** pasa por la puerta: encender la pantalla al volver no se veta nunca, y es lo
 único que la despierta si vuelves con el ratón (`mouse_move_enables_dpms = false` en
-`gigios/ventanas.lua`; solo una tecla la enciende por su cuenta).
+`gigishell/ventanas.lua`; solo una tecla la enciende por su cuenta).
 
-**Estado**: `~/.config/gigios/wakeup.json`, `{active, until, screen, pid}`, escrito por AGS
+**Estado**: `~/.config/gigishell/wakeup.json`, `{active, until, screen, pid}`, escrito por AGS
 (`ags/servicios/energia/mantenerDespierto.ts`) y leído por el script — misma dirección que
 `runtime-state.json`, no al revés que los `*-monitor.sh`. `until` es **epoch absoluto**, no un
 contador: así la puerta resuelve la caducidad sola contra el reloj de pared aunque nadie reescriba
@@ -166,7 +166,7 @@ traído de otra máquina. Cubierto por `hypridle.test.ts`.
 **Desactivar un tiempo se hace comentando la línea, NUNCA con `timeout = 0`.** Cada fila de Ajustes
 > Pantalla lleva un interruptor que apaga *ese* listener (`FilaInactividad` en
 > `ags/modulos/ajustes/pantalla/Inactividad.tsx` →
-`writeHypridle(…, {enabled:false})` → `# timeout = N   # GIGIOS-OFF`). El 0 no es una forma pobre de
+`writeHypridle(…, {enabled:false})` → `# timeout = N   # GIGISHELL-OFF`). El 0 no es una forma pobre de
 decir "nunca": es lo contrario. Medido en hypridle 0.1.7 — con `timeout = 0` el listener **se
 registra y se dispara al instante** (`Registered timeout rule for 0s`, y la acción ejecutada ya), o
 sea que ponerlo en la fila "Suspender" apagaría el PC nada más guardar. Comentado, hypridle saca un
@@ -175,7 +175,7 @@ medido) — y el valor sobrevive dentro del comentario, así que al reencender v
 usuario. De ahí el suelo de 1 min al leer el fichero: un listener ausente parsea a `{timeout: 0}`, y
 ese 0 llegaría al `.conf` al encender la fila. **El estado del interruptor sale de `parseHypridle`,
 no de un `true` fijo**: cuando la UI escribía `enabled: true` a pelo, mover cualquier stepper
-reescribía los tres listeners como activos y resucitaba en silencio un GIGIOS-OFF ya puesto.
+reescribía los tres listeners como activos y resucitaba en silencio un GIGISHELL-OFF ya puesto.
 
 **"Bloquear" (el listener) y "Bloquear al suspender" (`before_sleep_cmd`) son ajustes distintos, y
 confundirlos costó un bug.** Con el listener de bloqueo apagado, al despertar de una suspensión
@@ -184,7 +184,7 @@ bloque `general`, que **no** cuenta inactividad — lo dispara logind ante *cual
 (el listener de suspender, el menú de energía, el botón físico, cerrar la tapa, un `systemctl
 suspend` a mano). No tenía interruptor, así que no había forma de suspender sin bloquear. Ahora lo
 gobierna el último interruptor de la tarjeta (`writeBloqueoAlSuspender` en
-`ags/servicios/pantalla/hypridle.ts`), que comenta la línea con el mismo sentinel GIGIOS-OFF para
+`ags/servicios/pantalla/hypridle.ts`), que comenta la línea con el mismo sentinel GIGISHELL-OFF para
 conservar el comando escrito. Ojo al tocar ese regex: `after_sleep_cmd` comparte sufijo con
 `before_sleep_cmd` y es lo único que vuelve a encender la pantalla al despertar.
 
@@ -192,7 +192,7 @@ conservar el comando escrito. Ojo al tocar ese regex: `after_sleep_cmd` comparte
 
 `hyprlock` **no se llama nunca directamente**. Los cinco sitios que bloquean la sesión —
 `lock_cmd` de `hypridle.conf`, `lock_screen()` de `idle-action.sh`, la acción `bloquear` de
-`gigios/boton-apagado.lua`, el botón «Bloquear» del menú de energía de AGS
+`gigishell/boton-apagado.lua`, el botón «Bloquear» del menú de energía de AGS
 (`modulos/menu-energia/acciones.ts`) y la suspensión falsa — entran por
 `hypr/scripts/bloquear.sh`, que avanza la cola de fondos y hace `exec hyprlock`.
 
@@ -203,14 +203,14 @@ su config, la ruta del fondo ya tiene que estar escrita. Por eso alguien tiene q
 y ese alguien es el script.
 
 **El enlace del fondo no lleva extensión, y es a propósito.** `background { path = ... }` apunta a
-`~/.cache/gigios/hyprlock-fondo`, un symlink que `fondo-bloqueo.py` reapunta a un `.jpg`/`.jpeg`/`.png`/
+`~/.cache/gigishell/hyprlock-fondo`, un symlink que `fondo-bloqueo.py` reapunta a un `.jpg`/`.jpeg`/`.png`/
 `.webp` de `Wallpapers/`. Con los cuatro formatos mezclados, un enlace con extensión fija
 mentiría la mitad de las veces. Funciona porque hyprlock 0.9.6 carga las imágenes por
 **hyprgraphics**, que enlaza **libmagic** y decide el formato por los bytes del fichero, no por el
 nombre — comprobable con `ldd /usr/lib/libhyprgraphics.so.4 | grep magic`. Ojo si algún día se
 sustituye ese cargador: el fallo sería mudo (fondo negro, bloqueo por lo demás correcto).
 
-Está en la **caché** y no en `~/.config/gigios/` porque no es una preferencia de nadie;
+Está en la **caché** y no en `~/.config/gigishell/` porque no es una preferencia de nadie;
 borrarlo no rompe nada, el siguiente bloqueo lo repone. En la misma caché queda la cola
 barajada: hyprlock cambia cada 30 s con fundido, no repite antes de agotar una vuelta y
 continúa los pendientes tras desbloquear y volver a bloquear.
@@ -321,12 +321,12 @@ Regalo del modo `retardo`: cubre también las suspensiones que **no** vienen de 
 
 **Quién guarda qué** (tres sitios, y solo uno es la autoridad):
 
-- `~/.config/gigios/hibernacion.json` — **la autoridad**: `enabled`, `totalSeconds`, `modo`. Lo
+- `~/.config/gigishell/hibernacion.json` — **la autoridad**: `enabled`, `totalSeconds`, `modo`. Lo
   escribe AGS y lo lee `idle-action.sh` para decidir si suspende con alarma o sin ella.
 - el listener `hibernate` de `hypridle.conf` — **espejo** del total; solo está *encendido* en modo
   listener. Su `enabled` NO significa "¿hiberna el equipo?".
-- `/etc/systemd/sleep.conf.d/99-gigios-hibernacion.conf` — `HibernateDelaySec`, escrito por
-  `/usr/local/bin/gigios-hibernacion` (root, vía sudoers acotado). Se reescribe **siempre**,
+- `/etc/systemd/sleep.conf.d/99-gigishell-hibernacion.conf` — `HibernateDelaySec`, escrito por
+  `/usr/local/bin/gigishell-hibernacion` (root, vía sudoers acotado). Se reescribe **siempre**,
   incluso a 0 (que borra el drop-in): dejar uno viejo al apagar la hibernación haría que cualquier
   `suspend-then-hibernate` ajeno siguiera hibernando con el tiempo antiguo.
 
@@ -364,7 +364,7 @@ línea de comandos del kernel: eso tiene que poder omitirse.
   `NVreg_TemporaryFilePath=/var/tmp` no es cosmético: el defecto es `/tmp`, que es un **tmpfs**, y
   guardar la VRAM en RAM mientras se intenta escribir la RAM entera al swap es lo contrario de lo
   que hace falta.
-- **`resume=` solo entra al REINICIAR.** Hasta entonces `gigios-hibernacion estado` sigue diciendo
+- **`resume=` solo entra al REINICIAR.** Hasta entonces `gigishell-hibernacion estado` sigue diciendo
   `disponible=no` y la fila de Ajustes sale apagada con su motivo. No es un fallo del paso.
 - En esta máquina el paso destapó además que `GRUB_CMDLINE_LINUX_DEFAULT` estaba **anidado dentro
   de sí mismo** (`="GRUB_CMDLINE_LINUX_DEFAULT='nowatchdog … loglevel=3' nvidia_drm.modeset=1"`),
@@ -373,7 +373,7 @@ línea de comandos del kernel: eso tiene que poder omitirse.
   meter `resume=` en un valor así lo habría dejado dentro de las comillas, y el equipo habría
   hibernado para arrancar en frío perdiendo la sesión, sin un solo mensaje.
 
-**Nada de esto se asume: se pregunta.** `gigios-hibernacion estado` consulta `CanHibernate` a
+**Nada de esto se asume: se pregunta.** `gigishell-hibernacion estado` consulta `CanHibernate` a
 logind (que es quien mira swap **y** `resume=`), y si dice que no, la fila sale apagada **con el
 motivo escrito**. `preflight.sh` avisa del caso contrario — el ajuste encendido en un equipo que
 dejó de poder hibernar —, que es el que fallaría de madrugada sin testigos.
@@ -392,7 +392,7 @@ compartido con el botón de «Actualizaciones» de la barra que lanza `sudo pacm
 terminal de verdad y dentro `sudo` pide la contraseña como en cualquier uso manual:
 
 - **Preparar** lanza `install.sh --solo hibernacion` (el mismo paso del instalador).
-- **Quitar** lanza `system/hibernacion/gigios-hibernacion-quitar.sh`, el simétrico del setup:
+- **Quitar** lanza `system/hibernacion/gigishell-hibernacion-quitar.sh`, el simétrico del setup:
   `swapoff` primero (es lo único que se nota SIN reiniciar — `CanHibernate` mira el swap
   *activo*, no lo que diga fstab), borra el subvolumen `/swap` completo si solo contiene el
   swapfile (si hay algo más dentro, avisa y borra solo el fichero), quita `resume=`/
@@ -400,7 +400,7 @@ terminal de verdad y dentro `sudo` pide la contraseña como en cualquier uso man
   NVIDIA que son puramente de hibernación (`nvidia-hibernate`,
   `nvidia-suspend-then-hibernate`) — **no** `nvidia-suspend`/`nvidia-resume`, que conservan la
   VRAM en cualquier S3 y no tienen nada que ver con lo que se desinstala —, y regenera el
-  initramfs. Dejar `/usr/local/bin/gigios-hibernacion` y su sudoers instalados es intencional:
+  initramfs. Dejar `/usr/local/bin/gigishell-hibernacion` y su sudoers instalados es intencional:
   sin swap ni `resume=` no hacen nada por sí solos, y quitarlos obligaría a reinstalarlos para
   poder volver a intentarlo.
 
@@ -410,7 +410,7 @@ fila refleja el estado nuevo sin reabrir el panel de Ajustes.
 ### Diálogo de contraseña de root: hyprpolkitagent, y por qué sigue siendo feo
 
 El agente de polkit —la ventanita que pide la contraseña al necesitar root— **ya es
-hyprpolkitagent**, lanzado desde `gigios/autostart.lua`; `polkit-kde-agent` está instalado como
+hyprpolkitagent**, lanzado desde `gigishell/autostart.lua`; `polkit-kde-agent` está instalado como
 arrastre de Plasma pero no corre ni publica servicio D-Bus. O sea que **no hay ninguna migración
 pendiente desde KDE**: si alguien vuelve a plantearla, la respuesta es que ya está hecha.
 
@@ -443,7 +443,7 @@ que se queda roto es el agente de autenticación.
 
 - **El binario CAMBIA DE SITIO entre versiones.** En el 0.1.3 de repos es
   `/usr/lib/hyprpolkitagent/hyprpolkitagent` (directorio con el ejecutable dentro); en la
-  reescritura, `/usr/lib/hyprpolkitagent` **es** el ejecutable. `gigios/autostart.lua` apunta a la
+  reescritura, `/usr/lib/hyprpolkitagent` **es** el ejecutable. `gigishell/autostart.lua` apunta a la
   primera. Equivocarse no da ningún error: `hl.exec_cmd` falla en silencio y la sesión se queda sin
   agente, cosa que no se nota hasta que algo pide root a mitad de sesión.
 - **`window_width` no hace nada** (A/B en 0.1.3.r11): la ventana sale a 460 px pidiendo 500 y
@@ -456,12 +456,12 @@ que se queda roto es el agente de autenticación.
   `org.freedesktop.PolicyKit1.AuthenticationAgent` más `polkit-agent-helper-1` para el PAM). Se
   descartó: son cientos de líneas para lo que 18 claves de config darán gratis al llegar el release.
 
-### Botón de encendido: `gigios/boton-apagado.lua` + `system/logind.conf.d/`
+### Botón de encendido: `gigishell/boton-apagado.lua` + `system/logind.conf.d/`
 
 Ajustes > Energía decide qué hace la pulsación **corta** del botón físico (apagar, suspender,
 hibernar, bloquear, apagar la pantalla, abrir el menú de energía, cerrar sesión, reiniciar o
-nada). Lo ejecuta `GiGiShell.boton_apagado()` (`hypr/gigios/boton-apagado.lua`) desde el bind de
-`XF86PowerOff` con **`{ locked = true }`** en `gigios/keybinds.lua` — `locked` (el viejo `bindl`)
+nada). Lo ejecuta `GiGiShell.boton_apagado()` (`hypr/gigishell/boton-apagado.lua`) desde el bind de
+`XF86PowerOff` con **`{ locked = true }`** en `gigishell/keybinds.lua` — `locked` (el viejo `bindl`)
 porque el botón tiene que responder también con hyprlock puesto, que es justo cuando más se pulsa.
 Era un script de bash (`boton-apagado.sh`); se inlineó al migrar a Lua, y con él desapareció la
 doble indirección bind → bash → `hyprctl dispatch`.
@@ -478,7 +478,7 @@ se hace**: el menú quedaría dibujado por debajo del bloqueo y abierto al desbl
 `systemd-logind` maneja esa misma tecla por su cuenta (`HandlePowerKey`, **`poweroff` de
 fábrica**) a nivel de **asiento**, leyendo el evento de entrada sin pasar por el compositor. O
 sea que las dos acciones ocurren a la vez y gana el apagado de logind: elijas lo que elijas, el
-PC se apaga, y sin ningún error por ningún lado. De ahí `system/logind.conf.d/99-gigios-powerkey.conf`
+PC se apaga, y sin ningún error por ningún lado. De ahí `system/logind.conf.d/99-gigishell-powerkey.conf`
 (`HandlePowerKey=ignore`), que como la regla udev de USB y el `i2c-dev` va a `/etc` y **no se
 symlinkea**: lo copia `install.sh` (paso 9) y recarga con **`systemctl reload systemd-logind`**
 — `reload`, no `restart`, que puede llevarse la sesión por delante. La pulsación **larga** se
@@ -492,11 +492,11 @@ la única respuesta que no miente. El aviso solo sale cuando la elección **de v
 cumplirse**: con `apagar` el resultado es el mismo venga de quien venga, y avisar ahí sería ruido.
 Un `null` (no se pudo consultar) **no** avisa — no poder comprobarlo no es saber que está mal.
 
-### Tapa del portátil: `gigios/tapa.lua` + `tapa-inhibidor.sh` (y por qué aquí NO se toca `/etc`)
+### Tapa del portátil: `gigishell/tapa.lua` + `tapa-inhibidor.sh` (y por qué aquí NO se toca `/etc`)
 
 Ajustes > Energía decide qué hace **cerrar la tapa**: suspender (de fábrica), suspensión falsa,
 hibernar, bloquear, apagar la pantalla, apagar el equipo o nada. La ejecuta `GiGiShell.tapa_cerrada()`
-(`hypr/gigios/tapa.lua`) desde el bind `switch:on:Lid Switch` de `gigios/keybinds.lua`, con
+(`hypr/gigishell/tapa.lua`) desde el bind `switch:on:Lid Switch` de `gigishell/keybinds.lua`, con
 **`{ locked = true }`**: la tapa se cierra sobre todo con la sesión ya bloqueada.
 
 Reparto de trabajo idéntico al del botón de encendido: **el shell solo guarda la elección**
@@ -521,7 +521,7 @@ Dos diferencias con el botón, y las dos son deliberadas:
   y nadie delante de la pantalla.
 - **Abrir la tapa enciende la pantalla SIEMPRE** (`switch:off:Lid Switch` → `GiGiShell.tapa_abierta()`),
   sin mirar la preferencia. Con la acción "Apagar la pantalla" no habría nadie más que la
-  encendiera (`mouse_move_enables_dpms = false`, ver `gigios/ventanas.lua`) y abrir la tapa a un
+  encendiera (`mouse_move_enables_dpms = false`, ver `gigishell/ventanas.lua`) y abrir la tapa a un
   panel negro se lee como que el portátil no ha despertado. En el resto de acciones es inofensivo.
   ⚠️ La forma es la **tabla** (`hl.dsp.dpms({ action = "on" })`): el string es un toggle disfrazado
   — ver «Salir de suspensión» más arriba.
@@ -537,7 +537,7 @@ la mochila**, y eso no da ningún síntoma hasta que quema.
 
 La salida es un **inhibidor** de logind (`--what=handle-lid-switch --mode=block`), que **no necesita
 privilegios** y solo vale mientras alguien lo sostiene. Lo sostiene
-`hypr/scripts/tapa-inhibidor.sh`, lanzado a t=0 desde `gigios/autostart.lua`. Tres detalles suyos
+`hypr/scripts/tapa-inhibidor.sh`, lanzado a t=0 desde `gigishell/autostart.lua`. Tres detalles suyos
 que no son casuales:
 
 - Envuelve un **`tail --pid=<PID de Hyprland> -f /dev/null`**: bloqueado en el kernel (ni un
@@ -576,11 +576,11 @@ El nombre del dispositivo va **literal** en el bind. Hyprland compara la cadena 
 ACPI de la tapa en cualquier portátil. Para ver el de una máquina concreta: `hyprctl devices`,
 sección *Switches*. En un equipo sin tapa el bind simplemente no se dispara nunca.
 
-### Notificaciones de los scripts: los hints `x-gigios-source` y `x-gigios-event`
+### Notificaciones de los scripts: los hints `x-gigishell-source` y `x-gigishell-event`
 
 **Todo `notify-send` de `hypr/scripts/` sale por `notificar <id> …`, de
-[`lib/notif.sh`](../hypr/scripts/lib/notif.sh)**, que pone los dos hints: `x-gigios-source:system`
-(qué clase de notificación es) y `x-gigios-event:<id>` (**cuál** de ellas es). El fichero se sourcea
+[`lib/notif.sh`](../hypr/scripts/lib/notif.sh)**, que pone los dos hints: `x-gigishell-source:system`
+(qué clase de notificación es) y `x-gigishell-event:<id>` (**cuál** de ellas es). El fichero se sourcea
 con el mismo patrón que `lib/gaming-gate.sh`, con un respaldo inline que emite igual sin el id: sin
 la librería se pierde la identidad del aviso, nunca el aviso.
 
@@ -596,7 +596,7 @@ singular y el plural de «ejecutable nuevo en Descargas»: quien silencia uno qu
 callados). El catálogo de ids vive en
 `ags/modulos/notificaciones/rules/catalogoSistema.ts` y es lo que pinta Ajustes > Notificaciones >
 **Sistema**, con una fila por aviso; lo que el usuario cambia va a
-`~/.config/gigios/notif-sistema.json`. **Al añadir un aviso nuevo, da de alta su id en el
+`~/.config/gigishell/notif-sistema.json`. **Al añadir un aviso nuevo, da de alta su id en el
 catálogo**: sin eso el aviso funciona igual, pero no aparece en Ajustes — que es lo único que se
 pierde, y todo lo que esto pretendía ganar.
 
@@ -650,7 +650,7 @@ categoría entera, y por la misma razón que motivó la allowlist de `privEsc`: 
 satura enseña a ignorarla**.
 
 La librería acumula por categoría y emite **una** notificación por categoría. Es ortogonal a
-`lib/notif.sh`: aquella da IDENTIDAD (`x-gigios-event`), esta decide CUÁNDO y CUÁNTOS avisos
+`lib/notif.sh`: aquella da IDENTIDAD (`x-gigishell-event`), esta decide CUÁNDO y CUÁNTOS avisos
 salen. **El resumen lleva el mismo id que el aviso individual** — quien silencia «errores de GPU»
 quiere callados los dos.
 
@@ -807,8 +807,8 @@ sub-monitores ya duermen en primer plano, así que ahí `sleep` a secas es lo co
 ### Apps al inicio (`inicializador/apps-inicio.sh` + Ajustes > Apps al inicio)
 
 Abrir Spotify, un daemon de controladores o un script propio al entrar al escritorio, sin editar
-ninguna configuración a mano. La **lista es dato** —`~/.config/gigios/apps-inicio.json`, que
-escribe AGS— y quien la **ejecuta** es este script, al que `gigios/autostart.lua` llama con una
+ninguna configuración a mano. La **lista es dato** —`~/.config/gigishell/apps-inicio.json`, que
+escribe AGS— y quien la **ejecuta** es este script, al que `gigishell/autostart.lua` llama con una
 sola línea a **t=7**.
 
 **Por qué la lista no vive en `autostart.lua`.** Añadir una app al inicio no puede obligar a tocar
@@ -851,7 +851,7 @@ escritorio vuelve a «Donde estés» (`normalizarAppInicio` en
 `ags/servicios/aplicaciones/appsInicioModelo.ts`, con prueba).
 
 **Lo que NO se ofrece: abrir al scratchpad.** Técnicamente sale (`{workspace='special:magic
-silent'}`, comprobado), pero el atajo del especial se retiró a propósito de `gigios/keybinds.lua` —
+silent'}`, comprobado), pero el atajo del especial se retiró a propósito de `gigishell/keybinds.lua` —
 un especial vacío que se abre no dibuja nada y el scratchpad **se destruye al quedarse vacío**
 (`misc.close_special_on_empty`). O sea que una app enviada ahí no tendría forma de volver. "En otro
 escritorio, en silencio" es la versión alcanzable de "minimizada".
@@ -889,7 +889,7 @@ no lo rompe, lo convierte en **dos comandos**. El recorrido de los `%` es de una
 `%%` es un porcentaje escapado: encadenando reemplazos, el `%` superviviente puede releerse como el
 comienzo de otro código.
 
-### Escáner de apps al iniciar sesión (`gigios/escaner-apps.lua`)
+### Escáner de apps al iniciar sesión (`gigishell/escaner-apps.lua`)
 
 Al empezar la sesión se abren ventanas **solas** (autostart, restauración de sesión) y no siempre
 en el escritorio que estás mirando: acabas delante de uno vacío mientras tus apps están en otro.
@@ -940,15 +940,15 @@ bash —leer el socket con `nc -U`/`socat`, el sondeo de repliegue cada 2 s, dis
 ha dicho nada" de "no se ha abierto ninguna ventana"— desapareció con la reescritura: aquí los
 eventos los entrega el compositor al callback.
 
-**Ajuste**: `escanerAppsInicio` en `~/.config/gigios/preferences.json` (Ajustes > Personalización >
+**Ajuste**: `escanerAppsInicio` en `~/.config/gigishell/preferences.json` (Ajustes > Personalización >
 Ventanas y escritorios). **Ausente = DESACTIVADO**, al revés que la mayoría de claves de este
 fichero: mover el escritorio activo por su cuenta es intrusivo y hay que optar a ello. Ese default
 es también lo que hace seguro leerlo con `.escanerAppsInicio // false` — el tropiezo del operador
 `//` de jq documentado en `gaming-gate.sh` (que trata un `false` literal como ausente) aquí da el
-mismo resultado por ambos caminos. `GIGIOS_ESCANER_SEGS` acorta la ventana para probarlo sin
-esperar medio minuto, la misma costura que `GIGIOS_USB_PENDING_DIR` en el monitor de USB.
+mismo resultado por ambos caminos. `GIGISHELL_ESCANER_SEGS` acorta la ventana para probarlo sin
+esperar medio minuto, la misma costura que `GIGISHELL_USB_PENDING_DIR` en el monitor de USB.
 
-### Que una ventana no acabe estrujada, al abrirse o al soltarla (`gigios/reparto-ventanas.lua`)
+### Que una ventana no acabe estrujada, al abrirse o al soltarla (`gigishell/reparto-ventanas.lua`)
 
 **El problema es del primer cálculo de tamaño, no del layout en reposo.** dwindle parte siempre la
 ventana objetivo en dos, y el objetivo por defecto es la última que tuvo el foco en ese escritorio,
@@ -970,7 +970,7 @@ desde Orion o rofi el cursor está donde lo dejaste: el eje sale a suertes y se 
 tras ventana. Medido A/B sobre la misma ventana de 2032x1098: con smart_split, 2032x547 (apilada);
 sin él, 1014x1098 (lo correcto para una apaisada). O sea que enfocar la mayor sin arreglar el eje
 daba ocho tiras de **2032x134**. `preselect` tiene prioridad sobre el cuadrante, sobre `smart_split`
-y sobre `force_split` (ya documentado en `gigios/keybinds.lua`, donde se usa para lo mismo en
+y sobre `force_split` (ya documentado en `gigishell/keybinds.lua`, donde se usa para lo mismo en
 SUPER+SHIFT+dirección), así que no hay que tocar `smart_split`, que sigue mandando en el arrastre.
 En el camino de **mover a otro escritorio** `preselect` no basta y la palanca es otra: ver
 *Mover una ventana a otro escritorio sin desordenarlo*, más abajo.
@@ -1021,7 +1021,7 @@ deshace sola en `window.open` (`preselect none` + devolver el foco), y una red d
 `window.open` no llegue nunca, porque **un `preselect` sin consumir se lo come la SIGUIENTE ventana
 que abras**. Con el escritorio ya lleno interviene igual aunque no pueda arreglarlo: partir la mayor
 por su lado largo sigue siendo la opción menos mala. Quien decide que ya no cabe nadie es
-`gigios/limite-ventanas.lua`, que corre después.
+`gigishell/limite-ventanas.lua`, que corre después.
 
 **Al SOLTAR una ventana arrastrada (SUPER + arrastrar) manda la otra palanca: quitarle sitio a los
 vecinos.** Es el otro momento en el que un tamaño se decide de golpe — dwindle reinserta la ventana
@@ -1058,14 +1058,14 @@ cierta (el módulo creía que todo cabía y no intervenía nunca, sin un solo er
 avisar (medido: pidiendo agrandar tst3 se agrandó tst2). Por eso el drop comprueba que la activa
 siga siendo la ventana que soltaste antes de tocar nada.
 
-**Ajustes** en `~/.config/gigios/preferences.json`, sin UI (como `maxVentanasEscritorio`):
+**Ajustes** en `~/.config/gigishell/preferences.json`, sin UI (como `maxVentanasEscritorio`):
 `repartoVentanas` (**ausente = activado**, se comprueba `== false`), `segundaVentanaAlLado`
 (**ausente = activado**, mismo criterio; apaga solo el forzado de la segunda ventana),
 `anchoMinimoVentana` /
 `altoMinimoVentana` (**ausentes = 480x320**; los dos a 0 lo desactivan). Se leen por `util.prefs()`,
 o sea una vez por ejecución del config: cambiarlos pide un `hyprctl reload`.
 
-### Mover una ventana a otro escritorio sin desordenarlo (`sin_smart_split`, en `gigios/ventanas.lua`)
+### Mover una ventana a otro escritorio sin desordenarlo (`sin_smart_split`, en `gigishell/ventanas.lua`)
 
 **Mover desordenaba el escritorio destino, y la culpa no era del módulo que movía.** Para dwindle un
 `movetoworkspace` no es "cambiar de sitio": es **sacar la ventana de un árbol y reinsertarla en
@@ -1087,14 +1087,14 @@ ocupa entero, cursor "rancio" en el borde izquierdo, x=5 y=540):
 Con el cursor en (500,5) **las dos salidas son idénticas**: el envoltorio solo cambia el resultado
 cuando `smart_split` iba a elegir un eje distinto al del lado largo, no toca nada más.
 
-**`preselect` NO sirve aquí**, aunque sea el truco con el que `gigios/keybinds.lua` arregla
-SUPER+SHIFT+dirección y `gigios/reparto-ventanas.lua` la ventana nueva. Medido: con `smart_split`
+**`preselect` NO sirve aquí**, aunque sea el truco con el que `gigishell/keybinds.lua` arregla
+SUPER+SHIFT+dirección y `gigishell/reparto-ventanas.lua` la ventana nueva. Medido: con `smart_split`
 activo, un `preselect right` inmediatamente antes del `movetoworkspace` —incluido en el **mismo
 `hyprctl --batch`**, para descartar que se perdiera entre llamadas— da **exactamente el mismo
 resultado** que sin él. El override solo lo consulta el camino de ventana nueva.
 
 Así que la palanca es apagar `dwindle:smart_split` mientras dura la inserción y volver a encenderlo,
-que es lo que hace `sin_smart_split(accion)` en `gigios/ventanas.lua` (donde vive la tabla `dwindle`,
+que es lo que hace `sin_smart_split(accion)` en `gigishell/ventanas.lua` (donde vive la tabla `dwindle`,
 para que el valor restaurado no sea un literal copiado que se quede obsoleto). El restaurado va en
 `pcall` **siempre**: dejarlo apagado por un fallo de `accion` sería un cambio permanente y mudo — el
 arrastre dejaría de responder al cuadrante hasta el siguiente `hyprctl reload`. El apagado es
@@ -1107,9 +1107,9 @@ destino** — y ninguno más, porque el arrastre sí tiene ese ratón y es la ú
 
 | camino | qué mueve |
 |---|---|
-| `gigios/keybinds.lua`, SUPER+SHIFT+número | la ventana activa |
-| `gigios/compactar.lua` | **el escritorio entero**, ventana a ventana |
-| `gigios/limite-ventanas.lua` | la que rebasa el tope, al primer escritorio con sitio |
+| `gigishell/keybinds.lua`, SUPER+SHIFT+número | la ventana activa |
+| `gigishell/compactar.lua` | **el escritorio entero**, ventana a ventana |
+| `gigishell/limite-ventanas.lua` | la que rebasa el tope, al primer escritorio con sitio |
 | `scripts/anclaje.py` | la recién lanzada, a su escritorio de lanzamiento |
 
 **`compactar` es el que más lo necesita**: no mueve una ventana, vacía un escritorio en otro, así que
@@ -1123,10 +1123,10 @@ acepta varias sentencias y ejecuta funciones anónimas; lo que no hace es **devo
 siempre responde `ok`, de ahí que el script mire el stdout y no el código de salida). Si el
 envoltorio no existiera —config a medio recargar, `ventanas.lua` roto— mueve igual sin él: llegar
 desordenada es mejor que no llegar. Los cuatro consumidores Lua hacen lo propio con un
-`pcall(require, "gigios.ventanas")` y repliegue a "ejecuta la acción tal cual", por la trampa nº 1
+`pcall(require, "gigishell.ventanas")` y repliegue a "ejecuta la acción tal cual", por la trampa nº 1
 de la migración (un error aquí deja la sesión sin atajos).
 
-### Ventanas opacas durante el modo ahorro (`opacidad_ahorro`, en `gigios/ventanas.lua`)
+### Ventanas opacas durante el modo ahorro (`opacidad_ahorro`, en `gigishell/ventanas.lua`)
 
 Gemelo, para las ventanas del compositor, del ajuste **«quitar la transparencia de los paneles»** del
 shell (Ajustes > Energía). Aquel deja opacas las láminas de AGS; este deja opacas las **ventanas**,
@@ -1139,7 +1139,7 @@ y la deja fuera de los atajos de región opaca. Con las dos opacidades a 1.0 la 
 tapa de verdad. Es, como el de los paneles, de los pocos ajustes del ahorro que ahorran mientras el
 usuario **mira** algo y no mientras el equipo está en reposo.
 
-**La condición viene resuelta de AGS y aquí no se reevalúa.** `~/.config/gigios/opacidad-ventanas.json`
+**La condición viene resuelta de AGS y aquí no se reevalúa.** `~/.config/gigishell/opacidad-ventanas.json`
 trae una sola clave, `forzada`, que AGS escribe ya combinada (**modo ahorro activo Y ajuste
 encendido**) — mismo criterio que `powerSaveFreeze` en `runtime-state.json`, y por el mismo motivo:
 rederivar aquí «¿hay ahorro?» obligaría a mirar `/sys/class/power_supply`, que lista también la pila
@@ -1154,12 +1154,12 @@ siempre**; nunca una sesión con las ventanas opacas sin haberlo pedido.
 | leer el JSON al cargar el módulo | cualquier ejecución del config | que un **`hyprctl reload`** no reponga el 0.92 a espaldas de AGS, y que una sesión que arranca ya en ahorro nazca opaca |
 
 El segundo no es opcional: **no hay señal de recarga** que AGS pueda observar (es el mismo motivo por
-el que `display.json` lo lee también `gigios/pantalla.lua`). Y el estado de arranque se lee **antes**
+el que `display.json` lo lee también `gigishell/pantalla.lua`). Y el estado de arranque se lee **antes**
 del `hl.config` grande y se aplica **dentro** de él, no con una segunda llamada a continuación, para
 que la recarga no tenga un instante con las ventanas transparentes.
 
 **AGS llama a la función del config, y no manda un `hl.config` con los valores.** La opacidad a la
-que hay que **volver** al salir del ahorro vive en la tabla `aspecto` de `gigios/ventanas.lua` —
+que hay que **volver** al salir del ahorro vive en la tabla `aspecto` de `gigishell/ventanas.lua` —
 donde ya están los gaps, por la misma razón—, y copiarla en TypeScript sería la desincronización
 silenciosa de siempre: el día que se cambie aquí, el ahorro restauraría el valor viejo. La forma que
 se despacha es `GiGiShell and GiGiShell.opacidad_ahorro and GiGiShell.opacidad_ahorro(true)`, defensiva
@@ -1173,7 +1173,7 @@ escrito en el propio config, así que un AGS que muera con el ahorro puesto deja
 ventanas opacas hasta el siguiente `hyprctl reload` — visible, inocuo y sin residuo en disco que
 pueda contaminar los ajustes reales.
 
-### Tope de ventanas en mosaico por escritorio (`gigios/limite-ventanas.lua`)
+### Tope de ventanas en mosaico por escritorio (`gigishell/limite-ventanas.lua`)
 
 Pasadas unas cuantas ventanas en mosaico el escritorio deja de ser útil: dwindle sigue partiendo el
 espacio y acabas con columnas de 200 px. Este módulo pone un techo (**8** por defecto) y, cuando
@@ -1215,7 +1215,7 @@ afloja. Verificado en vivo con el tope a 2, por los dos caminos: lanzar sobre un
 deja la ventana en el nuevo (no vuelve), y lanzar sobre uno con hueco **sigue anclando** como
 siempre.
 
-**Ajuste**: `maxVentanasEscritorio` en `~/.config/gigios/preferences.json`. **Ausente = 8
+**Ajuste**: `maxVentanasEscritorio` en `~/.config/gigishell/preferences.json`. **Ausente = 8
 (activado)**; un valor **≤ 0 lo desactiva**, y esa vía hace falta precisamente porque el default es
 "encendido" (borrar la clave no lo apaga). Se lee por `util.prefs()`, o sea una vez por ejecución
 del config: cambiarlo pide un `hyprctl reload`. El barrido de candidatos sube desde el escritorio
@@ -1261,7 +1261,7 @@ docstring de `anclaje.py`.
 `*-monitor.sh`: nacen de cero en cada lanzamiento, leen el ajuste y mueren. No hay que hacerles
 `pkill` + re-exec al cambiar la preferencia.
 
-**Ajuste**: `anclarVentanasRofi` en `~/.config/gigios/preferences.json` (Ajustes > Personalización >
+**Ajuste**: `anclarVentanasRofi` en `~/.config/gigishell/preferences.json` (Ajustes > Personalización >
 Ventanas y escritorios), **ausente = activado**. Es **una sola clave para los dos lanzadores** a
 propósito: para quien la usa es una única función, y partirla solo permitiría dejarla a medias. El
 nombre dice "Rofi" por historia —renombrarla apagaría el anclaje en silencio en la máquina que ya
@@ -1271,7 +1271,7 @@ lanzamiento sería justo lo que se apagó.
 
 **El anclaje CEDE ante el tope de ventanas por escritorio.** Antes de traerse una ventana al
 escritorio de lanzamiento, `_hueco_en()` comprueba que ahí quepa según `maxVentanasEscritorio`
-(mismo recuento que `gigios/limite-ventanas.lua`: solo mosaico, sin flotantes ni ocultas, sin
+(mismo recuento que `gigishell/limite-ventanas.lua`: solo mosaico, sin flotantes ni ocultas, sin
 contar la propia ventana); si está lleno, **no la ancla** y la deja donde el tope la puso. Sin eso
 las dos funciones se deshacían mutuamente y te quedabas mirando un escritorio distinto del de tu
 ventana. Ver la sección del tope para el porqué de la jerarquía. Los clientes se piden **una sola
@@ -1288,11 +1288,11 @@ bajas, no de movimientos), así que `ags/modulos/barra/escritorios/Escritorios.t
 Sin eso los iconos de la barra se quedaban en el escritorio donde nació la ventana hasta que otra
 cosa forzara un refresco. Ver `ags/CLAUDE.md`.
 
-### Traer aquí la ventana single-instance de Steam (`gigios/traer-steam.lua`)
+### Traer aquí la ventana single-instance de Steam (`gigishell/traer-steam.lua`)
 
 La lista de amigos y los chats de Steam son **single-instance**: si ya tienes uno abierto en otro
 escritorio y lo vuelves a pedir desde la ventana principal, Steam **no abre una segunda ventana**,
-reutiliza la existente allí donde esté. Con `misc.focus_on_activate = false` (`gigios/ventanas.lua`)
+reutiliza la existente allí donde esté. Con `misc.focus_on_activate = false` (`gigishell/ventanas.lua`)
 Hyprland tampoco te lleva hasta ella: solo la marca **urgent**. El síntoma es *"hago clic y no pasa
 nada"* cuando en realidad la ventana sí respondió, en un escritorio que no estás mirando.
 
@@ -1333,7 +1333,7 @@ estaba en este escritorio" — que es justo donde el tapado ocurre.
 **El puntero saltaba al centro de la ventana, y el culpable es `move`.** Medido: con el cursor en
 `348,765` y la ventana en `400,300` de `500x400`, tras el `move` el cursor estaba en `650,500` — el
 centro exacto. `focus` y `bring_to_top` **no lo tocan**, así que evitar el enfoque no habría servido
-de nada. Se arregla con **`cursor.no_warps = true`** en `gigios/input.lua`, global a propósito y no
+de nada. Se arregla con **`cursor.no_warps = true`** en `gigishell/input.lua`, global a propósito y no
 como apaño local (guardar la posición y restaurarla con `hl.dsp.cursor.move` también funciona): el
 salto molesta igual venga de donde venga, así que afecta por igual al anclaje de `anclaje.py` y a los
 atajos de foco. Verificado tras el cambio: el cursor se queda quieto durante los tres dispatch y la
@@ -1356,13 +1356,13 @@ estaba, justo el comportamiento previo al módulo. Los escritorios especiales (`
 fuera, mismo criterio que `ancla-escritorio.lua` y `compactar.lua`. Y ojo al tocarlo: los callbacks
 tienen **timeout de 100 ms**, los dos `dispatch` son inmediatos y no debe entrar nada que espere.
 
-La regla que las hace flotantes vive aparte, en `gigios/reglas.lua` (`steam-ventanas-secundarias`).
+La regla que las hace flotantes vive aparte, en `gigishell/reglas.lua` (`steam-ventanas-secundarias`).
 Va **sin `size`**: Steam pide su propia geometría por ventana y `persistent_size` recuerda la que tú
 le dejes. Cuidado con el falso negativo de ahí: **flotar a mano una ventana ya mapeada en mosaico**
 le deja la geometría del tiling —casi media pantalla— y parece que la regla fuerza "tamaño máximo"
 cuando en realidad no había regla actuando. Hay que juzgarla con una ventana **recién abierta**.
 
-### SUPER + tecla sin atajo no debe escribirse (`gigios/nop-binds.lua`)
+### SUPER + tecla sin atajo no debe escribirse (`gigishell/nop-binds.lua`)
 
 Con SUPER pulsado, una tecla que **no** forma un atajo llegaba a la aplicación: `SUPER+C` escribía
 una `c`. Es al revés que en Windows, donde la tecla Win sin atajo no hace nada.
@@ -1376,11 +1376,11 @@ por tecla (letras, dígitos, puntuación, F1–F12, teclado numérico, navegaci�
 
 **Antes era un fichero generado de 335 líneas** (`keybinds-nop.conf`) más su generador
 (`generar-nop-binds.sh`), que parseaba `hyprctl binds` para saber qué combinaciones estaban ya
-usadas. Hoy son **~10 líneas de bucle** en `gigios/nop-binds.lua`, y esa es una de las tres cosas
+usadas. Hoy son **~10 líneas de bucle** en `gigishell/nop-binds.lua`, y esa es una de las tres cosas
 que pagaron la migración a Lua ella sola: al vivir dentro del mismo config, la lista de "lo que ya
 es un atajo" **no hay que descubrirla** — la tiene delante.
 
-**El envoltorio `bind()` de `gigios/keybinds.lua` es lo que lo sostiene**: anota cada combinación
+**El envoltorio `bind()` de `gigishell/keybinds.lua` es lo que lo sostiene**: anota cada combinación
 (normalizada: mods ordenados y en mayúsculas, así `"SUPER SHIFT + E"` y `"shift+super+e"` casan) en
 una tabla `usados`, que `nop-binds` consulta. **Todo atajo nuevo debe pasar por ese envoltorio**, no
 por `hl.bind` directo. Saltárselo **no da ningún error**: solo deja esa combinación con dos binds
@@ -1395,14 +1395,14 @@ aquí desaparece.
 del config. El gesto de "recoger los atajos nuevos" (activar el ajuste para forzar una
 regeneración) dejó de existir porque dejó de hacer falta.
 
-**Ajuste**: `absorberSuperSinAtajo` en `~/.config/gigios/preferences.json` (Ajustes >
+**Ajuste**: `absorberSuperSinAtajo` en `~/.config/gigishell/preferences.json` (Ajustes >
 Personalización > Ventanas y escritorios), **ausente = activado** — ojo al leerlo, se comprueba
 `== false` explícitamente, porque un `nil` tiene que activar. Se aplica **en caliente**: el setter
 de AGS escribe la preferencia (síncrono) y dispara `hyprctl reload`, que re-ejecuta el config y
 vuelve a decidir. Desactivado, los sordos sencillamente no se registran: no queda ningún fichero
 residual que borrar ni comentar.
 
-### Escritorio ancla: ir y volver (`gigios/ancla-escritorio.lua`)
+### Escritorio ancla: ir y volver (`gigishell/ancla-escritorio.lua`)
 
 `SUPER + SHIFT + S` marca el escritorio actual como **ancla** (repetido ahí mismo, lo desmarca) y
 `SUPER + S` es el vaivén: **fuera** del ancla te lleva a ella apuntando de dónde venías, y **en**
@@ -1417,14 +1417,14 @@ binds se registraban, el dispatcher respondía y con una ventana dentro se veía
 `misc.close_special_on_empty` lo **destruye al quedarse vacío**, y un especial vacío que se abre no
 dibuja **nada**: ni marco, ni fondo, ni aviso. O sea que parecía muerto sin dar ningún error. Si
 alguien lo quiere de vuelta, el porqué y los dos dispatchers están en el comentario de
-`gigios/keybinds.lua`, junto a los binds nuevos.
+`gigishell/keybinds.lua`, junto a los binds nuevos.
 
 **El estado va a un FICHERO, no a un local de Lua**, y ahí se aparta a propósito de
 `GiGiShell.toggle_gaps()`: en el toggle de gaps el `hyprctl reload` resetea a la vez el flag y los
 gaps, así que quedan coherentes; aquí no hay nada en el compositor que resetear, y un reload
 borraría el ancla **sin que se note** hasta que pulsaras el atajo y no fuera a ninguna parte. Y los
 reloads no son raros: AGS dispara uno al tocar `absorberSuperSinAtajo`, entre otros (verificado que
-el ancla sobrevive a un `hyprctl reload`). Vive en `$XDG_RUNTIME_DIR/gigios-ancla-escritorio`
+el ancla sobrevive a un `hyprctl reload`). Vive en `$XDG_RUNTIME_DIR/gigishell-ancla-escritorio`
 (tmpfs), que da justo la duración que se quiere: **por sesión**, como el Wake up. En `~/.config`
 sobreviviría a un reinicio y acabarías saltando a un escritorio de ayer.
 
@@ -1449,7 +1449,7 @@ Checks for pending updates and surfaces the **important** ones as bar icons (AGS
 for GPU drivers (green)**, each shown only when its own category has something pending.
 Ordinary package/dependency updates deliberately show **no icon at all** — they were pure noise;
 they are only listed as context ("Otros: N paquetes") inside the popover. Launched from
-`gigios/autostart.lua` as `sleep 20 && …/updates-monitor.sh` — el retardo deja que el resto de la
+`gigishell/autostart.lua` as `sleep 20 && …/updates-monitor.sh` — el retardo deja que el resto de la
 sesión termine de cargar antes de la primera consulta, que toca **red** y sincroniza una BD
 temporal de pacman (eran 3 s; se subió a 20 al escalonar el arranque). El retardo va ahí y no
 dentro del script porque el toggle maestro de AGS lo re-ejecuta en caliente, y ahí sí se quiere
@@ -1478,12 +1478,12 @@ user cache, never the system one; falls back to `pacman -Qu`), Fedora → `dnf -
 present per `lspci` — `*nvidia*`, or `*mesa*`/`*radeon*`/`*amdgpu*`/`*amdvlk*` for AMD), *kernel*
 (`linux`, `linux-*`, `kernel`, `kernel-*` — so `util-linux` does **not** match), or *system*
 (everything else, counted only). Results are written **atomically** (tmp+`mv`, built with `jq` so
-names/versions are escaped) to `~/.config/gigios/updates.json`:
+names/versions are escaped) to `~/.config/gigishell/updates.json`:
 `{checkedAt, distro, updateCmd, system: <count>, kernel: [{name, from, to}], gpu: [{…}], systemSample: [<=20 names]}`.
 The widget watches that file with a `Gio.FileMonitor` — a missing/corrupt file simply means
 "no updates" (icons hidden). Requires `jq`; without it the script exits without writing.
 
-**Config** (`~/.config/gigios/preferences.json`, written by `PersonalizationSection.tsx`):
+**Config** (`~/.config/gigishell/preferences.json`, written by `PersonalizationSection.tsx`):
 `updatesMonitor` (master), `updatesPeriodic`, `updatesIntervalHours` (default 3). Like
 `batteryMonitor`/`tempMonitor`, the bash reads these **once at process start** — but the
 *master* toggle is applied hot by its AGS setter (`pkill` + delete the JSON on off, re-exec on
@@ -1492,7 +1492,7 @@ on), so only the periodic/interval keys need a script restart.
 ### Screencast monitor (`screencast-monitor.sh`)
 
 Detecta que **algo está capturando la pantalla** y lo publica en
-`~/.config/gigios/screencast.json` (`{active, checkedAt, sources:[{kind:"share"|"record", app}]}`,
+`~/.config/gigishell/screencast.json` (`{active, checkedAt, sources:[{kind:"share"|"record", app}]}`,
 escrito atómicamente con `jq` + tmp/`mv`, y **solo cuando el conjunto de fuentes cambia** — así
 compartir dos horas no reescribe el fichero ni despierta al widget; pero el memo que decide "ha
 cambiado" arranca con un **centinela**, no vacío: si arrancara vacío, el primer sondeo sin nada
@@ -1519,7 +1519,7 @@ sondea solo `pgrep` cada 3 s, sin volver a ejecutar `pw-dump`. El coordinador co
 resultados y escribe únicamente si cambia el conjunto final; no usa estado auxiliar en disco.
 
 El trap `TERM` mata al coproceso **y a sus hijos** (`pw-mon`, `awk`) y borra el JSON. El
-coproceso se ejecuta con un argv propio (`gigios-screencast-events`): si heredara
+coproceso se ejecuta con un argv propio (`gigishell-screencast-events`): si heredara
 `screencast-monitor.sh`, el `pkill -f` del toggle mataría padre e hijo a la vez y podría dejar
 `pw-mon` huérfano antes de que el padre hiciera la limpieza. Requiere `jq` y `pw-dump`;
 sin ellos sale sin escribir.
@@ -1534,7 +1534,7 @@ cuyo **`node.name`** trae el nombre ("Discord") — `application.name` viene **v
 así que el orden de preferencia es `application.name // node.name // application.process.binary
 // "Pantalla"`.
 
-**Config**: `screencastIndicator` en `~/.config/gigios/preferences.json` (ausente = activado),
+**Config**: `screencastIndicator` en `~/.config/gigishell/preferences.json` (ausente = activado),
 leído **una vez al arrancar** — pero el toggle es maestro y su setter de AGS lo aplica **en
 caliente** (`pkill` + borrar el JSON al apagar; re-exec al encender), así que no hace falta
 reiniciar nada.
@@ -1617,7 +1617,7 @@ nodo**: es preferible vigilar de más que dejar una cámara sin indicador.
 
 #### El contrato con AGS
 
-`~/.config/gigios/camara-uso.json`, escrito atómicamente (tmp + `mv`, que es por lo que el
+`~/.config/gigishell/camara-uso.json`, escrito atómicamente (tmp + `mv`, que es por lo que el
 `Gio.FileMonitor` de AGS vigila el **directorio** y nunca lee un JSON a medias):
 
 ```json
@@ -1644,7 +1644,7 @@ desenchufar la webcam, al recargar `uvcvideo` y al reiniciar. Sin reposición, q
 porque su webcam sale oscura tiene que volver a ajustarlo en cada arranque, y nada le avisa: le
 vuelve a salir oscura y ya está.
 
-`ags/servicios/camara/persistencia.ts` guarda lo elegido en `~/.config/gigios/camara.json` (fuera
+`ags/servicios/camara/persistencia.ts` guarda lo elegido en `~/.config/gigishell/camara.json` (fuera
 del repo, como todo el estado de usuario) y lo repone al iniciar sesión **y en cada `add` de udev**,
 que es justo cuando vuelve a hacer falta. Tres detalles que no son adorno:
 
@@ -1673,8 +1673,8 @@ nunca un desplegable que se pueda «aplicar».
 
 El interruptor «Cámara bloqueada» de QuickSettings y de Ajustes > Cámara. AGS no bloquea nada: los
 nodos `/dev/video*` son de `root:video` y quien decide sus permisos es udev, así que el trabajo lo
-hace `/usr/local/bin/gigios-camara` (root-owned, fuente en `system/camara/gigios-camara.sh`),
-autorizado sin contraseña por `/etc/sudoers.d/gigios-camara` **solo** para `block` y `unblock`.
+hace `/usr/local/bin/gigishell-camara` (root-owned, fuente en `system/camara/gigishell-camara.sh`),
+autorizado sin contraseña por `/etc/sudoers.d/gigishell-camara` **solo** para `block` y `unblock`.
 Mismo esquema que TLP y ClamAV. `status` queda fuera de la regla a propósito: no necesita root, solo
 comprueba si existe un fichero world-readable, y meterlo ampliaría el grant sin ninguna ganancia.
 
@@ -1695,7 +1695,7 @@ La regla se llama **`71-`**, y no `99-` como el resto de las nuestras, porque ti
 En el 70 se **marca** el dispositivo y en el 73 se **ejecuta** el builtin que le concede la ACL al
 usuario de la sesión. Nuestro `TAG-="uaccess"` tiene que ocurrir después del 70 (o no habría nada
 que quitar) y antes del 73 (o el builtin ya estaría encolado con el tag puesto). Una
-`99-gigios-camara.rules` —el nombre natural en este repo— quitaría el tag **después** de que la
+`99-gigishell-camara.rules` —el nombre natural en este repo— quitaría el tag **después** de que la
 decisión estuviera tomada: no daría ningún error, `udevadm control --reload-rules` diría que todo
 bien, y la cámara seguiría abriéndose con normalidad. La regla se valida con `udevadm verify`.
 
@@ -1754,8 +1754,8 @@ como ERROR con las dos salidas (`bash install.sh --solo sistema`, o borrar la re
 
 #### Vista previa
 
-«Probar cámara» lanza un `mpv` aparte (clase `gigios-camara-preview`, con su regla en
-`gigios/reglas.lua`) y no un widget dentro del panel. Empotrar vídeo en GTK4 exigiría un
+«Probar cámara» lanza un `mpv` aparte (clase `gigishell-camara-preview`, con su regla en
+`gigishell/reglas.lua`) y no un widget dentro del panel. Empotrar vídeo en GTK4 exigiría un
 `gtk4paintablesink` y un pipeline de GStreamer vivo dentro del proceso que pinta la barra: si el
 pipeline se atasca —y una cámara desenchufada a mitad de stream lo hace— se lleva por delante el
 hilo principal del **shell entero**. No compensa para un botón que se usa diez segundos.
@@ -1774,7 +1774,7 @@ control, un `flags=inactive` y un menú con huecos).
 
 Manejar el escritorio moviendo la mano delante de la webcam. Se enciende y se apaga con **SUPER+SHIFT+G**
 (o desde Ajustes > Cámara > Gestos) y **no se autoarranca**: no hay ninguna línea suya en
-`gigios/autostart.lua`, al contrario que el resto de piezas de cámara. Un monitor de uso en reposo
+`gigishell/autostart.lua`, al contrario que el resto de piezas de cámara. Un monitor de uso en reposo
 cuesta cero porque bloquea en inotify; esto enciende la webcam, quema medio núcleo y deja la cámara
 ocupada para cualquier otra aplicación. Un modo así se pide a propósito o no se pide.
 
@@ -2085,7 +2085,7 @@ la pantalla** (`[764,3]` → `[0,3]` → `[0,0]` con dos órdenes), no la despla
 ##### El `preselect` de delante no es adorno
 
 `recolocar()` manda tres órdenes, no una, y son la misma secuencia que usa SUPER+SHIFT+flecha en
-`gigios/keybinds.lua` (donde está la medición completa):
+`gigishell/keybinds.lua` (donde está la medición completa):
 
 ```lua
 hl.dsp.layout('preselect <dir>')
@@ -2319,7 +2319,7 @@ trabajo y optimizar cualquier otra cosa es perder el tiempo.
 
 Con **repliegue a CPU** si el delegado no arranca, y no es paranoia: la GPU necesita un contexto GL
 utilizable y eso puede fallar por driver, por cómo esté montada la sesión o por VRAM ocupada. Un modo
-que no arranca es mucho peor que uno lento; el fallo se anota en `~/.cache/gigios/gestos.log`.
+que no arranca es mucho peor que uno lento; el fallo se anota en `~/.cache/gigishell/gestos.log`.
 
 #### ⚠️ DOS SUPOSICIONES MÍAS QUE LOS DATOS TUMBARON
 
@@ -2393,7 +2393,7 @@ umbrales.**
 #### Calibración: `--calibrar`
 
 ```sh
-~/.local/share/gigios/gestos/venv/bin/python ~/.config/hypr/scripts/gestos/gestos.py --calibrar
+~/.local/share/gigishell/gestos/venv/bin/python ~/.config/hypr/scripts/gestos/gestos.py --calibrar
 ```
 
 Pide las tres posturas, mide `razon_pellizco`, `alcance_indice` y los dedos extendidos en cada una, y
@@ -2435,7 +2435,7 @@ push si alguno acaba rastreado), así que en un checkout limpio el fichero de pr
 #### Diagnóstico: `--diagnostico`
 
 ```sh
-~/.local/share/gigios/gestos/venv/bin/python ~/.config/hypr/scripts/gestos/gestos.py --diagnostico 20
+~/.local/share/gigishell/gestos/venv/bin/python ~/.config/hypr/scripts/gestos/gestos.py --diagnostico 20
 ```
 
 Mide qué ve la cámara **sin tocar el escritorio** (a propósito: un swipe que cambie de escritorio en
@@ -2457,8 +2457,8 @@ del tiempo» sí lo es. Toma el mismo cerrojo que el demonio: la cámara es de u
 
 | fichero | lo escribe | lo lee |
 | --- | --- | --- |
-| `~/.config/gigios/gestos.json` | AGS (Ajustes > Cámara > Gestos) | el demonio, **una vez al arrancar** |
-| `~/.config/gigios/gestos-estado.json` | el demonio | AGS (`servicios/gestos/estado.ts`) |
+| `~/.config/gigishell/gestos.json` | AGS (Ajustes > Cámara > Gestos) | el demonio, **una vez al arrancar** |
+| `~/.config/gigishell/gestos-estado.json` | el demonio | AGS (`servicios/gestos/estado.ts`) |
 
 Dos ficheros con un dueño cada uno, y no uno con dos escritores que se pisarían.
 
@@ -2499,7 +2499,7 @@ MediaPipe no está en los repos oficiales. En AUR hay dos y ninguno sirve: `pyth
 contra `python-tensorflow` (build de horas) y `python-mediapipe-bin` se quedó en la 0.10.32. La rueda
 de PyPI (**1.0.1**) sí funciona con el Python 3.14 de Arch —comprobado— pero `pip` al sistema está
 prohibido (PEP 668) y `--break-system-packages` hace lo que su nombre dice. De ahí el paso `gestos`
-del instalador: venv en `~/.local/share/gigios/gestos/venv` con `--system-site-packages` (para
+del instalador: venv en `~/.local/share/gigishell/gestos/venv` con `--system-site-packages` (para
 reaprovechar `python-numpy` y `python-opencv` del sistema; sin eso pip se bajaría su propia copia de
 OpenCV y habría dos, ganando la de pip). El modelo (`hand_landmarker.task`, 7,8 MB) se descarga
 aparte y **no se versiona**: el repo no tiene ningún otro blob.
@@ -2513,7 +2513,7 @@ test de existencia.
 
 #### `flock`, no un fichero de PID
 
-El demonio toma un `flock` sobre `$XDG_RUNTIME_DIR/gigios-gestos.lock` y escribe dentro su PID;
+El demonio toma un `flock` sobre `$XDG_RUNTIME_DIR/gigishell-gestos.lock` y escribe dentro su PID;
 `gestos.sh` lo lee y lo **confirma contra `/proc/<pid>/cmdline`** antes de creérselo. Un PID escrito
 a mano se queda obsoleto si el proceso muere de golpe y el siguiente arranque se cree que ya hay uno
 vivo, dejando el modo inarrancable hasta borrar el fichero. Y un `pgrep -f gestos.py` a secas casaría
@@ -2534,7 +2534,7 @@ el kernel escupe `Buffer I/O error on dev sdb1 … lost async page write` y los 
 de verdad** (a nosotros el volumen NTFS nos quedó `Mark volume as dirty`). Por eso el síntoma solo
 aparecía **al mover archivos**: sin escrituras pendientes no hay writeback que fallar.
 
-La cura vive fuera del repo, en `system/udev/99-gigios-usb-writeback.rules`. La instala **`install.sh`
+La cura vive fuera del repo, en `system/udev/99-gigishell-usb-writeback.rules`. La instala **`install.sh`
 (paso 6)** con `install -Dm644` en `/etc/udev/rules.d/`; en una máquina ya montada hay que copiarla a
 mano con `sudo`. **No** es un symlink, y no puede serlo: udev lee `/etc` antes de que `$HOME` esté
 montado, y apuntar `/etc` a un directorio escribible por el usuario sería una escalada silenciosa.
@@ -2567,7 +2567,7 @@ hijo. Es una relación exacta, **no una correlación por tiempo**: dos dispositi
 vez no se cancelan el uno al otro (verificado). El diferido también cubre el caso de tirar del
 pendrive antes de los 3 s, que antes sacaba un "conectado" **después** del "desconectado".
 
-Los pendientes son un fichero por aviso en `$XDG_RUNTIME_DIR/gigios-usb-pending/` (con su `DEVPATH`
+Los pendientes son un fichero por aviso en `$XDG_RUNTIME_DIR/gigishell-usb-pending/` (con su `DEVPATH`
 y su etiqueta dentro), y quien dispara **reclama el suyo con un `mv`** antes de notificar: el
 rename es atómico y falla si ya no está, así que no hay ventana entre "compruebo que sigue vivo" y
 "notifico" por la que una cancelación pueda colarse. El directorio se **borra al arrancar** el
@@ -2601,8 +2601,8 @@ profundo, muchas veces ninguno de los dos trae `ID_MODEL` y el aviso decía «di
 desconocido» — mientras que al **conectar** el nombre salía bien. No es un fallo de parseo: cuando
 llega el `remove`, el dispositivo **ya no está en sysfs** y no hay a quién preguntarle. La única
 forma de saberlo es haberlo guardado al enchufar, indexado por lo único que el `remove` sí trae
-siempre: el `DEVPATH`, que es el **puerto**. Eso es `$XDG_RUNTIME_DIR/gigios-usb-cache/`
-(`GIGIOS_USB_CACHE_DIR` para probar, y también para **pre-sembrar** el estado, que es la única forma
+siempre: el `DEVPATH`, que es el **puerto**. Eso es `$XDG_RUNTIME_DIR/gigishell-usb-cache/`
+(`GIGISHELL_USB_CACHE_DIR` para probar, y también para **pre-sembrar** el estado, que es la única forma
 de testear el reinicio del monitor). Cuatro decisiones que no son obvias:
 
 - **NO se borra al arrancar**, al revés que los pendientes, y **no** entra en el `trap … EXIT`. Es
@@ -2656,7 +2656,7 @@ de bash da un orden de hash, y en una lista de tres nombres eso se nota.
 
 Los pendientes de conexión (`c.*`) y de desconexión (`r.*`) **comparten directorio pero no glob**, y
 un aviso ya reclamado se renombra a `.fired.*` —fuera de ambos globs— para que no pueda reaparecer
-como pendiente vivo y falsear una cancelación o una fusión. `GIGIOS_USB_PENDING_DIR` permite
+como pendiente vivo y falsear una cancelación o una fusión. `GIGISHELL_USB_PENDING_DIR` permite
 apuntar el directorio a otro sitio: es la costura para probar el script sin pisarle los pendientes
 al monitor que está corriendo (que además los **borra al arrancar**).
 
@@ -2796,7 +2796,7 @@ revés que el valor DDC, que el monitor graba en su firmware).
 **`brightnessctl` no se invoca desde ningún otro sitio, y es a propósito.** Sin dispositivos de clase
 `backlight` **no falla**: cae al primer dispositivo de clase `leds` y acaba encendiendo el **LED de
 scroll-lock del teclado**, devolviendo 0 — un fallo mudo que la UI no podía detectar. Por eso las
-teclas `XF86MonBrightness*` de `gigios/keybinds.lua` ya **no** lo llaman (van por `ags request
+teclas `XF86MonBrightness*` de `gigishell/keybinds.lua` ya **no** lo llaman (van por `ags request
 brightness-up|down`, que aplica al backend que haya y enseña el OSD) y la llamada que queda en
 `init.sh` lleva `-c backlight` explícito.
 
@@ -2807,7 +2807,7 @@ equivocada.** hyprcursor cubre **solo el cursor que dibuja el compositor**. XWay
 —es Xcursor y punto— y GTK/Qt dibujan su propio puntero desde `XCURSOR_THEME`. Así que un tema aquí
 es **un directorio con las dos mitades**: `cursors/` (PNG por tamaño, XCursor) y
 `hyprcursors/*.hlc` + `manifest.hl` (hyprcursor). Con esa forma **un solo nombre** vale para las dos
-variables, que es lo que emiten `gigios/dispositivos.lua` y AGS. Es la forma que ya traen los temas
+variables, que es lo que emiten `gigishell/dispositivos.lua` y AGS. Es la forma que ya traen los temas
 con soporte de fábrica (Bibata-Modern-Ice).
 
 **El problema real no era "estamos en XCursor": era que el tema NO ESTABA FIJADO.** Nada ponía
@@ -2829,9 +2829,9 @@ lectura del directorio** —ni alfabético ni "el primero instalado": comprobado
 tema, la elección no cambió—, y bastaba instalar otro tema para cambiarlo sin tocar nada.
 **Por eso `temaCursor` no enciende hyprcursor: fija CUÁL**, que es lo que faltaba.
 
-**Ajuste**: `temaCursor` en `~/.config/gigios/devices.json` (Ajustes > Dispositivos > Puntero).
+**Ajuste**: `temaCursor` en `~/.config/gigishell/devices.json` (Ajustes > Dispositivos > Puntero).
 **Vacío = no se emite ningún `hl.env`** y manda el tema de la sesión — el mismo criterio que el
-`locale` de `gigios/env.lua`, y por el mismo motivo: un nombre de fábrica cambiaría el puntero de
+`locale` de `gigishell/env.lua`, y por el mismo motivo: un nombre de fábrica cambiaría el puntero de
 una máquina que nunca ha tocado el ajuste, y encima nombraría un tema que puede no existir en ella.
 El desplegable **solo lista temas con `manifest.hl`**: elegir uno sin él dejaría al compositor
 dibujando otro tema en silencio. El nombre se valida contra `^[A-Za-z0-9._+-]+$` **en origen**
@@ -2913,17 +2913,17 @@ repo prohíbe que algo que toca root sea un symlink al árbol escribible por el 
 silenciosa), así que la estructura separa **fuente versionada** de **copia de confianza root-owned**:
 
 - **Fuente (versionada, la editas tú):** `system/tlp/{normal,ahorro}.conf` (perfiles completos que
-  se intercambian **enteros**), `system/tlp/gigios-tlp-apply.sh` (el helper) y
-  `system/tlp/sudoers-gigios-tlp` (la regla, con `__GIGIOS_USER__` de placeholder).
-- **Instalado por `install.sh` paso 6, todo root-owned:** helper → `/usr/local/bin/gigios-tlp-apply`
-  (755); perfiles → `/etc/gigios/tlp/{normal,ahorro}.conf` (644); regla → `/etc/sudoers.d/gigios-tlp`
+  se intercambian **enteros**), `system/tlp/gigishell-tlp-apply.sh` (el helper) y
+  `system/tlp/sudoers-gigishell-tlp` (la regla, con `__GIGISHELL_USER__` de placeholder).
+- **Instalado por `install.sh` paso 6, todo root-owned:** helper → `/usr/local/bin/gigishell-tlp-apply`
+  (755); perfiles → `/etc/gigishell/tlp/{normal,ahorro}.conf` (644); regla → `/etc/sudoers.d/gigishell-tlp`
   (440), generada sustituyendo el usuario real y **validada con `visudo -cf` ANTES de instalarla** (una
   regla sudoers malformada rompe `sudo` en toda la máquina). Se instala **solo si `tlp` está presente**;
   en un equipo sin TLP la función queda oculta.
 
-**El flujo:** AGS ejecuta `sudo -n /usr/local/bin/gigios-tlp-apply {normal|ahorro}`, que copia
-`/etc/gigios/tlp/<modo>.conf` → `/etc/tlp.conf` (atómico, tmp+`mv`), lanza `tlp start` y anota el modo
-en `/etc/gigios/tlp/active` (world-readable, que AGS relee al arrancar sin sudo). **`install.sh` NO
+**El flujo:** AGS ejecuta `sudo -n /usr/local/bin/gigishell-tlp-apply {normal|ahorro}`, que copia
+`/etc/gigishell/tlp/<modo>.conf` → `/etc/tlp.conf` (atómico, tmp+`mv`), lanza `tlp start` y anota el modo
+en `/etc/gigishell/tlp/active` (world-readable, que AGS relee al arrancar sin sudo). **`install.sh` NO
 toca `/etc/tlp.conf`** — eso lo hace el helper la primera vez que el usuario elige un perfil; si tenías
 un `tlp.conf` afinado, pega su contenido en `system/tlp/normal.conf` antes de reinstalar.
 
@@ -2973,7 +2973,7 @@ comprobar el nombre de ppd no la ve. El bucle recorre las tres con el mismo crit
 `--installed`, y solo si hay batería del SISTEMA (mismo criterio de `scope != Device` que usa
 `install.sh`), exige que `tlp` esté instalado y que `tlp.service` esté `is-enabled`, y avisa si ppd
 sigue vivo. Antes nada validaba esto: por eso un portátil pudo estar meses con los paquetes
-instalados, los perfiles en `/etc/gigios/tlp/` y la unidad apagada, y el preflight decir que la
+instalados, los perfiles en `/etc/gigishell/tlp/` y la unidad apagada, y el preflight decir que la
 instalación estaba correcta.
 
 **Por qué es seguro y no una escalada:** todo lo que `sudo` toca es root-owned, y la regla sudoers
@@ -2983,7 +2983,7 @@ la copia del repo no cambia lo que corre como root hasta reinstalar con `sudo` a
 
 **Lado AGS (`servicios/energia/tlp.ts`):** `tlpAvailable` exige `tlp` + el helper + batería presente
 (mismo patrón que el brillo sin backend DDC — la tarjeta se oculta entera si falta algo). El estado
-inicial sale de leer `/etc/gigios/tlp/active` directamente. `tlpBusy` bloquea el selector mientras el
+inicial sale de leer `/etc/gigishell/tlp/active` directamente. `tlpBusy` bloquea el selector mientras el
 helper corre (evita dos `tlp start` a la vez). Es un **selector manual e independiente** del "Forzar
 modo ahorro" y del umbral de batería. **Forzar modo ahorro** (`forcePowerSave` en
 `~/.config/power-save/config.json`) es lo otro nuevo: hace `powerSaveActive` verdadero ignorando
@@ -2994,7 +2994,7 @@ nivel/carga/presencia de batería, así que también funciona en un sobremesa.
 Despite the filename, `hypr/scripts/oom-monitor.sh` is the general **security event monitor** —
 OOM killer is just one of ~16 scanned event types. Five sub-monitors run in parallel (`&` + `wait`):
 
-**No se retrasa entero desde `gigios/autostart.lua` — se escalona por dentro, y la asimetría es el
+**No se retrasa entero desde `gigishell/autostart.lua` — se escalona por dentro, y la asimetría es el
 diseño.** Sus sub-monitores no corren el mismo riesgo si empiezan tarde. Los que **siguen**
 (`journalctl -kf`/`-f` con `-n 0`, que salta el backlog a propósito, e `inotifywait`) no
 recuperan lo pasado: retrasarlos convertiría un OOM, un `sudo` fallido o un cambio en
@@ -3133,7 +3133,7 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   **Content-hash dedup** (replaced the old permanent `path|size` scheme in `download-seen`, whose
   append-only, never-pruned, reboot-surviving state meant a file was scanned exactly once *ever* —
   re-adding it, even a *different* file of the same size at the same path, was silently skipped).
-  Two state files under `~/.cache/gigios/`: `download-index` (`mtime|size|path`, a cheap per-file
+  Two state files under `~/.cache/gigishell/`: `download-index` (`mtime|size|path`, a cheap per-file
   memo, **pruned** to currently-existing files each pass so it can't grow unbounded) and
   `download-hashes` (one `xxh64sum` per already-analyzed *content*, persistent — append-only but
   **capped**: once it passes 10 MB it's truncated to the last 100 entries via `tail -n 100` and the
@@ -3153,7 +3153,7 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   the *whole* sweep when an enabled pause gate is active *now* — `dlPauseOnBattery` / `dlPauseInPowerSave`
   (battery read from `/sys/class/power_supply`, ver el aviso de abajo; threshold from
   `~/.config/power-save/config.json`) /
-  `dlPauseWhileGaming` (reads `~/.config/gigios/runtime-state.json` `{gaming}`, written by AGS
+  `dlPauseWhileGaming` (reads `~/.config/gigishell/runtime-state.json` `{gaming}`, written by AGS
   `servicios/energia/gamingState.ts`, which reuses the `isGameClient` heuristic — `ags/modulos/barra/juegos/`,
   ver `ags/CLAUDE.md`). Deferred work marks nothing, so
   it's picked up when the gate clears. The size cap is `dlMaxScanGB` (default 1 GB), also live.
@@ -3190,7 +3190,7 @@ los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
   `_alerted` (solo RAM, clave `ruta` → firma `mtime|tamaño`) da **un aviso por fichero y sesión**,
   y vuelve a avisar si el fichero cambia. En el camino sano `_alerted` no hace nada: allí `_idx`
   ya salta el fichero. **Lo ya sellado en falso NO se reevalúa solo**: tras instalar las firmas hay que borrar
-  **los dos** ficheros de caché, `~/.cache/gigios/download-index` **y** `download-hashes` (se
+  **los dos** ficheros de caché, `~/.cache/gigishell/download-index` **y** `download-hashes` (se
   reconstruyen). Borrar solo `download-hashes` **no sirve** y es un error fácil: la primera guarda
   del barrido es `_idx` (`download-index`, memo `mtime|tamaño`) y hace `continue` **antes** de
   llegar a hashear, así que el fichero se saltaría igual. La alternativa sin borrar nada es el
@@ -3297,7 +3297,7 @@ la anterior:
 Verificado con tres ciclos de arrancar/`pkill`/contar: **0 huérfanos** en los tres, contra uno por
 ciclo antes.
 
-**Config**: every scanned category is gated by a boolean in `~/.config/gigios/security.json`
+**Config**: every scanned category is gated by a boolean in `~/.config/gigishell/security.json`
 (written by `ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx`, absent key = enabled). The bash reads it
 **once at process start** — toggling a switch in the AGS Seguridad tab only takes effect after
 a reboot or manually restarting this script (the UI says so). Journal reads use `-n 0` to skip
@@ -3331,9 +3331,9 @@ al día» y un botón que actualiza **ahora**.
 
 **Mismo esquema que TLP, y por el mismo motivo**: `/var/lib/clamav` es de `clamav`, el log de
 freshclam está en `/var/log/clamav` y `systemctl enable` es de root, así que AGS no toca nada —
-delega en `/usr/local/bin/gigios-clamav-update` (root-owned, instalado por **`install.sh` paso 9**
-desde `system/clamav/gigios-clamav-update.sh`), autorizado sin contraseña por
-`/etc/sudoers.d/gigios-clamav` **solo** para dos argumentos fijos (`update` y `auto-off`: los demás verbos del helper salieron de la regla al dejar de usarse — un NOPASSWD que puede *encender* un demonio no se deja puesto por si acaso). Ni el helper ni la regla se
+delega en `/usr/local/bin/gigishell-clamav-update` (root-owned, instalado por **`install.sh` paso 9**
+desde `system/clamav/gigishell-clamav-update.sh`), autorizado sin contraseña por
+`/etc/sudoers.d/gigishell-clamav` **solo** para dos argumentos fijos (`update` y `auto-off`: los demás verbos del helper salieron de la regla al dejar de usarse — un NOPASSWD que puede *encender* un demonio no se deja puesto por si acaso). Ni el helper ni la regla se
 symlinkean: apuntar algo que corre como root al árbol escribible por el usuario sería la escalada
 silenciosa contra la que avisan las secciones de USB, i2c-dev y TLP.
 
@@ -3342,9 +3342,9 @@ ACTUALIZACIÓN DE CLAMAV EN EL SISTEMA.** Antes esa fila encendía y apagaba
 `clamav-freshclam.service`: el estado vivía en systemd (había que preguntárselo con `systemctl
 is-enabled` para pintar el interruptor) y la actualización ocurría **por periodo**, cada pocas
 horas, hiciera falta o no, con el equipo delante o parado. Hoy el interruptor es `clamavAutoUpdate`
-en `~/.config/gigios/security.json` —activado por defecto, el mismo fichero que ya leen los
+en `~/.config/gigishell/security.json` —activado por defecto, el mismo fichero que ya leen los
 escáneres— y quien actualiza es **`hypr/scripts/actualizar-firmas.sh --auto`**, disparado desde **un
-solo sitio**: `gigios/autostart.lua`, t=40, una vez por arranque de Hyprland.
+solo sitio**: `gigishell/autostart.lua`, t=40, una vez por arranque de Hyprland.
 
 **Por qué basta con el arranque.** Una sesión de escritorio empieza casi a diario, así que las
 firmas entran al día y se quedan al día durante toda la sesión; freshclam publica varias veces al
@@ -3363,7 +3363,7 @@ tres consumidores (`oom-monitor.sh`, `scan-file.sh`, `run-untrusted.sh`) solo **
 **En el arranque no se notifica NADA**, ni al empezar, ni al acabar, ni al fallar: el interruptor
 promete que se hace solo. **Tres guardas antes de descargar, todas sin red ni sudo**: (1) el
 booleano; (2) **antirrebote de una hora** desde el último intento —lo apunta la marca
-`~/.cache/gigios/firmas-auto` (`<epoch> <rc>`)—, que es lo que impide que un `hyprctl reload
+`~/.cache/gigishell/firmas-auto` (`<epoch> <rc>`)—, que es lo que impide que un `hyprctl reload
 full-reset`, que vuelve a ejecutar el autostart, reintente la descarga en cada recarga cuando el
 arranque anterior falló; y (3) la **edad de la base**: `daily.{cld,cvd}` con menos de 24 h no se
 toca, así que arrancar la sesión cinco veces en un día no descarga cinco veces. Cuando no toca, el
@@ -3432,7 +3432,7 @@ sesión** esperando un clic ya imposible: un proceso zombi por arranque, invisib
 Ahora se manda con `-t 60000` (que el daemon y el popup caduquen a la vez) y un vigilante mata el
 `notify-send` a los 120 s. El `timeout` **no puede envolver la llamada**, porque `notificar` es una
 función de shell y no un binario: un `timeout bash -c` perdería la función y el aviso saldría sin
-identidad (sin `x-gigios-event`, o sea inconfigurable desde Ajustes).
+identidad (sin `x-gigishell-event`, o sea inconfigurable desde Ajustes).
 
 **Por qué un script y no llamar al helper desde el `-A`**: hace falta algo que **notifique el
 resultado** —el helper solo imprime por stdout, y de una acción de `notify-send` no lee nadie— y que
@@ -3452,7 +3452,7 @@ el usuario ha pedido **lanzar** algo y esperar a que mire el popup retrasaría e
 **Al arreglar las firmas, lo ya sellado en falso NO se reevalúa solo.** Es la secuela documentada en
 `monitor_downloads`: si el barrido llegó a correr con la base vacía *antes* del arreglo de `rc == 2`,
 esos ficheros quedaron marcados como analizados **para siempre**. Hay que borrar **los dos** ficheros
-de caché (`~/.cache/gigios/download-index` **y** `download-hashes`) y relanzar `oom-monitor.sh`
+de caché (`~/.cache/gigishell/download-index` **y** `download-hashes`) y relanzar `oom-monitor.sh`
 (`pkill` + `setsid nohup`), porque el índice y el conjunto de hashes se cargan en RAM al arrancar el
 script: borrarlos en caliente no sirve de nada.
 
@@ -3484,7 +3484,7 @@ sigue instalada.
 **pkexec, no `sudo` ni `paru`/`yay`, y los tres motivos son distintos.** Esto sale de un clic en una
 interfaz gráfica: no hay terminal donde teclear nada, así que `sudo` se colgaría en un stdin
 inexistente. `pkexec` es lo que abre el diálogo (hyprpolkitagent, ya lanzado desde
-`gigios/autostart.lua`) y su acción por defecto es `auth_admin` — pide la contraseña del usuario
+`gigishell/autostart.lua`) y su acción por defecto es `auth_admin` — pide la contraseña del usuario
 porque está en `wheel`, y **no la recuerda**: cada desinstalación la vuelve a pedir, que es lo
 correcto para algo irreversible. Los helpers del AUR **no sirven de ejecutores** aunque estén
 instalados: se niegan a correr como root y por dentro llaman a `sudo`, el mismo callejón sin salida.
@@ -3579,7 +3579,7 @@ Ajustes > **Almacenamiento** (qué ocupa el disco, catálogo de apps por tamaño
 | `analizar-almacenamiento.sh` | mide y emite JSON. **No borra nada.** | usuario (+ `sudo -n` solo para contar instantáneas) |
 | `limpiar-almacenamiento.sh` | ejecuta una o varias acciones, emite JSON con lo liberado | mezcla, ver abajo |
 | `limpieza-arranque.sh` | comprobación de un disparo al iniciar sesión: decide si toca | ninguno propio |
-| `system/limpieza/gigios-limpieza.sh` | la parte de root, root-owned + sudoers NOPASSWD | root |
+| `system/limpieza/gigishell-limpieza.sh` | la parte de root, root-owned + sudoers NOPASSWD | root |
 | `hypr/scripts/lib/limpieza-rutas.sh` | **la lista única de qué borra cada acción**; la sourcean el analizador y el limpiador | (se sourcea) |
 
 **Un solo volcado de paquetes para todo el análisis, y lo produce `expac`.** El inventario lo piden
@@ -3621,8 +3621,8 @@ terminar la sustitución — justo antes de que el padre fuera a leerlo. La sali
 
 ```
 $ analizar-almacenamiento.sh categorias
-grep: /tmp/gigios-qi.OjK6sR: No such file or directory
-awk: fatal: cannot open file `/tmp/gigios-qi.M5T47Z' for reading
+grep: /tmp/gigishell-qi.OjK6sR: No such file or directory
+awk: fatal: cannot open file `/tmp/gigishell-qi.M5T47Z' for reading
 ```
 
 con `paquetes` y `huerfanos` en `bytes: null` (la sección los pintaba «—») y `apps` devolviendo una
@@ -3630,7 +3630,7 @@ lista **vacía**. El verbo `todo` se salvaba por casualidad: ya llamaba al volca
 otro motivo. Hoy la creación es explícita (`_preparar_qi`, siempre desde el padre) y `_volcado_qi`
 solo imprime la ruta — una función que únicamente imprime es segura dentro de `$( )`.
 
-**El análisis se cachea en `~/.cache/gigios/almacenamiento.json` y por eso la sección se pinta llena
+**El análisis se cachea en `~/.cache/gigishell/almacenamiento.json` y por eso la sección se pinta llena
 en el primer frame**, igual que Ajustes > Sistema: recorrer `~/.cache`, `/var/cache/pacman` y el hogar
 con `du` cuesta ~1,4 s con caché de inodos caliente y decenas de segundos en frío. Cada `du` corre
 bajo `timeout` (20 s por defecto) y lo que no llega sale como **`bytes: null`**, que la UI pinta como
@@ -3656,7 +3656,7 @@ porcentaje, el aviso sigue siendo el espacio absoluto.
 **Contar instantáneas es de root, y snapper miente con rc=0.** `snapper --machine-readable csv list`
 sin privilegios responde «Sin permisos» y **sale con 0**, así que el `grep -c` daba 0 y la fila
 desaparecía como si el equipo no tuviera instantáneas; `btrfs subvolume list /` al menos falla con
-rc≠0. Por eso la cuenta sale del helper root (`gigios-limpieza instantaneas`) vía `sudo -n`, y sin
+rc≠0. Por eso la cuenta sale del helper root (`gigishell-limpieza instantaneas`) vía `sudo -n`, y sin
 helper instalado **la fila no se enseña** en vez de afirmar que hay cero. El *tamaño* de las
 instantáneas no se da y no es un olvido: el espacio exclusivo de un snapshot solo lo sabe
 `btrfs qgroup show` (qgroups + root), y sumar sus `du` daría una cifra enorme y falsa —todo lo
@@ -3902,7 +3902,7 @@ resto del estado compartido, y son dos piezas que evitan trabajo *repetido*, no 
   mueve», ahora dependiendo de si acertabas a escribirlo durante el análisis o después.
 
 **Lo que `cacheUsuario` NO borra, y por qué.** Un `rm -rf ~/.cache/*` a ciegas cuesta datos reales:
-se excluye `gigios` (mapa de fuentes del CSS, sondeo de hardware), que no es caché de nada porque
+se excluye `gigishell` (mapa de fuentes del CSS, sondeo de hardware), que no es caché de nada porque
 nadie lo regenera. `/tmp` tampoco se toca: es un tmpfs (RAM) y borrarlo bajo los pies de los
 procesos vivos rompe sockets y ficheros de bloqueo.
 
@@ -3979,7 +3979,7 @@ temporales, miniaturas— crece con el **uso**, no con el reloj, y porque el bot
 comprobación periódica, el sitio correcto es un timer de `systemd --user`, **no** volver al bucle:
 un timer duerme sin proceso.
 
-La marca de la última limpieza vive en `~/.cache/gigios/limpieza.json` y **no** en el JSON de
+La marca de la última limpieza vive en `~/.cache/gigishell/limpieza.json` y **no** en el JSON de
 configuración: AGS reescribe ese fichero entero con un `replace_contents`, así que se llevaría la
 marca por delante. Se pone **antes** de limpiar — si algo se cuelga se pierde un ciclo, en vez de
 relanzar la limpieza entera en cada inicio de sesión para siempre. El umbral se mira **después**
@@ -3991,7 +3991,7 @@ con la opción desactivada, o sea que la limpieza avisaba igual después de que 
 aviso. Las claves **booleanas** se leen con `if (… | has("clave")) then …`; las numéricas sí pueden
 usar `//` porque en jq un `0` es truthy.
 
-**Configuración y defaults.** `~/.config/gigios/almacenamiento.json`, escrito por
+**Configuración y defaults.** `~/.config/gigishell/almacenamiento.json`, escrito por
 `servicios/disco/preferencias.ts` y releído por los scripts **en cada pasada** (a diferencia de
 `security.json`, que `oom-monitor.sh` lee una sola vez al arrancar). La autolimpieza nace **apagada
 y con todas las casillas sin marcar**, al revés que `security.json` —donde todo viene ON—: allí los
@@ -4006,8 +4006,8 @@ arranque. La versión de bucle hacía `pkill -f limpieza-monitor.sh` + re-exec, 
 versión antigua, un `limpieza-monitor.sh` de la sesión en curso sigue vivo hasta cerrar sesión: el
 fichero ya no existe, así que no vuelve.)
 
-**Instalación:** `install.sh` paso 9-bis instala el helper en `/usr/local/bin/gigios-limpieza` y la
-regla en `/etc/sudoers.d/gigios-limpieza` (validada con `visudo -cf` antes de moverla). Sin el
+**Instalación:** `install.sh` paso 9-bis instala el helper en `/usr/local/bin/gigishell-limpieza` y la
+regla en `/etc/sudoers.d/gigishell-limpieza` (validada con `visudo -cf` antes de moverla). Sin el
 helper, las acciones de nivel 2 devuelven `estado:"sin-permisos"` con el paso que falta, y todo lo
 de `$HOME` sigue funcionando. Igual que los helpers de TLP y ClamAV, **no se symlinkea**: apuntar un
 comando NOPASSWD a un fichero escribible por el usuario es una escalada silenciosa.
@@ -4020,7 +4020,7 @@ caminos con dos criterios distintos para la misma operación irreversible.
 ### Comprobación de arranque (`boot-healthcheck.sh`)
 
 Es el `exec-once` más caro del arranque —de ahí que vaya al final del calendario escalonado, a
-`t=30` (ver la sección de `gigios/autostart.lua` más arriba)— y por eso está pensado para ser **silencioso
+`t=30` (ver la sección de `gigishell/autostart.lua` más arriba)— y por eso está pensado para ser **silencioso
 en una máquina sana**: solo notifica por categoría cuando encuentra un problema, y todo (incluida la
 pasada limpia) queda en `hypr/logs/boot-healthcheck.log` (ignorado por git, ver `.gitignore`).
 Ejecutado a mano responde al instante — el retraso lo pone quien lo lanza, no el script.
@@ -4109,7 +4109,7 @@ como "grabación iniciada" cuando en realidad murió al instante.
 
 `clipboard-history.sh start` arranca el watcher (`wl-paste --watch cliphist store`) con
 **`setsid --fork`**, no con `exec` ni en primer plano: así queda reparentado a init y sobrevive a
-quien lo lanzó — tanto Hyprland (`gigios/autostart.lua`) como AGS (`execAsync`) llaman a `start`, y antes
+quien lo lanzó — tanto Hyprland (`gigishell/autostart.lua`) como AGS (`execAsync`) llaman a `start`, y antes
 el watcher moría junto con AGS por usar `exec`. Dos patrones de proceso distintos cumplen roles
 distintos: uno general (cualquier límite de `-max-items`) sirve para detectar y **sustituir** un
 watcher que quedó con un límite antiguo sin perder el historial ya guardado (`stop` no vale para
@@ -4129,14 +4129,14 @@ selección exacta. Cancelar (Esc) sale con 0 sin tocar el portapapeles, para no 
 el coste de generar una miniatura bajo demanda, escribiendo ya en la ruta que espera Rofi.
 
 `limpiar-portapapeles.sh` tiene dos entradas: `limpiar` (llamada directa, p. ej. desde AGS) y
-`al-iniciar` (la usa `gigios/autostart.lua`, respeta la preferencia `limpiezaPortapapelesAlIniciar`).
+`al-iniciar` (la usa `gigishell/autostart.lua`, respeta la preferencia `limpiezaPortapapelesAlIniciar`).
 Borra primero la selección activa de Wayland (`wl-copy --clear`) y solo después el historial
 persistente (`cliphist wipe`) — en ese orden: si el watcher llegara a capturar el clear como una
 entrada nueva, el wipe posterior se la lleva también.
 
 ### Tema oscuro de las apps KDE (`reparar-kdeglobals.sh`)
 
-Repone `[UiSettings] ColorScheme=BreezeDark` en `kdeglobals`. Lo llaman `gigios/autostart.lua`
+Repone `[UiSettings] ColorScheme=BreezeDark` en `kdeglobals`. Lo llaman `gigishell/autostart.lua`
 (t=0, junto a los dos `gsettings` del tema GTK) y `bin/link.sh` (en cada pasada). Es one-shot:
 mira y, o corrige, o se muere — no deja nada en `ps`.
 
@@ -4171,19 +4171,19 @@ las dos mitades: que la clave esté en `kdeglobals` y que el autostart llame al 
 
 ### Utilidades cortas de un solo uso
 
-- **`GiGiShell.daltonismo(modo)`** (`gigios/daltonismo.lua`) — aplica o quita un shader de pantalla
+- **`GiGiShell.daltonismo(modo)`** (`gigishell/daltonismo.lua`) — aplica o quita un shader de pantalla
   (`decoration.screen_shader`) para protanopia/deuteranopia/tritanopia. Sin sondeo: lo invoca AGS al
   cambiar el ajuste (`hyprctl eval`) y el propio `hyprland.lua` en cada arranque/recarga para
   restaurar `modoDaltonismo` de `preferences.json`; sin argumento lee esa preferencia en el momento,
   sin caché (`util.leer_json`, no `util.prefs()`).
-- **`GiGiShell.compactar()`** (`gigios/compactar.lua`) — renumera los escritorios ocupados a IDs
+- **`GiGiShell.compactar()`** (`gigishell/compactar.lua`) — renumera los escritorios ocupados a IDs
   consecutivos desde 1, moviendo ventanas en silencio y siguiendo al escritorio activo hasta su
   nuevo número. Sale sin hacer nada si no hay ninguna ventana en ningún escritorio. Es el motor que
-  usa `gigios/escaner-apps.lua` cuando detecta dos o más escritorios destino (ver esa sección) — y
+  usa `gigishell/escaner-apps.lua` cuando detecta dos o más escritorios destino (ver esa sección) — y
   por lo que esa sección advierte que los IDs deben releerse **después** de compactar. Al ser una
   llamada Lua síncrona el resultado está disponible al volver (medido: 0,2 ms), sin la carrera que
   había con el script.
-- **`GiGiShell.toggle_orion()`** (`gigios/orion.lua`) — antes de tocar nada comprueba el ajuste maestro
+- **`GiGiShell.toggle_orion()`** (`gigishell/orion.lua`) — antes de tocar nada comprueba el ajuste maestro
   `orion` en `preferences.json`: si está desactivado no manda el toggle a AGS, porque deliberadamente
   no hay ninguna ventana registrada que responda. Luego intenta `ags request toggle-orion` y solo si
   falla o no devuelve `"ok"` cae a `ags toggle orion` — cubre la breve ventana de una recarga en la
@@ -4196,9 +4196,9 @@ las dos mitades: que la clave esté en `kdeglobals` y que el autostart llame al 
   del callback del bind lo bloquearía, y los callbacks tienen 100 ms. Ausente = activado, así que la
   comprobación es `== false` explícito — un `nil` tiene que dejar pasar. Fail-open hacia "el atajo
   funciona": si la lectura falla, se manda el toggle igual.
-- **`GiGiShell.toggle_gaps()`** (definida en `gigios/keybinds.lua`, junto a su bind) — alterna
+- **`GiGiShell.toggle_gaps()`** (definida en `gigishell/keybinds.lua`, junto a su bind) — alterna
   gaps/borde/rounding a 0 (modo compacto) y de vuelta al diseño normal. **Los valores de vuelta
-  se LEEN de `gigios/ventanas.lua`**, que exporta la tabla `aspecto` (`gaps_in`, `gaps_out`,
+  se LEEN de `gigishell/ventanas.lua`**, que exporta la tabla `aspecto` (`gaps_in`, `gaps_out`,
   `border_size`, `rounding`) con la que él mismo se configura — antes eran literales copiados en
   el toggle con una advertencia de "replícalo si los cambias", y esa advertencia no da ningún
   error cuando se incumple: el toggle "restauraba" un espaciado que ya no era el tuyo y parecía
@@ -4217,7 +4217,7 @@ las dos mitades: que la clave esté en `kdeglobals` y que el autostart llame al 
   `wallpaper-select.py`, sección aparte más abajo). Cinco modos: sin argumento (arranque, respeta
   `randomOnStart`), `--random` (botón de Orion), `--auto` (reevaluar la franja horaria, lo llama el
   planificador de AGS), `--grupo <id>` y `<ruta>`. Los campos `current` y `currentGroup` de
-  `~/.config/gigios/wallpaper.json` los escribe **siempre este script** tras aplicar un fondo, y
+  `~/.config/gigishell/wallpaper.json` los escribe **siempre este script** tras aplicar un fondo, y
   `randomOnStart` lo escribe **siempre AGS** desde su toggle — cada lado hace read-modify-write
   conservando los campos del otro, así que ninguno pisa el ajuste del otro por accidente. Léelo con
   el mismo cuidado que el resto del repo: `.randomOnStart // true` sería incorrecto (el `//` de `jq`
@@ -4258,7 +4258,7 @@ aptitud encima de la línea de tiempo. Un grupo cuyas imágenes hayan desapareci
 fuera por la misma vía.
 
 **LA DECISIÓN TIENE UN SOLO DUEÑO, y ese es todo el diseño.** Hay **dos** disparadores para la misma
-elección: el arranque de la sesión (`wallpaper.sh` desde `gigios/autostart.lua`, en t=0, cuando AGS
+elección: el arranque de la sesión (`wallpaper.sh` desde `gigishell/autostart.lua`, en t=0, cuando AGS
 todavía no existe) y el cruce de franja (AGS, con el escritorio ya vivo). Con dos implementaciones
 acabarían discrepando en silencio — el escritorio mostrando un fondo que el planificador cree que es
 otro—, así que la lógica vive entera en `hypr/scripts/lib/seleccion_fondos.py` (**puro**: no lee
@@ -4311,7 +4311,7 @@ suscripción y ningún despertar. Sin logind se degrada a corregir en el siguien
 Reevaluar de más sigue siendo gratis (`--auto` no aplica nada si el fondo que toca ya está puesto),
 que es lo que permite tirar del rearme sin miedo a parpadeos.
 
-**Config**: `~/.config/gigios/wallpapers.json` (`{version, franjas, grupos, fondos}`), la escribe
+**Config**: `~/.config/gigishell/wallpapers.json` (`{version, franjas, grupos, fondos}`), la escribe
 solo Orion. **Ausente o vacía = el comportamiento de siempre** (todo apto, sorteo plano), así que
 esto no cambia nada hasta que se configura. Ver `ags/CLAUDE.md` para el lado de la UI.
 
@@ -4378,7 +4378,7 @@ largo con margen de sobra) para reducir despertares. Los tres leen su interrupto
      (÷1024³) pero rotulaba **«GB»** con punto decimal, mientras AGS rotula «GiB» con coma
      (`formato.ts`) — «4.8 GB» al iniciar sesión y «4,8 GiB» al abrir Ajustes parecerían dos
      medidas que no cuadran, así que el script pasó a la etiqueta binaria y a la coma.
-  3. **La espera, y su fichero.** `~/.cache/gigios/disco-avisos`, `<epoch>\t<punto>` por línea,
+  3. **La espera, y su fichero.** `~/.cache/gigishell/disco-avisos`, `<epoch>\t<punto>` por línea,
      ventana de 6 h por punto de montaje. **Texto plano y no JSON a propósito**: así
      `disk-monitor.sh` lo lee con un `read` de bash y sigue sin forkear nada más que su `df` —
      meterle un `jq` por un contador de dos columnas sería pagar el arranque de sesión por nada.

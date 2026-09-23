@@ -10,13 +10,13 @@
 #   gestos.sh estado     imprime "on <pid>" u "off"; no toca nada
 #
 # ── ESTE MODO NO SE AUTOARRANCA, Y ES LA ÚNICA PIEZA DE CÁMARA QUE NO ────────
-# No hay ninguna línea suya en `gigios/autostart.lua`, al contrario que
+# No hay ninguna línea suya en `gigishell/autostart.lua`, al contrario que
 # `camara-monitor.sh`. Un monitor de uso en reposo cuesta cero (bloquea en
 # inotify); esto enciende la webcam, quema medio core y deja la cámara ocupada
 # para cualquier otra app. Un modo así se pide a propósito o no se pide.
 #
 # ── POR QUÉ EL PID SALE DEL CERROJO Y NO DE `pgrep` ──────────────────────────
-# El demonio toma un `flock` sobre `$XDG_RUNTIME_DIR/gigios-gestos.lock` y
+# El demonio toma un `flock` sobre `$XDG_RUNTIME_DIR/gigishell-gestos.lock` y
 # escribe dentro su PID. Aquí se lee ese PID y se CONFIRMA contra
 # `/proc/<pid>/cmdline` antes de creérselo. Un `pgrep -f gestos.py` a secas
 # casaría también con el editor que tenga el fichero abierto, con un `tail -f`
@@ -31,16 +31,16 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 
 AQUI="$HOME/.config/hypr/scripts/gestos"
-VENV="${XDG_DATA_HOME:-$HOME/.local/share}/gigios/gestos/venv"
-MODELO="${XDG_DATA_HOME:-$HOME/.local/share}/gigios/gestos/hand_landmarker.task"
-CERROJO="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gigios-gestos.lock"
-ESTADO="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/gestos-estado.json"
-REGISTRO="${XDG_CACHE_HOME:-$HOME/.cache}/gigios/gestos.log"
+VENV="${XDG_DATA_HOME:-$HOME/.local/share}/gigishell/gestos/venv"
+MODELO="${XDG_DATA_HOME:-$HOME/.local/share}/gigishell/gestos/hand_landmarker.task"
+CERROJO="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gigishell-gestos.lock"
+ESTADO="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/gestos-estado.json"
+REGISTRO="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/gestos.log"
 
 # ── ¿Está corriendo? ────────────────────────────────────────────────────────
 pid_vivo() {

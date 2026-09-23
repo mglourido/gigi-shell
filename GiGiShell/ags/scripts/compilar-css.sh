@@ -2,7 +2,7 @@
 # Compila ags/estilos/out.css desde los .scss, SOLO si hace falta.
 #
 # out.css es una caché: no se versiona ni se edita a mano. Lo regenera este script,
-# que se llama antes de cada `ags run` (gigios/autostart.lua) y desde install.sh.
+# que se llama antes de cada `ags run` (gigishell/autostart.lua) y desde install.sh.
 # Si ningún .scss es más nuevo que out.css, sale sin hacer nada (cuesta un `find`),
 # así que se puede llamar en cada arranque sin pagar sass.
 #
@@ -17,7 +17,7 @@ set -uo pipefail
 AGS="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 SCSS="$AGS/estilos/style.scss"
 CSS="$AGS/estilos/out.css"
-MAPA="${XDG_CACHE_HOME:-$HOME/.cache}/gigios/out.css.map"
+MAPA="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/out.css.map"
 
 if [[ "${1:-}" != "--forzar" && -s "$CSS" ]] \
   && [[ -z "$(find "$AGS" -path "$AGS/node_modules" -prune -o -name '*.scss' -newer "$CSS" -print -quit)" ]]; then
@@ -31,7 +31,7 @@ avisar() {
 
 command -v sass >/dev/null || { avisar "falta 'sass' (sudo pacman -S --needed dart-sass)"; exit 1; }
 
-tmp="$(mktemp -d "${TMPDIR:-/tmp}/gigios-css.XXXXXX")" || exit 1
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/gigishell-css.XXXXXX")" || exit 1
 trap 'rm -rf "$tmp"' EXIT
 
 # --no-charset: GTK CSS rechaza el @charset de Sass. El mapa va a la caché con rutas

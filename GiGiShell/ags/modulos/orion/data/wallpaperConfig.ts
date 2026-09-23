@@ -5,7 +5,7 @@
 //
 // DOS FICHEROS, DOS DUEÑOS — y la separación no es histórica, es funcional:
 //
-//   ~/.config/gigios/wallpaper.json   { randomOnStart, current, currentGroup }
+//   ~/.config/gigishell/wallpaper.json   { randomOnStart, current, currentGroup }
 //     ESTADO de lo que hay puesto. `current`/`currentGroup` los escribe
 //     `hypr/scripts/wallpaper.sh` cada vez que aplica; AGS solo escribe
 //     `randomOnStart` (su toggle). Ambos hacen read-modify-write preservando lo
@@ -13,7 +13,7 @@
 //     fondo por su cuenta al cruzar una franja, y sin eso la rejilla seguiría
 //     resaltando el anterior.
 //
-//   ~/.config/gigios/wallpapers.json  { version, franjas, grupos, fondos }
+//   ~/.config/gigishell/wallpapers.json  { version, franjas, grupos, fondos }
 //     CONFIGURACIÓN de franjas y grupos. La escribe solo Orion, y la lee
 //     `hypr/scripts/lib/seleccion_fondos.py`, que es quien decide qué fondo
 //     toca. Ver `wallpaperSchedule.ts` para el modelo.
@@ -38,8 +38,8 @@ import {
 import { RAIZ_REPO } from "../../../utilidades/rutas"
 
 export const WALLPAPER_DIR = `${RAIZ_REPO}/Wallpapers`
-const ESTADO_PATH  = `${GLib.get_user_config_dir()}/gigios/wallpaper.json`
-const CONFIG_PATH  = `${GLib.get_user_config_dir()}/gigios/wallpapers.json`
+const ESTADO_PATH  = `${GLib.get_user_config_dir()}/gigishell/wallpaper.json`
+const CONFIG_PATH  = `${GLib.get_user_config_dir()}/gigishell/wallpapers.json`
 const WALLPAPER_SH = `${GLib.get_user_config_dir()}/hypr/scripts/wallpaper.sh`
 
 const EXTS = [".jpg", ".jpeg", ".png", ".webp"]

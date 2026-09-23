@@ -142,7 +142,7 @@ class Hypr:
         `e+1`/`e-1` y no `+1`/`-1`: con el segundo, un swipe a la derecha desde
         el último escritorio crea uno vacío nuevo, y repetir el gesto va dejando
         escritorios vacíos detrás. Es la misma forma que ya usa la rueda del
-        ratón en `gigios/keybinds.lua`, así que gesto y rueda se comportan
+        ratón en `gigishell/keybinds.lua`, así que gesto y rueda se comportan
         igual.
         """
         return self.dispatch(f"hl.dsp.focus({{workspace='e{delta:+d}'}})")
@@ -161,7 +161,7 @@ class Hypr:
 
         ── EL `preselect` DE DELANTE NO ES ADORNO ─────────────────────────────
         Es la misma secuencia de tres pasos que usa SUPER+SHIFT+flecha en
-        `gigios/keybinds.lua`, y allí está medida: dwindle resuelve
+        `gigishell/keybinds.lua`, y allí está medida: dwindle resuelve
         `movewindow <dir>` sacando la ventana del árbol y reinsertándola junto a
         un punto focal 1 px más allá del borde, y el lado del corte sale de en
         qué CUADRANTE del vecino cae ese punto — un ángulo, no la dirección que

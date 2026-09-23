@@ -10,7 +10,7 @@ interface DatosAlmacen {
   appSettings?: Record<string, AppSettings>
 }
 
-const RUTA_ALMACEN = `${GLib.get_user_config_dir()}/gigios/notifications.json`
+const RUTA_ALMACEN = `${GLib.get_user_config_dir()}/gigishell/notifications.json`
 export const NOTIF_CAP = 200
 
 const META_PREDETERMINADA: NotifMeta = {

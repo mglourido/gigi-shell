@@ -3,7 +3,7 @@
 // Puente del estado "jugando" hacia DISCO, para que scripts de shell (bash)
 // puedan leerlo. El registro compartido de servicios/juegos ya alimenta el indicador,
 // auto-DND y este puente; aquí solo se persiste el estado para el lado Bash.
-// y escribe ~/.config/gigios/runtime-state.json = { "gaming": bool } cuando
+// y escribe ~/.config/gigishell/runtime-state.json = { "gaming": bool } cuando
 // cambia. hypr/scripts/oom-monitor.sh lo lee para pausar el escaneo de descargas
 // mientras juegas.
 //
@@ -22,7 +22,7 @@ import {
 } from "../juegos/registro"
 import { escanerJuegos } from "../../modulos/ajustes/preferences"
 
-const STATE_PATH = `${GLib.get_user_config_dir()}/gigios/runtime-state.json`
+const STATE_PATH = `${GLib.get_user_config_dir()}/gigishell/runtime-state.json`
 
 // Estado reactivo compartido por si algún widget lo quiere consumir en el futuro.
 export const [isGaming, _setGaming] = createState(false)

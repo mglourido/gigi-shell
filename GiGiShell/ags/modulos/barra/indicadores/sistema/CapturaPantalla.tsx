@@ -3,7 +3,7 @@
 // OBS, Zoom, navegador) o grabar en local (wf-recorder y cía.).
 //
 // No hay polling aquí: hypr/scripts/screencast-monitor.sh escribe
-// ~/.config/gigios/screencast.json y esto lo observa con un Gio.FileMonitor,
+// ~/.config/gigishell/screencast.json y esto lo observa con un Gio.FileMonitor,
 // igual que Actualizaciones. Sustituye al antiguo indicador, que hacía un
 // `pgrep -x wf-recorder` cada 2 s POR MONITOR y no veía los screencasts.
 //

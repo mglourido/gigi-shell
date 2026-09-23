@@ -58,7 +58,7 @@ ags/scratch/
 
 # --- Datos personales: que no puedan colarse por accidente ---
 #
-# La foto de perfil vive hoy en ~/.local/share/gigios/face.png y NUNCA dentro del
+# La foto de perfil vive hoy en ~/.local/share/gigishell/face.png y NUNCA dentro del
 # repo (ver CLAUDE.md). Estas dos rutas son las ubicaciones viejas: se mantienen
 # ignoradas aunque ya no existan, porque el día que una máquina rezagada deje ahí
 # un fichero, lo que se colaría en un commit público es una foto tuya.

@@ -58,7 +58,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 
@@ -84,7 +84,7 @@ notif_grupo udisc usb.desconectado normal 8000 "USB desconectado" "dispositivos 
 # dispositivo es almacenamiento. Un fichero por aviso pendiente, con su DEVPATH
 # dentro. Se limpia al arrancar porque un proceso anterior muerto a mitad deja
 # pendientes huérfanos que nadie reclamaría.
-PENDING_DIR="${GIGIOS_USB_PENDING_DIR:-${XDG_RUNTIME_DIR:-/tmp}/gigios-usb-pending}"
+PENDING_DIR="${GIGISHELL_USB_PENDING_DIR:-${XDG_RUNTIME_DIR:-/tmp}/gigishell-usb-pending}"
 DEFER_SECS=3
 rm -rf "$PENDING_DIR"
 mkdir -p -m 700 "$PENDING_DIR" || exit 1
@@ -108,7 +108,7 @@ trap 'rm -rf "$PENDING_DIR"' EXIT
 # `rm -rf`. Vive en XDG_RUNTIME_DIR y no en ~/.cache a propósito: los DEVPATH se
 # reutilizan entre arranques, así que sobrevivir al reboot sería nombrar el
 # puerto en vez del dispositivo.
-CACHE_DIR="${GIGIOS_USB_CACHE_DIR:-${XDG_RUNTIME_DIR:-/tmp}/gigios-usb-cache}"
+CACHE_DIR="${GIGISHELL_USB_CACHE_DIR:-${XDG_RUNTIME_DIR:-/tmp}/gigishell-usb-cache}"
 # Sin caché se sigue: esto es mejor texto, no un requisito de funcionamiento — de
 # ahí que aquí no haya el `|| exit 1` que sí lleva PENDING_DIR.
 mkdir -p -m 700 "$CACHE_DIR" 2>/dev/null || CACHE_DIR=""
@@ -479,9 +479,9 @@ notify_storage() {
 # Tope por encima del cual no se comprueba sola (64 GiB). Cubre de sobra el
 # pendrive normal, que es donde la comodidad se nota, y deja fuera los discos
 # externos grandes, que es donde el fsck se hace eterno.
-CHECK_MAX_BYTES=${GIGIOS_USB_CHECK_MAX_BYTES:-$((64 * 1024 * 1024 * 1024))}
+CHECK_MAX_BYTES=${GIGISHELL_USB_CHECK_MAX_BYTES:-$((64 * 1024 * 1024 * 1024))}
 # Segundos que se le conceden al montaje antes de plantearse comprobar nada.
-CHECK_SETTLE_SECS=${GIGIOS_USB_CHECK_SETTLE_SECS:-25}
+CHECK_SETTLE_SECS=${GIGISHELL_USB_CHECK_SETTLE_SECS:-25}
 
 # ¿Está montado este dispositivo? Sin forks: /proc/mounts con el builtin `read`.
 # Se compara el campo 1 ENTERO y no por prefijo: "/dev/sda1" no debe casar con una

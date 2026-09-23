@@ -23,7 +23,7 @@
 // gobernador clavado en `performance` sin UI donde apagarlo (mismo razonamiento
 // que `initWakeUp()`), y de ahí `initGamemode()`.
 //
-// El hijo se lanza con un argv0 propio (`gigios-gamemode`) por lo mismo que el
+// El hijo se lanza con un argv0 propio (`gigishell-gamemode`) por lo mismo que el
 // coproceso de `screencast-monitor.sh`: hace que la limpieza por `pkill -f` sea
 // inequívoca y no pueda llevarse por delante un `gamemoded` ajeno.
 //
@@ -34,7 +34,7 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createState } from "ags"
 
-const ARGV0 = "gigios-gamemode"
+const ARGV0 = "gigishell-gamemode"
 
 /** ¿Está instalado el paquete `gamemode`? Sin él la UI oculta el botón. */
 export const gamemodeAvailable = GLib.find_program_in_path("gamemoded") !== null
@@ -49,8 +49,8 @@ let stopping = false
 function notify(urgency: string, body: string): void {
   try {
     Gio.Subprocess.new(
-      ["notify-send", "-u", urgency, "-h", "string:x-gigios-source:system",
-       "-h", "string:x-gigios-event:juegos.modo-juego", "Modo juego", body],
+      ["notify-send", "-u", urgency, "-h", "string:x-gigishell-source:system",
+       "-h", "string:x-gigishell-event:juegos.modo-juego", "Modo juego", body],
       Gio.SubprocessFlags.NONE,
     )
   } catch (e) {
@@ -122,7 +122,7 @@ export function toggleGamemode(): boolean {
 /**
  * Mata registros huérfanos de un AGS anterior. Los pid no valen como guarda aquí
  * (el hijo no escribe estado en disco), pero el argv0 propio hace la búsqueda
- * inequívoca: `gigios-gamemode` solo lo pone este módulo.
+ * inequívoca: `gigishell-gamemode` solo lo pone este módulo.
  */
 export function initGamemode(): void {
   if (!gamemodeAvailable) return

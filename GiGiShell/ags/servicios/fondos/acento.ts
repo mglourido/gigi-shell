@@ -38,7 +38,7 @@
 // sus colores. Es deliberado que ese caso no invente una paleta.
 //
 // Y NO SE LE LLAMA DOS VECES POR LA MISMA IMAGEN: lo que devuelve se guarda en
-// `~/.cache/gigios/acento-fondo.json`, sellado con el tamaño y el mtime de la imagen
+// `~/.cache/gigishell/acento-fondo.json`, sellado con el tamaño y el mtime de la imagen
 // y los del propio extractor. Con la caché en frío un cambio de fondo cuesta lo de
 // siempre (un `python3`, 150 ms fuera del hilo del shell); en caliente —o sea casi
 // siempre: las franjas horarias rotan entre las MISMAS imágenes, y cada inicio de
@@ -68,7 +68,7 @@ import {
 import { hojaDePaleta, paletaDeSalida } from "./acentoCss"
 
 const EXTRACTOR = `${GLib.get_user_config_dir()}/ags/scripts/acento-fondo.py`
-const CACHE = `${GLib.get_user_cache_dir()}/gigios/acento-fondo.json`
+const CACHE = `${GLib.get_user_cache_dir()}/gigishell/acento-fondo.json`
 
 /** Lo que el extractor escribe en stderr cuando la imagen no tiene acento. Es la
  * única forma de distinguir ese caso: `execAsync` entrega stderr, no el código de

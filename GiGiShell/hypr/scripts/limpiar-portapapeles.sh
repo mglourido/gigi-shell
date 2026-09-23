@@ -2,11 +2,11 @@
 #
 # Limpia la selección activa de Wayland y el historial persistente de cliphist.
 # AGS lo invoca directamente y Hyprland usa `al-iniciar`, que respeta la
-# preferencia limpiezaPortapapelesAlIniciar de ~/.config/gigios/preferences.json.
+# preferencia limpiezaPortapapelesAlIniciar de ~/.config/gigishell/preferences.json.
 
 set -u
 
-preferencias="$HOME/.config/gigios/preferences.json"
+preferencias="$HOME/.config/gigishell/preferences.json"
 
 limpieza_automatica_activa() {
     [[ -f "$preferencias" ]] || return 1

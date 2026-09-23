@@ -66,7 +66,7 @@ runs `bin/verify-files.sh` on every `git ls-files` before a push:
 
 ## ✅ Continuous integration
 
-Every push/PR runs (`.github/workflows/gigios-validate.yml`):
+Every push/PR runs (`.github/workflows/gigishell-validate.yml`):
 
 - `GiGiShell/bin/preflight.sh` — validates files, scripts, required commands and symlink targets.
 - The pure-TypeScript test suite under `GiGiShell/ags/widget/**/*.test.ts` (Node's built-in test

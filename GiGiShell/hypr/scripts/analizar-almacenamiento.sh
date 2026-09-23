@@ -39,10 +39,10 @@ set -uo pipefail
 
 export LC_ALL=C
 
-DU_TIMEOUT=${GIGIOS_DU_TIMEOUT:-20}
+DU_TIMEOUT=${GIGISHELL_DU_TIMEOUT:-20}
 CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
 DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
-CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/almacenamiento.json"
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/almacenamiento.json"
 
 command -v jq >/dev/null 2>&1 || { echo '{"error":"falta jq"}'; exit 1; }
 
@@ -248,8 +248,8 @@ _dir_usuario() {  # XDG user dir con fallback al nombre inglés
 # sustitución — o sea justo antes de que el padre intentara leerlo. Efecto medido:
 #
 #     $ analizar-almacenamiento.sh categorias
-#     grep: /tmp/gigios-qi.OjK6sR: No such file or directory
-#     awk: fatal: cannot open file `/tmp/gigios-qi.M5T47Z' for reading
+#     grep: /tmp/gigishell-qi.OjK6sR: No such file or directory
+#     awk: fatal: cannot open file `/tmp/gigishell-qi.M5T47Z' for reading
 #
 # y las categorías `paquetes` y `huerfanos` salían con `bytes: null` (la UI las pintaba «—») y
 # `apps` devolvía una lista VACÍA. No se notó antes porque el verbo que usa la interfaz es `todo`,
@@ -262,7 +262,7 @@ VOLCADO_QI=""
 _preparar_qi() {
     [[ -n "$VOLCADO_QI" ]] && return 0
     command -v pacman >/dev/null 2>&1 || return 1
-    VOLCADO_QI=$(mktemp -t gigios-qi.XXXXXX)
+    VOLCADO_QI=$(mktemp -t gigishell-qi.XXXXXX)
     # El trap se instala aquí y no arriba para no borrar un fichero que no existe en las rutas
     # que nunca llegan a preguntar por paquetes (`discos`).
     trap 'rm -f "$VOLCADO_QI"' EXIT
@@ -435,9 +435,9 @@ categorias() {
     # y la fila desaparecía como si no hubiera instantáneas. Por eso la cuenta
     # sale del helper root-owned vía `sudo -n`; sin el helper instalado la fila
     # simplemente no se enseña, que es honesto — no sabemos.
-    if [[ -x /usr/local/bin/gigios-limpieza ]]; then
+    if [[ -x /usr/local/bin/gigishell-limpieza ]]; then
         local n
-        n=$(sudo -n /usr/local/bin/gigios-limpieza instantaneas 2>/dev/null)
+        n=$(sudo -n /usr/local/bin/gigishell-limpieza instantaneas 2>/dev/null)
         [[ "$n" =~ ^[0-9]+$ && "$n" != 0 ]] && _cat instantaneas "" "$n" no ""
     fi
 

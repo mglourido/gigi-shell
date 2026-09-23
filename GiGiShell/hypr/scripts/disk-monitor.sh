@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Disk space check — one-shot. Runs once at startup (gigios/autostart.lua), warns if
+# Disk space check — one-shot. Runs once at startup (gigishell/autostart.lua), warns if
 # any real partition is below WARN_GB, then exits. No daemon, no polling, no
 # background process: running low on disk is a once-a-year event, and free
 # space has no event source anyway, so a single login-time check is the right
@@ -38,7 +38,7 @@ MIN_BYTES=$(( MIN_GB  * 1024 * 1024 * 1024 ))
 # este script no forkea nada más que su `df`, y meterle un `jq` por un contador de dos
 # columnas sería pagar el arranque de sesión por nada. El epoch va primero porque un
 # punto de montaje puede llevar espacios: tras el primer tabulador, todo es la ruta.
-MARCA_AVISOS="${XDG_CACHE_HOME:-$HOME/.cache}/gigios/disco-avisos"
+MARCA_AVISOS="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/disco-avisos"
 ESPERA_S=$(( 6 * 3600 ))   # debe coincidir con AVISO_ESPERA_S de vigilancia.ts
 
 NOTIF_APP="Disco"
@@ -49,7 +49,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 

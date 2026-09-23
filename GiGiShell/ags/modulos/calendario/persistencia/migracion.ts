@@ -3,7 +3,7 @@
 //
 // **La ruta antigua estaba DENTRO del repositorio.** `~/.config/ags` es un symlink a `~/GiGiShell/ags`,
 // así que aquellos eventos —datos personales— quedaban versionados junto al código. Por eso el
-// original no se conserva «por si acaso»: se copia a `~/.config/gigios/calendario.json` y se BORRA.
+// original no se conserva «por si acaso»: se copia a `~/.config/gigishell/calendario.json` y se BORRA.
 // No destructivo significa que no se pierde nada, no que se deje una copia dentro de git.
 //
 // Formato antiguo (array en la raíz):

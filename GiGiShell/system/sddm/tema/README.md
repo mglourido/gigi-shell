@@ -11,9 +11,9 @@ diez `Themes/*.conf` y once fuentes; traerlos todos serían ~60 MB de ficheros q
 
 No se symlinkea. Como todo lo de `system/`, lo copia `install.sh` (paso `sddm`) con `sudo`:
 
-- el tema entero → `/usr/share/sddm/themes/gigios/`
-- `Fonts/*.ttf` → `/usr/share/fonts/gigios/` + `fc-cache`
-- `[Theme] Current=gigios` en `/etc/sddm.conf.d/zz-gigios.conf`
+- el tema entero → `/usr/share/sddm/themes/gigishell/`
+- `Fonts/*.ttf` → `/usr/share/fonts/gigishell/` + `fc-cache`
+- `[Theme] Current=gigishell` en `/etc/sddm.conf.d/zz-gigishell.conf`
 
 **Los ficheros del tema NO pueden vivir bajo `$HOME`.** SDDM arranca antes de que exista
 ninguna sesión y su greeter corre como el usuario `sddm`: `/home` puede no estar montado
@@ -41,5 +41,5 @@ ningún error.
 
 `theme.conf` es la copia de `Themes/jake_the_dog.conf` de upstream; si se retoca un color o
 el `HeaderText`, es aquí y no río arriba. `metadata.desktop` sí está modificado a mano
-(`ConfigFile=theme.conf`, `Theme-Id=gigios`, y sin `TranslationsDirectory=translations`:
+(`ConfigFile=theme.conf`, `Theme-Id=gigishell`, y sin `TranslationsDirectory=translations`:
 ese directorio no existe ni en upstream).

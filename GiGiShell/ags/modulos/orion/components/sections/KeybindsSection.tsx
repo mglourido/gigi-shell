@@ -1,5 +1,5 @@
 // Sección "Atajos" de Orion: lista los grupos de `data/keybinds.ts` (parseados
-// de `gigios/keybinds.lua`) y los filtra en vivo contra `searchQuery` — la búsqueda
+// de `gigishell/keybinds.lua`) y los filtra en vivo contra `searchQuery` — la búsqueda
 // es inline aquí (ver `search/handlers/keybinds.ts`, `inlineFor: ["keybinds"]`),
 // no redirige a la sección reactiva.
 
@@ -75,7 +75,7 @@ export function KeybindsSection() {
   }
 
   build()
-  // Rebuild when gigios/keybinds.lua / gigios/variables.lua change on disk.
+  // Rebuild when gigishell/keybinds.lua / gigishell/variables.lua change on disk.
   keybinds.subscribe(build)
   searchQuery.subscribe(() => applyFilter(searchQuery.get()))
 

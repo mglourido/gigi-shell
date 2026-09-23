@@ -2,7 +2,7 @@
 # lib/gaming-gate.sh — "¿estoy jugando?" compartido, para congelar trabajo de
 # fondo PRESCINDIBLE mientras hay un juego delante. Se SOURCEA, no se ejecuta.
 #
-# Reutiliza el flag que ya existe: ~/.config/gigios/runtime-state.json, escrito por
+# Reutiliza el flag que ya existe: ~/.config/gigishell/runtime-state.json, escrito por
 # AGS (servicios/energia/gamingState.ts) reusando a su vez la detección `isGameClient`
 # de la barra. Aquí NO se vuelve a detectar nada — bash no sabría hacerlo mejor.
 #
@@ -52,8 +52,8 @@
 # no se pierde. Por eso va justo ANTES del cuerpo del sondeo y DESPUÉS de la espera
 # (así updates-monitor sigue bloqueado en su inotify, que no cuesta nada).
 
-GAMING_STATE_FILE="${GAMING_STATE_FILE:-$HOME/.config/gigios/runtime-state.json}"
-GAMING_PREFS_FILE="${GAMING_PREFS_FILE:-$HOME/.config/gigios/preferences.json}"
+GAMING_STATE_FILE="${GAMING_STATE_FILE:-$HOME/.config/gigishell/runtime-state.json}"
+GAMING_PREFS_FILE="${GAMING_PREFS_FILE:-$HOME/.config/gigishell/preferences.json}"
 
 # Cada cuánto se vuelve a mirar el flag mientras el gate retiene trabajo. Es un SUELO,
 # no un periodo fijo: con el juego aparcado la espera se estira hasta el vencimiento de

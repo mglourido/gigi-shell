@@ -78,7 +78,7 @@ const etiquetaAccion = (accion: AccionBotonEncendido) =>
 
 /**
  * Qué hace el botón de encendido físico. El shell solo guarda la elección: quien la
- * ejecuta es `GiGiShell.boton_apagado()` (`hypr/gigios/boton-apagado.lua`) desde un bind
+ * ejecuta es `GiGiShell.boton_apagado()` (`hypr/gigishell/boton-apagado.lua`) desde un bind
  * `{locked = true}` de Hyprland, así que
  * el botón sigue respondiendo con AGS caído o la sesión bloqueada.
  *
@@ -130,7 +130,7 @@ const etiquetaAccionTapa = (accion: AccionTapa) =>
 /**
  * Qué hace el portátil al cerrar la tapa. Misma división de trabajo que el botón de
  * encendido: aquí solo se guarda la elección y quien la ejecuta es
- * `GiGiShell.tapa_cerrada()` (`hypr/gigios/tapa.lua`) desde un bind `{locked = true}`
+ * `GiGiShell.tapa_cerrada()` (`hypr/gigishell/tapa.lua`) desde un bind `{locked = true}`
  * sobre `switch:on:Lid Switch`, releyéndola en cada cierre.
  *
  * El aviso avisa de otra cosa que el del botón: la tapa no se le quita a logind

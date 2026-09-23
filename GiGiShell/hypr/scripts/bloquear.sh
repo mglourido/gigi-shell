@@ -19,7 +19,7 @@
 # nombre (`ldd /usr/lib/libhyprgraphics.so.4` → libmagic.so.1). Un enlace pelado
 # funciona igual con cualquiera de los cuatro formatos.
 #
-# Vive en la caché y no en `~/.config/gigios/`: es regenerable en cada bloqueo y
+# Vive en la caché y no en `~/.config/gigishell/`: es regenerable en cada bloqueo y
 # no es una preferencia del usuario. Si alguien lo borra, el siguiente bloqueo lo
 # repone solo.
 #

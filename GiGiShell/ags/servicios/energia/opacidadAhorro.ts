@@ -5,7 +5,7 @@
 // QUÉ SE AHORRA (no es lo que parece)
 // -----------------------------------
 // No es GTK: pintar un fondo sólido o uno con alfa le cuesta lo mismo. Es HYPRLAND.
-// Las cinco láminas grandes del shell llevan `blur = true` en `hypr/gigios/reglas.lua`
+// Las cinco láminas grandes del shell llevan `blur = true` en `hypr/gigishell/reglas.lua`
 // (quick-settings, notification-panel, calendar-panel, orion, osd), así que mientras
 // una esté en pantalla el compositor desenfoca por fotograma el trozo de escritorio
 // que se ve por debajo. Con la lámina opaca, GTK marca esa región del `wl_surface`

@@ -4,7 +4,7 @@
 # Silent on clean boot. Notifies per category on problems only.
 
 # La espera a que la sesión termine de cargar la pone quien lo lanza
-# (`hypr/gigios/autostart.lua`, ~30 s), no este script: es el más caro del arranque y su
+# (`hypr/gigishell/autostart.lua`, ~30 s), no este script: es el más caro del arranque y su
 # retardo forma parte del calendario que se lee allí de una vez. Ejecutarlo a mano
 # responde al instante.
 
@@ -35,7 +35,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {
         shift
         local -a _a=(); [[ -n "${NOTIF_APP:-}" ]] && _a=(-a "$NOTIF_APP")
-        notify-send -h string:x-gigios-source:system "${_a[@]}" "$@"
+        notify-send -h string:x-gigishell-source:system "${_a[@]}" "$@"
     }
 fi
 

@@ -64,7 +64,7 @@
     },
     "estilos": {
       "ninguno": "—",
-      "gigios": "GiGiShell",
+      "gigishell": "GiGiShell",
       "dunst": "Dunst"
     },
     "condiciones": {
@@ -186,7 +186,7 @@
       "sonido": "suena {{archivo}}",
       "sinAudio": "sin sonido",
       "dunst": "popup con estilo Dunst",
-      "gigios": "popup con estilo de GiGiShell",
+      "gigishell": "popup con estilo de GiGiShell",
       "ninguno": "no hace nada"
     },
     "frase": "{{coincidencia}} → {{efecto}}",

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Monitor de actualizaciones del SO + drivers de GPU.
 #
-# Escribe ~/.config/gigios/updates.json con el número de paquetes de sistema y la
+# Escribe ~/.config/gigishell/updates.json con el número de paquetes de sistema y la
 # lista de drivers de GPU pendientes; `Actualizaciones` en la barra lo
 # observa con un FileMonitor y muestra un icono + popover cuando hay algo.
 #
@@ -21,8 +21,8 @@
 #       en cuanto UNO de ellos aparece entre las pendientes se deja de mirar la
 #       lista (basta uno para avisar) y va a `watched`, que tiene su propio icono.
 
-PREFS="$HOME/.config/gigios/preferences.json"
-OUT="$HOME/.config/gigios/updates.json"
+PREFS="$HOME/.config/gigishell/preferences.json"
+OUT="$HOME/.config/gigishell/updates.json"
 
 # jq es obligatorio: construimos el JSON con él para escapar bien nombres/versiones.
 if ! command -v jq >/dev/null 2>&1; then

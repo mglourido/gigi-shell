@@ -10,7 +10,7 @@ import urllib.request
 from pathlib import Path
 
 
-CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "gigios" / "datetime.json"
+CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "gigishell" / "datetime.json"
 
 
 def descripcion(codigo: int) -> str:

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Setup único: obtiene un refresh_token de Google Calendar y lo guarda en texto plano en
-# ~/.config/gigios/google-calendar-creds.json (chmod 600). Específico del escritorio ags.
+# ~/.config/gigishell/google-calendar-creds.json (chmod 600). Específico del escritorio ags.
 #
 # El consentimiento vive AQUÍ y no dentro de AGS a propósito: es interactivo, ocurre una vez en la
 # vida de la máquina, y montar el servidor del callback dentro del shell significaría tener un
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 SCOPE="https://www.googleapis.com/auth/calendar"
-CREDS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/google-calendar-creds.json"
+CREDS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/google-calendar-creds.json"
 
 command -v python3 >/dev/null || { echo "Falta python3"; exit 1; }
 command -v curl    >/dev/null || { echo "Falta curl"; exit 1; }

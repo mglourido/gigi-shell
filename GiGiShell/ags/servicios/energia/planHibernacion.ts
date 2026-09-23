@@ -36,7 +36,7 @@ export interface PlanHibernacion {
  * `HibernateDelaySec` sería el error fácil aquí: hibernaría a los 70 min en vez de a los 50.
  *
  * El listener conserva su `timeout` incluso apagado, igual que el resto de tiempos de
- * hypridle.conf: el sentinel GIGIOS-OFF existe justo para no perder el número al desactivar.
+ * hypridle.conf: el sentinel GIGISHELL-OFF existe justo para no perder el número al desactivar.
  */
 export function planificar(
   ajuste: AjusteHibernacion,

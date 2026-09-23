@@ -3,16 +3,16 @@
 // El interruptor "Cámara bloqueada" (killswitch por software).
 //
 // AGS no bloquea nada por su cuenta: los nodos `/dev/video*` son de `root:video` y quien decide
-// sus permisos es udev. Todo el trabajo lo hace el helper root-owned `/usr/local/bin/gigios-camara`
-// (fuente versionada en `system/camara/gigios-camara.sh`), autorizado sin contraseña por
-// `/etc/sudoers.d/gigios-camara` SOLO para sus dos verbos. Mismo esquema que
+// sus permisos es udev. Todo el trabajo lo hace el helper root-owned `/usr/local/bin/gigishell-camara`
+// (fuente versionada en `system/camara/gigishell-camara.sh`), autorizado sin contraseña por
+// `/etc/sudoers.d/gigishell-camara` SOLO para sus dos verbos. Mismo esquema que
 // `servicios/energia/tlp.ts` y `servicios/seguridad/clamav.ts`; el porqué de cada decisión —y en
 // especial por qué la regla udev se llama `71-` y no `99-`— está en la cabecera del helper y en la
 // sección de cámara de `docs/hyprland-modulos.md`.
 //
 // ── LEER EL ESTADO NO NECESITA SUDO, Y POR ESO NO PASA POR LA REGLA ──────────────────────────
-// El estado ES la presencia de `/etc/udev/rules.d/71-gigios-camara-bloqueada.rules`, que es
-// world-readable. Se consulta con `gigios-camara status` (sin sudo) para no duplicar aquí el
+// El estado ES la presencia de `/etc/udev/rules.d/71-gigishell-camara-bloqueada.rules`, que es
+// world-readable. Se consulta con `gigishell-camara status` (sin sudo) para no duplicar aquí el
 // conocimiento de esa ruta: el día que cambie, cambia en un sitio. Preguntarle al sistema es
 // además lo único que no puede mentir — el fichero puede haberlo puesto o quitado alguien desde
 // un TTY, que es justo la escotilla de emergencia que el helper documenta.
@@ -26,7 +26,7 @@ import { createState } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 
-const HELPER = "/usr/local/bin/gigios-camara"
+const HELPER = "/usr/local/bin/gigishell-camara"
 
 export const [camaraBloqueada, setCamaraBloqueada] = createState(false)
 /** Hay helper instalado, o sea que el interruptor puede existir. */

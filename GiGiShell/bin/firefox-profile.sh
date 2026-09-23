@@ -179,7 +179,7 @@ default_profile_dir() {
 
 create_default_profile() {
   local store="$1" profile_dir temporary
-  profile_dir="$store/gigios.default-release"
+  profile_dir="$store/gigishell.default-release"
   mkdir -p "$profile_dir"
   temporary="$store/.profiles.ini.$$"
   trap 'rm -f "$temporary"' EXIT
@@ -187,7 +187,7 @@ create_default_profile() {
 [Profile0]
 Name=default-release
 IsRelative=1
-Path=gigios.default-release
+Path=gigishell.default-release
 Default=1
 
 [General]
@@ -207,7 +207,7 @@ install_profile_link() {
   fi
 
   if [[ -e "$target" || -L "$target" ]]; then
-    backup="$profile_dir/user.js.pre-gigios"
+    backup="$profile_dir/user.js.pre-gigishell"
     if [[ -e "$backup" || -L "$backup" ]]; then
       stamp="$(date +%Y%m%d-%H%M%S)"
       backup="$backup.$stamp"

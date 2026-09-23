@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Repone [UiSettings] ColorScheme=BreezeDark en kdeglobals. One-shot: mira, y o
 # corrige o se muere. Lo llaman bin/link.sh (en cada pasada) y
-# gigios/autostart.lua (una vez por sesión).
+# gigishell/autostart.lua (una vez por sesión).
 #
 # ── Por qué hace falta ──────────────────────────────────────────────────────
 # kdeglobals está versionado y symlinkeado a ~/.config/kdeglobals, y cualquier

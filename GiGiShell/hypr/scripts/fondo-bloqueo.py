@@ -12,7 +12,7 @@ from pathlib import Path
 DIRECTORIO = Path(__file__).resolve().parents[2] / "Wallpapers"
 # La ruta debe coincidir con `path` en hyprlock.conf, cuyo parser no puede
 # resolver un XDG_CACHE_HOME alternativo al cargar la imagen inicial.
-CACHE = Path.home() / ".cache" / "gigios"
+CACHE = Path.home() / ".cache" / "gigishell"
 ESTADO = CACHE / "hyprlock-fondos.json"
 ENLACE = CACHE / "hyprlock-fondo"
 EXTENSIONES = {".jpg", ".jpeg", ".png", ".webp"}

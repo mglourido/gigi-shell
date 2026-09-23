@@ -1,4 +1,4 @@
-// Lectura y escritura de los almacenes JSON del shell (`~/.config/gigios/*.json`).
+// Lectura y escritura de los almacenes JSON del shell (`~/.config/gigishell/*.json`).
 //
 // Nació en `modulos/notificaciones/estado/persistencia.ts`; vive aquí porque no tiene nada de
 // específico de las notificaciones y el calendario necesitaba exactamente lo mismo. Aquel módulo
@@ -109,5 +109,5 @@ export function crearGuardadoJsonProgramado(
 
 /** Ruta de un JSON de configuración del shell. */
 export function rutaConfig(nombre: string): string {
-  return `${GLib.get_home_dir()}/.config/gigios/${nombre}`
+  return `${GLib.get_home_dir()}/.config/gigishell/${nombre}`
 }

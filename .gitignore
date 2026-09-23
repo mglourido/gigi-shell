@@ -83,8 +83,8 @@ id_ed25519
 # Son los ficheros que la shell lee de verdad y en los que escriben los
 # instaladores (rustup, bun, fnm, opam...): rutas absolutas con el usuario y
 # herramientas que otra máquina puede no tener o tener en otro sitio. Cargan la
-# configuración compartida, que sí se versiona (bash/bashrc, zsh/gigios.*,
-# fish/conf.d/gigios.fish). Los crea GiGiShell/bin/shell-local.sh.
+# configuración compartida, que sí se versiona (bash/bashrc, zsh/gigishell.*,
+# fish/conf.d/gigishell.fish). Los crea GiGiShell/bin/shell-local.sh.
 .bashrc
 .config/zsh/.zshenv
 .config/zsh/.zshrc

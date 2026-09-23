@@ -30,7 +30,7 @@ export interface DeviceSettings {
 }
 
 // `temaCursor: ""` significa "no fijar tema", no "usar uno de fábrica". Es el
-// mismo criterio que el `locale` de gigios/env.lua: con la clave ausente no se
+// mismo criterio que el `locale` de gigishell/env.lua: con la clave ausente no se
 // emite ningún hl.env y manda lo que traiga la sesión. Poner aquí un nombre
 // concreto cambiaría el puntero de una máquina que nunca ha tocado el ajuste —
 // y encima nombraría un tema que puede no existir en ella.
@@ -45,11 +45,11 @@ export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
 }
 
 // ÚNICO fichero que escribe este servicio. Lo lee también el config de Hyprland
-// (hypr/gigios/dispositivos.lua, cargado después de gigios/userprefs.lua para
+// (hypr/gigishell/dispositivos.lua, cargado después de gigishell/userprefs.lua para
 // que estas preferencias pisen a las de ahí), así que el dato vive en un solo
 // sitio: aquí ya no se genera ningún chunk Lua. Antes se escribían los dos
 // —devices.json e input-settings.lua— y podían divergir si el segundo fallaba.
-const DATA_PATH = `${GLib.get_user_config_dir()}/gigios/devices.json`
+const DATA_PATH = `${GLib.get_user_config_dir()}/gigishell/devices.json`
 
 function clamp(value: unknown, min: number, max: number, fallback: number): number {
   const n = Number(value)
@@ -116,7 +116,7 @@ export function updateDeviceSettings(patch: Partial<DeviceSettings>, reload = fa
   }
   // El reload puede ir detrás sin más: write() escribe devices.json de forma
   // SÍNCRONA (GLib.file_set_contents), así que cuando el `hyprctl reload` re-ejecute
-  // la config Lua entera —y con ella gigios/dispositivos.lua, que lo lee— el
+  // la config Lua entera —y con ella gigishell/dispositivos.lua, que lo lee— el
   // fichero ya está completo en disco.
   if (reload) execAsync(["hyprctl", "reload"]).catch(() => {})
   else {

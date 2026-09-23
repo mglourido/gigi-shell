@@ -5,7 +5,7 @@ import { appSettings } from "../store.ts"
 import { upsertUserRule } from "../rules/rulesStore.ts"
 import { migrateAppSettingsToRules } from "./migration.ts"
 
-const MARKER = `${GLib.get_user_config_dir()}/gigios/notif-migrated.json`
+const MARKER = `${GLib.get_user_config_dir()}/gigishell/notif-migrated.json`
 
 export function runAppSettingsMigration(): void {
   if (GLib.file_test(MARKER, GLib.FileTest.EXISTS)) return

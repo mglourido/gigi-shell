@@ -9,7 +9,7 @@
 //
 // /var/lib/clamav es de `clamav` y habilitar el servicio es de root, así que AGS no actualiza
 // nada por su cuenta: delega en un helper root-owned instalado por install.sh
-// (/usr/local/bin/gigios-clamav-update), autorizado sin contraseña por /etc/sudoers.d/gigios-clamav
+// (/usr/local/bin/gigishell-clamav-update), autorizado sin contraseña por /etc/sudoers.d/gigishell-clamav
 // SOLO para sus dos argumentos fijos. Mismo esquema que servicios/energia/tlp.ts; ver la sección
 // "Firmas de ClamAV" del CLAUDE.md raíz.
 //
@@ -40,7 +40,7 @@ import Gio from "gi://Gio"
 import { createState } from "ags"
 import { clamavAutoUpdatePref } from "../../modulos/ajustes/seguridad/preferencias"
 
-const HELPER = "/usr/local/bin/gigios-clamav-update"
+const HELPER = "/usr/local/bin/gigishell-clamav-update"
 const DB_DIR = "/var/lib/clamav"
 const UNIT = "clamav-freshclam.service"
 // daily es la que se mueve a diario; main/bytecode cambian cada meses. La más reciente de las tres
@@ -89,8 +89,8 @@ export const [clamavBusy, _setClamavBusy] = createState(false)
 function notify(urgency: string, body: string): void {
   try {
     Gio.Subprocess.new(
-      ["notify-send", "-u", urgency, "-h", "string:x-gigios-source:system",
-       "-h", "string:x-gigios-event:antivirus.estado", "Antivirus", body],
+      ["notify-send", "-u", urgency, "-h", "string:x-gigishell-source:system",
+       "-h", "string:x-gigishell-event:antivirus.estado", "Antivirus", body],
       Gio.SubprocessFlags.NONE,
     )
   } catch (e) {

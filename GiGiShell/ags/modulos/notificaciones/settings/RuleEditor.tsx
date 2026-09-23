@@ -32,12 +32,12 @@ const DEDUP_LABEL: Record<string, string> = {
   "app+summary+body": textos.editor.duplicados.appTituloCuerpo,
 }
 // "none" no es un PopupStyle: es "la regla no opina", y entonces decide el hint
-// x-gigios-source de los scripts (sistema → dunst). Fijar "default" NO es lo mismo — eso saca
+// x-gigishell-source de los scripts (sistema → dunst). Fijar "default" NO es lo mismo — eso saca
 // del skin incluso a una notificación del sistema.
 const STYLES: (PopupStyle | "none")[] = ["none", "default", "dunst"]
 const STYLE_LABEL: Record<string, string> = {
   none: textos.editor.estilos.ninguno,
-  default: textos.editor.estilos.gigios,
+  default: textos.editor.estilos.gigishell,
   dunst: textos.editor.estilos.dunst,
 }
 const CONDITIONS = ["battery-resolved", "superseded"]
@@ -175,7 +175,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
               <CampoCoincidencia campo="app" titulo={textos.editor.titulos.aplicacion} borrador={draft} actualizarMatch={patchMatch} reemplazarMatch={(match) => patch({ match })} />
               <CampoCoincidencia campo="summary" titulo={textos.editor.titulos.titulo} borrador={draft} actualizarMatch={patchMatch} reemplazarMatch={(match) => patch({ match })} />
               <CampoCoincidencia campo="body" titulo={textos.editor.titulos.cuerpo} borrador={draft} actualizarMatch={patchMatch} reemplazarMatch={(match) => patch({ match })} />
-              {/* «system» = viene de un script de hypr/scripts (hint x-gigios-source). Es lo que casa
+              {/* «system» = viene de un script de hypr/scripts (hint x-gigishell-source). Es lo que casa
                   la builtin del skin dunst; sin este campo esa regla no se podría editar desde aquí. */}
               <CampoCoincidencia campo="source" titulo={textos.editor.titulos.origen} borrador={draft} actualizarMatch={patchMatch} reemplazarMatch={(match) => patch({ match })} />
             </>

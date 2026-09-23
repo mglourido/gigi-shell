@@ -36,7 +36,7 @@ ha abierto. En Firefox 147 o posterior busca instalaciones nuevas en
 `~/.mozilla/firefox` para versiones ESR antiguas.
 
 Si ya había un `user.js` real en el perfil, el selector lo conserva como
-`user.js.pre-gigios` antes de crear el enlace.
+`user.js.pre-gigishell` antes de crear el enlace.
 
 ## Elegir el perfil
 

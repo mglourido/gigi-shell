@@ -3,7 +3,7 @@
 // Sin esto, el síntoma ("historial vacío") es indistinguible del estado normal de reposo.
 //
 // Astal ya grita al no conseguir el nombre ("cannot get proxy: dunst is already running"), pero
-// por el stdout de `ags`, que arrancando desde gigios/autostart.lua no acaba ni en hyprland.log ni en
+// por el stdout de `ags`, que arrancando desde gigishell/autostart.lua no acaba ni en hyprland.log ni en
 // el journal — y no dice ni la consecuencia ni el arreglo. Aquí sí.
 import { Gtk } from "ags/gtk4"
 import type { DaemonConflict } from "./comprobacion.ts"

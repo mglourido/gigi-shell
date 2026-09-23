@@ -43,7 +43,7 @@ export interface EntradaSonido {
    *  Ausente = **suena**: el defecto y el fallback apuntan los dos hacia el mismo lado, que es
    *  el único en el que equivocarse no cuesta una alarma perdida. */
   sfSilenciarReloj?: boolean
-  /** Hint `x-gigios-source` de la notificación. Lo único que hace falta de él aquí es
+  /** Hint `x-gigishell-source` de la notificación. Lo único que hace falta de él aquí es
    *  reconocer las alertas del reloj (`alarm`); ver `esAlertaReloj`. */
   origen?: string
   /** `meta.muteAudio`, calculado por el motor de reglas. */
@@ -156,7 +156,7 @@ export const SONIDO_ALARMA = "alarm-clock-elapsed"
 /** Nombre de tema para el fin del temporizador. */
 export const SONIDO_TEMPORIZADOR = "complete"
 
-/** Valor del hint `x-gigios-source` con el que el reloj emite sus alertas (`estadoReloj.ts`).
+/** Valor del hint `x-gigishell-source` con el que el reloj emite sus alertas (`estadoReloj.ts`).
  *  No es `system` a propósito: eso activaría el skin dunst de los avisos de `hypr/scripts`. */
 export const ORIGEN_RELOJ = "alarm"
 

@@ -1,0 +1,20 @@
+# /etc/sudoers.d/gigishell-camara — permite a GiGiShell bloquear y desbloquear la cámara sin contraseña.
+#
+# NO se symlinkea: sudoers.d se lee como root y apuntarlo al árbol del usuario sería una
+# escalada. Lo instala install.sh (paso `sistema`) sustituyendo __GIGISHELL_USER__ por el usuario
+# real y validándolo con `visudo -cf` antes de moverlo a su sitio.
+#
+# El grant es DELIBERADAMENTE mínimo: solo el helper root-owned y solo con los DOS verbos que
+# alguien llega a pulsar. No es una escalada porque /usr/local/bin/gigishell-camara es root-owned;
+# el usuario no puede alterar lo que corre como root sin ser root ya.
+#
+#   block     el interruptor "Cámara bloqueada" de QuickSettings y de Ajustes > Cámara.
+#   unblock   el mismo interruptor al apagarlo.
+#
+# `status` queda FUERA a propósito, y no es un olvido: no necesita root (solo comprueba si existe
+# /etc/udev/rules.d/71-gigishell-camara-bloqueada.rules, que es world-readable), así que AGS lo llama
+# sin sudo. Meterlo aquí solo serviría para que el estado del interruptor dependiera de una regla
+# sudoers, y para ampliar el grant sin ninguna ganancia.
+Cmnd_Alias GIGISHELL_CAMARA = /usr/local/bin/gigishell-camara block, \
+                           /usr/local/bin/gigishell-camara unblock
+__GIGISHELL_USER__ ALL=(root) NOPASSWD: GIGISHELL_CAMARA

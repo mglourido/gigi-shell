@@ -34,7 +34,7 @@ export interface SystemSnapshot { groups: InfoGroup[] }
 export type Sondeo = Record<string, string>
 
 const CACHE_VERSION = 1
-const CACHE_PATH = GLib.build_filenamev([GLib.get_user_cache_dir(), "gigios", "sysinfo.json"])
+const CACHE_PATH = GLib.build_filenamev([GLib.get_user_cache_dir(), "gigishell", "sysinfo.json"])
 
 // Valores que el fabricante deja sin rellenar en el DMI. Enseñarlos es peor que
 // no enseñar la fila: "System Product Name" parece un dato y no lo es.

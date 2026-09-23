@@ -8,7 +8,7 @@
 //
 // Reparto de ficheros, y no es cosmético:
 //
-// - `~/.config/gigios/google-calendar-creds.json` (**0600**) — client id, client secret y refresh
+// - `~/.config/gigishell/google-calendar-creds.json` (**0600**) — client id, client secret y refresh
 //   token. Es un **secreto**: vive fuera del repositorio, como `spotify-creds.json`, y no se
 //   escribe nunca en un log ni en un mensaje de error.
 // - `$XDG_RUNTIME_DIR/ags/google-calendar-token.json` — el access token, que caduca en una hora.

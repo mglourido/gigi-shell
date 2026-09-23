@@ -15,7 +15,7 @@
   "editor": {
     "titulo": "Aviso del sistema",
     "identidad": "Identificador",
-    "ayudaIdentidad": "Es la identidad estable del aviso (el hint x-gigios-event). No cambia aunque se reescriba el texto, así que la configuración lo sigue.",
+    "ayudaIdentidad": "Es la identidad estable del aviso (el hint x-gigishell-event). No cambia aunque se reescriba el texto, así que la configuración lo sigue.",
     "restaurar": "Restaurar",
     "restaurarAyuda": "Devolver este aviso a los valores que trae GiGiShell"
   },

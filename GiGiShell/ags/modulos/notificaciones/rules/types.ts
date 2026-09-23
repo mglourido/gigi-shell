@@ -5,7 +5,7 @@ export type Lifetime = "flash" | "timed" | "clear-on-boot" | "persistent"
 
 /** Aspecto del popup. "dunst" = skin que replica el dunstrc por defecto (ver style.scss);
  *  "default" = el diseño propio del shell. Una regla que lo fija GANA al hint
- *  `x-gigios-source:system` de los scripts, así que `"default"` sirve para sacar del skin a una
+ *  `x-gigishell-source:system` de los scripts, así que `"default"` sirve para sacar del skin a una
  *  notificación del sistema, y `"dunst"` para metérselo a una app cualquiera. */
 export type PopupStyle = "default" | "dunst"
 export const POPUP_STYLES: PopupStyle[] = ["default", "dunst"]
@@ -20,11 +20,11 @@ export interface MatchSpec {
   app?: StringMatch
   summary?: StringMatch
   body?: StringMatch
-  /** Origen: el hint `x-gigios-source` (los scripts de hypr/scripts mandan "system").
+  /** Origen: el hint `x-gigishell-source` (los scripts de hypr/scripts mandan "system").
    *  Ausente en las notificaciones de apps normales — y una regla que lo exija NO casará
    *  con ellas, porque un subject vacío no puede ser "system". */
   source?: StringMatch
-  /** IDENTIDAD del aviso del sistema: el hint `x-gigios-event` que pone
+  /** IDENTIDAD del aviso del sistema: el hint `x-gigishell-event` que pone
    *  `hypr/scripts/lib/notif.sh` (`kernel.oom`, `wifi.desconectado`, …). Es lo que permite
    *  configurar CADA notificación del sistema por separado: `source` las mete a todas en el
    *  mismo saco y el título cambia con el contenido (`"RAM muy baja: 812MB disponibles"`),
@@ -68,7 +68,7 @@ export interface EffectSpec {
   // accent color override (hex, e.g. "#89b4fa"). Highest priority in color resolution:
   // rule color > per-app color > system default (getAppColor).
   color?: string
-  // popup skin override. Absent = decide el hint x-gigios-source (sistema → dunst).
+  // popup skin override. Absent = decide el hint x-gigishell-source (sistema → dunst).
   style?: PopupStyle
   // text rewriting templates (see rules/template.ts + rules/notifFields.ts).
   // appName === "" omits the app name entirely from popup/panel.
@@ -95,9 +95,9 @@ export interface NotifInput {
   summary: string
   body: string
   urgency: number
-  /** Hint `x-gigios-source`. Ausente = notificación de una app normal. */
+  /** Hint `x-gigishell-source`. Ausente = notificación de una app normal. */
   source?: string
-  /** Hint `x-gigios-event`. Ausente = el emisor no declara identidad (una app normal, o un
+  /** Hint `x-gigishell-event`. Ausente = el emisor no declara identidad (una app normal, o un
    *  script de sistema al que aún no se le ha dado de alta el id). */
   event?: string
 }

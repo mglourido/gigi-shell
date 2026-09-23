@@ -10,7 +10,7 @@
 #                          dibuja el COMPOSITOR, y es el que escala sin pixelarse.
 #
 # Con esa forma, UN solo nombre sirve para XCURSOR_THEME y HYPRCURSOR_THEME, que
-# es justo lo que emiten gigios/dispositivos.lua y AGS. Es la forma que ya traen
+# es justo lo que emiten gigishell/dispositivos.lua y AGS. Es la forma que ya traen
 # los temas con soporte hyprcursor de fábrica (Bibata-Modern-Ice); esto la
 # reproduce para cualquier tema XCursor instalado por paquete.
 #

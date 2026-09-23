@@ -6,7 +6,7 @@
 //
 // ── Se pinta LLENO en el primer frame ────────────────────────────────────────
 // El análisis obliga a recorrer el sistema de ficheros y tarda segundos. Se construye con el
-// análisis anterior leído de `~/.cache/gigios/almacenamiento.json` (síncrono, ~1 ms) y el nuevo
+// análisis anterior leído de `~/.cache/gigishell/almacenamiento.json` (síncrono, ~1 ms) y el nuevo
 // entra por detrás cuando llega, igual que Ajustes > Sistema. Sin caché previa —primera vez en un
 // equipo— sí se ve el spinner, que es cuando de verdad no hay nada que enseñar.
 //

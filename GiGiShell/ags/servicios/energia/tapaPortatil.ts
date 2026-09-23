@@ -4,7 +4,7 @@
 // esta máquina tiene tapa y de si el interruptor es nuestro de verdad.
 //
 // El shell NO ejecuta la acción: solo persiste la preferencia. Quien la ejecuta es
-// `GiGiShell.tapa_cerrada()` (hypr/gigios/tapa.lua), atada en gigios/keybinds.lua a
+// `GiGiShell.tapa_cerrada()` (hypr/gigishell/tapa.lua), atada en gigishell/keybinds.lua a
 // `switch:on:Lid Switch` con `locked = true` — así la tapa responde aunque AGS no
 // esté vivo y con la sesión bloqueada, que es como se cierra casi siempre.
 //
@@ -31,7 +31,7 @@ export const ACCIONES_TAPA = [
   "suspender",
   // Propia de la tapa: el botón de encendido no la ofrece. Allí "suspender" ya entra
   // en la falsa cuando el usuario la ha puesto a sustituir a la real; aquí se pide
-  // por su nombre, así que entra siempre. La implementa gigios/tapa.lua por el
+  // por su nombre, así que entra siempre. La implementa gigishell/tapa.lua por el
   // request `suspension-falsa-entrar` de app.ts — ENTRAR y no alternar, porque cerrar
   // la tapa estando ya dentro tiene que dejarla puesta.
   "suspensionFalsa",

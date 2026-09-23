@@ -23,11 +23,11 @@
 //                    → listener de hypridle a `total`, hibernando directo sin pasar por el S3.
 //
 // Quién guarda qué:
-//   ~/.config/gigios/hibernacion.json   ← LA AUTORIDAD (enabled + totalSeconds + modo).
+//   ~/.config/gigishell/hibernacion.json   ← LA AUTORIDAD (enabled + totalSeconds + modo).
 //                                          Lo lee idle-action.sh para saber si suspende con
 //                                          alarma o sin ella.
 //   hypridle.conf, listener `hibernate` ← espejo del total; solo está ENCENDIDO en modo listener.
-//   /etc/systemd/sleep.conf.d/99-gigios-hibernacion.conf ← HibernateDelaySec (lo escribe el
+//   /etc/systemd/sleep.conf.d/99-gigishell-hibernacion.conf ← HibernateDelaySec (lo escribe el
 //                                          helper root, ver system/hibernacion/).
 import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
@@ -36,7 +36,7 @@ import { abrirEnTerminal } from "../../utilidades/abrirTerminal"
 import { planificar, type AjusteHibernacion, type ModoHibernacion } from "./planHibernacion"
 import { RAIZ_REPO } from "../../utilidades/rutas"
 
-const ARCHIVO = `${GLib.get_user_config_dir()}/gigios/hibernacion.json`
+const ARCHIVO = `${GLib.get_user_config_dir()}/gigishell/hibernacion.json`
 
 // El reparto en sí es lógica pura y vive aparte para poder probarlo bajo `node --test`; aquí
 // solo está el efecto. Se reexporta para que los llamantes tengan un único sitio al que mirar.
@@ -48,7 +48,7 @@ const POR_DEFECTO: AjusteHibernacion = { enabled: false, totalSeconds: 3000 }
 
 // ── Disponibilidad ───────────────────────────────────────────────────────────
 //
-// No se asume: se pregunta. `gigios-hibernacion estado` consulta a logind, que es quien sabe si
+// No se asume: se pregunta. `gigishell-hibernacion estado` consulta a logind, que es quien sabe si
 // hay swap persistente suficiente Y `resume=` en la línea de comandos del kernel. En una máquina
 // recién instalada sin el paso `hibernacion` del instalador, o antes del primer reinicio tras
 // ejecutarlo, la respuesta es "no" — y entonces la fila de Ajustes sale apagada CON SU MOTIVO,
@@ -74,7 +74,7 @@ function traducirMotivo(clave: string): string {
 
 /** Refresca `hibernacionActivable`/`hibernacionMotivo`. Silencioso: nunca lanza. */
 export function comprobarHibernacion(): void {
-  execAsync(["/usr/local/bin/gigios-hibernacion", "estado"])
+  execAsync(["/usr/local/bin/gigishell-hibernacion", "estado"])
     .then((salida) => {
       const campos = new Map<string, string>()
       for (const linea of String(salida).split("\n")) {
@@ -140,7 +140,7 @@ export function aplicarHibernacion(
   escribirEstado(ajuste, plan.modo)
   // `sudo -n`: si la regla sudoers no está instalada esto falla en el acto en vez de quedarse
   // esperando una contraseña que nadie va a teclear (el mismo motivo que en install.sh).
-  execAsync(["sudo", "-n", "/usr/local/bin/gigios-hibernacion", "retardo", String(plan.retardo)])
+  execAsync(["sudo", "-n", "/usr/local/bin/gigishell-hibernacion", "retardo", String(plan.retardo)])
     .catch((e) => console.error("[hibernacion] no se pudo fijar HibernateDelaySec:", e))
   return plan.listener
 }
@@ -166,7 +166,7 @@ export function prepararHibernacion(): void {
 }
 
 export function quitarHibernacion(): void {
-  abrirEnTerminal(`sudo bash ${GLib.shell_quote(`${RAIZ_REPO}/system/hibernacion/gigios-hibernacion-quitar.sh`)}`, "hibernacion")
+  abrirEnTerminal(`sudo bash ${GLib.shell_quote(`${RAIZ_REPO}/system/hibernacion/gigishell-hibernacion-quitar.sh`)}`, "hibernacion")
     .then(comprobarHibernacion)
     .catch(() => {})
 }

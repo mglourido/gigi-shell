@@ -13,8 +13,8 @@
 # discrepando en silencio. El modelo de franjas y grupos está documentado en
 # `lib/seleccion_fondos.py`.
 #
-# Config de franjas/grupos: ~/.config/gigios/wallpapers.json (la escribe Orion).
-# Estado: ~/.config/gigios/wallpaper.json -> { randomOnStart, current, currentGroup }
+# Config de franjas/grupos: ~/.config/gigishell/wallpapers.json (la escribe Orion).
+# Estado: ~/.config/gigishell/wallpaper.json -> { randomOnStart, current, currentGroup }
 #   - randomOnStart: lo escribe AGS (toggle). Ausente => true.
 #   - current / currentGroup: los escribe este script cada vez que aplica.
 # El reparto (bash es dueño de lo aplicado, AGS del toggle) evita que uno pise el
@@ -29,7 +29,7 @@
 # que esta función esté sana.
 
 WALLPAPER_DIR="$(readlink -f "$(dirname "$(readlink -f "$0")")/../..")/Wallpapers"
-CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/wallpaper.json"
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/wallpaper.json"
 SELECT="$(dirname "$(readlink -f "$0")")/wallpaper-select.py"
 
 pick_random_plano() {

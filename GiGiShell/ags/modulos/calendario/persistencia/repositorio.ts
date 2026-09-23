@@ -1,7 +1,7 @@
 // Acceso a disco del calendario. Es la única pieza de `persistencia/` que toca GLib; el esquema y
 // la migración son puros y se prueban con `node --test`.
 //
-// Ruta: `~/.config/gigios/calendario.json`, fuera del repositorio. La antigua
+// Ruta: `~/.config/gigishell/calendario.json`, fuera del repositorio. La antigua
 // (`~/.config/ags/calendar-events.json`) caía DENTRO, porque `~/.config/ags` es un symlink a
 // `~/GiGiShell/ags` — ver `migracion.ts`.
 

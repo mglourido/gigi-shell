@@ -6,7 +6,7 @@ import {
 } from "./actualizacionesDatos"
 
 export const datosActualizaciones = crearFuenteArchivoJson({
-  ruta: `${GLib.get_user_config_dir()}/gigios/updates.json`,
+  ruta: `${GLib.get_user_config_dir()}/gigishell/updates.json`,
   vacio: ACTUALIZACIONES_VACIAS,
   interpretar: interpretarActualizaciones,
   etiqueta: "actualizaciones",

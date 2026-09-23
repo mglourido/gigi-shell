@@ -41,11 +41,11 @@ import seleccion_fondos as sf   # noqa: E402
 HOME = os.path.expanduser("~")
 CONFIG_HOME = os.environ.get("XDG_CONFIG_HOME") or os.path.join(HOME, ".config")
 
-# `GIGIOS_WALLPAPER_*` son las costuras para probar esto sin tocar la instalación
-# real, igual que `GIGIOS_USB_PENDING_DIR` en el monitor de USB.
-DIR_FONDOS = os.environ.get("GIGIOS_WALLPAPER_DIR") or os.path.join(HOME, "GiGiShell", "Wallpapers")
-CONFIG = os.environ.get("GIGIOS_WALLPAPER_CONFIG") or os.path.join(CONFIG_HOME, "gigios", "wallpapers.json")
-ESTADO = os.environ.get("GIGIOS_WALLPAPER_STATE") or os.path.join(CONFIG_HOME, "gigios", "wallpaper.json")
+# `GIGISHELL_WALLPAPER_*` son las costuras para probar esto sin tocar la instalación
+# real, igual que `GIGISHELL_USB_PENDING_DIR` en el monitor de USB.
+DIR_FONDOS = os.environ.get("GIGISHELL_WALLPAPER_DIR") or os.path.join(HOME, "GiGiShell", "Wallpapers")
+CONFIG = os.environ.get("GIGISHELL_WALLPAPER_CONFIG") or os.path.join(CONFIG_HOME, "gigishell", "wallpapers.json")
+ESTADO = os.environ.get("GIGISHELL_WALLPAPER_STATE") or os.path.join(CONFIG_HOME, "gigishell", "wallpaper.json")
 
 EXTS = (".jpg", ".jpeg", ".png", ".webp")
 
@@ -76,7 +76,7 @@ def ahora_min() -> int:
     tiene que seguir siendo la misma en el cambio de horario de verano — el mismo
     criterio que las alarmas del panel de reloj.
     """
-    forzado = os.environ.get("GIGIOS_WALLPAPER_NOW")   # "HH:MM", solo para pruebas
+    forzado = os.environ.get("GIGISHELL_WALLPAPER_NOW")   # "HH:MM", solo para pruebas
     if forzado:
         minutos = sf.a_minutos(forzado)
         if minutos is not None:

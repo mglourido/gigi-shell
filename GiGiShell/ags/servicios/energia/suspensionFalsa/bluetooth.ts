@@ -15,7 +15,7 @@
 // ── EL APAGADO SE ESCRIBE EN system_state.json, Y HAY QUE SABERLO ─────────────────────
 // La restauración de arranque de `QuickSettings.tsx` **adopta como intención del usuario**
 // cualquier cambio de encendido que llegue con su ventana ya cerrada, y lo persiste en
-// `~/.config/gigios/system_state.json`. O sea que nuestro apagado se guarda como si lo
+// `~/.config/gigishell/system_state.json`. O sea que nuestro apagado se guarda como si lo
 // hubiera pedido el usuario, y nuestro encendido lo vuelve a guardar al salir: en un ciclo
 // completo la cuenta cuadra y el fichero acaba como estaba. Lo que NO cuadra es un AGS que
 // muera a mitad — el disco se queda con `bluetooth: false` y el arranque siguiente arranca

@@ -514,7 +514,7 @@ export const [mascotaSuspended, _setMascotaSuspended] = createState(false)
 // transparenciaSuspendida: powerSaveActive AND the user opted in to opaque panels.
 // Lo consume `opacidadAhorro.ts`, que redefine las variables `--lamina-*` del tema.
 // Lo que se ahorra no es GTK —pintar un color sólido o uno con alfa cuesta lo mismo—
-// sino HYPRLAND: cada lámina translúcida lleva `blur = true` en `hypr/gigios/reglas.lua`
+// sino HYPRLAND: cada lámina translúcida lleva `blur = true` en `hypr/gigishell/reglas.lua`
 // (quick-settings, notification-panel, calendar-panel, orion, osd), y desenfocar lo que
 // se ve por debajo es trabajo de GPU por fotograma mientras el panel esté abierto. Con
 // la lámina opaca, GTK declara la región como opaca y el compositor puede saltarse tanto
@@ -523,8 +523,8 @@ export const [mascotaSuspended, _setMascotaSuspended] = createState(false)
 export const [transparenciaSuspendida, _setTransparenciaSuspendida] = createState(false)
 // opacidadVentanasForzada: powerSaveActive AND the user opted in to opaque windows.
 // El gemelo del de arriba para las ventanas DEL COMPOSITOR, y por eso su consumidor no es
-// un widget: `opacidadVentanas.ts` lo publica en ~/.config/gigios/opacidad-ventanas.json y
-// llama a `GiGiShell.opacidad_ahorro()` de `hypr/gigios/ventanas.lua`, que es quien conoce la
+// un widget: `opacidadVentanas.ts` lo publica en ~/.config/gigishell/opacidad-ventanas.json y
+// llama a `GiGiShell.opacidad_ahorro()` de `hypr/gigishell/ventanas.lua`, que es quien conoce la
 // opacidad a la que hay que VOLVER (0.92 para las ventanas sin foco). Se combina aquí, como
 // todos los demás, para que el lado Lua no tenga que rederivar "¿hay ahorro?".
 export const [opacidadVentanasForzada, _setOpacidadVentanasForzada] = createState(false)

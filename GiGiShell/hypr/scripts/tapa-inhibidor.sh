@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # tapa-inhibidor.sh — le quita a systemd-logind el interruptor de la TAPA
 # mientras esta sesión de Hyprland esté viva, para que la acción de cerrarla la
-# decida Ajustes > Energía (gigios/tapa.lua) y no logind.
+# decida Ajustes > Energía (gigishell/tapa.lua) y no logind.
 #
 # ── Por qué un inhibidor y no `HandleLidSwitch=ignore` en /etc ───────────────
 # Al botón de encendido se le cede la tecla desde /etc
-# (system/logind.conf.d/99-gigios-powerkey.conf) y ahí es correcto: si el bind no
+# (system/logind.conf.d/99-gigishell-powerkey.conf) y ahí es correcto: si el bind no
 # responde, lo que se pierde es un botón. Con la tapa, `ignore` es PERMANENTE y
 # vale también para el saludador, para los TTY y para una sesión caída: cerrar el
 # portátil en la pantalla de login lo dejaría encendido dentro de la mochila, y
@@ -26,7 +26,7 @@
 # inhibidor huérfano dejaría la tapa muerta para el usuario siguiente sin que
 # nadie pudiera verlo.
 #
-# Lo lanza gigios/autostart.lua. Relanzarlo a mano es inofensivo: la guarda de
+# Lo lanza gigishell/autostart.lua. Relanzarlo a mano es inofensivo: la guarda de
 # instancia única de abajo hace que la segunda copia se marche sola.
 
 set -u

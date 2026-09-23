@@ -16,7 +16,7 @@ const RUNTIME_DIR = GLib.getenv("XDG_RUNTIME_DIR") || GLib.get_user_runtime_dir(
 const TOKEN_CACHE = `${RUNTIME_DIR}/ags/spotify-token.json`
 // Credenciales de larga duración en texto plano. Fichero personal (chmod 600),
 // fuera de git. Formato: { client_id, client_secret, refresh_token }.
-const CREDS_FILE = `${GLib.get_user_config_dir()}/gigios/spotify-creds.json`
+const CREDS_FILE = `${GLib.get_user_config_dir()}/gigishell/spotify-creds.json`
 
 let credsCache: Creds | null = null
 

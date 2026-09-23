@@ -564,7 +564,7 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   const win = (
     <window
       name="lagarto-mascota"
-      namespace="gigios-mascotas"
+      namespace="gigishell-mascotas"
       visible={visible}
       gdkmonitor={gdkmonitor}
       layer={Astal.Layer.TOP}

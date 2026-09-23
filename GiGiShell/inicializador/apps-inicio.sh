@@ -5,7 +5,7 @@
 #
 # ── Por qué vive en el inicializador y no en autostart.lua ────────────────────
 # La lista es DATO, no código: la escribe AGS (Ajustes > Apps al inicio) en
-# ~/.config/gigios/apps-inicio.json y la lee este script. Añadir Spotify al
+# ~/.config/gigishell/apps-inicio.json y la lee este script. Añadir Spotify al
 # arranque no puede obligar a editar Lua — un error de sintaxis ahí deja la
 # sesión sin atajos salvo SUPER+Q (ver docs/hyprland-lua-migracion.md), que es
 # un precio absurdo por una línea de configuración personal. En autostart.lua
@@ -56,7 +56,7 @@
 
 set -u
 
-CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigios/apps-inicio.json"
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/apps-inicio.json"
 RETARDO_ENTRE=2
 
 modo="arranque"
@@ -75,8 +75,8 @@ command -v jq >/dev/null 2>&1 || exit 0
 # se sigue lanzando (mejor un duplicado improbable que no arrancar nunca).
 marca=""
 if [ "$modo" = "arranque" ] && [ -n "${XDG_RUNTIME_DIR-}" ]; then
-    mkdir -p "$XDG_RUNTIME_DIR/gigios" 2>/dev/null
-    marca="$XDG_RUNTIME_DIR/gigios/apps-inicio-${HYPRLAND_INSTANCE_SIGNATURE:-sin-sesion}.done"
+    mkdir -p "$XDG_RUNTIME_DIR/gigishell" 2>/dev/null
+    marca="$XDG_RUNTIME_DIR/gigishell/apps-inicio-${HYPRLAND_INSTANCE_SIGNATURE:-sin-sesion}.done"
     [ -e "$marca" ] && exit 0
 fi
 

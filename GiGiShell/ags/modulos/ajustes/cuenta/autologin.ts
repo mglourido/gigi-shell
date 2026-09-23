@@ -2,8 +2,8 @@
 //
 // Entrar solo a Hyprland sin pasar por el saludador. El dato NO es de GiGiShell: vive
 // en la configuración de SDDM, en `[Autologin] User=` de
-// /etc/sddm.conf.d/zz-gigios.conf — el mismo fichero que materializa `install.sh`
-// (paso `sddm`) desde system/sddm/zz-gigios.conf.in, y con las mismas reglas.
+// /etc/sddm.conf.d/zz-gigishell.conf — el mismo fichero que materializa `install.sh`
+// (paso `sddm`) desde system/sddm/zz-gigishell.conf.in, y con las mismas reglas.
 // Aquí solo se conmuta esa clave: usuario actual para entrar solo, VACÍO para pedir
 // contraseña (para SDDM vacío es «no hay autologin», no «autologin del usuario ''»).
 //
@@ -36,7 +36,7 @@ import { formatearTexto } from "../../../textos/formatear"
 const DIRECTORIO_SDDM = "/etc/sddm.conf.d"
 /** El drop-in de GiGiShell. Lo exporta para que SeccionCuenta pueda arrastrar el
  *  autologin al usuario nuevo cuando se renombra la cuenta, en su misma escalada. */
-export const RUTA_CONFIG_SDDM = `${DIRECTORIO_SDDM}/zz-gigios.conf`
+export const RUTA_CONFIG_SDDM = `${DIRECTORIO_SDDM}/zz-gigishell.conf`
 const NUESTRO = RUTA_CONFIG_SDDM
 const SUELTO = "/etc/sddm.conf"
 const DIRECTORIOS_SESION = [
@@ -93,7 +93,7 @@ function dropInsPosteriores(): string[] {
     const dir = GLib.Dir.open(DIRECTORIO_SDDM, 0)
     let nombre: string | null
     while ((nombre = dir.read_name()) !== null) {
-      if (nombre > "zz-gigios.conf") posteriores.push(`${DIRECTORIO_SDDM}/${nombre}`)
+      if (nombre > "zz-gigishell.conf") posteriores.push(`${DIRECTORIO_SDDM}/${nombre}`)
     }
     dir.close()
   } catch {

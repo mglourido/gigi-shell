@@ -4,7 +4,7 @@
 // quién manda de verdad sobre esa tecla.
 //
 // El shell NO ejecuta la acción: solo persiste la preferencia. Quien la ejecuta
-// es `GiGiShell.boton_apagado()` (hypr/gigios/boton-apagado.lua), atado en gigios/keybinds.lua con
+// es `GiGiShell.boton_apagado()` (hypr/gigishell/boton-apagado.lua), atado en gigishell/keybinds.lua con
 // `bindl = , XF86PowerOff`. Así el botón sigue funcionando aunque AGS no esté
 // vivo (con la acción de fábrica) y responde también con la sesión bloqueada.
 //

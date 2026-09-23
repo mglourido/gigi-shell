@@ -8,7 +8,7 @@ const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
 
 export const BUILTIN_RULES: NotifRule[] = [
   {
-    // Las notificaciones de hypr/scripts (hint `x-gigios-source:system`) se pintan con el skin
+    // Las notificaciones de hypr/scripts (hint `x-gigishell-source:system`) se pintan con el skin
     // dunst. Prioridad 10 y SIN stopOnMatch a propósito: es una regla puramente cosmética y no
     // debe tapar a las otras builtin que también casan con notificaciones de sistema
     // (builtin.low-battery, builtin.coredump…). Como el fold es set-once por prioridad y solo

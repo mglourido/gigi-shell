@@ -61,7 +61,7 @@ estén disponibles.
 Solo quedan estas decisiones personales:
 
 1. **GPU:** ya no hace falta hacer nada. El instalador (paso `gpu`) lee las clases PCI de
-   `/sys` y escribe el perfil en `~/.config/gigios/gpu-perfil`; te dice cuál eligió al
+   `/sys` y escribe el perfil en `~/.config/gigishell/gpu-perfil`; te dice cuál eligió al
    terminar. Si el acierto no te vale, escribí otro nombre a mano: el fichero **nunca se
    pisa** si ya existe. Consulta la §9.
 2. **Spotify:** ejecuta `~/.config/ags/scripts/spotify-auth.sh` si quieres integrar tu
@@ -132,15 +132,15 @@ retirarlas. Verifica después con
 `Hyprland --verify-config -c ~/.config/hypr/hyprland.lua`.
 
 - `hypridle` gestiona apagar pantalla / bloquear / suspender (`hypridle.conf`).
-- `hyprlock` es la pantalla de bloqueo (`hyprlock.conf`, usa `~/.local/share/gigios/face.png`
+- `hyprlock` es la pantalla de bloqueo (`hyprlock.conf`, usa `~/.local/share/gigishell/face.png`
   y el label `$USER` — no hace falta nada extra).
-- `hyprpolkitagent` se lanza en `gigios/autostart.lua` desde la ruta fija
+- `hyprpolkitagent` se lanza en `gigishell/autostart.lua` desde la ruta fija
   `/usr/lib/hyprpolkitagent/hyprpolkitagent`; si el paquete instala el binario en otro
   sitio en la otra distro, ajusta esa línea.
 - `polkit` proporciona `pkexec`, que usan los ajustes de fecha, idioma e impresoras;
   `util-linux` proporciona `rfkill`, usado por el chequeo de hardware.
 - `hyprsunset` es la luz nocturna (la activa `~/.config/inicializador/init.sh` leyendo
-  `~/.config/gigios/display.json`). **Nota de `hyprland.lua`**: `render.cm_enabled = false`
+  `~/.config/gigishell/display.json`). **Nota de `hyprland.lua`**: `render.cm_enabled = false`
   está así a propósito porque el CTM de color management de Hyprland pisa el de
   `hyprsunset` y se ve lavado — no lo actives sin desactivar uno de los dos.
 - `uwsm` gestiona la sesión de Hyprland mediante systemd de usuario.
@@ -172,7 +172,7 @@ no llega a ejecutarse. Síntoma: los popups que ves son los de dunst y **`notifi
 cuando el shell simplemente no recibe una sola notificación.
 
 Astal *sí* se queja (`proxy.vala: cannot get proxy: dunst is already running`), pero por el
-**stdout de `ags`**: lanzado desde `gigios/autostart.lua` ese aviso no llega ni a `hyprland.log` ni al
+**stdout de `ags`**: lanzado desde `gigishell/autostart.lua` ese aviso no llega ni a `hyprland.log` ni al
 journal, así que solo lo ve quien arranca el shell a mano. Por eso el shell **se autodiagnostica**
 desde `ags/modulos/notificaciones/daemon/comprobacion.ts`: comprueba quién tiene el nombre, y si no es él,
 lanza una notificación crítica (que pinta el propio daemon intruso, que es el que funciona) y
@@ -214,7 +214,7 @@ cd ~/.config/ags && sass --no-charset --no-source-map estilos/style.scss estilos
 ```
 
 (`--no-source-map` evita dejar un `.map` suelto en `estilos/`; para desarrollo del shell, con mapa
-de depuración enrutado a `~/.cache/gigios/`, ver `ags/CLAUDE.md`.)
+de depuración enrutado a `~/.cache/gigishell/`, ver `ags/CLAUDE.md`.)
 
 No hace falta hacerlo manualmente durante la primera instalación.
 En Arch/CachyOS, si aparece `sass: command not found`, instálalo con
@@ -253,7 +253,7 @@ sudo pacman -S rofi rofimoji wtype noto-fonts-emoji cliphist wl-clipboard imagem
 
 Qué usa cada cosa:
 
-- **`hyprshot`** (capturas, `Print` / `Ctrl+Print` en `gigios/keybinds.lua`) ya trae como
+- **`hyprshot`** (capturas, `Print` / `Ctrl+Print` en `gigishell/keybinds.lua`) ya trae como
   dependencias `grim`, `slurp`, `jq`, `libnotify`, `wl-clipboard` — pero como AGS también
   llama a `grim` directamente (preview de workspace al clic-derecho sobre el número, ver
   `modulos/barra/escritorios/Escritorios.tsx`), instálalo igual explícitamente. Opcional: `hyprpicker`
@@ -300,7 +300,7 @@ Qué usa cada cosa:
 - **`curl`** — usado por el instalador y por integraciones HTTP de AGS como calendario,
   Spotify, carátulas y ubicación.
 
-Cosas referenciadas en `gigios/variables.lua` que son elección de terminal/gestor de archivos, no
+Cosas referenciadas en `gigishell/variables.lua` que son elección de terminal/gestor de archivos, no
 dependencias estrictas — cambia estas líneas si usas otra cosa en el PC nuevo:
 
 ```
@@ -377,12 +377,12 @@ sudo pacman -S awww imagemagick
 ```
 
 `awww` (**no confundir con `swww`**) se lanza como
-`awww-daemon` en `gigios/autostart.lua`, y `scripts/wallpaper.sh` hace `awww img "$WALLPAPER"`
+`awww-daemon` en `gigishell/autostart.lua`, y `scripts/wallpaper.sh` hace `awww img "$WALLPAPER"`
 sobre un fichero elegido al azar de `~/GiGiShell/Wallpapers/*.{jpg,png}`. El repositorio ya
 incluye fondos iniciales; puedes sustituirlos por los tuyos.
 
 `imagemagick` (comando `magick`) lo usa la sección **Temas** de Orion para generar las
-miniaturas de la rejilla de fondos, que cachea en `~/.cache/gigios/wp-thumbs/` (un JPEG de
+miniaturas de la rejilla de fondos, que cachea en `~/.cache/gigishell/wp-thumbs/` (un JPEG de
 336x192 por fondo, ~15 KB). Se genera en un proceso aparte precisamente para no bloquear el
 shell: los fondos originales son enormes (aquí hay PNG de 8192x6144) y decodificar uno
 entero en el hilo de AGS congelaba la UI varios segundos.
@@ -399,7 +399,7 @@ falta, rehace lo que esté corrupto y borra las miniaturas de fondos que ya no e
 sudo pacman -S wl-clipboard cliphist imagemagick
 ```
 
-`gigios/autostart.lua` lanza `wl-paste --watch cliphist store` para poblar el historial que usa
+`gigishell/autostart.lua` lanza `wl-paste --watch cliphist store` para poblar el historial que usa
 `SUPER+V`. El selector Rofi replica el diseño oscuro del lanzador de aplicaciones:
 fondo `#313244` al 90 %, selección `#b4befe` y scrollbar rosa `#f5c2e7` al 70 %.
 El lanzador, el portapapeles y la cuadrícula de emojis leen
@@ -420,7 +420,7 @@ selección activa de Wayland con `wl-copy --clear` y borra la base de `cliphist`
 
 El servicio Spotify de AGS (`servicios/spotify/SpotifyService.ts`) y el script
 `~/.config/ags/scripts/spotify-auth.sh` guardan/leen las credenciales en **texto plano**
-en `~/.config/gigios/spotify-creds.json` (chmod 600, git-ignored). No hay KWallet ni
+en `~/.config/gigishell/spotify-creds.json` (chmod 600, git-ignored). No hay KWallet ni
 Secret Service: se retiró a propósito porque bajo Hyprland pedía la contraseña del monedero
 en cada arranque. No hace falta instalar `kwallet`/`libsecret` ni lanzar ningún `ksecretd`.
 
@@ -461,7 +461,7 @@ claves (`client_id`, `client_secret`, `refresh_token`).
 
 ## 8. Scripts de monitorización ("escáneres") — `hypr/scripts/`
 
-Todos se lanzan en `gigios/autostart.lua` y notifican por `notify-send` (paquete `libnotify`,
+Todos se lanzan en `gigishell/autostart.lua` y notifican por `notify-send` (paquete `libnotify`,
 ya cubierto por `hyprshot`/`grim` arriba, pero decláralo explícito):
 
 ```sh
@@ -541,14 +541,14 @@ bwrap --version
 clamscan --no-summary ~/Descargas/algún-archivo
 ```
 
-El estado se guarda en `~/.cache/gigios/download-index` y
-`~/.cache/gigios/download-hashes`; es caché regenerable y no se copia al migrar.
+El estado se guarda en `~/.cache/gigishell/download-index` y
+`~/.cache/gigishell/download-hashes`; es caché regenerable y no se copia al migrar.
 **Si `oom-monitor.sh` ya llevaba corriendo sin base de firmas** (instalaste ClamAV pero
 tardaste en habilitar `clamav-freshclam`), lo escaneado en ese hueco quedó **sin marcar**
 como analizado — el propio script lo detecta (código 2) y no lo sella — así que en
 cuanto las firmas estén listas el siguiente barrido lo recupera solo, sin tocar nada a mano.
 
-Las preferencias viven en `~/.config/gigios/security.json` y se leen una sola vez al arrancar
+Las preferencias viven en `~/.config/gigishell/security.json` y se leen una sola vez al arrancar
 `oom-monitor.sh`: después de cambiar un interruptor de Seguridad hay que cerrar sesión o
 reiniciar manualmente ese script.
 
@@ -574,13 +574,13 @@ lspci -k | grep -A3 -E 'VGA|3D|Display'
 ls -l /dev/dri/by-path 2>/dev/null
 ```
 
-Los perfiles viven en `~/.config/hypr/gigios/gpu/` y se elige **uno** escribiendo su
-nombre en `~/.config/gigios/gpu-perfil`, un fichero local de una línea que **no se
+Los perfiles viven en `~/.config/hypr/gigishell/gpu/` y se elige **uno** escribiendo su
+nombre en `~/.config/gigishell/gpu-perfil`, un fichero local de una línea que **no se
 versiona** (la elección de máquina es estado local, como manda
 [`anadir-perfiles-por-equipo.md`](anadir-perfiles-por-equipo.md)):
 
 ```sh
-echo sobremesa-nvidia > ~/.config/gigios/gpu-perfil
+echo sobremesa-nvidia > ~/.config/gigishell/gpu-perfil
 ```
 
 Normalmente no tendrás que escribirlo: el instalador lo hace por ti en el paso `gpu`
@@ -610,7 +610,7 @@ exista, así que tu elección manual gana siempre. Sin fichero (o con un nombre 
 exista) no se aplica ninguno y sale un aviso en pantalla, pero el compositor arranca
 igual: el primer arranque es portable.
 
-`gigios/env-firefox.lua` solo activa Wayland/EGL y no fuerza un driver VA-API ni desactiva el
+`gigishell/env-firefox.lua` solo activa Wayland/EGL y no fuerza un driver VA-API ni desactiva el
 sandbox multimedia. Los ajustes exclusivos de NVIDIA están aislados en el perfil de
 sobremesa. Las preferencias internas se gestionan por separado con
 `bin/firefox-profile.sh`, que enlaza el `user.js` compuesto al perfil
@@ -627,16 +627,16 @@ sudo pacman -S libva-nvidia-driver
 
 Estas no son paquetes, son configuración/datos ligados al hardware o cuenta actuales:
 
-- **`gigios/monitores.lua`** usa actualmente el fallback genérico
+- **`gigishell/monitores.lua`** usa actualmente el fallback genérico
   (`monitor = , preferred, auto, 1`), adecuado para el monitor 2560×1440 de 27 pulgadas.
   Después puedes ajustar resolución, frecuencia, posición o escala desde AGS; usa
   `hyprctl monitors` para comprobar el descriptor y los valores aplicados.
-- **Foto de perfil**: opcional y personal. Vive en `~/.local/share/gigios/face.png` (fuera del
+- **Foto de perfil**: opcional y personal. Vive en `~/.local/share/gigishell/face.png` (fuera del
   repo, nunca versionada para no publicar una foto tuya) y la leen tanto `hyprlock` como el
   avatar de AGS. Se pone desde Ajustes > Cuenta. Sin foto, AGS muestra las iniciales.
 - **`~/GiGiShell/Wallpapers/`** viaja con este repositorio y contiene los fondos que usa
   `wallpaper.sh`.
-- Los JSON en `~/.config/gigios/` (`display.json`, `system_state.json`,
+- Los JSON en `~/.config/gigishell/` (`display.json`, `system_state.json`,
   `preferences.json`, `notif-*.json`, etc.) sí son datos de usuario y sí conviene copiarlos
   si quieres el mismo estado (brillo, night light, reglas de notificación...) en el PC
   nuevo — son runtime data, no forman parte del código.
@@ -655,7 +655,7 @@ Ejecuta esto en la máquina origen antes del push:
 cd ~/Github-Repos/gigi-shell
 git status --short
 GiGiShell/bin/preflight.sh
-GIGIOS="$PWD/GiGiShell" GiGiShell/bin/link.sh --check
+GIGISHELL="$PWD/GiGiShell" GiGiShell/bin/link.sh --check
 bash -n GiGiShell/install.sh GiGiShell/inicializador/init.sh GiGiShell/hypr/scripts/*.sh
 bin/verify-files.sh
 ```
@@ -670,7 +670,7 @@ dotfiles ls-files GiGiShell/ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx \
 
 La primera orden no debe mostrar cambios pendientes antes de probar la URL pública; la
 segunda debe imprimir los tres archivos. El workflow debe vivir en
-`.github/workflows/gigios-validate.yml` en la **raíz del repositorio**, no dentro de
+`.github/workflows/gigishell-validate.yml` en la **raíz del repositorio**, no dentro de
 `GiGiShell/.github/`. Después de hacer commit y push, verifica que la acción de GitHub pase
 en la rama `laptop`.
 
@@ -710,9 +710,9 @@ La instalación completa está al principio de esta guía. Como lista de comprob
 3. Corre `spotify-auth.sh` una vez (§7) para regenerar las credenciales.
 4. Corre
    `sudo freshclam` y `sudo sensors-detect` cuando corresponda.
-5. Ajusta `gigios/monitores.lua`, el avatar opcional y los fondos si quieres personalizarlos.
+5. Ajusta `gigishell/monitores.lua`, el avatar opcional y los fondos si quieres personalizarlos.
 6. Restaura
-   `~/.config/gigios/` solo si quieres conservar el mismo estado y recarga Hyprland
+   `~/.config/gigishell/` solo si quieres conservar el mismo estado y recarga Hyprland
    (`hyprctl reload full-reset` o vuelve a iniciar sesión). `hyprctl reload` hace una recarga
    normal, pero no vuelve a ejecutar los `exec-once` del autostart. Comprueba con
    `ags run ~/.config/ags/app.ts` que el shell arranca sin errores.
@@ -720,7 +720,7 @@ La instalación completa está al principio de esta guía. Como lista de comprob
 
 ## 12. Cómo poner fondos de pantalla (`~/GiGiShell/Wallpapers`)
 
-El wallpaper lo gestiona `awww` (daemon `awww-daemon`, lanzado en `gigios/autostart.lua`) más
+El wallpaper lo gestiona `awww` (daemon `awww-daemon`, lanzado en `gigishell/autostart.lua`) más
 `hypr/scripts/wallpaper.sh`, que también se lanza una vez al arrancar la sesión.
 
 **Para tener fondos disponibles:**
@@ -745,7 +745,7 @@ El wallpaper lo gestiona `awww` (daemon `awww-daemon`, lanzado en `gigios/autost
 awww img ~/GiGiShell/Wallpapers/mi-foto-favorita.png --transition-type grow --transition-duration 1.5
 ```
 
-No hay atajo de teclado asignado para esto en `gigios/keybinds.lua` — si quieres uno, se añadiría
+No hay atajo de teclado asignado para esto en `gigishell/keybinds.lua` — si quieres uno, se añadiría
 algo como `bind = $mainMod, W, exec, ~/.config/hypr/scripts/wallpaper.sh` (no está puesto
 actualmente, solo como referencia si lo quieres tú mismo).
 
@@ -753,7 +753,7 @@ actualmente, solo como referencia si lo quieres tú mismo).
 aplicar uno, botón de aleatorio, y el toggle de "fondo aleatorio al iniciar Hyprland". Copiar
 o borrar un fondo en `~/GiGiShell/Wallpapers` se refleja ahí **sin reiniciar AGS** (la carpeta se
 vigila con un `Gio.FileMonitor`), y su miniatura se genera y cachea sola. Ver la sección 5
-para la dependencia `imagemagick` y la caché de `~/.cache/gigios/wp-thumbs/`; borrarla entera
+para la dependencia `imagemagick` y la caché de `~/.cache/gigishell/wp-thumbs/`; borrarla entera
 no rompe nada, se regenera.
 
 Los fondos están dentro de GiGiShell, por lo que viajan con un clon completo del repositorio.
@@ -761,7 +761,7 @@ Los fondos están dentro de GiGiShell, por lo que viajan con un clon completo de
 ## 13. Cómo poner tu foto de perfil
 
 La foto de perfil es opcional y privada. Vive en **una sola ruta**,
-`~/.local/share/gigios/face.png`, fuera del repo y sin versionar: no viaja a otro PC.
+`~/.local/share/gigishell/face.png`, fuera del repo y sin versionar: no viaja a otro PC.
 La forma normal de ponerla es **Ajustes > Cuenta**, que **no copia el original tal cual**:
 lo endereza por su orientación EXIF, lo recorta al cuadrado centrado más grande que quepa y
 lo reduce a 512x512 PNG (`ags/modulos/ajustes/cuenta/avatar.ts`). Los tres sitios donde se ve
@@ -777,15 +777,15 @@ si todavía la tienes ahí; no crea ni gestiona la foto.
 La leen dos sitios, y ninguno se rompe si el archivo no existe:
 
 1. **Pantalla de bloqueo (`hyprlock`)** — `hyprlock.conf`, bloque `image` con
-   `path = ~/.local/share/gigios/face.png`. Sin archivo, omite el avatar.
+   `path = ~/.local/share/gigishell/face.png`. Sin archivo, omite el avatar.
 2. **AGS** — `modulos/ajustes/cuenta/avatar.ts` exporta `AVATAR_PATH`, que consumen
    `ProfileAvatar.tsx` (el avatar) y `cuenta/SeccionCuenta.tsx` (el selector). Sin archivo,
    AGS cae a mostrar las iniciales del usuario.
 
 Para cambiarla desde una terminal, en vez de por Ajustes:
 ```sh
-mkdir -p ~/.local/share/gigios
-cp /ruta/a/tu/foto.png ~/.local/share/gigios/face.png
+mkdir -p ~/.local/share/gigishell
+cp /ruta/a/tu/foto.png ~/.local/share/gigishell/face.png
 ```
 Por esta vía **no hay recorte ni reducción**: la copia queda tal cual, y si no es cuadrada cada
 consumidor la encuadra a su manera. Para el tratamiento, pásala por Ajustes > Cuenta.
@@ -801,34 +801,34 @@ migrar y qué se regenera solo.
 
 | Ruta | Qué guarda |
 |---|---|
-| `~/.config/gigios/display.json` | brillo, night light (activo/temperatura) |
-| `~/.config/gigios/system_state.json` | estado guardado de wifi/bluetooth/volumen/mute |
-| `~/.config/gigios/audioPresets.json` | presets de audio de QuickSettings |
+| `~/.config/gigishell/display.json` | brillo, night light (activo/temperatura) |
+| `~/.config/gigishell/system_state.json` | estado guardado de wifi/bluetooth/volumen/mute |
+| `~/.config/gigishell/audioPresets.json` | presets de audio de QuickSettings |
 | `~/GiGiShell/ags/config/app_icons.json` | mapa versionado clase → glifo Nerd Font para los workspaces |
-| `~/.config/gigios/preferences.json` | preferencias de "Personalización" (p.ej. preview de workspace) |
-| `~/.config/gigios/notifications.json` | config de notificaciones |
-| `~/.config/gigios/notif-rules.json` | reglas del motor de notificaciones |
-| `~/.config/gigios/notif-history.json` | historial de notificaciones |
-| `~/.config/gigios/notif-cleanup-state.json` | estado del motor de limpieza de notifs |
-| `~/.config/gigios/notif-migrated.json` | marca de migración ya aplicada (evita re-migrar) |
-| `~/.config/gigios/security.json` | interruptores del monitor de seguridad; se leen al iniciar `oom-monitor.sh` |
-| `~/.config/gigios/calendario.json` | tus eventos del panel de calendario (antes `~/.config/ags/calendar-events.json`, que caía **dentro** del repo; AGS lo migra solo la primera vez y borra el original) |
-| `~/.config/gigios/reloj.json` | tus alarmas (el temporizador y el cronómetro son de sesión y no se guardan) |
-| `~/.config/gigios/google-calendar-creds.json` | credenciales de Google Calendar en texto plano (chmod 600, git-ignored); regenerar con `ags/scripts/google-calendar-auth.sh` |
-| `~/.config/gigios/google-calendar-sync.json` | tokens incrementales de Google; borrarlo solo cuesta una sincronización completa |
+| `~/.config/gigishell/preferences.json` | preferencias de "Personalización" (p.ej. preview de workspace) |
+| `~/.config/gigishell/notifications.json` | config de notificaciones |
+| `~/.config/gigishell/notif-rules.json` | reglas del motor de notificaciones |
+| `~/.config/gigishell/notif-history.json` | historial de notificaciones |
+| `~/.config/gigishell/notif-cleanup-state.json` | estado del motor de limpieza de notifs |
+| `~/.config/gigishell/notif-migrated.json` | marca de migración ya aplicada (evita re-migrar) |
+| `~/.config/gigishell/security.json` | interruptores del monitor de seguridad; se leen al iniciar `oom-monitor.sh` |
+| `~/.config/gigishell/calendario.json` | tus eventos del panel de calendario (antes `~/.config/ags/calendar-events.json`, que caía **dentro** del repo; AGS lo migra solo la primera vez y borra el original) |
+| `~/.config/gigishell/reloj.json` | tus alarmas (el temporizador y el cronómetro son de sesión y no se guardan) |
+| `~/.config/gigishell/google-calendar-creds.json` | credenciales de Google Calendar en texto plano (chmod 600, git-ignored); regenerar con `ags/scripts/google-calendar-auth.sh` |
+| `~/.config/gigishell/google-calendar-sync.json` | tokens incrementales de Google; borrarlo solo cuesta una sincronización completa |
 | `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion (nota: `CLAUDE.md` dice que los perfiles de Orion viven en `~/.local/share/jarvis/profiles/` — **es un error**, el código real usa `~/.local/share/orion/`) |
 | `~/.local/share/orion/profiles/*.json` | sesiones guardadas de Orion (`ProfileManager.ts`) |
 | `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `servicios/energia/powerState.ts`) |
-| `~/.local/share/gigios/face.png` | foto privada opcional, fuera del repo; se pone desde Ajustes > Cuenta (§13) |
+| `~/.local/share/gigishell/face.png` | foto privada opcional, fuera del repo; se pone desde Ajustes > Cuenta (§13) |
 | `~/GiGiShell/Wallpapers/*.jpg` / `*.png` | tus fondos de pantalla (§12) |
 | `~/GiGiShell/audio/*.oga` | sonidos de alarmas y notificaciones; sustituir un fichero por otro del mismo nombre cambia el sonido de todo el sistema (ver `audio/README.md`) |
-| `~/.config/gigios/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
+| `~/.config/gigishell/spotify-creds.json` | credenciales de Spotify en texto plano (chmod 600, git-ignored — ver §7); regenerar con `spotify-auth.sh` |
 
 ### 14.2 Config/código del dotfiles — genérico, viaja igual para cualquiera que use este setup
 
 Todo lo demás dentro de `~/.config/hypr/*.conf`, `~/.config/hypr/scripts/`,
 `~/.config/hypr/envs/`, y todo `~/.config/ags/`: `app.ts`, `modulos/**`, `componentes/**`, `estado/**`, `servicios/**`, `utilidades/**`, `estilos/style.scss`
-(→ `estilos/out.css` generado, no se edita a mano; su `.map` de depuración se genera fuera del repo, en `~/.cache/gigios/`).
+(→ `estilos/out.css` generado, no se edita a mano; su `.map` de depuración se genera fuera del repo, en `~/.cache/gigishell/`).
 
 ### 14.3 Fuera de `hypr/` y `ags/`, pero incluidos en este repositorio
 
@@ -837,8 +837,8 @@ directorios que sueles copiar**:
 
 | Ruta | Por qué importa |
 |---|---|
-| `~/.config/hypr/gigios/keybinds.lua` | compactar workspaces (`SUPER+SHIFT+N`) y alternar gaps (`SUPER+SHIFT+E`) son hoy `GiGiShell.compactar()` y `GiGiShell.toggle_gaps()` **dentro del config Lua**; los `compact-workspaces.sh` / `toggle-gaps-borders.sh` de esta tabla desaparecieron en la migración a Lua |
-| `~/.config/inicializador/init.sh` | lo lanza `gigios/autostart.lua`; está versionado en `GiGiShell/inicializador/` y `GiGiShell/bin/link.sh` crea el enlace |
+| `~/.config/hypr/gigishell/keybinds.lua` | compactar workspaces (`SUPER+SHIFT+N`) y alternar gaps (`SUPER+SHIFT+E`) son hoy `GiGiShell.compactar()` y `GiGiShell.toggle_gaps()` **dentro del config Lua**; los `compact-workspaces.sh` / `toggle-gaps-borders.sh` de esta tabla desaparecieron en la migración a Lua |
+| `~/.config/inicializador/init.sh` | lo lanza `gigishell/autostart.lua`; está versionado en `GiGiShell/inicializador/` y `GiGiShell/bin/link.sh` crea el enlace |
 | `~/.local/share/fonts/SF Pro Display/*.otf` | fuente del lock screen, no empaquetada (§3) |
 | `~/.local/share/fonts/steelfish outline regular/*.otf` | fuente del lock screen, no empaquetada (§3) |
 
@@ -849,6 +849,6 @@ Las fuentes manuales son las únicas entradas de esta tabla que hay que copiar p
 | Ruta | Para qué es |
 |---|---|
 | `/tmp/ags-ws-preview-*.png` | capturas de `grim` para el preview de workspace al clic-derecho |
-| `$XDG_RUNTIME_DIR/gigios-gaps-disabled` | marca si el toggle está en modo "sin gaps" |
+| `$XDG_RUNTIME_DIR/gigishell-gaps-disabled` | marca si el toggle está en modo "sin gaps" |
 | `~/.cache/ags/media` | carátulas de álbum cacheadas por el reproductor multimedia |
 | `~/.config/hypr/logs/boot-healthcheck.log` | log propio; rota solo y no es necesario para funcionar |

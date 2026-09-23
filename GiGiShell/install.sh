@@ -106,7 +106,7 @@ declare -A DESC_PASO=(
   [sistema]="ficheros de /etc: udev USB, i2c-dev, botón de encendido, helpers TLP/ClamAV/limpieza/cámara"
   [hibernacion]="habilitar la hibernación: swapfile persistente, resume= en el kernel y VRAM de NVIDIA"
   [sddm]="configurar SDDM y activarlo como gestor de sesión (display-manager.service)"
-  [gpu]="elegir el perfil de GPU de esta máquina (~/.config/gigios/gpu-perfil)"
+  [gpu]="elegir el perfil de GPU de esta máquina (~/.config/gigishell/gpu-perfil)"
   [clamav-db]="descarga de la base de firmas de ClamAV (~200 MB)"
   [gestos]="entorno del modo gestos por cámara (venv con MediaPipe + modelo de manos, ~200 MB)"
   [cursor]="generar la mitad hyprcursor del tema de puntero"
@@ -392,7 +392,7 @@ instalar_sudoers() {
   local plantilla="$1" destino="$2" aviso="$3" tmp
   [[ -r "$plantilla" ]] || { warn "Falta la plantilla sudoers $plantilla; $aviso"; return 1; }
   tmp="$(mktemp)" || { warn "No pude crear un fichero temporal para $destino; $aviso"; return 1; }
-  if ! sed "s/__GIGIOS_USER__/$(id -un)/" "$plantilla" > "$tmp"; then
+  if ! sed "s/__GIGISHELL_USER__/$(id -un)/" "$plantilla" > "$tmp"; then
     rm -f "$tmp"
     warn "No pude preparar la regla sudoers $destino; $aviso"
     return 1
@@ -600,7 +600,7 @@ install_packages() {
     # 'Bibata-Modern-Ice' … elige otro con --list") mandaba a cambiar de tema cuando
     # ningún tema iba a funcionar. Aquí la única cura es declararlo.
     hyprcursor xcur2png
-    # xorg-xwayland: hypr/gigios/reglas.lua tiene reglas específicas para ventanas
+    # xorg-xwayland: hypr/gigishell/reglas.lua tiene reglas específicas para ventanas
     # XWayland (el arreglo de arrastres) y monitores.lua configura su escalado. Hyprland
     # solo lo recomienda, no lo requiere: sin él las apps X11 (Steam, juegos, instaladores)
     # no abren y el fallo aparece como "la app no arranca", no como una dependencia ausente.
@@ -724,8 +724,8 @@ install_packages() {
   # laptop-hibrida NO entra aunque lleve una NVIDIA: ese perfil deja el vídeo en la
   # Intel a propósito y no toca LIBVA_DRIVER_NAME.
   perfil_gpu_efectivo=""
-  if [[ -s "$HOME/.config/gigios/gpu-perfil" ]]; then
-    perfil_gpu_efectivo="$(tr -d '[:space:]' < "$HOME/.config/gigios/gpu-perfil")"
+  if [[ -s "$HOME/.config/gigishell/gpu-perfil" ]]; then
+    perfil_gpu_efectivo="$(tr -d '[:space:]' < "$HOME/.config/gigishell/gpu-perfil")"
   else
     perfil_gpu_efectivo="$(detectar_perfil_gpu 2>/dev/null || true)"
   fi
@@ -970,7 +970,7 @@ if paso_activo repo; then
   if dotfiles rev-parse --verify --quiet "refs/heads/$BRANCH" >/dev/null; then
     commits_locales="$(dotfiles rev-list --count "origin/$BRANCH..$BRANCH" 2>/dev/null || echo 0)"
     if [[ "$commits_locales" != 0 ]]; then
-      rescate="gigios-preinstall-$(date +%Y%m%d-%H%M%S)"
+      rescate="gigishell-preinstall-$(date +%Y%m%d-%H%M%S)"
       dotfiles tag "$rescate" "$BRANCH" >/dev/null 2>&1 || true
       warn "La rama local '$BRANCH' tiene $commits_locales commit(s) que no están en origin."
       dotfiles log --oneline "origin/$BRANCH..$BRANCH" 2>/dev/null | sed 's/^/    /' >&2 || true
@@ -1059,8 +1059,8 @@ if paso_activo sistema; then
     # precalentado y el primer `sudo install` abriría un prompt de contraseña en mitad del
     # paso. Es idempotente: si ya hay credencial válida, no hace nada.
     sudo_prime
-    if sudo install -Dm644 "$SYSTEM_DIR/udev/99-gigios-usb-writeback.rules" \
-         /etc/udev/rules.d/99-gigios-usb-writeback.rules; then
+    if sudo install -Dm644 "$SYSTEM_DIR/udev/99-gigishell-usb-writeback.rules" \
+         /etc/udev/rules.d/99-gigishell-usb-writeback.rules; then
       sudo udevadm control --reload-rules \
         || warn "No pude recargar udev; la regla de USB se aplicará al reiniciar."
     else
@@ -1078,8 +1078,8 @@ if paso_activo sistema; then
     # (HandlePowerKey=poweroff de fábrica), a nivel de asiento y sin pasar por el
     # compositor, así que el bind se ejecuta pero el apagado de logind lo tapa y la
     # acción elegida en Ajustes > Energía no se nota nunca (fallo mudo).
-    if sudo install -Dm644 "$SYSTEM_DIR/logind.conf.d/99-gigios-powerkey.conf" \
-         /etc/systemd/logind.conf.d/99-gigios-powerkey.conf; then
+    if sudo install -Dm644 "$SYSTEM_DIR/logind.conf.d/99-gigishell-powerkey.conf" \
+         /etc/systemd/logind.conf.d/99-gigishell-powerkey.conf; then
       # `reload` y no `restart`: reiniciar logind puede llevarse la sesión por delante.
       sudo systemctl reload systemd-logind \
         || warn "No pude recargar systemd-logind; el botón de encendido usará la acción de logind hasta reiniciar."
@@ -1088,15 +1088,15 @@ if paso_activo sistema; then
     fi
     # TLP: perfiles conmutables Normal/Ahorro. Solo si TLP está instalado (en un
     # equipo sin TLP la función queda oculta en Ajustes > Energía). Todo lo que toca
-    # root es root-owned: helper en /usr/local/bin, perfiles en /etc/gigios/tlp, y la
+    # root es root-owned: helper en /usr/local/bin, perfiles en /etc/gigishell/tlp, y la
     # regla sudoers acotada al comando exacto. NO se toca /etc/tlp.conf aquí: eso lo
     # hace el helper cuando el usuario elige un perfil.
     if command -v tlp >/dev/null 2>&1; then
-      sudo install -Dm755 "$SYSTEM_DIR/tlp/gigios-tlp-apply.sh" /usr/local/bin/gigios-tlp-apply \
-        && sudo install -Dm644 "$SYSTEM_DIR/tlp/normal.conf" /etc/gigios/tlp/normal.conf \
-        && sudo install -Dm644 "$SYSTEM_DIR/tlp/ahorro.conf" /etc/gigios/tlp/ahorro.conf \
+      sudo install -Dm755 "$SYSTEM_DIR/tlp/gigishell-tlp-apply.sh" /usr/local/bin/gigishell-tlp-apply \
+        && sudo install -Dm644 "$SYSTEM_DIR/tlp/normal.conf" /etc/gigishell/tlp/normal.conf \
+        && sudo install -Dm644 "$SYSTEM_DIR/tlp/ahorro.conf" /etc/gigishell/tlp/ahorro.conf \
         || warn "No pude instalar los perfiles TLP de GiGiShell."
-      instalar_sudoers "$SYSTEM_DIR/tlp/sudoers-gigios-tlp" /etc/sudoers.d/gigios-tlp \
+      instalar_sudoers "$SYSTEM_DIR/tlp/sudoers-gigishell-tlp" /etc/sudoers.d/gigishell-tlp \
         "el cambio de perfil de energía pedirá contraseña."
     else
       info "TLP no está instalado; omito los perfiles conmutables de energía (se activarán al instalar 'tlp')."
@@ -1106,18 +1106,18 @@ if paso_activo sistema; then
     # porque los nodos /dev/video* son de root:video y quien decide sus permisos es udev. Sin
     # esto el interruptor no se pinta; el resto de la sección de cámara (controles, vista previa,
     # detector de uso) funciona igual, que por eso no va condicionado a ningún paquete.
-    sudo install -Dm755 "$SYSTEM_DIR/camara/gigios-camara.sh" /usr/local/bin/gigios-camara \
+    sudo install -Dm755 "$SYSTEM_DIR/camara/gigishell-camara.sh" /usr/local/bin/gigishell-camara \
       || warn "No pude instalar el helper de cámara; el interruptor de bloqueo no aparecerá."
-    instalar_sudoers "$SYSTEM_DIR/camara/sudoers-gigios-camara" /etc/sudoers.d/gigios-camara \
+    instalar_sudoers "$SYSTEM_DIR/camara/sudoers-gigishell-camara" /etc/sudoers.d/gigishell-camara \
       "bloquear la cámara pedirá contraseña."
     # ClamAV: botón "Actualizar firmas" de Ajustes > Seguridad > Antivirus. Mismo esquema que TLP
     # (helper root-owned + regla sudoers acotada al comando exacto) porque /var/lib/clamav es de
     # `clamav` y habilitar el servicio de actualización es de root. Sin esto el botón no se pinta;
     # la actualización sigue pudiendo hacerse a mano con `sudo freshclam`.
     if command -v freshclam >/dev/null 2>&1; then
-      sudo install -Dm755 "$SYSTEM_DIR/clamav/gigios-clamav-update.sh" /usr/local/bin/gigios-clamav-update \
+      sudo install -Dm755 "$SYSTEM_DIR/clamav/gigishell-clamav-update.sh" /usr/local/bin/gigishell-clamav-update \
         || warn "No pude instalar el helper de ClamAV; el botón de firmas no aparecerá en Ajustes."
-      instalar_sudoers "$SYSTEM_DIR/clamav/sudoers-gigios-clamav" /etc/sudoers.d/gigios-clamav \
+      instalar_sudoers "$SYSTEM_DIR/clamav/sudoers-gigishell-clamav" /etc/sudoers.d/gigishell-clamav \
         "actualizar las firmas pedirá contraseña."
       # Sin firmas el escáner de descargas no puede analizar NADA, así que se descargan aquí, una
       # vez, de forma síncrona (tarda unos minutos y baja ~200 MB).
@@ -1146,7 +1146,7 @@ if paso_activo sistema; then
         # queda colgado sin que se vea el prompt. La credencial ya está caliente
         # (sudo_prime + keepalive); si no lo estuviera, falla rápido y se avisa.
         info "Descargando la base de firmas de ClamAV en segundo plano (~200 MB) ..."
-        sudo -n /usr/local/bin/gigios-clamav-update update >/dev/null 2>&1 &
+        sudo -n /usr/local/bin/gigishell-clamav-update update >/dev/null 2>&1 &
         CLAMAV_PID=$!
       fi
     else
@@ -1159,9 +1159,9 @@ if paso_activo sistema; then
     # /var/tmp, huérfanos); vaciar la caché entera y borrar instantáneas siguen pidiendo contraseña
     # por pkexec desde su botón. Sin esto, esas limpiezas salen como "falta el ayudante" en la UI y
     # el resto (todo lo que vive bajo $HOME) sigue funcionando.
-    sudo install -Dm755 "$SYSTEM_DIR/limpieza/gigios-limpieza.sh" /usr/local/bin/gigios-limpieza \
+    sudo install -Dm755 "$SYSTEM_DIR/limpieza/gigishell-limpieza.sh" /usr/local/bin/gigishell-limpieza \
       || warn "No pude instalar el helper de limpieza; las limpiezas de sistema pedirán instalarlo."
-    instalar_sudoers "$SYSTEM_DIR/limpieza/sudoers-gigios-limpieza" /etc/sudoers.d/gigios-limpieza \
+    instalar_sudoers "$SYSTEM_DIR/limpieza/sudoers-gigishell-limpieza" /etc/sudoers.d/gigishell-limpieza \
       "la autolimpieza quedará limitada a tu carpeta personal (sin caché de pacman ni journal)."
   else
     warn "Omito los ficheros de /etc (falta sudo o $SYSTEM_DIR). Brillo DDC/CI y escrituras a USB quedan sin configurar."
@@ -1187,12 +1187,12 @@ if paso_activo hibernacion; then
     # si la preparación del swap fallara: el retardo es un ajuste, y que el usuario pueda fijarlo
     # antes de que la máquina sepa hibernar no rompe nada (systemd lee HibernateDelaySec cuando
     # le toca). Al revés sí duele: swap listo y helper ausente = ajuste que no se puede tocar.
-    sudo install -Dm755 "$SYSTEM_DIR/hibernacion/gigios-hibernacion.sh" /usr/local/bin/gigios-hibernacion \
+    sudo install -Dm755 "$SYSTEM_DIR/hibernacion/gigishell-hibernacion.sh" /usr/local/bin/gigishell-hibernacion \
       || warn "No pude instalar el helper de hibernación; el tiempo de hibernación no se podrá cambiar desde Ajustes."
-    instalar_sudoers "$SYSTEM_DIR/hibernacion/sudoers-gigios-hibernacion" /etc/sudoers.d/gigios-hibernacion \
+    instalar_sudoers "$SYSTEM_DIR/hibernacion/sudoers-gigishell-hibernacion" /etc/sudoers.d/gigishell-hibernacion \
       "cambiar el tiempo de hibernación pedirá contraseña en cada pulsación (y el ajuste quedará inservible)."
     info "Preparando la hibernación (swapfile + resume= + NVIDIA). Esto tarda un rato ..."
-    if sudo bash "$SYSTEM_DIR/hibernacion/gigios-hibernacion-setup.sh"; then
+    if sudo bash "$SYSTEM_DIR/hibernacion/gigishell-hibernacion-setup.sh"; then
       HIBERNACION_LISTA=1
     else
       warn "No pude preparar la hibernación. El resto de la instalación sigue; revisa la salida de arriba."
@@ -1209,7 +1209,7 @@ if paso_activo sddm; then
   #
   # Son DOS cosas distintas y cada una falla en silencio por su lado:
   #
-  #   • La configuración (/etc/sddm.conf.d/zz-gigios.conf): autologin en Hyprland,
+  #   • La configuración (/etc/sddm.conf.d/zz-gigishell.conf): autologin en Hyprland,
   #     tema del saludador y rango de usuarios. Sin ella SDDM arranca igual, con su
   #     aspecto de fábrica y pidiendo contraseña — molesto, no roto.
   #
@@ -1224,18 +1224,21 @@ if paso_activo sddm; then
   # Igual que los ficheros de /etc del paso anterior, la config NO se symlinkea a
   # ~/GiGiShell: SDDM la lee como root y antes de que exista sesión de usuario, y apuntar
   # /etc a un directorio escribible por el usuario sería una escalada silenciosa. Se
-  # materializa desde la plantilla system/sddm/zz-gigios.conf.in sustituyendo los campos
+  # materializa desde la plantilla system/sddm/zz-gigishell.conf.in sustituyendo los campos
   # que son de cada máquina (usuario, sesión, tema, método de entrada).
   #
   # EL NOMBRE ES "zz-" A PROPÓSITO, no es un capricho: conf.d se lee en orden alfabético
   # y gana el último, y los dígitos van ANTES que las letras. El nombre anterior
   # (99-gigios.conf) quedaba por delante de los restos de HyDE (the_hyde_project.conf) y
   # los dejaba a ELLOS mandando, en silencio. Ver la cabecera de la plantilla.
-  SDDM_PLANTILLA="$GIGISHELL/system/sddm/zz-gigios.conf.in"
-  SDDM_DESTINO=/etc/sddm.conf.d/zz-gigios.conf
+  SDDM_PLANTILLA="$GIGISHELL/system/sddm/zz-gigishell.conf.in"
+  SDDM_DESTINO=/etc/sddm.conf.d/zz-gigishell.conf
   # Restos de instalaciones anteriores de GiGiShell con el nombre malo. No se deja: dos
   # ficheros nuestros con valores distintos es exactamente el enredo que cuesta una tarde.
   SDDM_DESTINO_VIEJO=/etc/sddm.conf.d/99-gigios.conf
+  # El drop-in de antes del renombrado del proyecto (GiGiOS -> GiGiShell). Se lee para
+  # conservar el autologin que el usuario tuviera y se retira igual que el anterior.
+  SDDM_DESTINO_GIGIOS=/etc/sddm.conf.d/zz-gigios.conf
 
   # Último valor no comentado de una clave en un .conf de SDDM. Vale para comprobar si
   # /etc/sddm.conf —que tiene MÁS precedencia que todo /etc/sddm.conf.d/, ver
@@ -1282,12 +1285,12 @@ if paso_activo sddm; then
     # --- El tema del saludador ---
     # Se INSTALA aquí, desde system/sddm/tema/ (variante jake_the_dog de
     # sddm-astronaut-theme; ver system/sddm/tema/README.md). Se COPIA a
-    # /usr/share/sddm/themes/gigios y no se symlinkea a ~/GiGiShell por la misma razón que
+    # /usr/share/sddm/themes/gigishell y no se symlinkea a ~/GiGiShell por la misma razón que
     # la configuración: el greeter corre como el usuario `sddm`, antes de que exista
     # ninguna sesión, y /home puede ni estar montado todavía (LUKS, disco aparte). Un
     # tema ilegible no da error — SDDM cae a su aspecto de fábrica y ya.
     SDDM_TEMA_ORIGEN="$GIGISHELL/system/sddm/tema"
-    SDDM_TEMA_DESTINO=/usr/share/sddm/themes/gigios
+    SDDM_TEMA_DESTINO=/usr/share/sddm/themes/gigishell
     if [ -r "$SDDM_TEMA_ORIGEN/metadata.desktop" ]; then
       info "Instalando el tema del saludador en $SDDM_TEMA_DESTINO ..."
       # --delete: si una actualización quita un fichero del tema, el de la copia vieja
@@ -1312,8 +1315,8 @@ if paso_activo sddm; then
       # instalada en el sistema, Qt sustituye por la fuente por defecto y el saludador se
       # ve distinto SIN dar ningún error — el fallo aparece como "el tema no quedó igual".
       if [ -d "$SDDM_TEMA_ORIGEN/Fonts" ]; then
-        if sudo install -d -m755 /usr/share/fonts/gigios \
-           && sudo install -m644 "$SDDM_TEMA_ORIGEN"/Fonts/* /usr/share/fonts/gigios/; then
+        if sudo install -d -m755 /usr/share/fonts/gigishell \
+           && sudo install -m644 "$SDDM_TEMA_ORIGEN"/Fonts/* /usr/share/fonts/gigishell/; then
           # fc-cache actualiza el índice de fontconfig. Sin él la fuente está en disco
           # pero fc-match no la encuentra hasta el siguiente arranque.
           # El `|| true` NO es decorativo: con `set -e` esta línea es la última del
@@ -1321,7 +1324,7 @@ if paso_activo sddm; then
           # abortaría el instalador entero por no poder refrescar una caché de fuentes.
           { command -v fc-cache >/dev/null 2>&1 && sudo fc-cache -f >/dev/null 2>&1; } || true
         else
-          warn "No pude instalar las fuentes del tema en /usr/share/fonts/gigios; el saludador usará otra tipografía."
+          warn "No pude instalar las fuentes del tema en /usr/share/fonts/gigishell; el saludador usará otra tipografía."
         fi
       fi
     else
@@ -1337,7 +1340,7 @@ if paso_activo sddm; then
     # no da error: SDDM cae a ese tema empotrado y el aspecto cambia sin más.
     SDDM_TEMA=""
     if [ -d "$SDDM_TEMA_DESTINO" ]; then
-      SDDM_TEMA=gigios
+      SDDM_TEMA=gigishell
     else
       info "El tema de GiGiShell no está en $SDDM_TEMA_DESTINO; el saludador usará el aspecto de fábrica."
     fi
@@ -1364,8 +1367,10 @@ if paso_activo sddm; then
     # arranque. Por eso, si SDDM_AUTOLOGIN no se pasó y ya existe nuestro fichero, manda
     # lo que el fichero diga; la variable sigue ganando siempre que se escriba.
     _sddm_quiere_autologin=$SDDM_AUTOLOGIN
-    if ((!SDDM_AUTOLOGIN_EXPLICITO)) && [ -r "$SDDM_DESTINO" ]; then
-      if [ -n "$(sddm_valor "$SDDM_DESTINO" User)" ]; then _sddm_quiere_autologin=1; else _sddm_quiere_autologin=0; fi
+    _sddm_previo="$SDDM_DESTINO"
+    [ -r "$_sddm_previo" ] || _sddm_previo="$SDDM_DESTINO_GIGIOS"
+    if ((!SDDM_AUTOLOGIN_EXPLICITO)) && [ -r "$_sddm_previo" ]; then
+      if [ -n "$(sddm_valor "$_sddm_previo" User)" ]; then _sddm_quiere_autologin=1; else _sddm_quiere_autologin=0; fi
       ((_sddm_quiere_autologin == SDDM_AUTOLOGIN)) \
         || info "Conservo el inicio automático como estaba ($( ((_sddm_quiere_autologin)) && echo activado || echo desactivado )); pásame SDDM_AUTOLOGIN=$SDDM_AUTOLOGIN para forzarlo."
     fi
@@ -1377,18 +1382,19 @@ if paso_activo sddm; then
     fi
 
     if _sddm_tmp="$(mktemp)"; then
-      if sed -e "s/__GIGIOS_USER__/$SDDM_USUARIO/" \
-             -e "s/__GIGIOS_SESSION__/$SDDM_SESION/" \
-             -e "s/__GIGIOS_INPUTMETHOD__/$SDDM_INPUTMETHOD/" \
-             -e "s/__GIGIOS_THEME__/$SDDM_TEMA/" \
+      if sed -e "s/__GIGISHELL_USER__/$SDDM_USUARIO/" \
+             -e "s/__GIGISHELL_SESSION__/$SDDM_SESION/" \
+             -e "s/__GIGISHELL_INPUTMETHOD__/$SDDM_INPUTMETHOD/" \
+             -e "s/__GIGISHELL_THEME__/$SDDM_TEMA/" \
              "$SDDM_PLANTILLA" > "$_sddm_tmp" \
          && sudo install -Dm644 "$_sddm_tmp" "$SDDM_DESTINO"; then
         info "Escrito $SDDM_DESTINO (autologin: ${SDDM_USUARIO:-no}, tema: ${SDDM_TEMA:-por defecto})."
         # Sólo se borra el viejo DESPUÉS de que el nuevo esté en su sitio.
-        if [ -e "$SDDM_DESTINO_VIEJO" ]; then
-          sudo rm -f "$SDDM_DESTINO_VIEJO" \
-            && info "Retirado $SDDM_DESTINO_VIEJO (nombre antiguo, lo pisaba the_hyde_project.conf)."
-        fi
+        for _sddm_viejo in "$SDDM_DESTINO_VIEJO" "$SDDM_DESTINO_GIGIOS"; do
+          if [ -e "$_sddm_viejo" ]; then
+            sudo rm -f "$_sddm_viejo" && info "Retirado $_sddm_viejo (nombre antiguo)."
+          fi
+        done
         # /etc/sddm.conf gana sobre TODO el directorio conf.d pese a lo que sugiere el
         # nombre. Si trae una de nuestras claves con otro valor, lo que acabamos de
         # escribir no se aplica y no hay forma de notarlo mirando el fichero correcto.
@@ -1463,7 +1469,7 @@ if paso_activo gestos; then
   # fallo mudo —`gestos.sh` avisa con el motivo y Ajustes lo enseña— pero la solución es
   # rehacerlo: `bash install.sh --solo gestos`. Por eso el paso BORRA un venv roto en vez
   # de intentar repararlo.
-  GESTOS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/gigios/gestos"
+  GESTOS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/gigishell/gestos"
   GESTOS_MODELO="$GESTOS_DIR/hand_landmarker.task"
   GESTOS_VENV="$GESTOS_DIR/venv"
   # URL oficial de Google para el modelo del Hand Landmarker (variante float16, la que
@@ -1579,7 +1585,7 @@ if paso_activo vscode; then
   # --- 6b. Fijar el almacén de secretos de VS Code ---
   # VS Code lo instala el paso `paquetes` (official+=(code)), pero NADIE en esta sesión
   # ofrece el Secret Service `org.freedesktop.secrets`: KWallet/ksecretd está retirado a
-  # propósito (hypr/gigios/autostart.lua) y gnome-keyring no se instala. Sin esto, toda
+  # propósito (hypr/gigishell/autostart.lua) y gnome-keyring no se instala. Sin esto, toda
   # instalación limpia recibe un cartel modal pidiendo el llavero del sistema en CADA
   # arranque de VS Code. El porqué del compromiso, en la cabecera del script.
   VSCODE_CONFIGURATOR="$GIGISHELL/bin/configurar-vscode.sh"
@@ -1650,8 +1656,8 @@ fi
 
 if paso_activo gpu; then
   # --- 10. Perfil de GPU de esta máquina ---
-  # Sin este fichero, gigios/gpu.lua avisa EN PANTALLA EN CADA INICIO DE SESIÓN («sin
-  # perfil de GPU: escribe uno en ~/.config/gigios/gpu-perfil»). Era el único paso de
+  # Sin este fichero, gigishell/gpu.lua avisa EN PANTALLA EN CADA INICIO DE SESIÓN («sin
+  # perfil de GPU: escribe uno en ~/.config/gigishell/gpu-perfil»). Era el único paso de
   # docs/SETUP.md que quedaba pendiente después del instalador, y como el escritorio
   # arranca igual, lo normal era no hacerlo nunca y convivir con el aviso.
   #
@@ -1661,7 +1667,7 @@ if paso_activo gpu; then
   #
   # La detección (detectar_perfil_gpu) está definida arriba, junto a tiene_bateria:
   # el paso `paquetes` la necesita antes que este para decidir el driver VA-API.
-  GPU_PERFIL="$HOME/.config/gigios/gpu-perfil"
+  GPU_PERFIL="$HOME/.config/gigishell/gpu-perfil"
   if [[ -s "$GPU_PERFIL" ]]; then
     info "Perfil de GPU ya elegido ($(tr -d '[:space:]' < "$GPU_PERFIL")); no lo toco."
   elif perfil_gpu="$(detectar_perfil_gpu)"; then
@@ -1687,7 +1693,7 @@ if paso_activo cursor; then
   # dibujando OTRO tema. Esto le añade esa mitad a $CURSOR_THEME, dejando un único
   # nombre válido para las dos variables.
   #
-  # NO se elige el tema aquí: eso es `temaCursor` en ~/.config/gigios/devices.json,
+  # NO se elige el tema aquí: eso es `temaCursor` en ~/.config/gigishell/devices.json,
   # que escribe el usuario desde Ajustes > Dispositivos > Puntero. Generar el tema
   # es preparar el terreno; cambiarle el puntero a alguien que no lo ha pedido, no.
   CURSOR_GEN="$GIGISHELL/bin/generar-hyprcursor.sh"
@@ -1768,7 +1774,7 @@ if ! paso_activo preflight; then
   info "Omito la validación final."
 elif [ -x "$GIGISHELL/bin/preflight.sh" ]; then
   info "Validando la instalación ..."
-  HOME="$HOME" GIGIOS="$GIGISHELL" "$GIGISHELL/bin/preflight.sh" --installed \
+  HOME="$HOME" GIGISHELL="$GIGISHELL" "$GIGISHELL/bin/preflight.sh" --installed \
     || preflight_fallo=1
 else
   warn "No encontré bin/preflight.sh; no puedo validar la instalación."
@@ -1789,7 +1795,7 @@ fi
 echo "  • Rama:     $BRANCH"
 [ -d "$BACKUP" ] && echo "  • Backups:  $BACKUP"
 cat <<'EOF'
-  • Secretos: ~/.config/gigios/spotify-creds.json y ~/.config/gigios/google-calendar-creds.json
+  • Secretos: ~/.config/gigishell/spotify-creds.json y ~/.config/gigishell/google-calendar-creds.json
               NO vienen en el repo (git-ignored). Restaura tus copias o corre
               ~/GiGiShell/ags/scripts/spotify-auth.sh y ~/GiGiShell/ags/scripts/google-calendar-auth.sh
 EOF
@@ -1827,7 +1833,7 @@ if paso_activo gpu; then
       "$(tr -d '[:space:]' < "$GPU_PERFIL")" "$GPU_PERFIL"
   else
     cat <<'EOF'
-  • GPU:      no se pudo elegir perfil. Escribe uno en ~/.config/gigios/gpu-perfil o
+  • GPU:      no se pudo elegir perfil. Escribe uno en ~/.config/gigishell/gpu-perfil o
               Hyprland avisará en cada inicio de sesión; ver docs/SETUP.md §9.
 EOF
   fi
@@ -1873,7 +1879,7 @@ if paso_activo hibernacion; then
   if [[ -n "${HIBERNACION_LISTA:-}" ]]; then
     cat <<'EOF'
   • Hibernar: hace falta REINICIAR. resume= entra por la línea de comandos del kernel y la de
-              la sesión actual ya está fijada, así que hasta el reinicio 'gigios-hibernacion
+              la sesión actual ya está fijada, así que hasta el reinicio 'gigishell-hibernacion
               estado' seguirá diciendo disponible=no y la fila de Ajustes saldrá apagada. Tras
               reiniciar, el tiempo se pone en Ajustes > Pantalla > Suspensión.
 EOF

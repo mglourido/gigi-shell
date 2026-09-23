@@ -34,7 +34,7 @@ import {
   type FondoShell,
 } from "../personalizacion/fondoShell"
 
-const PREFS_PATH = `${GLib.get_user_config_dir()}/gigios/preferences.json`
+const PREFS_PATH = `${GLib.get_user_config_dir()}/gigishell/preferences.json`
 
 // ── Estado reactivo ───────────────────────────────────────────────────────────
 // Preview de workspace: captura con grim al cambiar de workspace + popover al
@@ -244,7 +244,7 @@ const [clipboardHistoryEnabled, _setClipboardHistoryEnabled] = createState(true)
 export { clipboardHistoryEnabled }
 
 // Limpieza del portapapeles al comenzar la sesión de Hyprland. La consume el
-// script limpiar-portapapeles.sh desde gigios/autostart.lua. Default: desactivada.
+// script limpiar-portapapeles.sh desde gigishell/autostart.lua. Default: desactivada.
 const [limpiezaPortapapelesAlIniciar, _setLimpiezaPortapapelesAlIniciar] = createState(false)
 export { limpiezaPortapapelesAlIniciar }
 
@@ -261,10 +261,10 @@ export { limpiezaPortapapelesAlIniciar }
 const [anclarVentanasRofi, _setAnclarVentanasRofi] = createState(true)
 export { anclarVentanasRofi }
 
-// Escáner de apps al iniciar sesión (gigios/escaner-apps.lua). Vigila 30 s
+// Escáner de apps al iniciar sesión (gigishell/escaner-apps.lua). Vigila 30 s
 // las ventanas que se abren solas (autostart, restauración de sesión) y al terminar
 // salta al escritorio donde hayan quedado. El script NO es un daemon: nace en
-// gigios/autostart.lua, mira y muere, así que lee esta clave una vez y el cambio se
+// gigishell/autostart.lua, mira y muere, así que lee esta clave una vez y el cambio se
 // aplica en la próxima sesión — no hace falta pkill ni re-exec.
 // Default: DESACTIVADO, porque mover el escritorio activo por su cuenta es
 // intrusivo y debe optarse a ello.
@@ -272,7 +272,7 @@ const [escanerAppsInicio, _setEscanerAppsInicio] = createState(false)
 export { escanerAppsInicio }
 
 // La SEGUNDA ventana de un escritorio nace al lado y no debajo
-// (hypr/gigios/reparto-ventanas.lua). Con una sola ventana en mosaico, el eje del
+// (hypr/gigishell/reparto-ventanas.lua). Con una sola ventana en mosaico, el eje del
 // corte lo decidía `dwindle:smart_split`, o sea el cuadrante donde tuvieras el
 // ratón: con el puntero abajo el escritorio salía partido en dos franjas
 // horizontales, distinto en cada arranque. Activado fuerza `preselect right`,
@@ -283,7 +283,7 @@ export { escanerAppsInicio }
 const [segundaVentanaAlLado, _setSegundaVentanaAlLado] = createState(true)
 export { segundaVentanaAlLado }
 
-// Absorber SUPER + tecla que no sea un atajo (hypr/gigios/nop-binds.lua). Hyprland
+// Absorber SUPER + tecla que no sea un atajo (hypr/gigishell/nop-binds.lua). Hyprland
 // solo se traga una tecla si algún bind la captura, así que sin esto SUPER+C
 // escribe una "c" en la aplicación; `catchall` no sirve porque el compositor
 // solo lo admite dentro de un submap. Bajo config Lua los binds sordos se
@@ -417,14 +417,14 @@ const [modoDaltonismo, _setModoDaltonismo] = createState<ModoDaltonismo>("ningun
 export { modoDaltonismo }
 
 // Acción del botón de encendido físico. Quien la ejecuta es
-// hypr/gigios/boton-apagado.lua (bindl sobre XF86PowerOff), que relee esta clave
+// hypr/gigishell/boton-apagado.lua (bindl sobre XF86PowerOff), que relee esta clave
 // en cada pulsación: no hay proceso al que relanzar, así que el setter solo
 // persiste. El valor de fábrica es "apagar", que es lo que hacía logind antes.
 const [botonApagado, _setBotonApagado] = createState<AccionBotonEncendido>(ACCION_BOTON_PREDETERMINADA)
 export { botonApagado }
 
 // Acción al cerrar la tapa del portátil. Mismo contrato que `botonApagado`: la
-// ejecuta hypr/gigios/tapa.lua (bind sobre `switch:on:Lid Switch`) releyendo esta
+// ejecuta hypr/gigishell/tapa.lua (bind sobre `switch:on:Lid Switch`) releyendo esta
 // clave en cada cierre, así que el setter solo persiste. El valor de fábrica es
 // "suspender", que es lo que hacía logind antes.
 const [accionTapa, _setAccionTapa] = createState<AccionTapa>(ACCION_TAPA_PREDETERMINADA)
@@ -684,7 +684,7 @@ export function setScreencastIndicatorEnabled(on: boolean) {
     execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/screencast-monitor.sh`]).catch(() => {})
   } else {
     execAsync(["pkill", "-f", "screencast-monitor.sh"]).catch(() => {})
-    try { Gio.File.new_for_path(`${GLib.get_user_config_dir()}/gigios/screencast.json`).delete(null) } catch (_) {}
+    try { Gio.File.new_for_path(`${GLib.get_user_config_dir()}/gigishell/screencast.json`).delete(null) } catch (_) {}
   }
 }
 export function setVolumeOsdEnabled(on: boolean) {
@@ -826,7 +826,7 @@ export function setEscanerAppsInicio(on: boolean) {
   _setEscanerAppsInicio(on)
   save()
 }
-// Se aplica en CALIENTE: gigios/nop-binds.lua relee esta preferencia y recalcula
+// Se aplica en CALIENTE: gigishell/nop-binds.lua relee esta preferencia y recalcula
 // los binds sordos en CADA recarga (enumerando los atajos ya registrados por los
 // módulos anteriores), así que basta con persistir y recargar — ya no hay
 // fichero generado ni script que regenerar, y los atajos nuevos de keybinds se
@@ -867,7 +867,7 @@ export function setUpdatesMonitorEnabled(on: boolean) {
     execAsync([`${GLib.get_user_config_dir()}/hypr/scripts/updates-monitor.sh`]).catch(() => {})
   } else {
     execAsync(["pkill", "-f", "updates-monitor.sh"]).catch(() => {})
-    try { Gio.File.new_for_path(`${GLib.get_user_config_dir()}/gigios/updates.json`).delete(null) } catch (_) {}
+    try { Gio.File.new_for_path(`${GLib.get_user_config_dir()}/gigishell/updates.json`).delete(null) } catch (_) {}
   }
 }
 export function setUpdatesPeriodicEnabled(on: boolean) {
@@ -910,7 +910,7 @@ export function setModoDaltonismo(modo: ModoDaltonismo) {
   if (modoDaltonismo.get() === siguiente) return
   _setModoDaltonismo(siguiente)
   save()
-  // GiGiShell.daltonismo la define gigios/daltonismo.lua en la config de Hyprland y
+  // GiGiShell.daltonismo la define gigishell/daltonismo.lua en la config de Hyprland y
   // es visible desde eval (comparte el estado Lua del config). El propio config
   // la re-ejecuta en cada recarga para restaurar el modo guardado; pasárselo aquí
   // evita releer el JSON en el camino interactivo. Mismos nombres de modo.
@@ -928,7 +928,7 @@ export function setBotonApagado(accion: AccionBotonEncendido) {
   save()
 }
 // Igual que setBotonApagado: sin recarga de Hyprland, porque el bind es fijo y
-// gigios/tapa.lua relee la preferencia en cada cierre de tapa.
+// gigishell/tapa.lua relee la preferencia en cada cierre de tapa.
 export function setAccionTapa(accion: AccionTapa) {
   const siguiente = normalizarAccionTapa(accion)
   if (accionTapa.get() === siguiente) return

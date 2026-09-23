@@ -2,7 +2,7 @@
 
 # ~/.config/inicializador/init.sh
 
-CONFIG_DIR="$HOME/.config/gigios"
+CONFIG_DIR="$HOME/.config/gigishell"
 DISPLAY_CONFIG="$CONFIG_DIR/display.json"
 STATE_CONFIG="$CONFIG_DIR/system_state.json"
 PREFS_CONFIG="$CONFIG_DIR/preferences.json"

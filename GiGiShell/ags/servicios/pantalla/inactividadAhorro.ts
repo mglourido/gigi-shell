@@ -12,7 +12,7 @@
 // durante el ahorro obliga a reescribir ESE fichero. El riesgo obvio —AGS muere en ahorro y
 // los tiempos cortos se quedan puestos para siempre, sin UI donde notarlo— se cubre con la
 // misma forma que `wakeup.json` y el apunte del brillo: los valores generales se apartan a
-// `~/.config/gigios/inactividad-normal.json` ANTES de pisarlos, y ese fichero es a la vez
+// `~/.config/gigishell/inactividad-normal.json` ANTES de pisarlos, y ese fichero es a la vez
 // el apunte y la señal de "hay un override puesto". Si existe al arrancar y el ahorro no
 // está activo, se restaura y se borra. Un override huérfano dura, como mucho, hasta el
 // siguiente arranque del shell.
@@ -40,7 +40,7 @@ import {
 } from "../energia/powerState"
 
 const ARCHIVO_HYPRIDLE = `${GLib.get_user_config_dir()}/hypr/hypridle.conf`
-const ARCHIVO_APUNTE = `${GLib.get_user_config_dir()}/gigios/inactividad-normal.json`
+const ARCHIVO_APUNTE = `${GLib.get_user_config_dir()}/gigishell/inactividad-normal.json`
 
 export type ValoresListener = Partial<Record<ListenerKind, { timeout: number; enabled: boolean }>>
 

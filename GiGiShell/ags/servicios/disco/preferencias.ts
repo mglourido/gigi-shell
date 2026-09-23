@@ -1,6 +1,6 @@
 // servicios/disco/preferencias.ts — configuración de la autolimpieza.
 //
-// Se persiste en su PROPIO fichero, `~/.config/gigios/almacenamiento.json`, y no en
+// Se persiste en su PROPIO fichero, `~/.config/gigishell/almacenamiento.json`, y no en
 // `preferences.json`, por la misma razón que `security.json`: **lo lee un script bash**
 // (`hypr/scripts/limpieza-arranque.sh` y `limpiar-almacenamiento.sh`, con `jq`). Un fichero
 // compartido con las preferencias del shell obligaría a esos scripts a conocer claves que no les
@@ -15,7 +15,7 @@ import { createState } from "ags"
 import { execAsync } from "ags/process"
 import { ACCIONES_AUTOMATIZABLES, type IdAccion } from "./catalogo"
 
-const RUTA = `${GLib.get_user_config_dir()}/gigios/almacenamiento.json`
+const RUTA = `${GLib.get_user_config_dir()}/gigishell/almacenamiento.json`
 const ARRANQUE = `${GLib.get_user_config_dir()}/hypr/scripts/limpieza-arranque.sh`
 const VERSION = 1
 

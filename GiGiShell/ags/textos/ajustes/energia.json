@@ -150,7 +150,7 @@
     "titulo": "Al pulsar el botón de encendido",
     "descripcion": "Se aplica a la pulsación corta del botón físico, también con la sesión bloqueada. La pulsación larga la sigue gestionando el firmware y siempre apaga el equipo.",
     "aviso": "El botón lo controla systemd-logind, así que apagará el equipo ignorando esta elección. Cédeselo a Hyprland con:",
-    "avisoComando": "sudo install -Dm644 ~/GiGiShell/system/logind.conf.d/99-gigios-powerkey.conf /etc/systemd/logind.conf.d/99-gigios-powerkey.conf && sudo systemctl reload systemd-logind",
+    "avisoComando": "sudo install -Dm644 ~/GiGiShell/system/logind.conf.d/99-gigishell-powerkey.conf /etc/systemd/logind.conf.d/99-gigishell-powerkey.conf && sudo systemctl reload systemd-logind",
     "opciones": {
       "apagar": "Apagar el equipo",
       "suspender": "Suspender",

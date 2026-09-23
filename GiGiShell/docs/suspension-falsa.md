@@ -45,7 +45,7 @@ añadir mecanismo nuevo, comprobar que no esté aquí.
 | Congelar el sondeo de fondo (updates, smartctl, unidades, clamscan) | `powerSaveFreeze` en `runtime-state.json` → `hypr/scripts/lib/gaming-gate.sh` |
 | Apagar cava, preview de escritorios (grim), mascota, píldora de Spotify | `spectrumSuspended`, `wsPreviewSuspended`, `mascotaSuspended`, `spotifyBarSuspended` (`servicios/energia/powerState.ts`) |
 | Opacar paneles y ventanas (mata blur y transparencias) | `transparenciaSuspendida`, `opacidadVentanasForzada` |
-| Cambiar el perfil TLP | `servicios/energia/tlp.ts` → `/usr/local/bin/gigios-tlp-apply` (root helper, sudoers fijo) |
+| Cambiar el perfil TLP | `servicios/energia/tlp.ts` → `/usr/local/bin/gigishell-tlp-apply` (root helper, sudoers fijo) |
 | Bloquear la sesión — no cerrarla: solo pedir contraseña al volver, para que nadie de fuera entre | la guarda de instancia única, que hyprlock NO tiene: hoy `hayHyprlock()` (recorrido de `/proc`, sin forks) `\|\|` lanzarlo |
 | Silenciar popups sin perder notificaciones | `notifd.dontDisturb` con la disciplina `autoOwned` de `modulos/notificaciones/autoDnd/watcher.ts` |
 | Silenciar el **sonido** de notificaciones y alarmas | `decidirSonido()` en `modulos/notificaciones/sonido/decision.ts` — es el único punto por el que suena algo en todo el shell (ver «Alarmas y No molestar») |
@@ -150,7 +150,7 @@ que `powerSaveFreeze` viaje en ese fichero y no en uno propio). Así que hay dos
 una mala:
 
 - ✅ Extender el escritor de `gamingState.ts` con las claves nuevas.
-- ✅ Fichero propio, `~/.config/gigios/suspension-falsa.json`, con su propio escritor único.
+- ✅ Fichero propio, `~/.config/gigishell/suspension-falsa.json`, con su propio escritor único.
 - ❌ Escribir en `runtime-state.json` desde un segundo módulo.
 
 **Decidido: fichero propio.** El ciclo de vida no tiene nada que ver con el de las partidas y el
@@ -277,7 +277,7 @@ las ventanas de AGS ocultas no hay ni UI donde apagarlo.
 La salida robusta es **hyprlock como puerta**:
 
 1. Una tecla enciende la pantalla. El ratón **no** (`mouse_move_enables_dpms = false` en
-   `gigios/ventanas.lua`), lo cual aquí es una ventaja: un roce en la mesa no despierta el equipo.
+   `gigishell/ventanas.lua`), lo cual aquí es una ventaja: un roce en la mesa no despierta el equipo.
 2. Aparece hyprlock. El usuario desbloquea.
 3. El desbloqueo dispara la secuencia de salida.
 
@@ -290,15 +290,15 @@ Con hyprlock delante, la sesión está bloqueada y **un bind normal no llega a d
 seguridad se caería justo en el escenario para el que se puso (bloqueo activo + paso 3 roto). El
 flag `locked` de Hyprland es exactamente eso — «funciona también con un inhibidor de entrada
 delante» — y en este repo ya se usa para las teclas de volumen, brillo y multimedia
-(`gigios/keybinds.lua`). Así que:
+(`gigishell/keybinds.lua`). Así que:
 
 ```lua
 bind(mod .. " + SHIFT + D", hl.dsp.exec_cmd("ags request toggle-suspension-falsa"),
      { locked = true })
 ```
 
-Registrarlo con el envoltorio `bind()` de `gigios/keybinds.lua`, **nunca** con `hl.bind` directo —
-si no, no da error, solo deja un bind sordo (ver `gigios/nop-binds.lua`). `SUPER + SHIFT + D` está
+Registrarlo con el envoltorio `bind()` de `gigishell/keybinds.lua`, **nunca** con `hl.bind` directo —
+si no, no da error, solo deja un bind sordo (ver `gigishell/nop-binds.lua`). `SUPER + SHIFT + D` está
 libre hoy; comprobarlo con `hyprctl binds` antes de fijarlo, no de memoria.
 
 Y que quede claro en la UI: **el atajo sale de la suspensión falsa, no desbloquea**. Restaura la
@@ -373,7 +373,7 @@ Resolución, que es también lo que hace que los dos ajustes del usuario sean di
 - El DND **manual** del usuario no cambia de comportamiento en absoluto: si estaba puesto antes de
   entrar, sigue callando todo, alarmas incluidas. No lo tocamos y no lo levantamos.
 
-Las alarmas se distinguen por lo que ya emiten: `x-gigios-source` / los nombres de tema
+Las alarmas se distinguen por lo que ya emiten: `x-gigishell-source` / los nombres de tema
 `SONIDO_ALARMA` y `SONIDO_TEMPORIZADOR`. No inventar un canal nuevo.
 
 ## El brillo: lo que se intentó y por qué se retiró
@@ -463,7 +463,7 @@ Valores, y son solo tres porque `servicios/energia/tlp.ts` solo conoce dos perfi
   puesto el que pusimos nosotros** (misma disciplina de `ultimoAplicado` que el brillo).
 
 La tarjeta se **oculta entera** donde `tlpAvailable` es falso —hace falta `tlp` instalado, el helper
-`/usr/local/bin/gigios-tlp-apply` y una batería real—, exactamente como hace ya el selector manual.
+`/usr/local/bin/gigishell-tlp-apply` y una batería real—, exactamente como hace ya el selector manual.
 En el sobremesa no aparece.
 
 ### El perfil de energía del sistema: el efector que más vatios mueve
@@ -523,7 +523,7 @@ protegido. Son estos, y los cuatro están cubiertos:
 |---|---|
 | Inactividad (`hypridle` → `idle-action.sh suspend`) | `sustituye_suspension()` veta, y el aviso del veto hace que AGS entre en suspensión falsa |
 | Menú de energía → «Suspender» | su `comando` pasa a `sh -c 'ags request suspend \|\| systemctl suspend'` |
-| Botón físico de encendido (`gigios/boton-apagado.lua`) | el mismo comando |
+| Botón físico de encendido (`gigishell/boton-apagado.lua`) | el mismo comando |
 | El plazo de la propia suspensión falsa (`thenSuspend`) | deja de existir (ver abajo) |
 
 **Lo que NO cubre, y hay que saberlo:** cerrar la tapa. Eso lo decide `logind`
@@ -658,15 +658,15 @@ orden se conserva porque explica por qué cada pieza depende de la anterior:
 | Los once ajustes `sf*` (carga, validación, persistencia) y el OR con las suspensiones del shell | `ags/servicios/energia/powerState.ts` |
 | Puente «Wake up → suspensión falsa al vencer» | `ags/servicios/energia/wakeUpSuspensionFalsa.ts` |
 | Veto + aviso del veto + sustituto | `hypr/scripts/idle-action.sh` (`alcance_vigente`, `sustituye_suspension`, `blocked`, `SIGNAL_VETO`) |
-| «Suspender» del sistema, con el sustituto aplicado | `ags/app.ts` → `ags request suspend`; lo llaman `menu-energia/acciones.ts` y `hypr/gigios/boton-apagado.lua` |
-| Atajo `SUPER + SHIFT + D`, con `locked = true` | `hypr/gigios/keybinds.lua` |
+| «Suspender» del sistema, con el sustituto aplicado | `ags/app.ts` → `ags request suspend`; lo llaman `menu-energia/acciones.ts` y `hypr/gigishell/boton-apagado.lua` |
+| Atajo `SUPER + SHIFT + D`, con `locked = true` | `hypr/gigishell/keybinds.lua` |
 | UI: función de la barra y sus opciones | `ags/modulos/barra/funciones/{registro.ts,OpcionesSuspensionFalsa.tsx}` |
 | UI: Ajustes > Energía | `ags/modulos/ajustes/energia/{SuspensionFalsa,AppsCongeladas}.tsx` |
 | Resolución nombre de app → scope de systemd (UNA sola, la comparten UI y efector) | `ags/modulos/ajustes/energia/scopesApps.ts` |
 | Sonido: el motivo distinguible del DND manual | `ags/modulos/notificaciones/sonido/decision.ts` |
 | Punto de entrada scriptable | `ags/app.ts` → `ags request toggle-suspension-falsa` |
 
-Ficheros de estado en `~/.config/gigios/`: `suspension-falsa.json` (estado vivo con guarda de pid,
+Ficheros de estado en `~/.config/gigishell/`: `suspension-falsa.json` (estado vivo con guarda de pid,
 lo lee bash), `idle-suspend-vetado` (el epoch del último veto, lo lee el puente),
 `wakeup-opciones.json` (la opción nueva del Wake up). Los ajustes van con los del modo ahorro, en
 `~/.config/power-save/config.json`.

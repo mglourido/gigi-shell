@@ -94,7 +94,7 @@ export function summarizeRule(rule: NotifRule): string {
   }
   if (rule.effects.color) e.push(formatearTexto(textos.resumen.efectos.color, { color: rule.effects.color }))
   if (rule.effects.style === "dunst") e.push(textos.resumen.efectos.dunst)
-  else if (rule.effects.style === "default") e.push(textos.resumen.efectos.gigios)
+  else if (rule.effects.style === "default") e.push(textos.resumen.efectos.gigishell)
   if (rule.effects.conditions && rule.effects.conditions.length) {
     const conditions = rule.effects.conditions
       .filter(c => c !== "superseded")

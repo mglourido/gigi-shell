@@ -6,10 +6,10 @@
     "lista": "Atajos disponibles"
   },
   "lista": {
-    "descripcion": "Todas las combinaciones definidas en la configuración de Hyprland. La lista se lee de gigios/keybinds.lua y se actualiza sola al editarlo; es la misma que muestra Orion, aquí para poder consultarla sin abrirlo.",
+    "descripcion": "Todas las combinaciones definidas en la configuración de Hyprland. La lista se lee de gigishell/keybinds.lua y se actualiza sola al editarlo; es la misma que muestra Orion, aquí para poder consultarla sin abrirlo.",
     "buscar": "Buscar por acción o combinación…",
     "totales": "{{atajos}} atajos en {{grupos}} grupos",
     "vacia": "Ningún atajo coincide con la búsqueda.",
-    "sinDatos": "No se ha podido leer gigios/keybinds.lua: la lista de atajos está vacía."
+    "sinDatos": "No se ha podido leer gigishell/keybinds.lua: la lista de atajos está vacía."
   }
 }

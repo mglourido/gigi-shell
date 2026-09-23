@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Monitor de captura de pantalla (compartir + grabar).
 #
-# Escribe ~/.config/gigios/screencast.json; `CapturaPantalla` en la barra lo
+# Escribe ~/.config/gigishell/screencast.json; `CapturaPantalla` en la barra lo
 # observa con un FileMonitor y muestra un icono rojo
 # mientras algo esté capturando. Mismo patrón que updates-monitor.sh.
 #
@@ -18,8 +18,8 @@
 # pkill + relanzar.
 #   screencastIndicator (bool, ausente=true)  maestro; false => borra json y sale
 
-PREFERENCIAS="$HOME/.config/gigios/preferences.json"
-SALIDA="$HOME/.config/gigios/screencast.json"
+PREFERENCIAS="$HOME/.config/gigishell/preferences.json"
+SALIDA="$HOME/.config/gigishell/screencast.json"
 
 # Grabadores locales (no pasan por el portal): se detectan por proceso.
 GRABADORES=(wf-recorder gpu-screen-recorder wl-screenrec obs)
@@ -239,7 +239,7 @@ iniciar_monitor_pipewire() {
     # pw-mon huérfano antes de que el trap lo limpiara. El argv independiente
     # hace que solo el coordinador reciba la señal y cierre sus hijos en orden.
     export -f eventos_video_pipewire
-    coproc EVENTOS_PIPEWIRE { exec -a gigios-screencast-events bash -c eventos_video_pipewire; }
+    coproc EVENTOS_PIPEWIRE { exec -a gigishell-screencast-events bash -c eventos_video_pipewire; }
     fd_eventos_pipewire=${EVENTOS_PIPEWIRE[0]}
     pid_eventos_pipewire=$EVENTOS_PIPEWIRE_PID
     pids=("$pid_eventos_pipewire")

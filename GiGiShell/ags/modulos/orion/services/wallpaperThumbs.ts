@@ -10,7 +10,7 @@
 // cada sesión nueva.
 //
 // Aquí, en tres pasos:
-//   1. Cada fondo tiene su miniatura en ~/.cache/gigios/wp-thumbs/, con clave =
+//   1. Cada fondo tiene su miniatura en ~/.cache/gigishell/wp-thumbs/, con clave =
 //      hash(ruta|tamaño|mtime|dimensiones). La caché es por fichero, así que se
 //      genera SOLO lo que falta: añadir un fondo nuevo, o borrar media caché a
 //      mano, solo cuesta regenerar eso. Y si un fondo se edita, cambian tamaño y
@@ -34,7 +34,7 @@ import Gio from "gi://Gio"
 import Gdk from "gi://Gdk"
 import GdkPixbuf from "gi://GdkPixbuf"
 
-const CACHE_DIR = `${GLib.get_user_cache_dir()}/gigios/wp-thumbs`
+const CACHE_DIR = `${GLib.get_user_cache_dir()}/gigishell/wp-thumbs`
 
 // Tamaño lógico de la miniatura en la rejilla.
 export const THUMB_W = 168

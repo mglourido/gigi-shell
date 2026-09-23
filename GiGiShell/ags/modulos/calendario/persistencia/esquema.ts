@@ -1,4 +1,4 @@
-// Esquema versionado de `~/.config/gigios/calendario.json` y su lectura defensiva. Puro: recibe el
+// Esquema versionado de `~/.config/gigishell/calendario.json` y su lectura defensiva. Puro: recibe el
 // `JSON.parse` ya hecho y devuelve datos de dominio, sin tocar disco.
 //
 // **Un JSON corrupto no puede impedir que arranque AGS.** El panel se construye dentro del try/catch

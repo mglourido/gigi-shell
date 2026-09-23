@@ -129,7 +129,7 @@ def mover_a_workspace(addr, ws, follow):
     del CURSOR sobre ella. Aquí el cursor no señala el destino —está donde lo
     dejaste al lanzar la app— así que el eje salía a suertes y el escritorio de
     llegada acababa en tiras. El envoltorio `GiGiShell.sin_smart_split` de
-    gigios/ventanas.lua apaga el ajuste mientras dura la inserción y lo
+    gigishell/ventanas.lua apaga el ajuste mientras dura la inserción y lo
     restaura; allí está la medición y por qué `preselect` NO vale para esto.
 
     Va por `hyprctl eval` y no por `dispatch` porque hace falta ejecutar una
@@ -174,7 +174,7 @@ def anclaje_activado():
     """
     ruta = os.path.join(
         os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")),
-        "gigios", "preferences.json")
+        "gigishell", "preferences.json")
     try:
         with open(ruta, "rb") as f:
             return json.load(f).get("anclarVentanasRofi", True) is not False
@@ -183,14 +183,14 @@ def anclaje_activado():
 
 
 def limite_mosaico():
-    """Lee `maxVentanasEscritorio` (el tope de gigios/limite-ventanas.lua).
+    """Lee `maxVentanasEscritorio` (el tope de gigishell/limite-ventanas.lua).
 
     Ausente = 8, igual que el módulo Lua; <= 0 significa "sin tope". Ver la
     sección de `_hueco_en` para por qué el anclaje tiene que consultarlo.
     """
     ruta = os.path.join(
         os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")),
-        "gigios", "preferences.json")
+        "gigishell", "preferences.json")
     try:
         with open(ruta, "rb") as f:
             valor = json.load(f).get("maxVentanasEscritorio", 8)
@@ -204,7 +204,7 @@ def _hueco_en(clientes, ws_id, addr, limite):
 
     EL ANCLAJE Y EL TOPE TIRABAN EN DIRECCIONES CONTRARIAS, y ganaba el anclaje
     porque llega el último. Al lanzar sobre un escritorio lleno,
-    `gigios/limite-ventanas.lua` mueve la ventana nueva al siguiente con sitio y
+    `gigishell/limite-ventanas.lua` mueve la ventana nueva al siguiente con sitio y
     te lleva con ella; acto seguido el `openwindow` llegaba aquí, se veía una
     ventana "descolocada" respecto al escritorio de lanzamiento y se la devolvía
     en silencio. Resultado: tú en el escritorio nuevo y la ventana en el viejo —
@@ -397,7 +397,7 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                 # el interruptor no la nombra, así que sigue activa.
                 #
                 # Salvo que el escritorio de lanzamiento esté LLENO: entonces la
-                # ventana ya la apartó gigios/limite-ventanas.lua y traerla de
+                # ventana ya la apartó gigishell/limite-ventanas.lua y traerla de
                 # vuelta sería deshacer el tope y dejarte además mirando otro
                 # escritorio. Ver _hueco_en().
                 if (anclar and cli["workspace"]["id"] != target_ws

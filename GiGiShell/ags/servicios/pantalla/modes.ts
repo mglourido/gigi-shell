@@ -121,7 +121,7 @@ export function luaString(s: string): string {
 // Equivalente Lua de buildMonitorRule: una tabla HL.MonitorSpec para el
 // `hl.monitor({...})` del aplicado en vivo (`hyprctl eval`). Al arrancar y al
 // recargar, esa misma spec la arma el config leyendo display.json
-// (hypr/gigios/pantalla.lua) — los dos lados deben coincidir. Los campos
+// (hypr/gigishell/pantalla.lua) — los dos lados deben coincidir. Los campos
 // ausentes se omiten para que manden los defaults del compositor.
 export function buildMonitorSpecLua(r: RuleInput): string {
   const { name, position, pref } = r

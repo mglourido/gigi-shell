@@ -1,0 +1,23 @@
+# /etc/sudoers.d/gigishell-limpieza — permite a GiGiShell liberar espacio sin contraseña.
+#
+# NO se symlinkea: sudoers.d se lee como root y apuntarlo al árbol del usuario sería una
+# escalada. Lo instala install.sh (paso 10) sustituyendo __GIGISHELL_USER__ por el usuario real
+# y validándolo con `visudo -cf` antes de moverlo a su sitio.
+#
+# POR QUÉ NOPASSWD Y NO pkexec: la autolimpieza corre desatendida desde
+# hypr/scripts/limpieza-monitor.sh. Un diálogo de contraseña que aparece solo, cada día, sin que
+# nadie haya pulsado nada, es peor que inútil: se aprende a darle a Enter sin leer. Las acciones
+# que SÍ merecen contraseña (vaciar la caché entera, borrar instantáneas) no están en esta lista y
+# van por pkexec desde su botón manual.
+#
+# El grant es DELIBERADAMENTE mínimo: solo el helper root-owned y solo con sus verbos fijos. No es
+# una escalada porque /usr/local/bin/gigishell-limpieza es root-owned; el usuario no puede alterar lo
+# que corre como root sin ser root ya. Ningún verbo acepta una RUTA como argumento — el único
+# argumento variable es el tamaño de retención del journal, acotado aquí por el patrón y validado
+# otra vez dentro del script contra `^[0-9]+[KMG]$`.
+Cmnd_Alias GIGISHELL_LIMPIEZA = /usr/local/bin/gigishell-limpieza instantaneas, \
+                             /usr/local/bin/gigishell-limpieza paccache, \
+                             /usr/local/bin/gigishell-limpieza tmp, \
+                             /usr/local/bin/gigishell-limpieza huerfanos, \
+                             /usr/local/bin/gigishell-limpieza journal [0-9]*[KMG]
+__GIGISHELL_USER__ ALL=(root) NOPASSWD: GIGISHELL_LIMPIEZA

@@ -1,6 +1,6 @@
 // servicios/camara/persistencia.ts
 //
-// Los ajustes de cámara en `~/.config/gigios/camara.json`.
+// Los ajustes de cámara en `~/.config/gigishell/camara.json`.
 //
 // ── POR QUÉ ESTO EXISTE (y no es un capricho) ───────────────────────────────
 // Los controles V4L2 NO viven en la cámara: viven en el driver del kernel, en
@@ -20,14 +20,14 @@
 // renumera y los ajustes de una acabarían aplicados a la otra. Ver `claveDe()`
 // en `dispositivos.ts`.
 //
-// Fuera del repo, como todo el estado de usuario: `~/.config/gigios/` (ver la
+// Fuera del repo, como todo el estado de usuario: `~/.config/gigishell/` (ver la
 // sección "Runtime config & secrets live OUTSIDE the repo" del CLAUDE.md raíz).
 import GLib from "gi://GLib"
 import { createState } from "ags"
 import { camaras, camaraPorClave, type Camara } from "./dispositivos.ts"
 import { fijarControles, leerControles } from "./controles.ts"
 
-const RUTA = `${GLib.get_user_config_dir()}/gigios/camara.json`
+const RUTA = `${GLib.get_user_config_dir()}/gigishell/camara.json`
 
 /** Sube cuando el formato deje de poder leerse tal cual. Hoy solo se escribe;
  *  existe para que el día que haga falta migrar se sepa desde dónde. */
