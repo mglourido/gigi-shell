@@ -1,4 +1,7 @@
-# Configuración interactiva autónoma de Zsh.
+# Configuración interactiva COMPARTIDA de Zsh (versionada en dotfiles).
+# La carga $ZDOTDIR/.zshrc, que es LOCAL de cada equipo y es donde escriben los
+# instaladores (bun, fnm, opam...): nada de rutas de una máquina aquí.
+# Ver GiGiOS/docs/shell-local.md.
 [[ -o interactive ]] || return 0
 
 # Greeting, equivalente al del perfil Fish. Va POR ENCIMA del prompt instantáneo
@@ -185,18 +188,6 @@ autoload -Uz add-zsh-hook
 add-zsh-hook preexec _lc_preexec
 add-zsh-hook precmd _lc_precmd
 
-# Node.js mediante fnm.
-FNM_PATH="$HOME/.local/share/fnm"
-if [[ -d "$FNM_PATH" ]]; then
-    export PATH="$FNM_PATH:$PATH"
-    eval "$(fnm env --shell zsh)"
-fi
-unset FNM_PATH
-
-# Bun.
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-
 # Plugins de Arch, en el unico orden que documentan sus autores:
 #   syntax-highlighting -> history-substring-search -> autosuggestions
 # history-substring-search lo carga fish-parity.zsh por dentro, de ahi que el
@@ -210,15 +201,3 @@ _zsh_plugins=/usr/share/zsh/plugins
 [[ -r "$_zsh_plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] &&
     source "$_zsh_plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
 unset _zsh_plugins
-
-# bun completions
-[ -s "/home/paraguayo33/.bun/_bun" ] && source "/home/paraguayo33/.bun/_bun"
-
-
-# BEGIN opam configuration
-# This is useful if you're using opam as it adds:
-#   - the correct directories to the PATH
-#   - auto-completion for the opam binary
-# This section can be safely removed at any time if needed.
-[[ ! -r '/home/paraguayo33/.opam/opam-init/init.zsh' ]] || source '/home/paraguayo33/.opam/opam-init/init.zsh' > /dev/null 2> /dev/null
-# END opam configuration

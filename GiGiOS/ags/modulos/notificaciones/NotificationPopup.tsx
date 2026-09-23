@@ -9,7 +9,7 @@ import { Astal, Gdk, Gtk } from "ags/gtk4"
 import app from "ags/gtk4/app"
 import GLib from "gi://GLib"
 import AstalNotifd from "gi://AstalNotifd"
-import { powerMenuVisible, quickSettingsVisible } from "../../estado/shell"
+import { quickSettingsVisible } from "../../estado/shell"
 import {
   obtenerControlVisibilidadBarra,
   type EstadoVisibilidadBarra,
@@ -35,14 +35,17 @@ const VENTANA_RAFAGA_MS = 8000
 const ESPERA_RESUMEN_RAFAGA_MS = 1200
 const MARGEN_SUPERIOR_PANEL = 38
 const SEPARACION_PANEL_POPUP = 10
-const NOMBRES_PANELES = ["notification-panel", "quick-settings", "power-menu"]
+// El menú de energía NO está aquí a propósito: es una capa a pantalla completa
+// (anclada a los cuatro bordes) con el menú centrado, así que su "borde inferior"
+// es el de la pantalla y empujaba los popups hacia abajo al abrirlo.
+const NOMBRES_PANELES = ["notification-panel", "quick-settings"]
 
 // Con auto-ocultado la superficie debe compensar el bar. Sin él, la zona exclusiva
 // del compositor ya desplaza paneles y popups, por lo que sumarlo duplicaría el hueco.
 const desplazamientoPanel = (): number =>
   barAutoHideEnabled.get() ? MARGEN_SUPERIOR_PANEL : 0
 
-const panelesQueDesplazanPopup = [notifPanelVisible, quickSettingsVisible, powerMenuVisible]
+const panelesQueDesplazanPopup = [notifPanelVisible, quickSettingsVisible]
 let visibilidadPopup: EstadoVisibilidadBarra | null = null
 let bajaVisibilidadPopup: (() => void) | null = null
 

@@ -1,3 +1,10 @@
+# Configuración COMPARTIDA de Fish (versionada en dotfiles).
+#
+# Fish carga conf.d/*.fish ANTES que config.fish, que queda LOCAL de cada equipo
+# y sin versionar: ahí escriben los instaladores (rustup deja además su propio
+# conf.d/rustup.fish, también local). Nada de rutas de una máquina aquí.
+# Ver GiGiOS/docs/shell-local.md.
+
 if test -r /usr/share/cachyos-fish-config/cachyos-config.fish
     source /usr/share/cachyos-fish-config/cachyos-config.fish
 end
@@ -14,7 +21,3 @@ alias dotfiles='git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
 if status is-interactive
     fish_user_key_bindings
 end
-
-
-# Added by Antigravity CLI installer
-set -gx PATH "/home/paraguayo33/.local/bin" $PATH

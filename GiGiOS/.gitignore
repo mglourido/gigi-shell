@@ -64,3 +64,9 @@ ags/scratch/
 # un fichero, lo que se colaría en un commit público es una foto tuya.
 hypr/hyprlock_avatar.png
 assets/face.png
+
+# --- CSS compilado de AGS: es una caché ---
+#
+# Lo regenera ags/scripts/compilar-css.sh antes de cada `ags run` si algún .scss es
+# más nuevo. Nunca se edita a mano.
+ags/estilos/out.css

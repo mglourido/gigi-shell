@@ -78,6 +78,22 @@ id_ed25519
 # subárbol de GiGiOS, que ya no necesita declararla por su cuenta.
 **/.directory
 
+# --- Shells: la parte LOCAL de cada equipo (ver GiGiOS/docs/shell-local.md) ---
+#
+# Son los ficheros que la shell lee de verdad y en los que escriben los
+# instaladores (rustup, bun, fnm, opam...): rutas absolutas con el usuario y
+# herramientas que otra máquina puede no tener o tener en otro sitio. Cargan la
+# configuración compartida, que sí se versiona (bash/bashrc, zsh/gigios.*,
+# fish/conf.d/gigios.fish). Los crea GiGiOS/bin/shell-local.sh.
+.bashrc
+.config/zsh/.zshenv
+.config/zsh/.zshrc
+.config/fish/config.fish
+.config/fish/conf.d/rustup.fish
+# Variables universales de Fish: las reescribe Fish solo y guardan rutas del
+# equipo (fish_user_paths).
+.config/fish/fish_variables
+
 # --- zsh (~/.config/zsh) ---
 
 # Historial de comandos: privado, no se versiona.

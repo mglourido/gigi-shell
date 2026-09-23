@@ -1,13 +1,16 @@
 #
-# ~/.bashrc
+# ~/.config/bash/bashrc — configuración de Bash COMPARTIDA (versionada en dotfiles).
 #
+# La carga ~/.bashrc, que es LOCAL de cada equipo y no se versiona. Aquí no va
+# nada propio de una máquina: ni rutas de herramientas (cargo, bun, fnm, opam...)
+# ni rutas absolutas con el nombre de usuario. Eso va en ~/.bashrc, que es además
+# donde escriben sus instaladores. Ver GiGiOS/docs/shell-local.md.
 
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
 # Keep bash close to the CachyOS fish defaults.
 [[ -d "$HOME/.local/bin" ]] && case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) PATH="$HOME/.local/bin:$PATH" ;; esac
-[[ -d "$HOME/Applications/depot_tools" ]] && case ":$PATH:" in *":$HOME/Applications/depot_tools:"*) ;; *) PATH="$HOME/Applications/depot_tools:$PATH" ;; esac
 
 export MANROFFOPT="-c"
 if command -v bat >/dev/null 2>&1; then
@@ -238,10 +241,3 @@ if [[ $- == *i* ]]; then
     # Ejecutar primero para capturar $?, y armar el DEBUG trap al final del prompt completo.
     PROMPT_COMMAND="_lc_prompt_cmd${PROMPT_COMMAND:+; $PROMPT_COMMAND}; _lc_arm"
 fi
-if [ -f "$HOME/.cargo/env" ]; then
-    . "$HOME/.cargo/env"
-fi
-
-
-# Added by Antigravity CLI installer
-export PATH="/home/paraguayo33/.local/bin:$PATH"

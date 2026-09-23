@@ -23,7 +23,7 @@ warn() { printf 'AVISO   %s\n' "$*"; warnings=$((warnings + 1)); }
 # ignorada en esta lista.
 required=(
   install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh
-  bin/configurar-vscode.sh ags/app.ts ags/estilos/style.scss ags/estilos/out.css
+  bin/configurar-vscode.sh ags/app.ts ags/estilos/style.scss
   mimeapps.list menus/applications.menu kdeglobals qt6ct/qt6ct.conf
   mime/packages/text-x-xresources.xml mime/packages/text-x-codigo.xml
   ags/servicios/juegos/evidencia.ts ags/servicios/juegos/iconos.ts
@@ -166,7 +166,7 @@ if command -v python3 >/dev/null 2>&1; then
   fi
 fi
 
-[[ -s "$GIGIOS/ags/estilos/out.css" ]] || fail "ags/estilos/out.css falta o está vacío"
+[[ -s "$GIGIOS/ags/estilos/out.css" ]] || warn "ags/estilos/out.css aún no está compilado (lo genera ags/scripts/compilar-css.sh al arrancar AGS)"
 app_icons="$GIGIOS/ags/config/app_icons.json"
 if [[ ! -s "$app_icons" ]]; then
   warn "sin ags/config/app_icons.json (los workspaces usarán iconos gráficos)"
@@ -337,7 +337,24 @@ EOF
     compgen -G "/usr/share/zsh/plugins/$plugin/*.zsh" >/dev/null \
       || fail "falta el plugin $plugin (sudo pacman -S --needed $plugin)"
   done
-  for zsh_file in "$HOME/.zshenv" "$HOME/.config/zsh/.zshenv" "$HOME/.config/zsh/.zshrc" "$HOME/.config/zsh/functions/"*.zsh; do
+  # Shells partidas en compartido (versionado) + local de cada equipo (sin
+  # versionar, lo crea bin/shell-local.sh). Ver docs/shell-local.md.
+  "$GIGIOS/bin/shell-local.sh" --check >/dev/null \
+    || fail "ficheros locales de las shells ausentes o sin cargar el compartido (bin/shell-local.sh)"
+  # Lo propio de una máquina no puede colarse en lo compartido: otro equipo puede
+  # no tener esa herramienta, o tenerla en otra ruta o con otro usuario.
+  for shared_file in "$HOME/.config/bash/bashrc" "$HOME/.config/zsh/gigios.zshenv" \
+    "$HOME/.config/zsh/gigios.zshrc" "$HOME/.config/fish/conf.d/gigios.fish" \
+    "$HOME/.config/zsh/functions/"*.zsh; do
+    [[ -f "$shared_file" ]] || continue
+    if grep -vE '^[[:space:]]*#' "$shared_file" \
+      | grep -qE '/home/|\.cargo/|\.bun|opam-init|fnm env|depot_tools'; then
+      fail "configuración de shell compartida con rutas de este equipo: $shared_file (va en el fichero local)"
+    fi
+  done
+  bash -n "$HOME/.config/bash/bashrc" 2>/dev/null || fail "sintaxis Bash: ~/.config/bash/bashrc"
+  for zsh_file in "$HOME/.zshenv" "$HOME/.config/zsh/gigios.zshenv" "$HOME/.config/zsh/gigios.zshrc" \
+    "$HOME/.config/zsh/.zshenv" "$HOME/.config/zsh/.zshrc" "$HOME/.config/zsh/functions/"*.zsh; do
     [[ -f "$zsh_file" ]] || { fail "falta configuración Zsh: $zsh_file"; continue; }
     zsh -n "$zsh_file" || fail "sintaxis Zsh: $zsh_file"
   done
@@ -364,16 +381,16 @@ EOF
     print -r -- "globdots=${${_comp_options[(r)globdots]}:-no}"
   ' 2>/dev/null)"
   [[ "$zsh_runtime" == *"autosuggest=1"* ]] \
-    || fail "zsh-autosuggestions no está cargado (revisá el source en ~/.config/zsh/.zshrc)"
+    || fail "zsh-autosuggestions no está cargado (revisá el source en ~/.config/zsh/gigios.zshrc)"
   [[ "$zsh_runtime" == *"highlight=no"* ]] \
-    && fail "zsh-syntax-highlighting no está cargado (revisá el source en ~/.config/zsh/.zshrc)"
+    && fail "zsh-syntax-highlighting no está cargado (revisá el source en ~/.config/zsh/gigios.zshrc)"
   [[ "$zsh_runtime" == *"substring=1"* ]] \
     || fail "zsh-history-substring-search no está cargado (lo sourcea fish-parity.zsh)"
   [[ "$zsh_runtime" == *"globdots=globdots"* ]] \
-    || fail "Tab no completa ficheros ocultos: falta '_comp_options+=(globdots)' en ~/.config/zsh/.zshrc"
-  grep -q 'p10k-instant-prompt' "$HOME/.config/zsh/.zshrc" \
-    || fail "falta el prompt instantáneo de Powerlevel10k en ~/.config/zsh/.zshrc (cada terminal espera a que cargue todo)"
-  for fish_file in "$HOME/.config/fish/config.fish" "$HOME/.config/fish/functions/"*.fish; do
+    || fail "Tab no completa ficheros ocultos: falta '_comp_options+=(globdots)' en ~/.config/zsh/gigios.zshrc"
+  grep -q 'p10k-instant-prompt' "$HOME/.config/zsh/gigios.zshrc" \
+    || fail "falta el prompt instantáneo de Powerlevel10k en ~/.config/zsh/gigios.zshrc (cada terminal espera a que cargue todo)"
+  for fish_file in "$HOME/.config/fish/conf.d/gigios.fish" "$HOME/.config/fish/config.fish" "$HOME/.config/fish/functions/"*.fish; do
     [[ -f "$fish_file" ]] || { fail "falta configuración Fish: $fish_file"; continue; }
     fish -n "$fish_file" || fail "sintaxis Fish: $fish_file"
   done

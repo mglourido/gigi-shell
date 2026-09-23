@@ -313,6 +313,19 @@ if [[ -x "$reparador" ]]; then
   fi
 fi
 
+# ── Ficheros locales de las shells ──────────────────────────────────────────
+# ~/.bashrc, $ZDOTDIR/.zshrc|.zshenv y fish/config.fish no se versionan: son de
+# cada equipo y cargan la configuración compartida. Una instalación nueva no los
+# trae del checkout, así que se crean aquí. Ver docs/shell-local.md.
+shell_local="$GIGIOS/bin/shell-local.sh"
+if [[ -x "$shell_local" ]]; then
+  case "$mode" in
+    check) "$shell_local" --check || status=1 ;;
+    force) LINK_BACKUP="$LINK_BACKUP" "$shell_local" --force || status=1 ;;
+    *)     "$shell_local" || status=1 ;;
+  esac
+fi
+
 # ── Git hooks: verificación de archivos antes de cada push ──────────────────
 # core.hooksPath es config local de cada clon (no viaja con el repo), así que
 # se re-aplica cada vez que se corre link.sh para que quede activo en toda

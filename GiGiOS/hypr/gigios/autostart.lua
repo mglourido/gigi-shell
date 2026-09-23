@@ -124,7 +124,10 @@ hl.on("hyprland.start", function()
   --
   -- La ruta es `~/.config/ags/` (el symlink), no `~/GiGiOS/ags/`: la ruta
   -- canónica XDG es el contrato de este repo, y es la que usan las demás líneas.
-  hl.exec_cmd([[timeout 2 ags quit 2>/dev/null; pkill -f "ags\.js$" 2>/dev/null && sleep 0.3; ags run ~/.config/ags/]])
+  --
+  -- `compilar-css.sh` va delante porque out.css es una caché sin versionar: lo
+  -- recompila solo si falta o algún .scss es más nuevo (si no, es un `find`).
+  hl.exec_cmd([[~/.config/ags/scripts/compilar-css.sh; timeout 2 ags quit 2>/dev/null; pkill -f "ags\.js$" 2>/dev/null && sleep 0.3; ags run ~/.config/ags/]])
 
   hl.exec_cmd("hypridle")
   -- Le quita a systemd-logind el interruptor de la TAPA mientras esta sesión

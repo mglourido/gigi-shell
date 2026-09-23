@@ -1602,32 +1602,12 @@ if paso_activo css; then
       "$APP_ICONS" >/dev/null \
       || warn "$APP_ICONS no contiene un mapa válido; los workspaces usarán iconos gráficos."
   fi
-  # Sin CSS el shell arranca sin estilos, así que falta de `sass` es fatal... salvo que ya
-  # haya un out.css compilado de una pasada anterior. Ese matiz es lo que hacía que
-  # reejecutar el instalador en una máquina donde dart-sass no llegó a instalarse abortase
-  # sin motivo: el escritorio ya tenía sus estilos y aun así no se completaba nada más.
-  if ! command -v sass >/dev/null 2>&1; then
-    if [[ -s "$CSS" ]]; then
-      warn "Falta 'sass'; conservo el out.css ya compilado. Instalalo para regenerarlo: sudo pacman -S --needed dart-sass"
-    else
-      die "Falta el comando 'sass'. En Arch/CachyOS instálalo con: sudo pacman -S --needed dart-sass"
-    fi
-  else
-    info "Compilando el CSS de AGS ..."
-    # Se compila a un temporal y solo se publica si salió bien. Antes se escribía
-    # directamente sobre out.css: un error de Sass a media escritura dejaba el fichero
-    # truncado, y como el instalador moría ahí, la siguiente sesión de AGS arrancaba con
-    # medio CSS y sin nada que dijera por qué.
-    css_tmp="$(mktemp "${TMPDIR:-/tmp}/gigios-css.XXXXXX.css")" \
-      || die "No pude crear un fichero temporal para compilar el CSS."
-    if sass_error="$(sass --no-source-map "$SCSS" "$css_tmp" 2>&1)"; then
-      install -Dm644 "$css_tmp" "$CSS" || die "No pude escribir $CSS."
-      rm -f "$css_tmp"
-    else
-      rm -f "$css_tmp"
-      printf '\033[1;31m-- Error de Sass --\033[0m\n%s\n' "$sass_error" >&2
-      die "Sass no pudo compilar $SCSS. Reprodúcelo con: sass --no-source-map '$SCSS' '$CSS'"
-    fi
+  # out.css es una caché sin versionar: la genera ags/scripts/compilar-css.sh (el mismo
+  # que corre antes de cada `ags run`). Sin sass solo es fatal si no hay ninguno previo.
+  info "Compilando el CSS de AGS ..."
+  if ! "$HOME/GiGiOS/ags/scripts/compilar-css.sh" --forzar; then
+    [[ -s "$CSS" ]] || die "No se pudo generar $CSS (¿falta dart-sass o hay un error de Sass?)."
+    warn "No se pudo recompilar el CSS; conservo el out.css anterior."
   fi
 else
   info "Omito la compilación del CSS (se conserva el out.css que haya)."

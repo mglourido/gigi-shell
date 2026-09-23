@@ -10,7 +10,7 @@ typeset -U path PATH
 typeset -a _fish_extra_paths
 typeset _fish_path
 _fish_extra_paths=()
-for _fish_path in "$HOME/.local/bin" "$HOME/.cargo/bin" "$HOME/Applications/depot_tools"; do
+for _fish_path in "$HOME/.local/bin"; do
     [[ -d "$_fish_path" ]] && _fish_extra_paths+=("$_fish_path")
 done
 path=("${_fish_extra_paths[@]}" "${path[@]}")

@@ -45,6 +45,11 @@ El instalador localiza o crea su perfil predeterminado y enlaza allí el
 Consulta [los perfiles de Firefox](firefox-profiles.md) para ver los
 ajustes y el procedimiento de cambio.
 
+Las shells (bash, zsh, fish) separan la personalización compartida, versionada,
+de un fichero local por equipo que no se versiona y es donde escriben los
+instaladores de herramientas (cargo, bun, opam...). `bin/link.sh` crea los
+locales que falten; ver [configuración local de las shells](shell-local.md).
+
 **AGS sí es obligatorio.** GiGiOS no usa una barra o centro de notificaciones externo:
 `ags` ejecuta el shell completo y `AstalNotifd` proporciona el daemon y la interfaz de
 notificaciones. El instalador añade `aylurs-gtk-shell-git`, `libastal-meta` y `libnotify`;

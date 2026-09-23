@@ -1,5 +1,8 @@
 #!/usr/bin/env zsh
 
+# Entorno COMPARTIDO (versionado en dotfiles). Lo carga $ZDOTDIR/.zshenv, que es
+# LOCAL de cada equipo: las rutas de herramientas (cargo...) van allí, no aquí.
+# Ver GiGiOS/docs/shell-local.md.
 # Entorno común para shells interactivos y no interactivos.
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -37,6 +40,3 @@ export TERMINFO="$XDG_DATA_HOME/terminfo"
 export TERMINFO_DIRS="$XDG_DATA_HOME/terminfo:/usr/share/terminfo"
 export WGETRC="$XDG_CONFIG_HOME/wgetrc"
 export PYTHON_HISTORY="$XDG_STATE_HOME/python_history"
-if [ -f "$HOME/.cargo/env" ]; then
-    . "$HOME/.cargo/env"
-fi
