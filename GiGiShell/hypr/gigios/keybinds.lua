@@ -228,6 +228,20 @@ end)
 bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 bind(mod .. " + mouse_up", hl.dsp.focus({ workspace = "e-1" }))
 
+-- llevarse la ventana al workspace siguiente/anterior con mod + SHIFT + rueda
+-- (alternativa a mod+SHIFT+número, mismo envoltorio). "r±1" y no "e±1": con
+-- "e" no se podría sacar la ventana a un escritorio vacío nuevo.
+bind(mod .. " + SHIFT + mouse_down", function()
+  sin_smart_split(function()
+    hl.dispatch(hl.dsp.window.move({ workspace = "r+1" }))
+  end)
+end)
+bind(mod .. " + SHIFT + mouse_up", function()
+  sin_smart_split(function()
+    hl.dispatch(hl.dsp.window.move({ workspace = "r-1" }))
+  end)
+end)
+
 -- mover/redimensionar con mod + botón izq/dcho arrastrando (los bindm)
 --
 -- ⚠️ SIN OPTS, y NO con { drag = true }: esa opción se comía el PRIMER arrastre

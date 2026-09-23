@@ -30,8 +30,9 @@ import { Gtk } from "ags/gtk4"
 export const ESLABON = {
   actualizacionesKernel: 0,
   actualizacionesGpu: 1,
-  capturaPantalla: 2,
-  notificaciones: 3,
+  actualizacionesVigiladas: 2,
+  capturaPantalla: 3,
+  notificaciones: 4,
 } as const
 
 export interface CadenaEstado {

@@ -3,6 +3,8 @@ export interface DatosActualizaciones {
   system: number
   kernel: PaqueteActualizable[]
   gpu: PaqueteActualizable[]
+  /** Primer paquete de la lista vigilada del usuario que tiene actualización (0 o 1). */
+  watched: PaqueteActualizable[]
   updateCmd: string
   systemSample: string[]
 }
@@ -11,6 +13,7 @@ export const ACTUALIZACIONES_VACIAS: DatosActualizaciones = {
   system: 0,
   kernel: [],
   gpu: [],
+  watched: [],
   updateCmd: "",
   systemSample: [],
 }
@@ -30,6 +33,7 @@ export function interpretarActualizaciones(contenido: string): DatosActualizacio
       system: typeof datos.system === "number" && datos.system >= 0 ? datos.system : 0,
       kernel: paquetes(datos.kernel),
       gpu: paquetes(datos.gpu),
+      watched: paquetes(datos.watched),
       updateCmd: typeof datos.updateCmd === "string" ? datos.updateCmd : "",
       systemSample: Array.isArray(datos.systemSample)
         ? datos.systemSample.filter((nombre: unknown) => typeof nombre === "string")

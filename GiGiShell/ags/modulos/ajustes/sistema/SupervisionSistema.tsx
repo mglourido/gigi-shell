@@ -1,4 +1,4 @@
-import { createComputed } from "ags"
+import { createComputed, For } from "ags"
 import { Gtk } from "ags/gtk4"
 import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
 import {
@@ -7,8 +7,55 @@ import {
   updatesMonitorEnabled, setUpdatesMonitorEnabled,
   updatesPeriodicEnabled, setUpdatesPeriodicEnabled,
   updatesIntervalHours, setUpdatesIntervalHours,
+  updatesWatchList, addUpdatesWatch, removeUpdatesWatch,
 } from "../preferences"
+import TituloSubseccion from "../componentes/TituloSubseccion"
 import textos from "../../../textos/ajustes/personalizacion.json" with { type: "json" }
+
+// Paquetes vigilados: nombres exactos; el monitor avisa del primero que encuentre.
+function PaquetesVigilados() {
+  const t = textos.actualizaciones.vigilados
+  let entrada: Gtk.Entry
+  const anadir = () => {
+    const valor = entrada?.get_text().trim() ?? ""
+    if (!valor) return
+    addUpdatesWatch(valor)
+    entrada.set_text("")
+  }
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} visible={updatesMonitorEnabled}>
+      <TituloSubseccion label={t.titulo} halign={Gtk.Align.START} />
+      <TextoInformativo label={t.ayuda} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+        <For each={updatesWatchList}>
+          {(nombre: string) => (
+            <box spacing={5} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]}>
+              <label cssClasses={["sp-clase-nombre"]} label={nombre} halign={Gtk.Align.START} ellipsize={3} />
+              <box hexpand />
+              <button cssClasses={["sp-rule-del"]} onClicked={() => removeUpdatesWatch(nombre)} valign={Gtk.Align.CENTER} tooltipText={t.quitar}>
+                <label label="󰅖" />
+              </button>
+            </box>
+          )}
+        </For>
+      </box>
+      <TextoInformativo label={t.vacia} halign={Gtk.Align.START} visible={updatesWatchList((l) => l.length === 0)} />
+      <box spacing={6} valign={Gtk.Align.CENTER}>
+        <entry
+          cssClasses={["sp-num-input", "sp-clase-entrada"]}
+          hexpand
+          xalign={0}
+          placeholderText={t.placeholder}
+          $={(self: Gtk.Entry) => { entrada = self }}
+          onActivate={anadir}
+        />
+        <button cssClasses={["sp-add-rule"]} onClicked={anadir} valign={Gtk.Align.CENTER}>
+          <label label={t.anadir} />
+        </button>
+      </box>
+    </box>
+  )
+}
 
 function AjustesActualizaciones() {
   let entradaHoras: Gtk.Entry
@@ -38,6 +85,7 @@ function AjustesActualizaciones() {
           </button>
         </box>
       </box>
+      <PaquetesVigilados />
     </TarjetaAjustes>
   )
 }

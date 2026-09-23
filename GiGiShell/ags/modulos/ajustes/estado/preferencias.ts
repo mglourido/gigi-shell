@@ -328,6 +328,12 @@ export { updatesPeriodicEnabled }
 const [updatesIntervalHours, _setUpdatesIntervalHours] = createState(3)
 export { updatesIntervalHours }
 
+// Paquetes que el usuario quiere vigilar: el script avisa (icono propio en la barra)
+// del primero que tenga actualización. Lo lee UNA vez al arrancar, así que el setter
+// relanza el script. Default: vacía.
+const [updatesWatchList, _setUpdatesWatchList] = createState<string[]>([])
+export { updatesWatchList }
+
 // Congelar tareas de fondo mientras juegas. Lo leen los scripts bash a través de
 // hypr/scripts/lib/gaming-gate.sh, que retiene el sondeo PRESCINDIBLE (monitor de
 // actualizaciones, SMART y unidades systemd) mientras haya un juego delante y lo
@@ -543,6 +549,9 @@ function load() {
     if (typeof saved.updatesIntervalHours === "number" && saved.updatesIntervalHours >= 1) {
       _setUpdatesIntervalHours(Math.floor(saved.updatesIntervalHours))
     }
+    if (Array.isArray(saved.updatesWatchList)) {
+      _setUpdatesWatchList(saved.updatesWatchList.filter((n: unknown) => typeof n === "string" && n.trim() !== ""))
+    }
     if (typeof saved.gamingFreeze === "boolean") _setGamingFreezeEnabled(saved.gamingFreeze)
     if (typeof saved.escanerJuegos === "boolean") _setEscanerJuegos(saved.escanerJuegos)
     if (typeof saved.pausaLuzNocturnaJuegos === "boolean") {
@@ -623,6 +632,7 @@ function save() {
       updatesMonitor: updatesMonitorEnabled.get(),
       updatesPeriodic: updatesPeriodicEnabled.get(),
       updatesIntervalHours: updatesIntervalHours.get(),
+      updatesWatchList: updatesWatchList.get(),
       gamingFreeze: gamingFreezeEnabled.get(),
       escanerJuegos: escanerJuegos.get(),
       pausaLuzNocturnaJuegos: pausaLuzNocturnaJuegos.get(),
@@ -869,6 +879,27 @@ export function setUpdatesIntervalHours(h: number) {
   if (!Number.isFinite(n) || n < 1) return
   _setUpdatesIntervalHours(n)
   save()
+}
+// El script lee la lista una sola vez: se reinicia para que la vea ya (si el maestro
+// está apagado no hay nada que relanzar; la leerá al encenderlo).
+function reiniciarMonitorActualizaciones() {
+  if (!updatesMonitorEnabled.get()) return
+  const script = `${GLib.get_user_config_dir()}/hypr/scripts/updates-monitor.sh`
+  // pkill aparte: dentro de un `bash -c` cuya línea nombra el script se mataría a sí mismo.
+  execAsync(["pkill", "-f", "updates-monitor.sh"]).catch(() => {})
+    .finally(() => execAsync([script]).catch(() => {}))
+}
+export function addUpdatesWatch(nombre: string) {
+  const n = nombre.trim()
+  if (!n || updatesWatchList.get().includes(n)) return
+  _setUpdatesWatchList([...updatesWatchList.get(), n])
+  save()
+  reiniciarMonitorActualizaciones()
+}
+export function removeUpdatesWatch(nombre: string) {
+  _setUpdatesWatchList(updatesWatchList.get().filter((n) => n !== nombre))
+  save()
+  reiniciarMonitorActualizaciones()
 }
 export function setTimeFormat(fmt: TimeFormat) {
   _setTimeFormat(fmt)

@@ -53,6 +53,14 @@
       "descripcion": "",
       "placeholder": "3",
       "guardar": "Guardar"
+    },
+    "vigilados": {
+      "titulo": "Paquetes vigilados",
+      "ayuda": "Muestra un aviso en la barra en cuanto alguno de estos paquetes tenga actualización. Escribe el nombre exacto del paquete.",
+      "vacia": "No hay paquetes vigilados.",
+      "placeholder": "nombre-del-paquete",
+      "anadir": "Añadir",
+      "quitar": "Quitar"
     }
   },
   "inicioAudio": {

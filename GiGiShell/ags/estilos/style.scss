@@ -3370,6 +3370,7 @@ button.qs-user-settings-btn {
   // Iconos separados: kernel (naranja) y drivers de GPU (verde).
   &.kernel .upd-icon { color: $orange; }
   &.gpu    .upd-icon { color: #a6e3a1; }
+  &.watched .upd-icon { color: #f9e2af; }
 }
 
 popover.upd-popover-container {
@@ -3410,6 +3411,7 @@ popover.upd-popover-container {
 
   &.kernel { color: $orange; font-weight: 700; }
   &.gpu    { color: #a6e3a1; }
+  &.watched { color: #f9e2af; font-weight: 700; }
   &.system { color: rgba($text, 0.6); }
 }
 

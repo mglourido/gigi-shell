@@ -1,6 +1,7 @@
 // Iconos de la barra (a la izquierda del botón de notificaciones) que avisan de
-// actualizaciones IMPORTANTES: uno para el kernel y otro, separado, para los drivers
-// de la GPU. Cada uno aparece solo si su categoría tiene algo pendiente. Las
+// actualizaciones IMPORTANTES: uno para el kernel, otro para los drivers de la GPU y
+// un tercero para los paquetes que el usuario vigila a mano (Ajustes > Sistema >
+// Actualizaciones; el script avisa del primero que encuentre). Cada uno aparece solo si su categoría tiene algo pendiente. Las
 // actualizaciones normales de paquetes/dependencias NO hacen aparecer ningún icono
 // (son ruido); se listan como contexto al abrir el popover.
 //
@@ -27,16 +28,18 @@ function lanzarActualizacion(cmd: string) {
   abrirEnTerminal(cmd, "updates").catch(() => {})
 }
 
-type TipoActualizacion = "kernel" | "gpu"
+type TipoActualizacion = "kernel" | "gpu" | "watched"
 
 const METADATOS_TIPO: Record<TipoActualizacion, { icon: string; title: string; noun: string }> = {
   kernel: { icon: "", title: "Actualización de kernel", noun: "kernel" },
   gpu: { icon: "󰢮", title: "Actualización de drivers de GPU", noun: "drivers de GPU" },
+  watched: { icon: "󰀦", title: "Actualización de paquete vigilado", noun: "paquetes vigilados" },
 }
 
 const INDICE_ESLABON: Record<TipoActualizacion, number> = {
   kernel: ESLABON.actualizacionesKernel,
   gpu: ESLABON.actualizacionesGpu,
+  watched: ESLABON.actualizacionesVigiladas,
 }
 
 export default function Actualizaciones({
@@ -187,6 +190,7 @@ export default function Actualizaciones({
     <box spacing={0}>
       {crearIcono("kernel")}
       {crearIcono("gpu")}
+      {crearIcono("watched")}
     </box>
   )
 }

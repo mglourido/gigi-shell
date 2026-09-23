@@ -17,6 +17,9 @@
 #   updatesMonitor        (bool, ausente=true)  maestro; false => borra json y sale
 #   updatesPeriodic       (bool, ausente=true)  false => comprueba una vez y sale
 #   updatesIntervalHours  (num,  ausente=3)     horas entre comprobaciones
+#   updatesWatchList      ([str], ausente=[])   paquetes vigilados por el usuario:
+#       en cuanto UNO de ellos aparece entre las pendientes se deja de mirar la
+#       lista (basta uno para avisar) y va a `watched`, que tiene su propio icono.
 
 PREFS="$HOME/.config/gigios/preferences.json"
 OUT="$HOME/.config/gigios/updates.json"
@@ -37,6 +40,14 @@ if [[ -r "$PREFS" ]]; then
     interval_hours=$(jq -r 'if has("updatesIntervalHours") then (.updatesIntervalHours|tostring) else "3" end' "$PREFS" 2>/dev/null) || interval_hours=3
 fi
 [[ "$enabled" == "false" ]] && { rm -f "$OUT"; exit 0; }
+
+# Lista vigilada → conjunto (nombre exacto de paquete). Sin prefs o sin clave, vacía.
+declare -A watch_set=()
+if [[ -r "$PREFS" ]]; then
+    while IFS= read -r w; do
+        [[ -n "$w" ]] && watch_set["$w"]=1
+    done < <(jq -r '(.updatesWatchList // []) | if type=="array" then .[] | strings else empty end' "$PREFS" 2>/dev/null)
+fi
 # Saneo del intervalo: entero ≥1, si no 3.
 [[ "$interval_hours" =~ ^[0-9]+$ ]] && (( interval_hours >= 1 )) || interval_hours=3
 
@@ -120,12 +131,19 @@ run_check() {
     # Tres cubos: kernel e drivers de GPU son las "importantes" (las únicas que hacen
     # aparecer el icono en la barra); el resto son actualizaciones normales de
     # paquetes/dependencias, que solo se listan al abrir el popover.
-    local gpu_tsv="" kernel_tsv="" sys_names="" sys_count=0
+    local gpu_tsv="" kernel_tsv="" watched_tsv="" sys_names="" sys_count=0
+    # La lista vigilada se consulta hasta el PRIMER acierto: con uno ya hay aviso, y
+    # a partir de ahí los paquetes siguen su clasificación normal.
+    local watching=false
+    (( ${#watch_set[@]} > 0 )) && watching=true
     if [[ -n "$mgr" ]]; then
         local name from to
         while IFS=$'\t' read -r name from to; do
             [[ -z "$name" ]] && continue
-            if is_gpu "$name"; then
+            if $watching && [[ -n "${watch_set[$name]:-}" ]]; then
+                watched_tsv="${name}\t${from}\t${to}"$'\n'
+                watching=false
+            elif is_gpu "$name"; then
                 gpu_tsv+="${name}\t${from}\t${to}"$'\n'
             elif is_kernel "$name"; then
                 kernel_tsv+="${name}\t${from}\t${to}"$'\n'
@@ -136,11 +154,12 @@ run_check() {
         done < <(collect_updates)
     fi
 
-    local gpu_json kernel_json sample_json
+    local gpu_json kernel_json watched_json sample_json
     local tsv_to_json='split("\n") | map(select(length>0) | split("\t")
                        | {name:.[0], from:(.[1]//""), to:(.[2]//"")})'
     gpu_json=$(printf '%b' "$gpu_tsv" | jq -R -s "$tsv_to_json" 2>/dev/null) || gpu_json='[]'
     kernel_json=$(printf '%b' "$kernel_tsv" | jq -R -s "$tsv_to_json" 2>/dev/null) || kernel_json='[]'
+    watched_json=$(printf '%b' "$watched_tsv" | jq -R -s "$tsv_to_json" 2>/dev/null) || watched_json='[]'
     sample_json=$(printf '%b' "$sys_names" | jq -R -s '
         split("\n") | map(select(length>0)) | .[0:20]' 2>/dev/null) || sample_json='[]'
 
@@ -155,9 +174,10 @@ run_check() {
         --argjson system    "$sys_count" \
         --argjson kernel    "$kernel_json" \
         --argjson gpu       "$gpu_json" \
+        --argjson watched   "$watched_json" \
         --argjson sample    "$sample_json" \
         '{checkedAt:$checkedAt, distro:$distro, updateCmd:$cmd,
-          system:$system, kernel:$kernel, gpu:$gpu, systemSample:$sample}' > "$tmp" 2>/dev/null \
+          system:$system, kernel:$kernel, gpu:$gpu, watched:$watched, systemSample:$sample}' > "$tmp" 2>/dev/null \
         && mv -f "$tmp" "$OUT" || rm -f "$tmp"
 }
 

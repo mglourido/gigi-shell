@@ -66,30 +66,35 @@ export default function SeccionJuegos() {
           activo={pausaLuzNocturnaJuegos}
           alAlternar={() => setPausaLuzNocturnaJuegos(!pausaLuzNocturnaJuegos.get())}
         />
-        <TextoInformativo
-          label={textos.pausaLuzNocturna.sinDeteccion}
-          halign={Gtk.Align.START}
-          wrap
-          maxWidthChars={62}
-          xalign={0}
-          visible={escanerJuegos((activo: boolean) => !activo)}
-        />
-        <ListaClasesVentana
-          clases={pausaLuzNocturnaApps}
-          alAnadir={addPausaLuzNocturnaApp}
-          alQuitar={removePausaLuzNocturnaApp}
-          visible={pausaLuzNocturnaJuegos((activo: boolean) => activo)}
-          textos={{
-            titulo: textos.pausaLuzNocturna.lista.titulo,
-            ayuda: textos.pausaLuzNocturna.lista.ayuda,
-            vacia: textos.pausaLuzNocturna.lista.vacia,
-            placeholder: textos.pausaLuzNocturna.lista.placeholder,
-            anadir: textos.pausaLuzNocturna.lista.anadir,
-            quitar: textos.pausaLuzNocturna.lista.quitar,
-            ventana: textos.pausaLuzNocturna.lista.ventana,
-            anadirVentana: textos.pausaLuzNocturna.lista.anadirVentana,
-          }}
-        />
+        {/* Cada bloque va en su `dev-row`: colgados a pelo de la tarjeta se quedaban sin
+            el relleno lateral de las filas y pegados al borde. La visibilidad va en la
+            fila, no en el hijo, para no dejar una fila vacía con su alto mínimo. */}
+        <box cssClasses={["dev-row"]} visible={escanerJuegos((activo: boolean) => !activo)}>
+          <TextoInformativo
+            label={textos.pausaLuzNocturna.sinDeteccion}
+            halign={Gtk.Align.START}
+            wrap
+            maxWidthChars={62}
+            xalign={0}
+          />
+        </box>
+        <box cssClasses={["dev-row"]} visible={pausaLuzNocturnaJuegos((activo: boolean) => activo)}>
+          <ListaClasesVentana
+            clases={pausaLuzNocturnaApps}
+            alAnadir={addPausaLuzNocturnaApp}
+            alQuitar={removePausaLuzNocturnaApp}
+            textos={{
+              titulo: textos.pausaLuzNocturna.lista.titulo,
+              ayuda: textos.pausaLuzNocturna.lista.ayuda,
+              vacia: textos.pausaLuzNocturna.lista.vacia,
+              placeholder: textos.pausaLuzNocturna.lista.placeholder,
+              anadir: textos.pausaLuzNocturna.lista.anadir,
+              quitar: textos.pausaLuzNocturna.lista.quitar,
+              ventana: textos.pausaLuzNocturna.lista.ventana,
+              anadirVentana: textos.pausaLuzNocturna.lista.anadirVentana,
+            }}
+          />
+        </box>
       </TarjetaAjustes>
     </box>
   )
