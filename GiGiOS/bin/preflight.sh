@@ -38,7 +38,7 @@ required=(
   ags/modulos/notificaciones/daemon/BannerConflicto.tsx ags/modulos/notificaciones/daemon/comprobacion.ts
   ags/modulos/ajustes/ProfileAvatar.tsx
   ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx ags/modulos/ajustes/seguridad/preferencias.ts
-  ags/modulos/ajustes/accesibilidad/SeccionAccesibilidad.tsx ags/modulos/ajustes/accesibilidad/OpcionDaltonismo.tsx ags/modulos/ajustes/accesibilidad/daltonismo.ts
+  ags/modulos/ajustes/accesibilidad/OpcionDaltonismo.tsx ags/modulos/ajustes/accesibilidad/daltonismo.ts
   ags/textos/ajustes/accesibilidad.json
   hypr/hyprland.lua hypr/gigios/util.lua hypr/gigios/json.lua hypr/gigios/variables.lua
   hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
