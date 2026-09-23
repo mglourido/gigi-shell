@@ -1,8 +1,8 @@
 # Development
 
 Notes for whoever (you, on another machine) touches the repo — not configuration
-for any specific subsystem, that lives in `GiGiOS/README.md` and
-`GiGiOS/hypr/SETUP.md`.
+for any specific subsystem, that lives in `GiGiShell/README.md` and
+`GiGiShell/hypr/SETUP.md`.
 
 ## File verification before every `git push`
 
@@ -31,9 +31,9 @@ aborts if it finds something that shouldn't be tracked.
 
 Hooks in `.git/hooks/` don't travel with the repo — that's why they're
 versioned under `.githooks/` and activated by pointing `core.hooksPath` there.
-That `git config` is local to each clone, so `GiGiOS/bin/link.sh` reapplies it
+That `git config` is local to each clone, so `GiGiShell/bin/link.sh` reapplies it
 every time you run it (it's already the standard step for setting up any new
-machine, see `GiGiOS/hypr/SETUP.md` §11) — it's not a separate manual step.
+machine, see `GiGiShell/hypr/SETUP.md` §11) — it's not a separate manual step.
 
 If you ever need to do it by hand:
 

@@ -1,5 +1,5 @@
 name: Error de instalación
-description: Reporta un fallo al instalar o arrancar GiGiOS
+description: Reporta un fallo al instalar o arrancar GiGiShell
 title: "[Instalación] "
 labels: [bug]
 body:
@@ -21,7 +21,7 @@ body:
     id: preflight
     attributes:
       label: Validación
-      description: Salida completa de `~/GiGiOS/bin/preflight.sh --installed`.
+      description: Salida completa de `~/GiGiShell/bin/preflight.sh --installed`.
       render: shell
     validations:
       required: true

@@ -17,7 +17,7 @@ if [ "${#files[@]}" -eq 0 ]; then
 fi
 
 # Los tests son de DESARROLLO MOMENTÁNEO: no se versionan ni viajan al
-# instalador. `GiGiOS/.gitignore` ya los excluye, pero un `git add -f` (o un
+# instalador. `GiGiShell/.gitignore` ya los excluye, pero un `git add -f` (o un
 # fichero que quedó rastreado de antes de existir la regla, que es lo que pasó
 # con fondoShell.test.ts y monitores.test.ts) se salta el ignore sin avisar. El
 # push es el último punto donde se puede parar, así que se para aquí.

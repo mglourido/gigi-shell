@@ -43,15 +43,15 @@
 core
 *.core
 
-# --- GiGiOS ---
+# --- GiGiShell ---
 
-# Las reglas de GiGiOS viven en GiGiOS/.gitignore, no aquí. Estaban repartidas
-# entre los dos ficheros y eso ya había costado dos errores: `GiGiOS/hypr/logs/`
-# estaba declarado en ambos, y `GiGiOS/ags/out.css.map` apuntaba a una ruta que no
+# Las reglas de GiGiShell viven en GiGiShell/.gitignore, no aquí. Estaban repartidas
+# entre los dos ficheros y eso ya había costado dos errores: `GiGiShell/hypr/logs/`
+# estaba declarado en ambos, y `GiGiShell/ags/out.css.map` apuntaba a una ruta que no
 # existe (el fichero real es `ags/estilos/out.css.map`), así que la regla de aquí no
 # ignoraba nada y quien la leía creía que sí. Un solo sitio por subárbol.
 #
-# Aquí abajo solo quedan rutas de $HOME que no son de GiGiOS.
+# Aquí abajo solo quedan rutas de $HOME que no son de GiGiShell.
 
 # --- Credenciales en texto plano de $HOME ---
 #
@@ -74,17 +74,17 @@ id_ed25519
 # --- Metadatos de escritorio (todo $HOME) ---
 
 # Ficheros que deja Dolphin con la vista de cada carpeta. Aparecen en cualquier
-# sitio, no solo en GiGiOS: la regla es de $HOME y por eso cubre también el
-# subárbol de GiGiOS, que ya no necesita declararla por su cuenta.
+# sitio, no solo en GiGiShell: la regla es de $HOME y por eso cubre también el
+# subárbol de GiGiShell, que ya no necesita declararla por su cuenta.
 **/.directory
 
-# --- Shells: la parte LOCAL de cada equipo (ver GiGiOS/docs/shell-local.md) ---
+# --- Shells: la parte LOCAL de cada equipo (ver GiGiShell/docs/shell-local.md) ---
 #
 # Son los ficheros que la shell lee de verdad y en los que escriben los
 # instaladores (rustup, bun, fnm, opam...): rutas absolutas con el usuario y
 # herramientas que otra máquina puede no tener o tener en otro sitio. Cargan la
 # configuración compartida, que sí se versiona (bash/bashrc, zsh/gigios.*,
-# fish/conf.d/gigios.fish). Los crea GiGiOS/bin/shell-local.sh.
+# fish/conf.d/gigios.fish). Los crea GiGiShell/bin/shell-local.sh.
 .bashrc
 .config/zsh/.zshenv
 .config/zsh/.zshrc
@@ -103,13 +103,13 @@ id_ed25519
 
 # --- Kitty (~/.config/kitty) ---
 
-# Selector local generado por GiGiOS/bin/kitty-profile.sh. Los dos perfiles se
+# Selector local generado por GiGiShell/bin/kitty-profile.sh. Los dos perfiles se
 # versionan, pero cada máquina decide cuál activa sin ensuciar el checkout.
 .config/kitty/active-profile.conf
 
 # --- Firefox (~/.config/firefox) ---
 
-# Selector y user.js compuesto por GiGiOS/bin/firefox-profile.sh. Las fuentes
+# Selector y user.js compuesto por GiGiShell/bin/firefox-profile.sh. Las fuentes
 # base.js y profiles/*.js sí se versionan; cada máquina decide cuál activa.
 .config/firefox/active-profile.js
 .config/firefox/user.js

@@ -1,0 +1,11 @@
+# /etc/sudoers.d/gigios-tlp — permite a GiGiShell cambiar el perfil TLP sin contraseña.
+#
+# NO se symlinkea: sudoers.d se lee como root y apuntarlo al árbol del usuario sería una
+# escalada. Lo instala install.sh (paso 6) sustituyendo __GIGIOS_USER__ por el usuario real
+# y validándolo con `visudo -cf` antes de moverlo a su sitio.
+#
+# El grant es DELIBERADAMENTE mínimo: solo el helper root-owned y solo con los dos argumentos
+# fijos. No es una escalada porque /usr/local/bin/gigios-tlp-apply y /etc/gigios/tlp/*.conf son
+# root-owned; el usuario no puede alterar lo que corre como root sin ser root ya.
+Cmnd_Alias GIGIOS_TLP = /usr/local/bin/gigios-tlp-apply normal, /usr/local/bin/gigios-tlp-apply ahorro
+__GIGIOS_USER__ ALL=(root) NOPASSWD: GIGIOS_TLP

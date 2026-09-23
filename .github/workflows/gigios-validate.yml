@@ -1,4 +1,4 @@
-name: Validar GiGiOS
+name: Validar GiGiShell
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
       # que los módulos Lua que carga hyprland.lua existen. Es exactamente lo que
       # falla cuando un commit se deja algo suelto.
       - name: Validar archivos y scripts
-        run: GiGiOS/bin/preflight.sh
+        run: GiGiShell/bin/preflight.sh
       # NO hay paso de tests, y no es un olvido: ningún test se versiona (son de
       # desarrollo momentáneo, ver .gitignore), así que en un checkout de CI no existe
       # ninguno que ejecutar. Los tests se corren en la máquina donde se escriben.

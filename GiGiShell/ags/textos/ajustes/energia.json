@@ -1,0 +1,222 @@
+{
+  "seccion": {
+    "titulo": "Energía"
+  },
+  "grupos": {
+    "bateria": "Batería y modo de ahorro",
+    "modoAhorro": "Comportamiento durante el ahorro",
+    "tlp": "Perfil de energía TLP",
+    "brilloAhorro": "Brillo durante el ahorro",
+    "inactividadAhorro": "Inactividad durante el ahorro",
+    "suspensionFalsa": "Suspensión falsa",
+    "suspensionFalsaApps": "Apps que se congelan en la suspensión falsa",
+    "botonEncendido": "Botón de encendido",
+    "menuEnergia": "Menú de energía",
+    "tapa": "Tapa del portátil"
+  },
+  "estado": {
+    "sinBateria": "Sin batería detectada",
+    "bateria": "Batería: {{porcentaje}}%",
+    "bateriaCargando": "Batería: {{porcentaje}}% (cargando)",
+    "ahorroActivo": "Ahorro activo",
+    "ahorroDesactivado": "Ahorro desactivado"
+  },
+  "umbral": {
+    "titulo": "Entrar en ahorro al bajar de",
+    "tooltip": "Editar umbral de ahorro",
+    "descripcion": "Activa las medidas de ahorro de esta sección cuando la batería alcanza este porcentaje y el equipo no está cargando. 0 % las desactiva."
+  },
+  "forzar": {
+    "titulo": "Forzar modo ahorro",
+    "descripcion": "Mantiene el ahorro activo siempre, ignorando el nivel de batería y aunque esté cargando o no haya batería. Útil para reducir consumo o carga a demanda."
+  },
+  "tlp": {
+    "titulo": "Perfil en batería",
+    "descripcion": "Cambia el perfil de TLP: «Normal» equilibra rendimiento y consumo; «Ahorro» prioriza la autonomía. Sustituye /etc/tlp.conf y lo aplica al momento.",
+    "normal": "Normal",
+    "ahorro": "Ahorro",
+    "aplicando": "Aplicando…",
+    "automatico": {
+      "titulo": "Cambiar al perfil de ahorro automáticamente",
+      "descripcion": "Al entrar en modo ahorro aplica el perfil «Ahorro» y devuelve el anterior al salir. Es el mayor ahorro después del brillo: TLP baja de golpe la política de energía de la CPU, el PCIe, los discos, el wifi y el USB. Si cambias el perfil a mano durante el ahorro, se respeta tu elección y no se restaura nada."
+    }
+  },
+  "brillo": {
+    "titulo": "Reducir el brillo de la pantalla",
+    "descripcion": "Baja el brillo al entrar en modo ahorro y lo devuelve al salir. La pantalla es el mayor consumidor de un portátil, muy por encima de los procesos en segundo plano. Si cambias el brillo a mano mientras dura el ahorro, manda tu valor y ya no se restaura nada.",
+    "modo": "Cómo se baja",
+    "modoFijo": "Hasta un nivel",
+    "modoRelativo": "Reducción relativa",
+    "modoDescripcionFija": "Al entrar en ahorro, la pantalla se pone en el nivel que elijas. Si ya estaba más baja que ese nivel no se sube: en ese caso se aplica la reducción relativa que hay debajo.",
+    "modoDescripcionRelativa": "Al entrar en ahorro se restan puntos al brillo que tengas en ese momento: con una reducción de 10, un brillo del 30 % pasa al 20 %. Así siempre baja, vengas del brillo que vengas.",
+    "reduccion": "Reducir el brillo en",
+    "tooltipReduccion": "Editar la reducción del modo ahorro",
+    "suelo": "El brillo nunca baja del 5 %.",
+    "nivel": "Bajar el brillo hasta",
+    "tooltip": "Editar el brillo del modo ahorro",
+    "sinSoporte": "En este equipo no se ha detectado ningún control de brillo (ni panel interno ni DDC/CI), así que este ajuste no puede aplicarse."
+  },
+  "inactividadAhorro": {
+    "titulo": "Usar tiempos de inactividad más cortos",
+    "descripcion": "Durante el ahorro sustituye los tiempos de «Suspensión e inactividad» por los de aquí abajo, y los devuelve al salir. Con la batería baja, diez minutos de pantalla encendida cuestan más que todo el mantenimiento en segundo plano junto.",
+    "aviso": "Mientras el ahorro esté activo, los tiempos generales de arriba se guardan aparte y no se aplican hasta salir de él."
+  },
+  "suspensionFalsa": {
+    "descripcion": "Apaga todo lo que se puede apagar sin detener el equipo: pantalla, brillo, LEDs y escritorio se quedan quietos, pero el kernel sigue en marcha y la red viva. Nada se interrumpe: ni una descarga, ni una compilación, ni una sesión remota, ni un backup a medias. No sustituye a la suspensión de verdad ni se acerca a su consumo; es el punto medio para dejar el equipo desatendido sin romper lo que esté haciendo.",
+    "entrada": "Se activa desde el menú del logo de la barra, desde el menú de energía o con su atajo de teclado, y entra al momento.",
+    "activa": "Ahora mismo está activa.",
+    "restanteMinutos": "Se suspenderá de verdad dentro de {{minutos}} min.",
+    "restanteSegundos": "Se suspenderá de verdad dentro de {{segundos}} s.",
+    "sinPlazo": "No se suspenderá de verdad: el plazo está desactivado.",
+    "suprimido": "El plazo no va a saltar: hay un «Mantener despierto» activo y mientras dure el equipo no se suspende. Al apagarlo, el plazo empieza a contar desde ese momento.",
+    "bloquear": {
+      "titulo": "Bloquear la sesión al entrar",
+      "descripcion": "Pide la contraseña al volver, para que nadie de fuera entre mientras no estás. Además es la puerta de salida normal: una tecla enciende la pantalla, aparece el bloqueo y al desbloquear se deshace todo lo que hizo la suspensión falsa.",
+      "aviso": "Sin bloqueo, la única forma de salir es el atajo de teclado de la suspensión falsa (Súper + Mayús + D). El ratón no vale: mover el puntero no enciende la pantalla en este equipo."
+    },
+    "atajo": "El atajo de teclado funciona también con la sesión bloqueada, y solo SALE de la suspensión falsa: no desbloquea. La contraseña se sigue pidiendo.",
+    "noMolestar": {
+      "titulo": "Activar No molestar mientras dure",
+      "descripcion": "Tapa los avisos emergentes mientras el equipo está desatendido; las notificaciones no se pierden, quedan en el historial. Es un No molestar propio: al salir se quita solo, y si ya tenías el tuyo puesto no se toca."
+    },
+    "silenciarNotificaciones": {
+      "titulo": "Silenciar el sonido de las notificaciones",
+      "descripcion": "Calla el sonido de las notificaciones normales durante la suspensión falsa. No afecta a las alertas del reloj, que se controlan justo debajo."
+    },
+    "silenciarReloj": {
+      "titulo": "Silenciar alarmas, temporizador y cronómetro",
+      "descripcion": "Apagado (lo normal), las alertas del reloj SUENAN durante la suspensión falsa aunque el No molestar esté puesto: es la única forma de que un despertador programado te despierte con el equipo desatendido.",
+      "aviso": "Activado, una alarma o un temporizador que venzan durante la suspensión falsa no sonarán. Solo verás el aviso al volver."
+    },
+    "leds": {
+      "titulo": "Apagar la retroiluminación del teclado y los LEDs",
+      "descripcion": "Es el delator visual de que el equipo no está suspendido de verdad. Se devuelven al salir, con el nivel que tenían."
+    },
+    "bluetooth": {
+      "titulo": "Apagar el Bluetooth",
+      "descripcion": "Es lo que hace de facto la suspensión de verdad. Nace apagado porque corta ratones, mandos y auriculares al instante, y al volver a encenderlo el adaptador puede tardar unos segundos en reaparecer."
+    },
+    "audio": {
+      "titulo": "Silenciar el audio del sistema",
+      "descripcion": "Nace apagado a propósito: puede que la música o el vídeo que suenan sean justo lo que quieres dejar en marcha mientras la pantalla está apagada."
+    },
+    "tlp": {
+      "titulo": "Perfil TLP mientras dure",
+      "descripcion": "«No tocar» deja el perfil como esté y no restaura nada al salir. Con «Ahorro» o «Normal», el perfil se aplica al entrar y se devuelve al salir, pero solo si sigue puesto el que puso la suspensión falsa: si lo cambias a mano mientras tanto, manda tu elección.",
+      "distincion": "Es una pregunta distinta a la del ajuste automático de arriba, que reacciona a la batería baja. Este vale también con el equipo enchufado.",
+      "noTocar": "No tocar",
+      "ahorro": "Ahorro",
+      "normal": "Normal"
+    },
+    "ppd": {
+      "titulo": "Perfil de energía del sistema",
+      "descripcion": "Cambia el perfil de power-profiles-daemon mientras dure la suspensión falsa: es lo que decide cómo de agresiva es la CPU en reposo. «No tocar» lo deja como esté y no restaura nada al salir; con «Ahorro» o «Equilibrado» se aplica al entrar y se devuelve al salir, pero solo si sigue puesto el que puso la suspensión falsa.",
+      "medido": "Es la medida que más consumo quita de esta lista: en este equipo, con el escritorio en reposo, el paquete de CPU pasa de unos 17-22 W en «Rendimiento» a unos 10 W en «Ahorro».",
+      "noTocar": "No tocar",
+      "ahorro": "Ahorro",
+      "equilibrado": "Equilibrado"
+    },
+    "plazo": {
+      "titulo": "Suspender de verdad tras",
+      "descripcion": "Cuando vence el plazo se sale de la suspensión falsa —se descongelan las apps y se restaura todo— y solo entonces se suspende de verdad. En 0 no se suspende nunca y la suspensión falsa dura hasta que la quites. Máximo 24 h (1440 min).",
+      "desactivado": "Nunca",
+      "valor": "{{minutos}} min",
+      "tooltip": "Editar los minutos hasta la suspensión real",
+      "sustituido": "Sin efecto: con la suspensión real sustituida no hay ninguna a la que salir."
+    },
+    "apps": {
+      "descripcion": "Al entrar en suspensión falsa, estas apps se congelan enteras (procesos hijos incluidos) y se descongelan al salir, antes que ninguna otra cosa. Es lo último que hace la secuencia de entrada y lo único que puede perder datos, por eso la lista nace vacía y no se llena sola.",
+      "aviso": "Una app congelada con la red viva pierde sus conexiones: una descarga a medias muere por timeout, exactamente el fallo que esta función existe para evitar. No pongas aquí navegadores ni nada que esté descargando, subiendo o sincronizando. Y nunca: AGS, Hyprland, pipewire/wireplumber ni NetworkManager — congelarlos cuelga el escritorio entero sin dejar un solo error en ningún registro.",
+      "titulo": "Apps en la lista",
+      "ayuda": "Se guarda el nombre de la app, no su identificador de proceso: el número cambia en cada arranque y se resuelve en el momento de congelar.",
+      "vacia": "La lista está vacía: no se congelará ninguna app.",
+      "placeholder": "nombre de la app (p. ej. discord)",
+      "anadir": "Añadir",
+      "quitar": "Quitar de la lista",
+      "candidatos": "Apps abiertas ahora",
+      "candidatosAyuda": "Apps que systemd tiene ahora en un grupo propio, que son las únicas que se pueden congelar. Una app lanzada desde una terminal no aparece aquí.",
+      "actualizar": "Actualizar la lista de apps abiertas",
+      "sinCandidatos": "Ninguna app abierta con grupo propio, o systemd no ha contestado.",
+      "yaEsta": "Ya está en la lista",
+      "prohibida": "«{{nombre}}» no se puede congelar: es parte del escritorio y congelarlo dejaría la sesión colgada."
+    },
+    "sustituir": {
+      "titulo": "Usar la suspensión falsa en lugar de la real",
+      "descripcion": "Todo lo que suspendería el equipo —la inactividad, el menú de energía y el botón de encendido— entra en suspensión falsa. Para equipos cuya suspensión real no vuelve bien, normalmente por los drivers de la GPU: gasta más, pero siempre despierta.",
+      "aviso": "El equipo dejará de suspenderse de verdad. Si AGS se cierra, la suspensión real vuelve por sí sola: es la reserva para no quedarse sin ninguna."
+    }
+  },
+  "botonEncendido": {
+    "titulo": "Al pulsar el botón de encendido",
+    "descripcion": "Se aplica a la pulsación corta del botón físico, también con la sesión bloqueada. La pulsación larga la sigue gestionando el firmware y siempre apaga el equipo.",
+    "aviso": "El botón lo controla systemd-logind, así que apagará el equipo ignorando esta elección. Cédeselo a Hyprland con:",
+    "avisoComando": "sudo install -Dm644 ~/GiGiShell/system/logind.conf.d/99-gigios-powerkey.conf /etc/systemd/logind.conf.d/99-gigios-powerkey.conf && sudo systemctl reload systemd-logind",
+    "opciones": {
+      "apagar": "Apagar el equipo",
+      "suspender": "Suspender",
+      "hibernar": "Hibernar",
+      "bloquear": "Bloquear la sesión",
+      "pantalla": "Apagar la pantalla",
+      "menu": "Abrir el menú de energía",
+      "cerrarSesion": "Cerrar sesión",
+      "reiniciar": "Reiniciar",
+      "nada": "No hacer nada"
+    }
+  },
+  "tapa": {
+    "titulo": "Al cerrar la tapa",
+    "descripcion": "Se aplica al cerrar la tapa, también con la sesión bloqueada. Al abrirla se enciende siempre la pantalla.",
+    "externa": {
+      "titulo": "No hacer nada si hay una pantalla externa",
+      "descripcion": "Con un monitor conectado, cerrar la tapa suele ser seguir trabajando en la otra pantalla, no irse. Apágalo para que la acción se aplique también entonces."
+    },
+    "aviso": "La tapa la sigue controlando systemd-logind, así que suspenderá el equipo ignorando esta elección. El inhibidor que se la cede lo pone el arranque de la sesión; comprueba que el script esté en marcha:",
+    "avisoComando": "~/.config/hypr/scripts/tapa-inhibidor.sh",
+    "opciones": {
+      "suspender": "Suspender",
+      "suspensionFalsa": "Suspensión falsa",
+      "hibernar": "Hibernar",
+      "bloquear": "Bloquear la sesión",
+      "pantalla": "Apagar la pantalla",
+      "apagar": "Apagar el equipo",
+      "nada": "No hacer nada"
+    }
+  },
+  "menuEnergia": {
+    "titulo": "Acciones que se muestran",
+    "descripcion": "Elige qué botones aparecen en el menú de energía, el que abre el icono de encendido de la barra. Las que quites siguen disponibles desde el botón físico de encendido y desde la terminal.",
+    "ultima": "Siempre queda al menos una acción en el menú: no se puede apagar la última."
+  },
+  "notificaciones": {
+    "titulo": "Pausar limpieza de notificaciones",
+    "descripcion": "Pausa la eliminación automática y la actualización de tiempos del historial. Al salir, elimina lo vencido y reanuda."
+  },
+  "vistasPrevias": {
+    "titulo": "Pausar vistas previas de espacios de trabajo",
+    "descripcion": "Desactiva las miniaturas de los espacios de trabajo y deja de hacer capturas durante el ahorro. Se recuperan al salir."
+  },
+  "procesosFondo": {
+    "titulo": "Reducir procesos en segundo plano",
+    "descripcion": "Congela el mantenimiento prescindible durante el ahorro: la búsqueda de actualizaciones y los sondeos de salud de discos y de servicios. El trabajo aplazado se hace al salir del ahorro; la vigilancia de seguridad y la de temperatura nunca se paran."
+  },
+  "spotify": {
+    "titulo": "Ocultar Spotify de la barra",
+    "descripcion": "Oculta el reproductor de Spotify y detiene sus actualizaciones y animaciones durante el ahorro. Vuelve a mostrarse al salir."
+  },
+  "mascota": {
+    "titulo": "Ocultar la mascota del escritorio",
+    "descripcion": "Retira el lagarto durante el ahorro. Su paseo redibuja la pantalla unas once veces por segundo y, por diseño, solo se anima cuando el escritorio está en reposo — justo cuando el equipo no debería estar gastando en un adorno. Vuelve al salir."
+  },
+  "transparencia": {
+    "titulo": "Quitar la transparencia de los paneles",
+    "descripcion": "Deja los paneles, el buscador, el OSD y los avisos en un fondo sólido durante el ahorro. Lo que se ahorra no es dibujarlos: es el desenfoque que Hyprland hace del escritorio que se ve por debajo, un trabajo de GPU por cada fotograma en que un panel esté abierto. Es la única medida de esta lista que ahorra mientras estás mirando algo. Vuelve la transparencia al salir."
+  },
+  "transparenciaVentanas": {
+    "titulo": "Quitar la transparencia de las ventanas",
+    "descripcion": "Deja todas las ventanas de Hyprland con un fondo sólido durante el ahorro, incluidas las que no tienen el foco (normalmente al 92 %). Se ahorra lo mismo que con los paneles y por el mismo motivo: una ventana semitransparente obliga al compositor a dibujar también lo que hay debajo en cada fotograma. Devuelve la transparencia al salir."
+  },
+  "ondaSpotify": {
+    "titulo": "Onda de Spotify sin analizar el audio",
+    "descripcion": "Durante el ahorro, la onda deja de seguir la música y vuelve a su animación propia, sin capturar audio ni lanzar ningún proceso. Se sigue viendo y moviéndose. Solo se nota si el reproductor no está oculto por el ajuste anterior."
+  }
+}

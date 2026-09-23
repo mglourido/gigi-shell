@@ -1,0 +1,72 @@
+# .gitignore de GiGiShell.
+#
+# ÚNICO SITIO donde se declaran las exclusiones de este subárbol. Antes estaban
+# repartidas entre este fichero y ~/.gitignore, y esa duplicidad ya había costado
+# dos errores silenciosos: `hypr/logs/` declarado en los dos, y una regla para
+# `ags/out.css.map` que apuntaba a una ruta inexistente (el fichero real es
+# `ags/estilos/out.css.map`), así que no ignoraba nada mientras aparentaba hacerlo.
+#
+# Las rutas de $HOME que no son de GiGiShell —y `**/.directory`, que sale en cualquier
+# carpeta— siguen en ~/.gitignore. Regla: cada subárbol declara lo suyo, y si una
+# regla del padre ya lo cubre, aquí no se repite.
+#
+# OJO AL EDITAR: git NO admite comentarios al final de línea. Un `# nota` detrás de
+# un patrón pasa a formar parte del patrón y la regla deja de casar con nada, sin
+# dar ningún error. Cada comentario, en su propia línea.
+
+# --- Tests: desarrollo momentáneo, no se versionan ---
+#
+# Sin ancla de directorio ni extensión fija a propósito: la regla era
+# `ags/**/*.test.ts` y dejaba pasar un `.test.tsx`, un `.spec.ts` o un test fuera
+# de `ags/`. Un patrón sin `/` casa a cualquier profundidad.
+#
+# Los otros dos lados de esta regla, que hay que tocar a la vez:
+#   - `bin/preflight.sh` NO puede exigir un test en su lista `required` (un checkout
+#     limpio no lo tiene nunca; tiene una guardia que lo comprueba con check-ignore),
+#   - `bin/verify-files.sh` (pre-push) rechaza el push si alguno acaba rastreado.
+*.test.ts
+*.test.tsx
+*.test.js
+*.test.jsx
+*.test.mts
+*.spec.ts
+*.spec.tsx
+*.spec.js
+*_test.py
+*_test.js
+test_*.py
+
+# --- Generado: se rehace solo, versionarlo solo crea conflictos ---
+
+# source-map de depuración de style.scss
+ags/estilos/out.css.map
+# stubs de tipos GObject (`ags types`)
+ags/@girs/
+# ajustes de editor, por máquina
+ags/.vscode/
+# bytecode de los scripts Python de hypr/scripts
+__pycache__/
+# boot-healthcheck y demás registros de sesión
+hypr/logs/
+
+# --- Desechable ---
+
+# scripts de inspección y pruebas de usar y tirar
+ags/scratch/
+# copias de seguridad de editores (nano, gedit)
+*.save
+
+# --- Datos personales: que no puedan colarse por accidente ---
+#
+# La foto de perfil vive hoy en ~/.local/share/gigios/face.png y NUNCA dentro del
+# repo (ver CLAUDE.md). Estas dos rutas son las ubicaciones viejas: se mantienen
+# ignoradas aunque ya no existan, porque el día que una máquina rezagada deje ahí
+# un fichero, lo que se colaría en un commit público es una foto tuya.
+hypr/hyprlock_avatar.png
+assets/face.png
+
+# --- CSS compilado de AGS: es una caché ---
+#
+# Lo regenera ags/scripts/compilar-css.sh antes de cada `ags run` si algún .scss es
+# más nuevo. Nunca se edita a mano.
+ags/estilos/out.css

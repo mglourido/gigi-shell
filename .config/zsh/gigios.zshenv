@@ -2,7 +2,7 @@
 
 # Entorno COMPARTIDO (versionado en dotfiles). Lo carga $ZDOTDIR/.zshenv, que es
 # LOCAL de cada equipo: las rutas de herramientas (cargo...) van allí, no aquí.
-# Ver GiGiOS/docs/shell-local.md.
+# Ver GiGiShell/docs/shell-local.md.
 # Entorno común para shells interactivos y no interactivos.
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"

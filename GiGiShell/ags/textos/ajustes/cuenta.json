@@ -1,0 +1,94 @@
+{
+  "seccion": {
+    "titulo": "Cuenta",
+    "usuarioPredeterminado": "usuario"
+  },
+  "perfil": {
+    "titulo": "Perfil",
+    "equipo": "Equipo: {{nombre}}",
+    "foto": {
+      "titulo": "Foto de perfil",
+      "descripcion": "",
+      "placeholder": "~/Imágenes/perfil.png",
+      "boton": "Cambiar"
+    }
+  },
+  "datosPersonales": {
+    "titulo": "Datos personales",
+    "usuario": {
+      "titulo": "Nombre de usuario",
+      "descripcion": "Cambia el usuario de inicio de sesión; no renombra la carpeta personal."
+    },
+    "nombreCompleto": {
+      "titulo": "Nombre completo",
+      "descripcion": "Nombre visible asociado a la cuenta.",
+      "placeholder": "Opcional"
+    }
+  },
+  "seguridad": {
+    "titulo": "Contraseñas",
+    "contrasena": {
+      "titulo": "Contraseña de la cuenta",
+      "descripcion": "Cambia solo la contraseña de tu usuario: la del bloqueo de pantalla y la que pide sudo.",
+      "mostrar": "Cambiar",
+      "ocultar": "Ocultar"
+    },
+    "nuevaContrasena": {
+      "titulo": "Nueva contraseña",
+      "descripcion": "Sin longitud mínima: vale un PIN de 4 dígitos.",
+      "placeholder": "Nueva contraseña"
+    },
+    "confirmarContrasena": {
+      "titulo": "Confirmar contraseña",
+      "placeholder": "Repetir nueva contraseña"
+    },
+    "contrasenaAdmin": {
+      "titulo": "Contraseña de administrador",
+      "descripcion": "Cambia solo la contraseña de root, la que pide «su» en una terminal.",
+      "mostrar": "Cambiar",
+      "ocultar": "Ocultar"
+    },
+    "nuevaContrasenaAdmin": {
+      "titulo": "Nueva contraseña de administrador",
+      "descripcion": "Sin longitud mínima. No afecta a la contraseña de tu usuario.",
+      "placeholder": "Nueva contraseña de root"
+    },
+    "confirmarContrasenaAdmin": {
+      "titulo": "Confirmar contraseña de administrador",
+      "placeholder": "Repetir contraseña de root"
+    }
+  },
+  "inicioSesion": {
+    "titulo": "Inicio de sesión",
+    "autologin": {
+      "titulo": "Entrar sin contraseña",
+      "descripcion": "Abre la sesión de {{usuario}} al encender, sin pasar por la pantalla de acceso. Se aplica al reiniciar.",
+      "sinConfiguracion": "SDDM no tiene la configuración de GiGiShell (/etc/sddm.conf.d/zz-gigios.conf). Ejecuta: bash install.sh --solo sddm",
+      "sinSesion": "No hay ninguna sesión de Hyprland instalada (hyprland.desktop), y sin ella SDDM ignora el inicio automático.",
+      "pisado": "{{fichero}} también fija el inicio automático y tiene más precedencia: cambiarlo aquí no tendría efecto."
+    }
+  },
+  "acciones": {
+    "guardar": "Guardar cambios"
+  },
+  "avisos": {
+    "formato": "~ {{mensaje}}",
+    "rutaVacia": "Escribe la ruta de una imagen.",
+    "rutaInvalida": "La ruta debe ser absoluta o empezar por ~/.",
+    "imagenAusente": "No existe una imagen en esa ruta.",
+    "imagenInvalida": "Ese archivo no es una imagen que se pueda leer.",
+    "fotoActualizada": "Foto de perfil actualizada.",
+    "usuarioInvalido": "El usuario debe usar minúsculas, números, _ o - y empezar por una letra.",
+    "contrasenasNoCoinciden": "Las contraseñas de la cuenta no coinciden.",
+    "contrasenasAdminNoCoinciden": "Las contraseñas de administrador no coinciden.",
+    "sinCambios": "No hay cambios que guardar.",
+    "aplicando": "Aplicando cambios…",
+    "cuentaActualizadaReinicio": "Cuenta actualizada. Cierra sesión para usar el nuevo nombre.",
+    "cuentaActualizada": "Cuenta actualizada correctamente.",
+    "autorizacionCancelada": "Se canceló la autorización de administrador.",
+    "operacionFallida": "No se pudo completar la operación.",
+    "autologinActivado": "Inicio automático activado. Se aplica al reiniciar.",
+    "autologinDesactivado": "Inicio automático desactivado. Se aplica al reiniciar.",
+    "autologinDesfasado": "Cuenta actualizada, pero no pude cambiar el usuario del inicio automático: revísalo en /etc/sddm.conf.d/zz-gigios.conf."
+  }
+}

@@ -1,0 +1,43 @@
+# GiGiShell — limita la caché de escritura sucia en almacenamiento externo.
+#
+# EL PROBLEMA. Linux acepta hasta `vm.dirty_ratio` (10 %) de la RAM en páginas
+# sucias antes de forzar el volcado. Con 15 GB de RAM eso son ~1,5 GB pendientes
+# de escribir. Al copiar a un pendrive lento el kernel se traga los datos en RAM
+# a velocidad de RAM: el diálogo de copia llega al 100 % y "termina" en segundos,
+# cuando en realidad quedan cientos de MB sin bajar al dispositivo. Si lo quitas
+# ahí (aunque sea minutos después), el kernel escupe
+#   Buffer I/O error on dev sdb1, ... lost async page write
+# y los datos se han perdido de verdad. El sistema de ficheros puede quedar
+# marcado como sucio (a nosotros nos pasó con NTFS: "Mark volume as dirty").
+#
+# LA CURA. Bajar el techo de páginas sucias SOLO para estos dispositivos:
+#   max_bytes    = 16 MiB  → no se pueden encolar más de 16 MiB sin escribir
+#   strict_limit = 1       → se respeta el techo del dispositivo, en vez de
+#                            dejarle competir por la cuota global de dirty
+# Efecto: la barra de progreso pasa a ser HONESTA. Cuando dice 100 %, está
+# escrito. El coste es que las copias grandes ya no "mienten" siendo instantáneas
+# — tardan lo que tarda el pendrive de verdad.
+#
+# POR QUÉ AL DISCO Y NO A LA PARTICIÓN. El bdi cuelga del disco entero
+# (/sys/block/sdb/bdi → /sys/devices/virtual/bdi/8:16); sdb1 NO tiene bdi propio.
+# Igual que `removable`, que tampoco existe en las particiones.
+#
+# POR QUÉ ID_BUS Y NO SOLO removable. Los discos duros USB externos reportan
+# removable=0 (lo extraíble es la carcasa, no el medio): filtrar por removable
+# los habría dejado fuera, justo los que más datos mueven. ID_BUS=="usb" los coge
+# todos. La segunda regla cubre lo removible que no va por USB (lectores de
+# tarjetas internos, etc.). Que ambas casen en un mismo disco es inofensivo:
+# escriben el mismo valor.
+#
+# INSTALACIÓN (no es un symlink: udev lee /etc antes de que $HOME esté montado):
+#   sudo install -Dm644 ~/GiGiShell/system/udev/99-gigios-usb-writeback.rules \
+#        /etc/udev/rules.d/99-gigios-usb-writeback.rules
+#   sudo udevadm control --reload-rules
+# Se aplica al siguiente enchufe. Para aplicarlo a algo ya conectado:
+#   sudo udevadm trigger --action=change --subsystem-match=block
+
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", ENV{ID_BUS}=="usb", \
+    ATTR{bdi/max_bytes}="16777216", ATTR{bdi/strict_limit}="1"
+
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", ATTR{removable}=="1", \
+    ATTR{bdi/max_bytes}="16777216", ATTR{bdi/strict_limit}="1"

@@ -5,7 +5,7 @@ Personal dotfiles for a full Arch Linux / CachyOS desktop (It may work without p
 final path in the home directory. No stow, no copying: `git --git-dir=~/.dotfiles
 --work-tree=~ checkout` puts everything exactly where it belongs.
 
-The centerpiece is **[GiGiOS](GiGiOS/)** — a complete Hyprland/Wayland desktop rice (custom AGS
+The centerpiece is **[GiGiShell](GiGiShell/)** — a complete Hyprland/Wayland desktop rice (custom AGS
 shell, a Lua-native Hyprland config, and a suite of background daemons for security, power and USB
 safety). Everything else in this repo is the shell/terminal/tooling layer it runs on top of.
 
@@ -14,26 +14,26 @@ safety). Everything else in this repo is the shell/terminal/tooling layer it run
 ## 📦 Quick install (Arch Linux / CachyOS)
 
 One command bootstraps the whole machine — packages, this repo checked out into `$HOME`, every
-symlink GiGiOS needs, and the `/etc` fragments that require root:
+symlink GiGiShell needs, and the `/etc` fragments that require root:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiOS/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiShell/install.sh | bash
 ```
 
 The same command **updates** an already-installed machine (fetches, fast-forwards, re-verifies
-symlinks). See **[GiGiOS/README.md](GiGiOS/README.md)** for what gets installed, override
+symlinks). See **[GiGiShell/README.md](GiGiShell/README.md)** for what gets installed, override
 variables (`KITTY_PROFILE`, `FIREFOX_PROFILE`, `INSTALL_PACKAGES`, `DOTFILES_BRANCH`), and a
-detailed feature tour of the desktop itself; **[GiGiOS/docs/SETUP.md](GiGiOS/docs/SETUP.md)** for
+detailed feature tour of the desktop itself; **[GiGiShell/docs/SETUP.md](GiGiShell/docs/SETUP.md)** for
 the full step-by-step + troubleshooting.
 Collision files are automatically backed up.
 
 ## 🗂️ What's in here (updated 31/08/2026)
 
 `.config/` here holds only the pieces that are **plain dotfiles** (shell, terminal, Firefox,
-fastfetch, MangoHud) — everything Hyprland/AGS-related lives under `GiGiOS/` and is symlinked into
-`~/.config` by `GiGiOS/bin/link.sh` instead, since it needs more than a straight checkout (profile
+fastfetch, MangoHud) — everything Hyprland/AGS-related lives under `GiGiShell/` and is symlinked into
+`~/.config` by `GiGiShell/bin/link.sh` instead, since it needs more than a straight checkout (profile
 selection, machine-local JSON state, `/etc` fragments). See
-[`GiGiOS/docs/anadir-perfiles-por-equipo.md`](GiGiOS/docs/anadir-perfiles-por-equipo.md) for why
+[`GiGiShell/docs/anadir-perfiles-por-equipo.md`](GiGiShell/docs/anadir-perfiles-por-equipo.md) for why
 per-machine variants (Kitty, Firefox) are handled that way instead of just branching the repo.
 
 ## 🐚 Shell & terminal
@@ -44,14 +44,14 @@ per-machine variants (Kitty, Firefox) are handled that way instead of just branc
 - **fish** (`.config/fish/`) is CachyOS's default shell and kept in parity for anyone who ends up
   there instead — same directory-jump helpers (`ffcd`/`ffch`/`ffe`/`ffec`), same history bindings.
 - **Kitty** auto-selects a low-power or a responsive profile depending on whether the machine has
-  a battery (laptop vs. desktop) — see the GiGiOS README for the detection mechanism, shared with
+  a battery (laptop vs. desktop) — see the GiGiShell README for the detection mechanism, shared with
   Firefox's per-machine profile selector.
 
 ## 🔒 Repo-wide security: the pre-push hook
 
 Dotfiles repos are an easy place for a stray binary, installer or macro-laden document to slip in
 — by accident or from a compromised download. This repo ships a `.githooks/pre-push` hook (wired
-in automatically by `GiGiOS/bin/link.sh` via `core.hooksPath`, so there's no manual setup step) that
+in automatically by `GiGiShell/bin/link.sh` via `core.hooksPath`, so there's no manual setup step) that
 runs `bin/verify-files.sh` on every `git ls-files` before a push:
 
 - Checks every tracked file's **real type by magic bytes** (`file -b`), not by extension — a
@@ -68,15 +68,15 @@ runs `bin/verify-files.sh` on every `git ls-files` before a push:
 
 Every push/PR runs (`.github/workflows/gigios-validate.yml`):
 
-- `GiGiOS/bin/preflight.sh` — validates files, scripts, required commands and symlink targets.
-- The pure-TypeScript test suite under `GiGiOS/ags/widget/**/*.test.ts` (Node's built-in test
+- `GiGiShell/bin/preflight.sh` — validates files, scripts, required commands and symlink targets.
+- The pure-TypeScript test suite under `GiGiShell/ags/widget/**/*.test.ts` (Node's built-in test
   runner — no AGS/Hyprland runtime needed to run these).
 
 ## 📖 More documentation
 
-- **[`GiGiOS/README.md`](GiGiOS/README.md)** — the desktop itself: features, installation,
+- **[`GiGiShell/README.md`](GiGiShell/README.md)** — the desktop itself: features, installation,
   performance numbers.
-- **[`GiGiOS/docs/SETUP.md`](GiGiOS/docs/SETUP.md)** — full install walkthrough + troubleshooting.
-- **[`GiGiOS/CLAUDE.md`](GiGiOS/CLAUDE.md)** and **[`GiGiOS/ags/CLAUDE.md`](GiGiOS/ags/CLAUDE.md)**
+- **[`GiGiShell/docs/SETUP.md`](GiGiShell/docs/SETUP.md)** — full install walkthrough + troubleshooting.
+- **[`GiGiShell/CLAUDE.md`](GiGiShell/CLAUDE.md)** and **[`GiGiShell/ags/CLAUDE.md`](GiGiShell/ags/CLAUDE.md)**
   — the deep architectural notes: not just *what* things do, but *why* they're built that way.
 - **[`DEVELOPMENT.md`](DEVELOPMENT.md)** — repo-maintenance notes (this hook, mainly).

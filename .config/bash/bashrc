@@ -4,7 +4,7 @@
 # La carga ~/.bashrc, que es LOCAL de cada equipo y no se versiona. Aquí no va
 # nada propio de una máquina: ni rutas de herramientas (cargo, bun, fnm, opam...)
 # ni rutas absolutas con el nombre de usuario. Eso va en ~/.bashrc, que es además
-# donde escriben sus instaladores. Ver GiGiOS/docs/shell-local.md.
+# donde escriben sus instaladores. Ver GiGiShell/docs/shell-local.md.
 
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return

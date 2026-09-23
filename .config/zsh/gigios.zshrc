@@ -1,7 +1,7 @@
 # Configuración interactiva COMPARTIDA de Zsh (versionada en dotfiles).
 # La carga $ZDOTDIR/.zshrc, que es LOCAL de cada equipo y es donde escriben los
 # instaladores (bun, fnm, opam...): nada de rutas de una máquina aquí.
-# Ver GiGiOS/docs/shell-local.md.
+# Ver GiGiShell/docs/shell-local.md.
 [[ -o interactive ]] || return 0
 
 # Greeting, equivalente al del perfil Fish. Va POR ENCIMA del prompt instantáneo
