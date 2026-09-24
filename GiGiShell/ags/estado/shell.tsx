@@ -161,6 +161,8 @@ export function openPowerMenu() {
   setQuickSettingsVisible(false)
   setFunctionsMenuVisible(false)
   setTrayMenuVisible(false)
+  closeNotifPanel()
+  setCalendarVisible(false)
   setPowerMenuVisible(true)
 }
 
@@ -223,13 +225,13 @@ notifSettingsVisible.subscribe(() => {
   cerrarPanelesParaAjustes({ conservarNotificaciones: true })
 })
 
-/** Abre Quick Settings cerrando los demás paneles, o lo cierra si ya está abierto. */
 /** Abre el menú de energía cerrando los demás paneles, o lo cierra si ya está abierto. */
 export function alternarMenuEnergia() {
   if (powerMenuVisible.get()) closeAllPanels()
   else openPowerMenu()
 }
 
+/** Abre Quick Settings cerrando los demás paneles, o lo cierra si ya está abierto. */
 export function alternarQuickSettings() {
   if (quickSettingsVisible.get()) closeAllPanels()
   else openQuickSettings()

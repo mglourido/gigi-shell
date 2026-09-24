@@ -9,10 +9,10 @@
 #   compilar-css.sh           compila si out.css falta o algún .scss es más nuevo
 #   compilar-css.sh --forzar  compila siempre
 #
-# Se compila a un temporal y solo se publica si sass salió bien: un error a media
-# escritura dejaría un out.css truncado y AGS arrancaría con medio CSS. Si falla, se
-# conserva el out.css anterior (aunque esté desfasado) y se avisa por notify-send.
-set -uo pipefail
+# Se compila a un temporal junto a out.css y solo se publica si todas las etapas
+# salieron bien. El renombrado final es atómico y conserva la versión anterior si
+# falla Sass, el mapa o su reescritura; además se avisa por notify-send.
+set -euo pipefail
 
 AGS="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 SCSS="$AGS/estilos/style.scss"
@@ -31,7 +31,7 @@ avisar() {
 
 command -v sass >/dev/null || { avisar "falta 'sass' (sudo pacman -S --needed dart-sass)"; exit 1; }
 
-tmp="$(mktemp -d "${TMPDIR:-/tmp}/gigishell-css.XXXXXX")" || exit 1
+tmp="$(mktemp -d "$AGS/estilos/.gigishell-css.XXXXXX")" || exit 1
 trap 'rm -rf "$tmp"' EXIT
 
 # --no-charset: GTK CSS rechaza el @charset de Sass. El mapa va a la caché con rutas
@@ -43,6 +43,6 @@ if ! err="$(sass --no-charset --source-map-urls=absolute "$SCSS" "$tmp/out.css" 
 fi
 
 mkdir -p "$(dirname "$MAPA")"
-mv "$tmp/out.css.map" "$MAPA"
 sed -i "s#sourceMappingURL=out.css.map#sourceMappingURL=file://$MAPA#" "$tmp/out.css"
+mv "$tmp/out.css.map" "$MAPA"
 mv "$tmp/out.css" "$CSS"

@@ -12,26 +12,15 @@ import { settingsPanelVisible, setSettingsPanelVisible, privilegedPromptActive }
 import NavegacionAjustes from "./panel/NavegacionAjustes.tsx"
 import { crearContenidoSeccion, type IdSeccion } from "./panel/secciones.tsx"
 import { clasesFondoShell } from "./preferences"
-import { medidasLamina, seguirTamanoLamina } from "../../utilidades/tamanoLamina"
+import { medidasLamina, seguirGeometriaMonitor, seguirTamanoLamina } from "../../utilidades/tamanoLamina"
 
-// Tamaño de DISEÑO del panel, con los dos ejes tratados de forma distinta a propósito:
-//
-// - El ANCHO es **fijo**: 860 px y punto. `medidasLamina` solo lo recorta si la pantalla es
-//   más estrecha, que es un caso de "no cabe", no un ajuste al contenido. Nada de dentro
-//   puede ensancharlo — la nav va con `hexpand={false}` y el contenido no propaga ni su
-//   mínimo ni su natural.
-// - El ALTO es un **intervalo**: parte de 700 y se estira hasta lo que quepa en la pantalla.
-//   Quien lo estira es la **NAV**, no la sección: la lista de destinos es lo único constante
-//   entre secciones, así que el panel no cambia de tamaño al navegar y el salto de las que
-//   se pintan tarde (Sistema) desaparece por construcción. El techo lo aplica
-//   `NavegacionAjustes` con `maxContentHeight`.
-//
-// Antes esto vivía como `min-width`/`min-height` en `.sp-panel` más un `heightRequest={700}`
-// fijo aquí, o sea un tamaño único sin relación con la pantalla — ver
-// `utilidades/tamanoLamina.ts`. 860 y no los 820 de aquel `min-width` porque aquel nunca fue
-// el ancho real: el `min-width: 590px` de `.sp-content` más los 226 de la nav ya empujaban
-// el panel a ~855, así que 820 dejaba el contenido más estrecho de lo que estaba.
+// Tamaño de diseño del panel. `medidasLamina` lo recorta a la pantalla y el alto se estira
+// hasta donde permita la navegación. Bajo el ancho lateral mínimo, la nav pasa arriba para
+// que el contenido conserve un área útil y sus destinos sigan accesibles con scroll.
 const DISENO = { ancho: 860, alto: 700 }
+// 252 px de nav + 20 de padding y 1 de borde; 420 px de sección + 40 de padding;
+// más el borde del panel (≈735 px). Se deja una pequeña holgura para el reparto GTK.
+const ANCHO_NAV_LATERAL = 740
 
 /**
  * Apaga el `scroll-to-focus` del `GtkViewport` que `Gtk.ScrolledWindow` crea para su hijo.
@@ -64,24 +53,35 @@ function desactivarDesplazarAlFoco(desplazable: Gtk.ScrolledWindow) {
 export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
   const [seccion, establecerSeccion] = createState<IdSeccion>("account")
+  const medidas = medidasLamina(gdkmonitor, DISENO)
+  const [navCompacta, establecerNavCompacta] = createState(medidas.ancho < ANCHO_NAV_LATERAL)
   // null = panel cerrado → no se construye ninguna sección. La sección elegida se
   // conserva en `seccion` entre aperturas; lo que se tira es el árbol de widgets.
   const vistaActiva = createComputed(() => settingsPanelVisible() ? seccion() : null)
   let contenidoDesplazable: Gtk.ScrolledWindow | undefined
 
-  const medidas = medidasLamina(gdkmonitor, DISENO)
+  const actualizarNav = () => {
+    const nuevasMedidas = medidasLamina(gdkmonitor, DISENO)
+    establecerNavCompacta(nuevasMedidas.ancho < ANCHO_NAV_LATERAL)
+  }
 
   const panel = (
-    // El tamaño se PIDE aquí, no en CSS, y se recalcula si el monitor cambia de
-    // resolución (Ajustes > Pantalla lo hace en caliente). El ancho que se pide es el
-    // definitivo; el alto es el de partida, y lo sube la nav. `halign`/`valign` CENTER más
-    // un tamaño acotado a la pantalla es lo que impide el desborde.
-    <box cssClasses={["sp-panel"]} orientation={Gtk.Orientation.HORIZONTAL} spacing={0}
+    // La solicitud de tamaño se recalcula si cambia la geometría del monitor. El alto
+    // empieza en el diseño y la nav puede ampliarlo; al estrecharse la pantalla, el cambio
+    // de orientación evita que el ancho natural de la nav quite sitio a la sección.
+    <box
+      cssClasses={navCompacta((compacta) => compacta ? ["sp-panel", "compacto"] : ["sp-panel"])}
+      orientation={navCompacta((compacta) => compacta ? Gtk.Orientation.VERTICAL : Gtk.Orientation.HORIZONTAL)}
+      spacing={0}
       halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER}
       widthRequest={medidas.ancho} heightRequest={medidas.alto}
-      $={seguirTamanoLamina(gdkmonitor, DISENO)}>
+      $={(self: Gtk.Widget) => {
+        seguirTamanoLamina(gdkmonitor, DISENO)(self)
+        seguirGeometriaMonitor(gdkmonitor, actualizarNav)(self)
+      }}>
       <NavegacionAjustes
         gdkmonitor={gdkmonitor}
+        navCompacta={navCompacta}
         seccion={seccion}
         seleccionar={(destino) => {
           establecerSeccion(destino)

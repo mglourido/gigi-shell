@@ -5,7 +5,8 @@ export function interpretarMuestraCpu(contenido: string): MuestraCpu | null {
   if (partes.length < 4 || partes.some((valor) => !Number.isFinite(valor))) return null
   return {
     inactivo: partes[3] + (partes[4] || 0),
-    total: partes.reduce((total, valor) => total + valor, 0),
+    // guest y guest_nice ya están incluidos en user y nice, respectivamente.
+    total: partes.slice(0, 8).reduce((total, valor) => total + valor, 0),
   }
 }
 

@@ -3,6 +3,7 @@
 // conserva su scroll y su estado interno (filtros, vista mosaico/lista…) al
 // volver a ella.
 
+import { onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
 import { activeSection, onSectionChange } from "../../state"
 import { SECTION_COMPONENTS } from "../sections"
@@ -56,7 +57,7 @@ export default function NavSections({ navegacion }: NavSectionsProps) {
   }
 
   show(activeSection.get())
-  onSectionChange(show)
+  onCleanup(onSectionChange(show))
 
   return scroll
 }

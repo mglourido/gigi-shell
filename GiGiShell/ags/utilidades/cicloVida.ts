@@ -23,7 +23,13 @@ export function crearCicloVida() {
 
   onCleanup(() => {
     activo = false
-    for (const limpiar of [...limpiezas]) limpiar()
+    for (const limpiar of [...limpiezas]) {
+      try {
+        limpiar()
+      } catch (error) {
+        console.error("[cicloVida] No se pudo liberar un recurso:", error)
+      }
+    }
     limpiezas.clear()
   })
 

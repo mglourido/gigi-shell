@@ -91,10 +91,12 @@ export default function NavegacionAjustes({
   seccion,
   seleccionar,
   gdkmonitor,
+  navCompacta,
 }: {
   seccion: Accessor<IdSeccion>
   seleccionar: (seccion: IdSeccion) => void
   gdkmonitor: Gdk.Monitor
+  navCompacta: Accessor<boolean>
 }) {
   let lista: Gtk.ScrolledWindow | undefined
   // El alto del panel lo estira ESTA lista, no la sección abierta: la nav es lo único
@@ -104,30 +106,41 @@ export default function NavegacionAjustes({
   // grupos desplegados (acotado por la pantalla) desde el principio, y abrir o cerrar un
   // acordeón no cambia el alto que pide la lista — la ventana deja de "respirar" al navegar.
   const aplicarTecho = () => {
-    const techoPantalla = Math.max(1, espacioDisponible(gdkmonitor).alto - MARCO_NAV)
+    const disponible = espacioDisponible(gdkmonitor)
     const altoExpandido = FILAS_NAV_EXPANDIDA * ALTO_FILA_NAV
-    const alto = Math.min(techoPantalla, altoExpandido)
-    lista?.set_min_content_height(alto)
-    lista?.set_max_content_height(alto)
+    if (navCompacta.get()) {
+      // La nav ocupa una fila al cerrarse y crece con los grupos abiertos. Reserva
+      // espacio para la sección; si los destinos no caben, la lista se desplaza.
+      const techo = Math.max(ALTO_FILA_NAV, disponible.alto - MARCO_NAV - 180)
+      lista?.set_min_content_height(ALTO_FILA_NAV)
+      lista?.set_max_content_height(Math.min(techo, altoExpandido))
+    } else {
+      // En modo lateral su altura estable sigue determinando el alto del panel.
+      const techoPantalla = Math.max(1, disponible.alto - MARCO_NAV)
+      const alto = Math.min(techoPantalla, altoExpandido)
+      lista?.set_min_content_height(alto)
+      lista?.set_max_content_height(alto)
+    }
   }
 
   return (
-    // `hexpand={false}` EXPLÍCITO, y es obligatorio: en GTK4 el hexpand de un hijo sube
+    // En el modo lateral, `hexpand={false}` es obligatorio: en GTK4 el hexpand de un hijo sube
     // por sus ancestros salvo que uno lo fije a la fuerza, y las etiquetas de las entradas
     // lo llevan (es lo que alinea el texto a la izquierda del glifo). Sin esto la nav
     // «expandía» igual que el contenido y se repartía con él todo el ancho sobrante del
     // panel: los botones pasaban de sus ~225 px a más del doble. No se notaba mientras el
     // contenido pedía un mínimo mayor que el panel, porque entonces no sobraba nada que
     // repartir. La nav mide lo que miden sus etiquetas y ahí se queda.
-    <box cssClasses={["sp-nav"]} orientation={Gtk.Orientation.VERTICAL} spacing={4} hexpand={false}>
+    <box
+      cssClasses={navCompacta((compacta) => compacta ? ["sp-nav", "compacto"] : ["sp-nav"])}
+      orientation={Gtk.Orientation.VERTICAL}
+      spacing={4}
+      hexpand={navCompacta((compacta) => compacta)}
+    >
       <label cssClasses={["sp-nav-title"]} label={textos.panel.titulo} halign={Gtk.Align.START} />
-      {/* La lista vertical va en EXTERNAL, no en NEVER: con NEVER, GTK4 suma la altura
-          MÍNIMA de las entradas a lo que pide el panel, así que la lista no
-          se desplazaba nunca y encima imponía un alto de panel imposible en pantallas
-          normales. Con EXTERNAL sube el NATURAL —acotado por `maxContentHeight`—, que es
-          justo lo que se quiere: el panel se estira para enseñar la nav entera mientras
-          quepa, y cuando no cabe la lista se desplaza. No dibuja barra. El ancho sí sigue
-          en NEVER: la nav debe medir lo que miden sus etiquetas, y es estático. */}
+      {/* En disposición lateral el scroll vertical es EXTERNAL y el horizontal está
+          desactivado. En compacto ambos ejes son AUTOMATIC: la lista se vuelve horizontal,
+          y los hijos de los acordeones pueden desplazarse verticalmente si no caben. */}
       <Gtk.ScrolledWindow
         cssClasses={["sp-nav-scroll"]}
         $={(self: Gtk.ScrolledWindow) => {
@@ -135,12 +148,18 @@ export default function NavegacionAjustes({
           aplicarTecho()
           seguirGeometriaMonitor(gdkmonitor, aplicarTecho)(self)
         }}
-        vexpand
+        vexpand={navCompacta((compacta) => !compacta)}
         propagateNaturalHeight
-        hscrollbarPolicy={Gtk.PolicyType.NEVER}
-        vscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
+        hscrollbarPolicy={navCompacta((compacta) => compacta ? Gtk.PolicyType.AUTOMATIC : Gtk.PolicyType.NEVER)}
+        vscrollbarPolicy={navCompacta((compacta) => compacta ? Gtk.PolicyType.AUTOMATIC : Gtk.PolicyType.EXTERNAL)}
       >
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+        <box
+          orientation={navCompacta((compacta) => {
+            aplicarTecho()
+            return compacta ? Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL
+          })}
+          spacing={2}
+        >
           {ITEMS_NAVEGACION.map((item) => {
             if (!esGrupo(item)) {
               return <FilaDestino destino={item} seccion={seccion} seleccionar={seleccionar} />

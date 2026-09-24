@@ -21,14 +21,23 @@
 
 type Invalidador = () => void
 
-const invalidadores: Invalidador[] = []
+const invalidadores = new Set<{ fn: Invalidador }>()
 
 /**
  * Registra un consumidor del catálogo. Cada uno se encarga de tirar su caché y,
- * si tiene UI montada, de volver a pintarla.
+ * si tiene UI montada, de volver a pintarla. Devuelve una función idempotente
+ * para retirar el consumidor al terminar su ciclo de vida.
  */
-export function registrarInvalidadorCatalogo(fn: Invalidador): void {
-  invalidadores.push(fn)
+export function registrarInvalidadorCatalogo(fn: Invalidador): () => void {
+  const registro = { fn }
+  invalidadores.add(registro)
+  let registrado = true
+
+  return () => {
+    if (!registrado) return
+    registrado = false
+    invalidadores.delete(registro)
+  }
 }
 
 /**
@@ -38,7 +47,7 @@ export function registrarInvalidadorCatalogo(fn: Invalidador): void {
  * desmontar) no puede dejar sin refrescar a los demás.
  */
 export function invalidarCatalogoApps(): void {
-  for (const fn of invalidadores) {
+  for (const { fn } of [...invalidadores]) {
     try { fn() } catch (_) {}
   }
 }

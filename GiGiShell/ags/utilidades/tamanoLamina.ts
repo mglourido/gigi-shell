@@ -20,10 +20,6 @@ import { onCleanup } from "ags"
 
 /** Aire mínimo entre la lámina y los bordes de la pantalla, repartido entre los dos lados. */
 const MARGEN_PANTALLA = 48
-/** Por debajo de esto la lámina deja de ser usable; mejor recortarla por dentro. */
-const ANCHO_MINIMO = 360
-const ALTO_MINIMO = 320
-
 export interface TamanoLamina {
   ancho: number
   alto: number
@@ -33,8 +29,10 @@ export interface TamanoLamina {
 export function espacioDisponible(gdkmonitor: Gdk.Monitor): TamanoLamina {
   const geo = gdkmonitor.get_geometry()
   return {
-    ancho: Math.max(ANCHO_MINIMO, geo.width - MARGEN_PANTALLA),
-    alto: Math.max(ALTO_MINIMO, geo.height - MARGEN_PANTALLA),
+    // No se impone un suelo fijo: en una pantalla menor que el margen, la propia
+    // pantalla es el límite. `medidasLamina` nunca debe pedir más de lo que existe.
+    ancho: Math.max(0, Math.min(geo.width, geo.width - MARGEN_PANTALLA)),
+    alto: Math.max(0, Math.min(geo.height, geo.height - MARGEN_PANTALLA)),
   }
 }
 

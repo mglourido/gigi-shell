@@ -16,7 +16,6 @@ $bg-shell-gris: rgb(32, 32, 32);
 $borde-menu: rgba(255, 255, 255, 0.08);
 $bg-pill: rgba(255, 255, 255, 0.07);
 $bg-pill-hover: rgba(0, 0, 0, 0.36);
-$border: rgba(255, 255, 255, 0.308);
 $text: #e2e2e2;
 $text-dim: rgba($text, 0.45);
 $blue: #89b4fa;
@@ -102,7 +101,6 @@ $radius-pill: 999px;
 
 @function acento-sobre($fondo, $alpha)           { @return acento-var-sobre("--acento", $violet, $fondo, $alpha); }
 @function acento-azul-sobre($fondo, $alpha)      { @return acento-var-sobre("--acento-2", $blue, $fondo, $alpha); }
-@function acento-turquesa-sobre($fondo, $alpha)  { @return acento-var-sobre("--acento-3", $turquesa, $fondo, $alpha); }
 @function acento-cian-sobre($fondo, $alpha)      { @return acento-var-sobre("--acento-3c", $cian, $fondo, $alpha); }
 
 // ── Láminas ───────────────────────────────────────────────────────────────────

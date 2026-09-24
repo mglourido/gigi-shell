@@ -272,7 +272,7 @@ export function clipWindowInputToContent(
   // widget a la región cuando el helper recibe varios contenidos.
   for (const elemento of contenidos) {
     if (!elemento?.connect) continue
-    try { elemento.connect("notify::visible", scheduleApply) } catch (_) {}
+    try { elemento.connect("notify::visible", () => scheduleApply()) } catch (_) {}
   }
 
   const hookSurface = () => {
@@ -289,8 +289,8 @@ export function clipWindowInputToContent(
       try { for (const id of surfaceHandlers.ids) surfaceHandlers.surface.disconnect(id) } catch (_) {}
     }
     const ids = [
-      surface.connect("notify::width", scheduleApply),
-      surface.connect("notify::height", scheduleApply),
+      surface.connect("notify::width", () => scheduleApply()),
+      surface.connect("notify::height", () => scheduleApply()),
     ]
     surfaceHandlers = { surface, ids }
   }

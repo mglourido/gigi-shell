@@ -3,6 +3,7 @@
 // (favoritos) son un catálogo aparte — ver `HomeSection.tsx` — pero comparten
 // el icono y la tarjeta de mosaico vía `../shared/tarjetaApp`.
 
+import { onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
 import type Gio from "gi://Gio"
 import {
@@ -121,6 +122,20 @@ function bindAppActivation(
   })
 }
 
+function crearNavegableApp(app: AppEntry, boton: Gtk.Button): ElementoNavegacionBusqueda {
+  return {
+    marcarSeleccionado: (seleccionado) => {
+      if (seleccionado) boton.add_css_class("seleccionado")
+      else boton.remove_css_class("seleccionado")
+    },
+    previsualizar: () => {
+      if (rightPanelVisible.get()) openAppContext(app)
+    },
+    enfocar: () => boton.grab_focus(),
+    activar: () => openAppContext(app),
+  }
+}
+
 function buildAppRow(app: AppEntry, navegacion: NavegacionBusqueda): AppRenderizada {
   const boton = new Gtk.Button({ cssClasses: ["apps-row"], hexpand: true })
   const inner = new Gtk.Box({ spacing: 10 })
@@ -137,17 +152,7 @@ function buildAppRow(app: AppEntry, navegacion: NavegacionBusqueda): AppRenderiz
   }))
   boton.set_child(inner)
 
-  const navegable: ElementoNavegacionBusqueda = {
-    marcarSeleccionado: (seleccionado) => {
-      if (seleccionado) boton.add_css_class("seleccionado")
-      else boton.remove_css_class("seleccionado")
-    },
-    previsualizar: () => {
-      if (rightPanelVisible.get()) openAppContext(app)
-    },
-    enfocar: () => boton.grab_focus(),
-    activar: () => openAppContext(app),
-  }
+  const navegable = crearNavegableApp(app, boton)
   bindAppActivation(boton, app, navegacion, navegable)
 
   return { widget: boton, navegable }
@@ -156,17 +161,7 @@ function buildAppRow(app: AppEntry, navegacion: NavegacionBusqueda): AppRenderiz
 function buildAppTile(app: AppEntry, navegacion: NavegacionBusqueda): AppRenderizada {
   const boton = new Gtk.Button({ cssClasses: ["apps-tile"] })
   construirTileApp(boton, crearIconoApp(app.gicon, app.iconName, 38), app.name)
-  const navegable: ElementoNavegacionBusqueda = {
-    marcarSeleccionado: (seleccionado) => {
-      if (seleccionado) boton.add_css_class("seleccionado")
-      else boton.remove_css_class("seleccionado")
-    },
-    previsualizar: () => {
-      if (rightPanelVisible.get()) openAppContext(app)
-    },
-    enfocar: () => boton.grab_focus(),
-    activar: () => openAppContext(app),
-  }
+  const navegable = crearNavegableApp(app, boton)
   bindAppActivation(boton, app, navegacion, navegable)
   return { widget: boton, navegable }
 }
@@ -269,7 +264,7 @@ export function AppsSection(navegacion: NavegacionBusqueda) {
     renderMode()
   }
 
-  activeSection.subscribe(sincronizarNavegacion)
+  const desuscribirNavegacion = activeSection.subscribe(sincronizarNavegacion)
 
   const catsScroll = new Gtk.ScrolledWindow()
   catsScroll.set_css_classes(["apps-cats-scroll"])
@@ -306,10 +301,18 @@ export function AppsSection(navegacion: NavegacionBusqueda) {
   // caché y se repinta la categoría que esté puesta — solo si la sección ya se
   // cargó: forzar la carga perezosa desde aquí pagaría el parseo de los ~161
   // `.desktop` en una sección que el usuario aún no ha abierto.
-  registrarInvalidadorCatalogo(() => {
+  const soltarInvalidador = registrarInvalidadorCatalogo(() => {
     _appCache = null
     if (!cargado) return
     rebuild(categoriaActual)
+  })
+
+  // La instancia de Orion puede destruirse (por ejemplo, al cerrar su scope
+  // propietario). El catálogo es global, así que soltar el callback evita que
+  // conserve esta sección y sus widgets después de destruirla.
+  onCleanup(() => {
+    soltarInvalidador()
+    if (typeof desuscribirNavegacion === "function") desuscribirNavegacion()
   })
 
   return root

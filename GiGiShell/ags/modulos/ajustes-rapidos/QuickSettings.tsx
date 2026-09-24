@@ -128,6 +128,7 @@ import {
   type FilaControlCamara,
 } from "./camaraQsDatos"
 import { crearCicloVida } from "../../utilidades/cicloVida"
+import QsTile from "./componentes/QsTile"
 
 const WIFI_SIGNAL_BARS = 4
 
@@ -1115,67 +1116,6 @@ quickSettingsVisible.subscribe(() => {
     setNetSpeed({ up: "0B", down: "0B" })
   }
 })
-
-function QsTile({ icon, iconWidget, label, subtitle, active, onToggle, onRightClick, subtitleWidthRequest, subtitleMaxWidthChars, claseActiva, avisoActivo, visible = true }: {
-  icon: any, iconWidget?: any, label: any, subtitle: any, active: any, onToggle: () => void, onRightClick?: () => void, subtitleWidthRequest?: number,
-  /** Tope de ancho NATURAL del subtítulo, en caracteres. `ellipsize` por sí solo
-   *  no acota nada: baja el ancho MÍNIMO de la etiqueta, pero su natural sigue
-   *  siendo el texto entero, y la rejilla es `homogeneous` — o sea que un
-   *  subtítulo largo (el nombre de una webcam: "HP True Vision FHD Camera: HP T")
-   *  ensancha su columna, la otra con ella y el panel entero. Mismo remedio que
-   *  el `maxWidthChars` del título del popup de notificaciones. */
-  subtitleMaxWidthChars?: number,
-  /** Clase EXTRA mientras `active` es cierto. La usa la cámara para pintar de
-   *  rojo el "alguien está mirando" sobre el resaltado normal (que ahí significa
-   *  "no está bloqueada"), en vez del azul de Wi-Fi o Bluetooth. Sale de la misma
-   *  derivación que el resto de clases para no acabar con dos fuentes de verdad
-   *  del mismo hecho, que es justo lo que le pasó al tile de Bluetooth. */
-  claseActiva?: string,
-  /** Cuándo aplicar `claseActiva`, si no basta con `active`. Lo usa la cámara:
-   *  "alguien está mirando" y "no está bloqueada" son dos hechos distintos que
-   *  pueden discrepar —bloquear no corta una captura ya abierta—, así que el
-   *  aviso rojo no puede colgar del mismo booleano que el resaltado. Exige que
-   *  `active` sea también un accessor, para que los dos entren en el mismo
-   *  cómputo y no puedan contradecirse. */
-  avisoActivo?: any,
-  visible?: any,
-}) {
-  const construir = (activo: boolean, aviso: boolean) => {
-    const clases = ["qs-tile"]
-    if (activo) clases.push("active")
-    if (aviso && claseActiva) clases.push(claseActiva)
-    return clases
-  }
-  const classes = avisoActivo !== undefined
-    ? createComputed([active, avisoActivo], construir)
-    : typeof active === "function"
-      ? active((a: boolean) => construir(a, a))
-      : construir(!!active, !!active)
-  return (
-    <button cssClasses={classes} onClicked={onToggle} hexpand visible={visible}>
-      <Gtk.GestureClick
-        button={Gdk.BUTTON_SECONDARY}
-        onPressed={onRightClick}
-      />
-      <box spacing={6} valign={Gtk.Align.CENTER} hexpand>
-        {iconWidget || <label cssClasses={["qs-tile-icon"]} label={icon} />}
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={0} hexpand>
-          <label cssClasses={["qs-tile-label"]} label={label} halign={Gtk.Align.START} />
-          <label
-            cssClasses={["qs-tile-sub"]}
-            label={subtitle}
-            halign={Gtk.Align.START}
-            xalign={0}
-            widthRequest={subtitleWidthRequest}
-            maxWidthChars={subtitleMaxWidthChars}
-            ellipsize={3}
-          />
-        </box>
-        <label cssClasses={["qs-tile-arrow"]} label="󰅂" halign={Gtk.Align.END} />
-      </box>
-    </button>
-  )
-}
 
 // Header "← título [acciones]" compartido por los submenús (Volumen, Micrófono,
 // Pantalla, Bluetooth, Wi-Fi). `children` es el slot de acciones a la derecha

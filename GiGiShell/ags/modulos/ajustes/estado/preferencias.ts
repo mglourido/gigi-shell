@@ -993,15 +993,20 @@ export function removePausaLuzNocturnaApp(cls: string) {
 function acotarDuracion(ms: number): number {
   return Math.min(Math.max(Math.round(ms), 1000), 60000)
 }
+// Los setters son públicos: ignorar entradas no finitas conserva la preferencia actual
+// y evita que NaN se persista como null en preferences.json.
 export function setPopupDuracionNormalMs(ms: number) {
+  if (!Number.isFinite(ms)) return
   _setPopupDuracionNormalMs(acotarDuracion(ms))
   save()
 }
 export function setPopupDuracionSistemaMs(ms: number) {
+  if (!Number.isFinite(ms)) return
   _setPopupDuracionSistemaMs(acotarDuracion(ms))
   save()
 }
 export function setPopupDuracionAccionesMs(ms: number) {
+  if (!Number.isFinite(ms)) return
   _setPopupDuracionAccionesMs(acotarDuracion(ms))
   save()
 }

@@ -160,8 +160,16 @@ export function togglePanel() {
 }
 
 type SectionListener = (id: SectionId) => void
-const sectionListeners: SectionListener[] = []
-export function onSectionChange(fn: SectionListener) { sectionListeners.push(fn) }
+const sectionListeners = new Set<SectionListener>()
+export function onSectionChange(fn: SectionListener): () => void {
+  sectionListeners.add(fn)
+  let suscrito = true
+  return () => {
+    if (!suscrito) return
+    suscrito = false
+    sectionListeners.delete(fn)
+  }
+}
 
 export function setSection(section: SectionId) {
   setActiveSection(section)

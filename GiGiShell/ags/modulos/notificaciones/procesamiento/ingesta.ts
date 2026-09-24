@@ -77,7 +77,19 @@ export function disposeConditions(id: number): void {
   if (arr) { for (const d of arr) { try { d() } catch {} } conditionDisposers.delete(id) }
 }
 
+// Las notificaciones también desaparecen desde el panel y desde cleanupEngine. Observar el
+// estado aquí cubre esas rutas sin hacer que almacen.ts dependa de este módulo de ingesta.
+notifications.subscribe(() => {
+  const idsActivos = new Set(notifications.get().map(({ id }) => id))
+  for (const id of conditionDisposers.keys()) {
+    if (!idsActivos.has(id)) disposeConditions(id)
+  }
+})
+
 function scheduleConditions(stored: StoredNotification): void {
+  // Un ID del daemon puede llegar de nuevo para actualizar la misma notificación. Sustituir
+  // sus vigilantes evita acumular señales cuando la actualización cambia las condiciones.
+  disposeConditions(stored.id)
   if (stored.meta.conditions.length === 0) return
   const disposers: (() => void)[] = []
   for (const name of stored.meta.conditions) {

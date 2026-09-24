@@ -227,6 +227,49 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
     limiteMax = Math.max(modo.limiteIzq, modo.limiteDer)
   }
 
+  /** Recalcula la franja del modo activo después de cambiar la geometría del
+   * monitor. Los límites guardados en `modo` se calcularon con el ancho que
+   * tenía la salida al abrir el panel y dejarían de ser válidos tras redimensionar. */
+  function actualizarModoConAnchoNuevo() {
+    if (modo.tipo === "normal") {
+      recalcularLimites()
+      return
+    }
+
+    if (modo.tipo === "quicksettings") {
+      const { minX, maxX } = franjaQuickSettings(ANCHO_CAMINANDO, anchoMonitor)
+      modo = { ...modo, limiteIzq: minX, limiteDer: maxX }
+    } else if (modo.origen === "notificaciones") {
+      const { empuje, limiteDerecho } = empujeDesdeDerecha(
+        m.x, ANCHO_CAMINANDO, anchoMonitor, ANCHO_NOTIFICACIONES,
+      )
+      modo = { ...modo, limiteIzq: 0, limiteDer: limiteDerecho }
+      if (empuje) {
+        m.x = empuje.x
+        m.direccion = empuje.direccion
+        m.vx = 0
+        m.estado = "caminando"
+      }
+    } else {
+      const { empuje, limiteIzquierdo } = empujeDesdeIzquierda(
+        m.x, anchoMonitor, ANCHO_CALENDARIO,
+      )
+      modo = {
+        ...modo,
+        limiteIzq: limiteIzquierdo,
+        limiteDer: Math.max(limiteIzquierdo, anchoMonitor - ANCHO_CAMINANDO),
+      }
+      if (empuje) {
+        m.x = empuje.x
+        m.direccion = empuje.direccion
+        m.vx = 0
+        m.estado = "caminando"
+      }
+    }
+
+    recalcularLimites()
+  }
+
   /** Borde inferior real de Quick Settings, leído de su propia ventana para
    * no duplicar un alto que cambia con la vista (main/wifi/bluetooth/...).
    * Repliegue razonable si todavía no se ha asignado (panel recién mapeado). */
@@ -473,11 +516,12 @@ export default function Lagarto(gdkmonitor: Gdk.Monitor) {
   try {
     idGeometria = gdkmonitor.connect("notify::geometry", () => {
       anchoMonitor = gdkmonitor.get_geometry().width
-      recalcularLimites()
+      const xAnterior = m.x
+      const direccionAnterior = m.direccion
+      actualizarModoConAnchoNuevo()
       const x = clamp(m.x, limiteMin, limiteMax)
-      if (x === m.x) return
       m.x = x
-      pintar()
+      if (x !== xAnterior || m.direccion !== direccionAnterior) pintar()
     })
   } catch (_) {
     // Sin la señal se conserva el ancho del arranque: el paseo sigue acotado a

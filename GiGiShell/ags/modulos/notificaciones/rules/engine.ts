@@ -49,9 +49,13 @@ export function compileRules(rules: NotifRule[]): RuleIndex {
     byEvent,
     rest,
     candidatesFor(appName: string, event?: string) {
-      const porEvento = event ? (byEvent.get(event.toLowerCase()) ?? []) : []
-      const porApp = byApp.get(appName.toLowerCase()) ?? []
-      return [...porEvento, ...porApp, ...rest]
+      // Las reglas ci=false se indexan con el valor original; las demás, en minúsculas.
+      // Consultar ambas claves evita descartar una regla exacta antes de ejecutar su matcher.
+      const porEvento = event
+        ? [...(byEvent.get(event) ?? []), ...(byEvent.get(event.toLowerCase()) ?? [])]
+        : []
+      const porApp = [...(byApp.get(appName) ?? []), ...(byApp.get(appName.toLowerCase()) ?? [])]
+      return [...new Set([...porEvento, ...porApp, ...rest])]
     },
   }
 }

@@ -1525,9 +1525,6 @@ $qs-bg-opaco: rgb(8, 8, 12);
 $qs-bg: lamina("--lamina-qs", rgba(8, 8, 12, 0.94));
 $qs-accent: acento-cian();
 $qs-accent2: #7000ff;
-$qs-green: #00ff9d;
-$qs-yellow: #fff200;
-$qs-orange: #ff7b00;
 $qs-text: $white;
 $qs-text-dim: rgba(255, 255, 255, 0.5);
 $qs-tile-act: acento-cian-sobre($qs-bg-opaco, 0.1);
@@ -2106,41 +2103,6 @@ button.qs-dropdown-header {
   padding: 0;
 }
 
-.qs-sink-item {
-  background: $qs-bg-opaco;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 6px 8px;
-  color: $qs-text-dim;
-  transition: all 100ms ease;
-
-  &:hover {
-    background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
-  }
-
-  &.active {
-    background: fondo-qs-opaco(rgba(139, 120, 255, 0.18));
-    border-color: rgba(139, 120, 255, 0.3);
-    color: $qs-accent2;
-  }
-
-  .qs-sink-dot {
-    font-size: 8px;
-    color: $qs-accent;
-    margin: 0;
-  }
-
-  .qs-sink-name {
-    font-size: 12px;
-    margin: 0;
-  }
-
-  .qs-sink-res {
-    font-size: 0.8em;
-    opacity: 0.5;
-  }
-}
-
 // ── Display management ────────────────────────────────────────────────────────
 .qs-display-monitor-tabs {
   margin-bottom: 0;
@@ -2180,12 +2142,6 @@ button.qs-display-monitor-pill {
     font-size: 7px;
     color: $qs-accent;
   }
-}
-
-.qs-display-status {
-  font-size: 11px;
-  color: $qs-text-dim;
-  margin: 2px 0 2px;
 }
 
 // Select integrado — la lista es un overlay del mismo árbol GTK, no un popup.
@@ -2822,11 +2778,6 @@ button.qs-user-settings-btn {
     &:focus-within {
       background: fondo-qs-opaco(rgba(255, 255, 255, 0.03));
       border-color: acento(0.11);
-    }
-
-    .qs-wifi-search-icon {
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.32);
     }
 
     .qs-wifi-search-entry {
@@ -4235,19 +4186,6 @@ window.np-window.csd decoration {
   margin: 0;
 }
 
-.ns-scroll {
-  min-height: 200px;
-
-  scrollbar, scrollbar slider {
-    opacity: 0;
-    min-width: 0;
-    background: transparent;
-    border: none;
-    margin: 0;
-    padding: 0;
-  }
-}
-
 .ns-app-row {
   background: rgba(255, 255, 255, 0.02);
   border: 0.5px solid rgba(255, 255, 255, 0.06);
@@ -4734,12 +4672,6 @@ window.cal-window.csd decoration {
   transition: opacity 150ms;
 }
 
-.cal-agenda-separator {
-  background-color: $cal-border;
-  margin: 6px 0;
-  min-height: 1px;
-}
-
 .cal-agenda-empty {
   padding: 28px 16px;
 }
@@ -4913,17 +4845,6 @@ window.cal-window.csd decoration {
   }
 }
 
-.cal-dialog-header {
-  margin-bottom: 4px;
-}
-
-.cal-dialog-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: $cal-text;
-  margin: 0;
-}
-
 .cal-dialog-actions {
   margin-top: 4px;
 }
@@ -4963,10 +4884,6 @@ window.cal-window.csd decoration {
   font-weight: 600;
 }
 
-.cal-time-entry {
-  min-width: 60px;
-}
-
 .cal-form-row {
   /* align children via valign on widgets */
 }
@@ -5001,16 +4918,6 @@ window.cal-window.csd decoration {
   font-size: 10px;
   color: $cal-text-dim;
   min-width: 80px;
-  margin: 0;
-}
-
-.cal-time-row {
-  /* timing row */
-}
-
-.cal-time-sep {
-  color: $cal-text-hint;
-  font-size: 14px;
   margin: 0;
 }
 
@@ -5598,6 +5505,16 @@ window.cal-window.csd decoration {
   background: rgba(255, 255, 255, 0.02);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
+.sp-panel.compacto .sp-nav {
+  /* Al apilar la nav sobre el contenido deja de necesitar el ancho reservado lateral. */
+  min-width: 0;
+  padding: 8px 10px;
+  border-right: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.sp-panel.compacto .sp-nav-title {
+  margin: 2px 8px 4px;
+}
 .sp-nav-scroll {
   /* Sin min-height: la lista se desplaza (policy EXTERNAL) dentro del alto que le
      deje el panel; fijar un mínimo aquí lo empujaría desde dentro. */
@@ -6148,12 +6065,10 @@ progressbar.alm-barra {
       &:hover { background-color: rgba(255, 255, 255, 0.07); }
     }
 
-    .qs-sink-item,
     .qs-wifi-item {
       background: $bg;
       &:hover { background: sobre-fondo(rgba(255, 255, 255, 0.06), $bg); }
     }
-    .qs-sink-item.active { background: sobre-fondo(rgba(139, 120, 255, 0.18), $bg); }
     .qs-wifi-item.active { background: acento-cian-sobre($bg, 0.12); }
     .qs-wifi-item.portal { background: sobre-fondo(rgba(255, 123, 0, 0.15), $bg); }
     .qs-wifi-item.known { background: sobre-fondo(rgba(245, 50, 105, 0.03), $bg); }

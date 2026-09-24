@@ -50,7 +50,19 @@ print(base64.urlsafe_b64encode(d).decode().rstrip("="))' "$VERIFIER")"
 STATE="$(python3 -c 'import secrets;print(secrets.token_urlsafe(24))')"
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+SERVIDOR=""
+
+limpiar_temporales() {
+  if [[ -n "$SERVIDOR" ]]; then
+    kill "$SERVIDOR" 2>/dev/null || true
+    wait "$SERVIDOR" 2>/dev/null || true
+    SERVIDOR=""
+  fi
+  rm -rf -- "$TMP"
+}
+trap limpiar_temporales EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # El servidor arranca ANTES de abrir el navegador y escribe el puerto que le tocó, para que no haya
 # ventana en la que el usuario ya haya autorizado y aquí todavía no escuche nadie.
@@ -104,6 +116,7 @@ echo "Abriendo el navegador para autorizar…"
 xdg-open "$AUTH_URL" >/dev/null 2>&1 || echo "Abre manualmente: $AUTH_URL"
 
 wait "$SERVIDOR" || true
+SERVIDOR=""
 [[ -s "$TMP/result.json" ]] || { echo "No llegó ninguna respuesta (¿se agotó el tiempo?)"; exit 1; }
 
 CODE="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("code",""))' "$TMP/result.json")"
@@ -112,19 +125,34 @@ if [[ -z "$CODE" ]]; then
   exit 1
 fi
 
-RESP="$(curl -s -X POST https://oauth2.googleapis.com/token \
+if ! RESP="$(curl --silent --connect-timeout 10 --max-time 30 --fail \
+  -X POST https://oauth2.googleapis.com/token \
   -d "client_id=${CLIENT_ID}" \
   ${CLIENT_SECRET:+-d "client_secret=${CLIENT_SECRET}"} \
   -d "code=${CODE}" \
   -d "code_verifier=${VERIFIER}" \
   -d "redirect_uri=${REDIRECT}" \
-  -d "grant_type=authorization_code")"
+  -d "grant_type=authorization_code" 2>/dev/null)"; then
+  echo "No se pudo completar el intercambio del código con Google (conexión agotada o respuesta HTTP fallida). Comprueba la conexión y vuelve a ejecutar el script."
+  exit 1
+fi
 
-REFRESH="$(python3 -c 'import json,sys;print(json.loads(sys.stdin.read()).get("refresh_token",""))' <<<"$RESP")"
+if ! REFRESH="$(python3 -c '
+import json, sys
+try:
+    respuesta = json.load(sys.stdin)
+except (json.JSONDecodeError, UnicodeDecodeError):
+    sys.exit(1)
+if isinstance(respuesta, dict):
+    token = respuesta.get("refresh_token", "")
+    if isinstance(token, str):
+        print(token)
+' <<<"$RESP")"; then
+  echo "Google devolvió una respuesta de token no válida. No se guardaron credenciales."
+  exit 1
+fi
 if [[ -z "$REFRESH" ]]; then
-  echo "No llegó refresh_token. Respuesta del servidor:"
-  # Se imprime solo el campo de error: el cuerpo completo puede traer un access_token.
-  python3 -c 'import json,sys;d=json.loads(sys.stdin.read());print(" ", d.get("error"), d.get("error_description",""))' <<<"$RESP"
+  echo "Google no devolvió refresh_token. Comprueba la pantalla de consentimiento y vuelve a autorizar."
   exit 1
 fi
 
