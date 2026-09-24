@@ -112,7 +112,23 @@ fi
 
 mkdir -p "$KITTY_DIR"
 temporary="$KITTY_DIR/.active-profile.conf.$$"
-trap 'rm -f "$temporary"' EXIT
+selector_previous=
+[[ -L "$SELECTOR" ]] && selector_previous="$(readlink "$SELECTOR")"
+rollback_selector() {
+  local result=$?
+  trap - EXIT
+  rm -f "$temporary"
+  if ((result != 0)); then
+    if [[ -n "$selector_previous" ]]; then
+      ln -s "$selector_previous" "$temporary"
+      mv -Tf "$temporary" "$SELECTOR"
+    else
+      rm -f "$SELECTOR"
+    fi
+  fi
+  exit "$result"
+}
+trap rollback_selector EXIT
 ln -s "profiles/$profile.conf" "$temporary"
 mv -Tf "$temporary" "$SELECTOR"
 validate_config

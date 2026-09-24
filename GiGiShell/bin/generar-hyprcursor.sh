@@ -46,6 +46,11 @@ RUTAS_ICONOS=("$DESTINO_BASE" "$HOME/.icons" /usr/local/share/icons /usr/share/i
 msg() { printf '%s\n' "$*" >&2; }
 die() { msg "error: $*"; exit 1; }
 
+validar_nombre_tema() {
+  [[ "$1" != . && "$1" != .. && "$1" =~ ^[A-Za-z0-9._+-]+$ ]] \
+    || die "nombre de tema inválido: $1"
+}
+
 # Primer directorio que contenga el tema, en el mismo orden de precedencia que
 # usan XCursor y libhyprcursor.
 buscar_tema() {
@@ -82,6 +87,7 @@ listar() {
 # reimplementar el orden de precedencia de XCursor, que es el único sitio donde vive.
 if [ "${1:-}" = "--ruta" ]; then
   [ -n "${2:-}" ] || die "--ruta necesita un tema"
+  validar_nombre_tema "$2"
   buscar_tema "$2" || exit 1
   exit 0
 fi
@@ -100,11 +106,12 @@ set -- "${args[@]-}"
 ORIGEN_NOMBRE="${1:-}"
 [ -n "$ORIGEN_NOMBRE" ] || die "falta el tema. Prueba: $0 --list"
 DESTINO_NOMBRE="${2:-$ORIGEN_NOMBRE}"
+validar_nombre_tema "$ORIGEN_NOMBRE"
 
 # El nombre acaba en HYPRCURSOR_THEME y en `hyprctl setcursor`; un espacio o una
 # comilla lo romperían más adelante y en silencio. Mismo criterio que la
 # validación de temaCursor en ags/servicios/dispositivos/service.ts.
-[[ "$DESTINO_NOMBRE" =~ ^[A-Za-z0-9._+-]+$ ]] || die "nombre de destino inválido: $DESTINO_NOMBRE"
+validar_nombre_tema "$DESTINO_NOMBRE"
 
 command -v hyprcursor-util >/dev/null || die "falta hyprcursor-util (paquete hyprcursor)"
 
@@ -141,7 +148,28 @@ if [ -f "$ORIGEN/manifest.hl" ] && [ "$FUERZA" -eq 0 ]; then
 fi
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+STAGING=
+RESPALDO=
+COMMIT=0
+limpiar_temporales() {
+  local resultado=$?
+  if (( resultado != 0 )) && [[ -n "$RESPALDO" && -d "$RESPALDO" ]]; then
+    # Si falla el segundo rename, retira cualquier salida parcial y restaura el
+    # tema anterior. El respaldo vive junto al destino, en el mismo filesystem.
+    if [[ -e "$DESTINO" || -L "$DESTINO" ]]; then rm -rf -- "$DESTINO"; fi
+    if mv -- "$RESPALDO" "$DESTINO"; then
+      RESPALDO=
+    else
+      msg "No pude restaurar el tema anterior desde $RESPALDO"
+    fi
+  fi
+  if (( COMMIT == 1 )) && [[ -n "$RESPALDO" && -d "$RESPALDO" ]]; then
+    rm -rf -- "$RESPALDO" || msg "No pude retirar el respaldo $RESPALDO"
+  fi
+  [[ -z "$STAGING" ]] || rm -rf -- "$STAGING"
+  rm -rf -- "$TMP"
+}
+trap limpiar_temporales EXIT
 
 msg "Extrayendo $ORIGEN …"
 hyprcursor-util --extract "$ORIGEN" -o "$TMP" >/dev/null
@@ -160,24 +188,46 @@ hyprcursor-util --create "$EXTRAIDO" -o "$TMP" >/dev/null
 CREADO="$TMP/theme_$DESTINO_NOMBRE"
 [ -d "$CREADO/hyprcursors" ] || die "hyprcursor-util no generó $CREADO/hyprcursors"
 
-mkdir -p "$DESTINO"
-rm -rf "$DESTINO/hyprcursors"
-cp -r "$CREADO/hyprcursors" "$DESTINO/hyprcursors"
-cp "$CREADO/manifest.hl" "$DESTINO/manifest.hl"
+mkdir -p "$DESTINO_BASE"
+if [[ -L "$DESTINO" ]]; then
+  die "el destino '$DESTINO' es un symlink; no reemplazo rutas enlazadas"
+fi
+if [[ -e "$DESTINO" && ! -d "$DESTINO" ]]; then
+  die "el destino '$DESTINO' existe y no es un directorio"
+fi
+
+# Construye la salida completa en el mismo filesystem. Así los errores de copia
+# no destruyen la mitad activa del tema.
+STAGING="$(mktemp -d "$DESTINO_BASE/.${DESTINO_NOMBRE}.tmp.XXXXXX")"
+if [[ -d "$DESTINO" ]]; then cp -a "$DESTINO/." "$STAGING/"; fi
+rm -rf -- "$STAGING/hyprcursors"
+cp -r "$CREADO/hyprcursors" "$STAGING/hyprcursors"
+cp "$CREADO/manifest.hl" "$STAGING/manifest.hl"
 
 # La mitad XCursor solo se copia si el destino es OTRO directorio: cuando el tema
 # ya vivía en ~/.local/share/icons estamos añadiéndole hyprcursors/ en su sitio y
 # copiarlo sobre sí mismo no tendría sentido.
 if [ "$ORIGEN" != "$DESTINO" ]; then
-  rm -rf "$DESTINO/cursors"
-  cp -r "$ORIGEN/cursors" "$DESTINO/cursors"
+  rm -rf -- "$STAGING/cursors"
+  cp -r "$ORIGEN/cursors" "$STAGING/cursors"
   # index.theme es lo que hace que XCursor reconozca el directorio como tema.
   if [ -f "$ORIGEN/index.theme" ]; then
-    sed "s/^Name=.*/Name=$DESTINO_NOMBRE/" "$ORIGEN/index.theme" > "$DESTINO/index.theme"
+    sed "s/^Name=.*/Name=$DESTINO_NOMBRE/" "$ORIGEN/index.theme" > "$STAGING/index.theme"
   else
-    printf '[Icon Theme]\nName=%s\n' "$DESTINO_NOMBRE" > "$DESTINO/index.theme"
+    printf '[Icon Theme]\nName=%s\n' "$DESTINO_NOMBRE" > "$STAGING/index.theme"
   fi
 fi
+
+if [[ -e "$DESTINO" ]]; then
+  RESPALDO="$DESTINO_BASE/.${DESTINO_NOMBRE}.previous.$$.$RANDOM"
+  while [[ -e "$RESPALDO" || -L "$RESPALDO" ]]; do
+    RESPALDO="$DESTINO_BASE/.${DESTINO_NOMBRE}.previous.$$.$RANDOM"
+  done
+  mv -- "$DESTINO" "$RESPALDO"
+fi
+mv -- "$STAGING" "$DESTINO"
+STAGING=
+COMMIT=1
 
 msg "Listo: $DESTINO ($(find "$DESTINO/hyprcursors" -name '*.hlc' | wc -l) formas)"
 msg "Elígelo en Ajustes > Dispositivos > Puntero > Tema del puntero."

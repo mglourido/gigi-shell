@@ -53,6 +53,7 @@ backup() {  # respalda $1 preservando su ruta relativa a $HOME
 }
 
 gigishell_phys="$(readlink -f "$GIGISHELL")"
+GIGISHELL="$gigishell_phys"
 
 # git que versiona GiGiShell: el repo bare de dotfiles (lo normal, ver install.sh)
 # o, si el árbol fuera un clon corriente, el repo del propio directorio.
@@ -82,12 +83,22 @@ dst_lands_in_repo() {
 # directorio real vive en el repo. Presupone que ninguna entrada de LINKS está
 # anidada dentro de otra.
 prune_legacy_dirlinks() {
-  local dst="$1" p phys
+  local dst="$1" src="$2" p phys rel src_rel
+  src_rel="${src#"$GIGISHELL"/}"
   p="$(dirname "$dst")"
   while [[ "$p" == "$HOME"/* ]]; do
-    if [[ -L "$p" ]]; then
+    # Solo limpiar el antiguo enlace de un subdirectorio que corresponda a un
+    # prefijo real del origen de esta entrada. Nunca borrar enlaces generales
+    # como ~/.config o ~/.local/share: podrían redirigir otras aplicaciones.
+    rel=
+    if [[ "$p" == "$HOME/.config/"* ]]; then
+      rel="${p#"$HOME/.config/"}"
+    elif [[ "$p" == "$HOME/.local/share/"* ]]; then
+      rel="${p#"$HOME/.local/share/"}"
+    fi
+    if [[ -n "$rel" && ( "$src_rel" == "$rel" || "$src_rel" == "$rel/"* ) && -L "$p" ]]; then
       phys="$(readlink -f "$p" 2>/dev/null || true)"
-      if [[ -n "$phys" && ( "$phys" == "$gigishell_phys" || "$phys" == "$gigishell_phys"/* ) ]]; then
+      if [[ "$phys" == "$gigishell_phys/$rel" ]]; then
         if [[ "$mode" == check ]]; then
           echo "HEREDADO $p -> $phys (symlink viejo al repo; $dst caería dentro de GiGiShell)"
           return 1
@@ -125,7 +136,7 @@ for entry in "${LINKS[@]}"; do
   src="$GIGISHELL/${entry%%::*}"
   dst="${entry##*::}"
 
-  if ! prune_legacy_dirlinks "$dst" || ! repair_clobbered_src "$src"; then
+  if ! prune_legacy_dirlinks "$dst" "$src" || ! repair_clobbered_src "$src"; then
     status=1; continue
   fi
 

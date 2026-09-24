@@ -94,6 +94,28 @@ escribir() {  # $1 destino, $2 plantilla — atómico
   mv "$tmp" "$1"
 }
 
+carga_compartida() {  # $1 fichero local, $2 ruta compartida esperada
+  local dst="$1" patron="$2"
+  if [[ "$dst" == "$HOME/.config/fish/config.fish" ]]; then
+    # Fish carga conf.d automáticamente; config.fish no debe hacer source.
+    [[ -r "$HOME/.config/fish/conf.d/gigishell.fish" ]]
+    return
+  fi
+
+  # Busca la ruta después de una orden `source` o `.` activa. Ignora comentarios
+  # y no confunde una mención en texto con una carga real.
+  awk -v patron="$patron" '
+    /^[[:space:]]*#/ { next }
+    index($0, patron) {
+      prefijo = substr($0, 1, index($0, patron) - 1)
+      sub(/^[[:space:]]*/, "", prefijo)
+      if (prefijo ~ /^(source|\.)[[:space:]]/ ||
+          prefijo ~ /(&&|\|\||;)[[:space:]]*(source|\.)[[:space:]]/) encontrado = 1
+    }
+    END { exit !encontrado }
+  ' "$dst"
+}
+
 for entrada in "${LOCALES[@]}"; do
   dst="${entrada%%::*}"; resto="${entrada#*::}"
   patron="${resto%%::*}"; plantilla="${resto#*::}"
@@ -106,7 +128,7 @@ for entrada in "${LOCALES[@]}"; do
     else
       escribir "$dst" "$plantilla"; echo "NEW   $dst"
     fi
-  elif grep -qF "$patron" "$dst"; then
+  elif carga_compartida "$dst" "$patron"; then
     echo "OK    $dst"
   elif [[ "$mode" == force ]]; then
     rel="${dst#"$HOME"/}"

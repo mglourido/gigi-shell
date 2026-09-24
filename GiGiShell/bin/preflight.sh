@@ -22,8 +22,9 @@ warn() { printf 'AVISO   %s\n' "$*"; warnings=$((warnings + 1)); }
 # La comprobación de coherencia de más abajo impide que vuelva a colarse una ruta
 # ignorada en esta lista.
 required=(
-  install.sh bin/link.sh bin/kitty-profile.sh bin/firefox-profile.sh bin/configurar-dolphin.sh
-  bin/configurar-vscode.sh ags/app.ts ags/estilos/style.scss
+  install.sh bin/link.sh bin/shell-local.sh bin/kitty-profile.sh bin/firefox-profile.sh
+  bin/configurar-dolphin.sh bin/configurar-vscode.sh bin/generar-hyprcursor.sh
+  ags/app.ts ags/estilos/style.scss
   mimeapps.list menus/applications.menu kdeglobals qt6ct/qt6ct.conf
   mime/packages/text-x-xresources.xml mime/packages/text-x-codigo.xml
   ags/servicios/juegos/evidencia.ts ags/servicios/juegos/iconos.ts
@@ -133,7 +134,9 @@ while IFS= read -r script; do
 done < <(find "$GIGISHELL/hypr/scripts" "$GIGISHELL/ags/scripts" -type f -name '*.sh' -print)
 for script in \
   "$GIGISHELL/install.sh" "$GIGISHELL/bin/link.sh" "$GIGISHELL/bin/preflight.sh" \
+  "$GIGISHELL/bin/shell-local.sh" \
   "$GIGISHELL/bin/kitty-profile.sh" "$GIGISHELL/bin/firefox-profile.sh" \
+  "$GIGISHELL/bin/generar-hyprcursor.sh" \
   "$GIGISHELL/bin/configurar-dolphin.sh" \
   "$GIGISHELL/bin/configurar-vscode.sh" \
   "$GIGISHELL/inicializador/init.sh"; do
@@ -147,9 +150,9 @@ done
 # hace nada". Compilar es instantáneo y lo destapa.
 if command -v python3 >/dev/null 2>&1; then
   while IFS= read -r script; do
-    python3 -m py_compile "$script" 2>/dev/null || fail "sintaxis Python: ${script#"$GIGISHELL"/}"
+    python3 -c 'import sys, tokenize; path = sys.argv[1]; compile(tokenize.open(path).read(), path, "exec")' \
+      "$script" 2>/dev/null || fail "sintaxis Python: ${script#"$GIGISHELL"/}"
   done < <(find "$GIGISHELL/hypr/scripts" -type f -name '*.py' -print)
-  find "$GIGISHELL/hypr/scripts" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null
 
   # El motor de selección de fondos decide qué fondo toca a cada hora, y sus casos
   # límite (la vuelta de medianoche, el tramo vacío) fallan de forma muda: el

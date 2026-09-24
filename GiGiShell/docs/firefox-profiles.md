@@ -35,8 +35,19 @@ ha abierto. En Firefox 147 o posterior busca instalaciones nuevas en
 `$XDG_CONFIG_HOME/mozilla/firefox`; también admite la ruta histórica
 `~/.mozilla/firefox` para versiones ESR antiguas.
 
+Si `installs.ini` contiene varias instalaciones con perfiles predeterminados
+distintos, el selector se detiene para no aplicar preferencias a la instalación
+equivocada. En ese caso indica el perfil correcto con la ruta absoluta
+`FIREFOX_PROFILE_DIR=/ruta/al/perfil bin/firefox-profile.sh desktop`.
+
 Si ya había un `user.js` real en el perfil, el selector lo conserva como
 `user.js.pre-gigishell` antes de crear el enlace.
+
+La activación prepara primero los archivos temporales y, si un paso falla,
+intenta restaurar el selector, el `user.js` generado, el enlace del perfil y el
+`user.js` anterior. Esta recuperación cubre errores normales del proceso; no es
+una operación atómica conjunta entre directorios. Un corte de corriente o
+`SIGKILL` entre renombrados todavía podría dejar cambios parciales.
 
 ## Elegir el perfil
 
