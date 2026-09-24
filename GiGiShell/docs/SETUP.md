@@ -531,6 +531,13 @@ sudo freshclam
 - `xdg-user-dirs` permite encontrar `~/Descargas` aunque el sistema use otro idioma.
 - `file` lo usa `bin/verify-files.sh` para detectar ejecutables disfrazados por sus
   magic bytes antes de cada `git push`.
+- `oxipng` optimiza sin pérdida los PNG de `Wallpapers/` antes de cada `git push`.
+  Si la optimización cambia algún fondo, el hook detiene ese push para que puedas
+  incluir el resultado en un commit. En Arch/CachyOS se instala con:
+
+  ```sh
+  sudo pacman -S --needed oxipng
+  ```
 
 Tras instalar ClamAV, comprueba la configuración con un archivo legítimo cualquiera:
 

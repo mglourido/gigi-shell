@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Comprueba el contenido versionado y optimiza los PNG antes de cada push.
+set -euo pipefail
+
+gigishell="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+GIGISHELL="$gigishell" exec "$gigishell/bin/verify-files.sh"

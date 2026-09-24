@@ -358,18 +358,20 @@ if [[ -x "$shell_local" ]]; then
   esac
 fi
 
-# ── Git hooks: verificación de archivos antes de cada push ──────────────────
-# core.hooksPath es config local de cada clon (no viaja con el repo), así que
-# se re-aplica cada vez que se corre link.sh para que quede activo en toda
-# máquina nueva sin un paso manual aparte. Ver .githooks/pre-push y
-# bin/verify-files.sh en la raíz del repo.
-if [[ "$mode" != check ]]; then
-  repo_root="$(git -C "$GIGISHELL" rev-parse --show-toplevel 2>/dev/null || true)"
-  if [[ -n "$repo_root" && -d "$repo_root/.githooks" ]]; then
-    current="$(git -C "$repo_root" config --local --get core.hooksPath || true)"
-    if [[ "$current" != "$repo_root/.githooks" ]]; then
-      git -C "$repo_root" config core.hooksPath "$repo_root/.githooks"
-      echo "HOOK  core.hooksPath -> $repo_root/.githooks"
+# ── Git hooks: verificaciones antes de cada push ────────────────────────────
+# core.hooksPath es configuración local y no viaja en el repo. GIT ya detectó
+# arriba tanto el bare ~/.dotfiles (worktree $HOME) como un clon convencional;
+# reutilizarlo es esencial porque `git -C GiGiShell` no reconoce el bare repo.
+if ((${#GIT[@]} > 0)) && [[ -d "$GIGISHELL/.githooks" ]]; then
+  hooks_path="$GIGISHELL/.githooks"
+  current="$("${GIT[@]}" config --local --get core.hooksPath || true)"
+  if [[ "$current" != "$hooks_path" ]]; then
+    if [[ "$mode" == check ]]; then
+      echo "FALTA  core.hooksPath -> $hooks_path"
+      status=1
+    else
+      "${GIT[@]}" config --local core.hooksPath "$hooks_path"
+      echo "HOOK  core.hooksPath -> $hooks_path"
     fi
   fi
 fi
