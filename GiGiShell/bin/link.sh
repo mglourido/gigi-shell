@@ -15,7 +15,12 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 GIGISHELL="${GIGISHELL:-$(cd -- "$script_dir/.." && pwd)}"
-LINK_BACKUP="${LINK_BACKUP:-$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)}"
+LINK_BACKUP_EXPLICITO=0
+[[ -n "${LINK_BACKUP:-}" ]] && LINK_BACKUP_EXPLICITO=1
+LINK_BACKUP_BASE="${LINK_BACKUP:-$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)}"
+LINK_BACKUP="$LINK_BACKUP_BASE"
+LINK_BACKUP_RESERVADO=0
+LINK_BACKUP_USADO=0
 
 # "ruta_relativa_en_GiGiShell::ruta_canonica_absoluta"
 LINKS=(
@@ -45,11 +50,34 @@ case "${1:-}" in
   *) echo "uso: link.sh [--check|--force]" >&2; exit 2 ;;
 esac
 
+reservar_backup() {
+  (( LINK_BACKUP_RESERVADO )) && return 0
+  if (( LINK_BACKUP_EXPLICITO )); then
+    mkdir -p -- "$LINK_BACKUP" || return 1
+  else
+    local candidato="$LINK_BACKUP_BASE" sufijo=0
+    while ! mkdir -- "$candidato" 2>/dev/null; do
+      [[ -e "$candidato" || -L "$candidato" ]] || return 1
+      sufijo=$((sufijo + 1))
+      candidato="$LINK_BACKUP_BASE-$sufijo"
+    done
+    LINK_BACKUP="$candidato"
+  fi
+  LINK_BACKUP_RESERVADO=1
+}
+
 backup() {  # respalda $1 preservando su ruta relativa a $HOME
-  local dst="$1" rel="${1#"$HOME"/}"
-  mkdir -p "$LINK_BACKUP/$(dirname "$rel")"
-  mv "$dst" "$LINK_BACKUP/$rel"
-  echo "BACKUP $dst -> $LINK_BACKUP/$rel"
+  local dst="$1" rel="${1#"$HOME"/}" destino
+  reservar_backup || { echo "ERROR no pude reservar $LINK_BACKUP" >&2; return 1; }
+  destino="$LINK_BACKUP/$rel"
+  if [[ -e "$destino" || -L "$destino" ]]; then
+    echo "ERROR ya existe una copia de seguridad en $destino; no sobrescribo nada." >&2
+    return 1
+  fi
+  mkdir -p -- "$(dirname "$destino")" || return 1
+  mv -- "$dst" "$destino" || return 1
+  LINK_BACKUP_USADO=1
+  echo "BACKUP $dst -> $destino"
 }
 
 gigishell_phys="$(readlink -f "$GIGISHELL")"
@@ -166,12 +194,15 @@ for entry in "${LINKS[@]}"; do
       echo "DIFIERE $dst (esperado -> $src)"; status=1; continue
     fi
     if [[ -L "$dst" ]]; then
-      # symlink equivocado: ln -sfn lo reemplaza sin respaldar
-      :
+      # Respaldar también el enlace incorrecto, incluidos los rotos: aunque el
+      # destino real siga intacto, el enlace puede contener una ruta útil.
+      if [[ "$mode" == force ]] && ! backup "$dst"; then
+        status=1; continue
+      fi
     elif [[ "$mode" == force ]]; then
-      backup "$dst"
+      if ! backup "$dst"; then status=1; continue; fi
     else
-      echo "AVISO $dst es dir/archivo real; usá --force para respaldarlo y enlazar. No lo toco."
+      echo "AVISO $dst es un archivo o directorio real; usa --force para guardarlo y crear el enlace. No lo modifico."
       status=1; continue
     fi
   fi
@@ -202,8 +233,18 @@ for base in "$HOME/.config" "$HOME/.local/share" "$HOME/.cache"; do
   if [[ "$mode" == check ]]; then
     echo "MIGRAR $old -> $new"; status=1; continue
   fi
-  mv "$old" "$new" && ln -s "gigishell" "$old"
-  echo "MOVE  $new <- $old (queda symlink de compatibilidad)"
+  if mv "$old" "$new"; then
+    if ln -s "gigishell" "$old"; then
+      echo "MOVE  $new <- $old (queda symlink de compatibilidad)"
+    else
+      mv "$new" "$old" 2>/dev/null || true
+      echo "ERROR No pude crear el symlink de compatibilidad $old; revisa la migración." >&2
+      status=1
+    fi
+  else
+    echo "ERROR No pude mover $old a $new; no se completó la migración." >&2
+    status=1
+  fi
 done
 
 # ── Datos de runtime que ya NO viven dentro del repo ─────────────────────────
@@ -376,7 +417,7 @@ if ((${#GIT[@]} > 0)) && [[ -d "$GIGISHELL/.githooks" ]]; then
   fi
 fi
 
-if [[ "$mode" == force && -d "$LINK_BACKUP" ]]; then
+if [[ "$mode" == force && $LINK_BACKUP_USADO -eq 1 ]]; then
   echo "Respaldos en: $LINK_BACKUP"
 fi
 exit $status

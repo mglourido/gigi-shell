@@ -18,7 +18,7 @@
 #   1. swapfile persistente (subvolumen propio en btrfs) + entrada en /etc/fstab
 #   2. resume= / resume_offset= en la línea de comandos del kernel (GRUB) + grub.cfg
 #   3. opciones y servicios de NVIDIA para conservar la VRAM
-#   4. initramfs regenerado
+#   4. initramfs regenerado si cambian las opciones de NVIDIA
 #
 # Variables: GIGISHELL_SWAP_GIB fuerza el tamaño en GiB (por defecto RAM + 2).
 set -euo pipefail
@@ -116,7 +116,7 @@ swapon --show=NAME --noheadings | grep -qx "$SWAPFILE" || swapon "$SWAPFILE" || 
 
 # ── 2. Línea de comandos del kernel ─────────────────────────────────────────────────────────
 if [[ -f $GRUB_DEFAULT_FILE ]] && command -v grub-mkconfig >/dev/null 2>&1; then
-  cp -a "$GRUB_DEFAULT_FILE" "$GRUB_DEFAULT_FILE.gigishell.bak.$(date +%Y%m%d-%H%M%S)"
+  grub_changed=0
   actual=$(sed -n 's/^GRUB_CMDLINE_LINUX_DEFAULT=["'"'"']\(.*\)["'"'"']$/\1/p' "$GRUB_DEFAULT_FILE" | tail -1)
 
   # Patología encontrada en esta máquina: el valor se había ANIDADO dentro de sí mismo —
@@ -138,14 +138,21 @@ if [[ -f $GRUB_DEFAULT_FILE ]] && command -v grub-mkconfig >/dev/null 2>&1; then
   limpio=$(printf '%s' "$actual" | sed -E 's/(^| )resume(_offset)?=[^ ]*//g; s/  +/ /g; s/^ //; s/ $//')
   nuevo="$limpio resume=UUID=$uuid_raiz resume_offset=$offset"
   if [[ "$actual" != "$nuevo" ]]; then
+    cp -a "$GRUB_DEFAULT_FILE" "$GRUB_DEFAULT_FILE.gigishell.bak.$(date +%Y%m%d-%H%M%S)"
     info "Actualizando GRUB_CMDLINE_LINUX_DEFAULT ..."
     # El delimitador es | porque el valor lleva / (UUID no, pero sí otros parámetros).
     sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$nuevo\"|" "$GRUB_DEFAULT_FILE"
+    grub_changed=1
   else
     info "La línea de comandos del kernel ya estaba bien."
   fi
-  info "Regenerando grub.cfg ..."
-  grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 || warn "grub-mkconfig falló; regenera grub.cfg a mano antes de reiniciar."
+  if (( grub_changed )) || ! grep -Fq "resume=UUID=$uuid_raiz" /boot/grub/grub.cfg 2>/dev/null \
+     || ! grep -Fq "resume_offset=$offset" /boot/grub/grub.cfg 2>/dev/null; then
+    info "Regenerando grub.cfg ..."
+    grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 || warn "grub-mkconfig falló; regenera grub.cfg a mano antes de reiniciar."
+  else
+    info "grub.cfg ya está actualizado; no lo regenero."
+  fi
 else
   warn "No veo GRUB (/etc/default/grub + grub-mkconfig). Añade a mano a la línea del kernel:"
   warn "    resume=UUID=$uuid_raiz resume_offset=$offset"
@@ -154,8 +161,15 @@ fi
 # ── 3. NVIDIA ───────────────────────────────────────────────────────────────────────────────
 if [[ -e /proc/driver/nvidia/version ]]; then
   origen="$(dirname "$0")/../modprobe.d/gigishell-nvidia-hibernacion.conf"
+  nvidia_modprobe_changed=0
   if [[ -r $origen ]]; then
-    install -Dm644 "$origen" /etc/modprobe.d/gigishell-nvidia-hibernacion.conf
+    destino=/etc/modprobe.d/gigishell-nvidia-hibernacion.conf
+    if ! cmp -s "$origen" "$destino"; then
+      install -Dm644 "$origen" "$destino"
+      nvidia_modprobe_changed=1
+    else
+      info "Las opciones de hibernación de NVIDIA ya están actualizadas."
+    fi
   else
     warn "No encuentro gigishell-nvidia-hibernacion.conf; la VRAM no se conservará al hibernar."
   fi
@@ -174,9 +188,21 @@ fi
 # systemd quien resume es systemd-hibernate-resume-generator leyendo resume= de la cmdline.
 # Añadir el hook busybox encima no da error, solo ruido. Lo que SÍ hay que regenerar es el
 # initramfs, para que las opciones nuevas de /etc/modprobe.d viajen dentro (hook `modconf`).
-if command -v mkinitcpio >/dev/null 2>&1; then
+initramfs_desactualizado="${nvidia_modprobe_changed:-0}"
+if [[ -f ${destino:-/etc/modprobe.d/gigishell-nvidia-hibernacion.conf} ]]; then
+  imagen_encontrada=0
+  for imagen in /boot/initramfs*.img; do
+    [[ -f "$imagen" ]] || continue
+    imagen_encontrada=1
+    [[ ${destino:-/etc/modprobe.d/gigishell-nvidia-hibernacion.conf} -nt "$imagen" ]] && initramfs_desactualizado=1
+  done
+  (( imagen_encontrada )) || initramfs_desactualizado=1
+fi
+if (( initramfs_desactualizado )) && command -v mkinitcpio >/dev/null 2>&1; then
   info "Regenerando el initramfs ..."
   mkinitcpio -P >/dev/null 2>&1 || warn "mkinitcpio falló; ejecútalo a mano (sudo mkinitcpio -P)."
+elif command -v mkinitcpio >/dev/null 2>&1; then
+  info "No han cambiado opciones de módulos; no regenero el initramfs."
 fi
 
 info "Listo. La hibernación NO está disponible hasta REINICIAR: resume= entra por la línea de"
