@@ -110,16 +110,105 @@ fi
 # Si está disponible, ClamAV bloquea hallazgos, pero un motor sin firmas no
 # convierte un problema de instalación en un push imposible.
 if command -v clamscan >/dev/null 2>&1; then
-  echo "verify-files: escaneando con ClamAV..."
-  set +e
-  clamscan --infected --no-summary "${files[@]}"
-  clam_status=$?
-  set -e
-  if ((clam_status == 1)); then
-    echo "verify-files: ClamAV encontró algo; revisa los archivos antes de continuar." >&2
-    exit 1
-  elif ((clam_status != 0)); then
-    echo "verify-files: ClamAV no pudo escanear (código $clam_status); se omite el escaneo de firmas." >&2
+  existentes=()
+  for archivo in "${files[@]}"; do
+    [[ -f "$archivo" ]] && existentes+=("$archivo")
+  done
+
+  if ((${#existentes[@]})); then
+    # La caché solo es válida con la misma versión de ClamAV y firmas. Así,
+    # una actualización de la base vuelve a analizar los archivos versionados.
+    clam_version="$(clamscan --version 2>/dev/null || true)"
+    repo_root="$(git rev-parse --show-toplevel)"
+    repo_hash="$(printf '%s' "$repo_root" | sha256sum)"
+    cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell"
+    cache_archivo="$cache_dir/clamav-${repo_hash%% *}.sha256"
+    clam_cache_valida=0
+    declare -A hashes_analizados=()
+
+    if [[ -n "$clam_version" && -r "$cache_archivo" ]]; then
+      IFS= read -r cache_version < "$cache_archivo" || cache_version=""
+      if [[ "$cache_version" == "$clam_version" ]]; then
+        clam_cache_valida=1
+        while IFS= read -r hash; do
+          if [[ "$hash" =~ ^[[:xdigit:]]{64}$ ]]; then
+            hashes_analizados["$hash"]=1
+          else
+            # Una caché incompleta o dañada nunca debe omitir un escaneo.
+            clam_cache_valida=0
+            hashes_analizados=()
+            break
+          fi
+        done < <(tail -n +2 -- "$cache_archivo")
+      fi
+    fi
+
+    hashes_temporal="$(mktemp)"
+    if sha256sum --zero -- "${existentes[@]}" > "$hashes_temporal"; then
+      archivos_nuevos=()
+      declare -A hashes_actuales=()
+      while IFS= read -r -d '' registro; do
+        hash="${registro:0:64}"
+        archivo="${registro:66}"
+        hashes_actuales["$hash"]=1
+        if ((!clam_cache_valida)) || [[ -z "${hashes_analizados[$hash]:-}" ]]; then
+          archivos_nuevos+=("$archivo")
+        fi
+      done < "$hashes_temporal"
+      rm -f -- "$hashes_temporal"
+
+      if ((${#archivos_nuevos[@]} == 0)); then
+        echo "verify-files: ClamAV: todos los archivos versionados ya están revisados."
+      else
+        echo "verify-files: escaneando con ClamAV (${#archivos_nuevos[@]} archivos nuevos o modificados)..."
+        set +e
+        clamscan --infected --no-summary "${archivos_nuevos[@]}"
+        clam_status=$?
+        set -e
+
+        if ((clam_status == 1)); then
+          echo "verify-files: ClamAV encontró algo; revisa los archivos antes de continuar." >&2
+          exit 1
+        elif ((clam_status == 0)); then
+          # Publica solo tras un escaneo limpio. El manifiesto contiene los
+          # hashes actuales, por lo que también olvida versiones ya borradas.
+          if mkdir -p -- "$cache_dir"; then
+            if cache_temporal="$(mktemp "$cache_archivo.XXXXXX")"; then
+              if {
+                printf '%s\n' "$clam_version"
+                for hash in "${!hashes_actuales[@]}"; do
+                  printf '%s\n' "$hash"
+                done
+              } > "$cache_temporal" && mv -f -- "$cache_temporal" "$cache_archivo"; then
+                :
+              else
+                rm -f -- "$cache_temporal"
+                echo "verify-files: no se pudo guardar la caché de ClamAV; se volverán a revisar en el próximo push." >&2
+              fi
+            else
+              echo "verify-files: no se pudo crear la caché de ClamAV; se volverán a revisar en el próximo push." >&2
+            fi
+          else
+            echo "verify-files: no se pudo preparar la caché de ClamAV; se volverán a revisar en el próximo push." >&2
+          fi
+        else
+          echo "verify-files: ClamAV no pudo escanear (código $clam_status); se omite el escaneo de firmas." >&2
+        fi
+      fi
+    else
+      rm -f -- "$hashes_temporal"
+      echo "verify-files: no se pudieron calcular hashes; escaneando todos los archivos." >&2
+      set +e
+      clamscan --infected --no-summary "${existentes[@]}"
+      clam_status=$?
+      set -e
+      if ((clam_status == 1)); then
+        echo "verify-files: ClamAV encontró algo; revisa los archivos antes de continuar." >&2
+        exit 1
+      elif ((clam_status != 0)); then
+        echo "verify-files: ClamAV no pudo escanear (código $clam_status); se omite el escaneo de firmas." >&2
+      fi
+    fi
   fi
 else
   echo "verify-files: ClamAV (clamscan) no está instalado; se omite el escaneo de firmas." >&2
