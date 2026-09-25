@@ -8,6 +8,14 @@
 #   3. monitor_files   — inotifywait sobre configs/persistencia críticas
 #   4. monitor_smart   — polling de SMART (smartctl): disco a punto de fallar
 #   5. monitor_units   — polling de `systemctl --failed`: unidades caídas
+#   6. monitor_downloads — barrido de Descargas + ClamAV
+#
+# **Con `~/.local/bin/gigishell-eventd` instalado, este script ya no hace nada de esto:**
+# el daemon Rust (`eventd/` en la raíz de GiGiShell) cubre los seis y el script le cede el
+# proceso con `exec` al final (ver "Run in parallel"). Las funciones de abajo son el
+# RESPALDO para una máquina sin el binario, y la referencia de por qué cada regla es como
+# es: el port a Rust las sigue 1:1 y remite aquí para los porqués. Si cambias una regla,
+# cámbiala en los dos sitios.
 #
 # Notas de diseño (evitar falsos positivos):
 #   - `-n 0` evita reprocesar el backlog del journal al arrancar (si no, cada
@@ -1520,10 +1528,40 @@ _recoger_huerfanos
 # Los tres primeros enganchan YA (journal/inotify no guardan lo pasado: llegar tarde
 # = ventana ciega). Los tres de sondeo se apartan del pico de arranque por dentro,
 # cada uno con su DELAY_* — ver el bloque "Escalonado de arranque" arriba.
-monitor_kernel &
-monitor_system &
-monitor_files &
-monitor_smart &
-monitor_units &
-monitor_downloads &
+#
+# **Parte de los sub-monitores los hace el daemon Rust cuando está instalado** (`eventd/` en la
+# raíz de GiGiShell, lo compila `eventd/instalar.sh`). Mismas reglas, mismos ids de aviso y
+# misma agrupación, pero UN proceso (sd-journal, inotify nativo y los sondeos en hilos) en vez de
+# un bash por monitor con sus `journalctl -f`/`inotifywait` colgando, y relee security.json en
+# caliente. Muere solo con este script (PR_SET_PDEATHSIG), así que no necesita la red de
+# huérfanos de arriba.
+#
+# QUÉ monitores cubre se le PREGUNTA (`--modulos`) en vez de suponerlo: con un binario de una
+# fase anterior y este script más nuevo, lo que el binario no sepa hacer lo sigue haciendo el
+# bash — nunca queda un monitor sin nadie. Sin el binario, o con GIGISHELL_EVENTD=0 para
+# comparar, corren todas las funciones bash de siempre.
+#
+# Si lo cubre TODO, este script le cede el proceso con `exec` y no queda ni un bash: la
+# instancia nueva sustituye a la que ya corriera (cerrojo en $XDG_RUNTIME_DIR), así que
+# relanzar es simplemente volver a ejecutar este script. Pararlo: `pkill -x gigishell-event`
+# (el nombre de proceso se corta a 15 caracteres), no `pkill -f oom-monitor.sh`.
+EVENTD="$HOME/.local/bin/gigishell-eventd"
+_en_rust=" "
+if [[ "${GIGISHELL_EVENTD:-1}" != 0 && -x "$EVENTD" ]]; then
+    _en_rust=" $("$EVENTD" --modulos 2>/dev/null) "
+fi
+_faltan=()
+for _m in kernel system files smart units downloads; do
+    [[ "$_en_rust" == *" $_m "* ]] || _faltan+=("$_m")
+done
+if (( ${#_faltan[@]} == 0 )); then
+    # Sin hijos que limpiar: se quita el trap de salida antes de ceder el proceso.
+    trap - EXIT TERM INT HUP
+    exec "$EVENTD"
+fi
+[[ "$_en_rust" == " " || "$_en_rust" == "  " ]] || "$EVENTD" --hijo &
+for _m in "${_faltan[@]}"; do
+    "monitor_$_m" &
+done
+unset _m _faltan
 wait

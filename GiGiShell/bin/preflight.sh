@@ -230,6 +230,21 @@ if [[ "$mode" == "--installed" ]]; then
       || fail "falta '$command' (Arch/CachyOS: sudo pacman -S --needed $package)"
   done
 
+  # gigishell-eventd es opcional (sin él, oom-monitor.sh corre en bash), así que su
+  # ausencia es AVISO. Lo que sí importa es que no esté DESACTUALIZADO: el script le
+  # cede todo al binario, y uno compilado antes de un cambio en eventd/src seguiría
+  # aplicando las reglas viejas sin ningún síntoma.
+  eventd_bin="$HOME/.local/bin/gigishell-eventd"
+  if [[ ! -x "$eventd_bin" ]]; then
+    warn "gigishell-eventd no instalado: el monitor de seguridad corre en bash (bash install.sh --solo eventd)"
+  elif ! "$eventd_bin" --modulos >/dev/null 2>&1; then
+    fail "gigishell-eventd no arranca (--modulos falla): recompila con $GIGISHELL/eventd/instalar.sh o quítalo con --quitar"
+  elif [[ -n "$(find "$GIGISHELL/eventd/src" "$GIGISHELL/eventd/Cargo.toml" -newer "$eventd_bin" -print -quit 2>/dev/null)" ]]; then
+    warn "gigishell-eventd es más viejo que su código: recompila con $GIGISHELL/eventd/instalar.sh"
+  else
+    ok "gigishell-eventd instalado y al día"
+  fi
+
   fc-match 'Noto Color Emoji' 2>/dev/null | grep -qi 'NotoColorEmoji' \
     || fail "falta Noto Color Emoji (sudo pacman -S --needed noto-fonts-emoji)"
 

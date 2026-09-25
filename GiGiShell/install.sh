@@ -109,11 +109,12 @@ declare -A DESC_PASO=(
   [gpu]="elegir el perfil de GPU de esta máquina (~/.config/gigishell/gpu-perfil)"
   [clamav-db]="descarga de la base de firmas de ClamAV (~200 MB)"
   [gestos]="entorno del modo gestos por cámara (venv con MediaPipe + modelo de manos, ~200 MB)"
+  [eventd]="compilar el monitor de seguridad en Rust (gigishell-eventd); sin él, oom-monitor.sh sigue en bash"
   [cursor]="generar la mitad hyprcursor del tema de puntero"
   [shell]="poner Zsh como shell predeterminado"
   [preflight]="validación final de la instalación"
 )
-ORDEN_PASOS=(paquetes repo symlinks sistema hibernacion sddm clamav-db gestos dolphin kitty firefox vscode css mime gpu cursor shell preflight)
+ORDEN_PASOS=(paquetes repo symlinks sistema hibernacion sddm clamav-db gestos eventd dolphin kitty firefox vscode css mime gpu cursor shell preflight)
 
 SOLO_PASOS=()
 SIN_PASOS=()
@@ -1736,6 +1737,38 @@ else
   GESTOS_ESTADO="omitido"
 fi
 
+if paso_activo eventd; then
+  EVENTD_ESTADO="fallido"
+  # --- Monitor de seguridad en Rust (gigishell-eventd) ---
+  #
+  # Es OPCIONAL a propósito: `oom-monitor.sh` pregunta al binario qué sabe hacer y, si no
+  # existe, corre sus funciones bash de siempre. Por eso este paso nunca instala por su
+  # cuenta la cadena de Rust (~500 MB para compilar un binario de 500 KB): si no hay
+  # `cargo`, lo dice y sigue. Ver docs/rust-migracion.md.
+  #
+  # rustup instalado a mano deja cargo en ~/.cargo/bin, que no siempre está en el PATH de
+  # un script no interactivo; se añade aquí para no dar por ausente algo que sí está.
+  export PATH="$HOME/.cargo/bin:$PATH"
+  if ! command -v cargo >/dev/null 2>&1; then
+    EVENTD_ESTADO="sin-cargo"
+    warn "No hay cargo: el monitor de seguridad seguirá en bash. Para compilarlo: sudo pacman -S --needed rust && bash install.sh --solo eventd"
+  elif ! command -v cc >/dev/null 2>&1; then
+    EVENTD_ESTADO="sin-cargo"
+    warn "Hay cargo pero no un enlazador (cc): sudo pacman -S --needed base-devel && bash install.sh --solo eventd"
+  else
+    info "Compilando gigishell-eventd (pasa los tests antes de instalar) ..."
+    # `instalar.sh` corre `cargo test` y solo instala si pasan: un binario que no cumple
+    # las reglas del bash es peor que ningún binario, porque el script le cede todo.
+    if bash "$GIGISHELL/eventd/instalar.sh"; then
+      EVENTD_ESTADO="listo"
+    else
+      warn "No se pudo compilar gigishell-eventd; el monitor de seguridad seguirá en bash. Reintento: bash install.sh --solo eventd"
+    fi
+  fi
+else
+  EVENTD_ESTADO="omitido"
+fi
+
 if paso_activo dolphin; then
   # --- 4. Aplicar el perfil ligero de Dolphin ---
   DOLPHIN_CONFIGURATOR="$GIGISHELL/bin/configurar-dolphin.sh"
@@ -2065,6 +2098,18 @@ else
               bash ~/GiGiShell/install.sh --solo gestos
 EOF
 fi
+case "${EVENTD_ESTADO:-omitido}" in
+  listo) cat <<'EOF'
+  • Seguridad: el monitor corre en Rust (gigishell-eventd). En una sesión ya abierta, vuelve
+              a ejecutar ~/.config/hypr/scripts/oom-monitor.sh para que lo use.
+EOF
+  ;;
+  sin-cargo|fallido) cat <<'EOF'
+  • Seguridad: el monitor sigue en bash (no se compiló gigishell-eventd). Funciona igual;
+              para pasarlo a Rust: bash ~/GiGiShell/install.sh --solo eventd
+EOF
+  ;;
+esac
 case "$CLAMAV_ESTADO" in
   descargada|al_dia)
     if [[ "$CLAMAV_ESTADO" == descargada ]]; then

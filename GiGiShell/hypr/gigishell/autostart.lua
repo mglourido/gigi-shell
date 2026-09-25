@@ -152,7 +152,9 @@ hl.on("hyprland.start", function()
   -- Monitor de eventos de seguridad. Sin retardo: sus seguidores del journal
   -- (`journalctl -kf -n 0`) no ven el backlog, así que arrancar tarde = ventana
   -- ciega en OOM/panic/sudo/SSH. Sus partes caras (SMART, unidades, descargas)
-  -- se apartan solas dentro del script.
+  -- se apartan solas dentro del script. Con gigishell-eventd instalado el script
+  -- le cede el proceso (exec) y todo esto lo hace el daemon Rust, con los mismos
+  -- retardos por dentro — ver docs/rust-migracion.md.
   hl.exec_cmd("~/.config/hypr/scripts/oom-monitor.sh")
   -- (el escáner de apps de inicio vive en gigishell/escaner-apps.lua, que escucha
   -- `window.open` nativo desde su propio hl.on("hyprland.start") — misma ventana

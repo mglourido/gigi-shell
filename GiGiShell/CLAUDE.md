@@ -26,6 +26,11 @@ Supporting dirs: `Wallpapers/` (used directly by `wallpaper.sh`, no symlink),
 delega en el tema de sonidos del sistema, que sin `sound-theme-freedesktop` instalado deja la
 alarma muda sin dar ningún error; ver `audio/README.md`),
 `bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
+`eventd/` (daemon Rust `gigishell-eventd`: sustituye a los seis sub-monitores de
+`oom-monitor.sh` cuando está instalado en `~/.local/bin` —el script le pregunta cuáles con
+`--modulos` y, si son todos, le cede el proceso con `exec`; sin el binario corre el bash. Una
+regla de seguridad cambiada en un sitio hay que cambiarla en el otro. Plan y estado en
+[`docs/rust-migracion.md`](docs/rust-migracion.md)),
 `system/` (ficheros que van a `/etc` y `/usr/local/bin`, **no** se symlinkean: se instalan con `sudo` —
 la regla udev de escritura en USB, la carga del módulo `i2c-dev`, los perfiles TLP, el helper de
 firmas de ClamAV, el helper de limpieza de disco, el helper de bloqueo de la cámara, el helper y la

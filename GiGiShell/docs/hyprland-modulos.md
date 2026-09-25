@@ -3007,6 +3007,66 @@ por ClamAV, que recarga ~200 MB de firmas **por invocación**). Los `sleep` van 
 función y tras sus guardas**, para no dejar uno colgando por un monitor apagado. Medido en vivo:
 los tres seguidores enganchan a t=0 y las pasadas caen en t=25/45/60.
 
+**Los seis sub-monitores tienen sustituto en Rust: `gigishell-eventd`** (crate en `eventd/`,
+plan completo en [`rust-migracion.md`](rust-migracion.md)). Si `~/.local/bin/gigishell-eventd`
+existe, `oom-monitor.sh` le **pregunta** qué cubre (`gigishell-eventd --modulos`): si lo cubre todo
+le cede el proceso con **`exec`** y no queda ningún bash; si cubre solo una parte (un binario de
+una fase anterior), lo lanza como hijo (`--hijo`) y corre en bash el resto, así que nunca queda un
+monitor sin nadie. Sin el binario, o con `GIGISHELL_EVENTD=0`, corren todas las funciones bash de
+siempre. **Relanzar = volver a ejecutar `oom-monitor.sh`**: el daemon lleva un cerrojo
+(`$XDG_RUNTIME_DIR/gigishell-eventd.pid`, `flock`) y la instancia nueva manda SIGTERM a la vieja y
+ocupa su sitio, así que un `hyprctl reload full-reset` no duplica avisos. Pararlo:
+`pkill -x gigishell-event` (el nombre de proceso se corta a 15 caracteres). Qué cambia y qué NO:
+
+- **Mismo contrato de cara a AGS**: mismas reglas en el mismo orden, mismos ids
+  `x-gigishell-event`, mismos títulos/cuerpos, misma agrupación (calma 4 s, tope 20 s, lista de 8,
+  cap 300; en archivos, ventana ancha 30 s/900 s durante una actualización y «un texto repetido
+  = un cambio»). Los tests (`cargo test` en `eventd/`) fijan los casos que el bash documenta.
+- **Un proceso con cinco hilos** en vez de un bash por monitor con sus `journalctl -f` e
+  `inotifywait -m` colgando: journal por sd-journal (FFI, disyunción `_TRANSPORT=kernel` OR los
+  identificadores), inotify nativo, y los dos sondeos (`systemctl --failed` cada 120 s y
+  `smartctl` cada hora, con sus retardos de 25 s y 45 s y la puerta de juego portada de
+  `lib/gaming-gate.sh`), más el escáner de Descargas. Anon ~0,4 MB; el resto del RSS (~20 MB) son páginas de los ficheros del
+  journal mapeadas, caché compartida y reclamable, igual que le pasaba a `journalctl`.
+- **La línea que ven las reglas del journal ya no lleva fecha ni host**: se reconstruye como
+  `kernel: <msg>` o `<ident>[<pid>]: <msg>`. El prefijo `ident[pid]:` hay que conservarlo: la
+  regla de sudo busca «sudo» en la línea y el mensaje de «3 incorrect password attempts» no lo
+  contiene, solo el prefijo.
+- **`security.json` se relee en caliente** (mtime, como mucho una vez por segundo) en los cinco.
+  Apagar `serviceHealth` y volver a encenderlo **resiembra** las unidades: lo que cayó mientras
+  estaba apagado no llega de golpe como nuevo. `monitor_downloads` sigue leyéndolo en cada barrido.
+- **Los discos para SMART salen de `/sys/block/*/device`** (sin `lsblk | awk`): descarta zram,
+  loop, dm y md porque no tienen `device`, y los ópticos por prefijo.
+- **Se vigila también `sshd-session`**: desde OpenSSH 9.8 los «Failed password» salen con ese
+  identificador y el `-t sshd` del bash no los veía.
+- **Cada categoría tiene su propia ventana de agrupación**: una ráfaga de NVRM ya no retrasa el
+  aviso de un `sudo` fallido que llegue en medio.
+- **Escáner de Descargas**: mismo índice (`download-index`, `mtime|tamaño|ruta`) y mismos hashes
+  (`download-hashes`) en `~/.cache/gigishell/`, así que el cambio no vuelve a analizar nada. El
+  hash XXH64 se calcula **en proceso** y da byte a byte lo mismo que `xxh64sum` (un test lo
+  compara con el binario); en una máquina que caía a `sha1sum`/`md5sum` por no tener xxhash, lo
+  ya analizado se analiza una vez más. Se hashea en un hilo de vida corta con `nice 19` + E/S
+  idle, **no en el hilo del escáner**: la prioridad se hereda, y el botón «Lanzar aislado» lanza
+  la app del usuario desde ese hilo. `clamscan` sigue siendo un proceso (`nice -n 19 ionice -c
+  3`), un lote por barrido, cortado si entra una pausa. inotify sigue siendo solo el
+  despertador, con watches propios que se reponen en cada barrido (cubren subcarpetas nuevas) en
+  vez de relanzar `inotifywait -r`. Los tres avisos con botón (`--wait -A`) esperan en un hilo
+  cada uno; el de «sin firmas» con su techo de 120 s.
+- **Si el journal no se puede abrir, el proceso NO sale**: los hilos de archivos y sondeos no
+  dependen de él y seguirían muertos con él.
+- **Como hijo (`--hijo`) muere con su padre por `PR_SET_PDEATHSIG`**, así que no necesita la red
+  de huérfanos. Tras el `exec` NO se pide: no hay bash que seguir, y el padre que haya (un
+  `sh -c` de paso, un `setsid`) puede morir en cualquier momento sin que signifique nada.
+- Ojo con `pkill -f oom-monitor.sh` en el modo con bash: lanzado desde un shell cuya propia línea
+  de órdenes contiene ese texto (un `bash -c '…'`, o la herramienta de un agente) se mata también
+  a sí mismo antes de relanzar nada.
+
+Compilar e instalar: `eventd/instalar.sh` o `bash install.sh --solo eventd` (pasan los tests
+antes; `preflight.sh --installed` avisa si el binario es más viejo que `eventd/src`); quitar:
+`eventd/instalar.sh --quitar`. Para comparar con el bash sin avisos duplicados:
+`GIGISHELL_EVENTD=0` al lanzar el monitor y, a la vez, `gigishell-eventd --simular`, que imprime
+por stdout lo que habría notificado.
+
 - `monitor_kernel` — `journalctl -kf` (kernel-only, avoids matching app logs): OOM, panic,
   hung tasks, disk I/O errors, hardware errors (MCE/ECC/EDAC), unsigned/out-of-tree kernel
   modules, GPU/NVIDIA errors, CPU throttling, segfaults.

@@ -48,6 +48,8 @@ ags/.vscode/
 __pycache__/
 # boot-healthcheck y demás registros de sesión
 hypr/logs/
+# compilación de cargo del daemon Rust (el binario se instala en ~/.local/bin)
+eventd/target/
 
 # --- Desechable ---
 
