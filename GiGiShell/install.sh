@@ -1160,7 +1160,7 @@ configure_default_shell() {
       "bloquear la cámara pedirá contraseña."
     # ClamAV: botón "Actualizar firmas" de Ajustes > Seguridad > Antivirus. Mismo esquema que TLP
     # (helper root-owned + regla sudoers acotada al comando exacto) porque /var/lib/clamav es de
-    # `clamav` y habilitar el servicio de actualización es de root. Sin esto el botón no se pinta;
+    # `clamav` y detener/iniciar/deshabilitar el servicio es de root. Sin esto el botón no se pinta;
     # la actualización sigue pudiendo hacerse a mano con `sudo freshclam`.
     if command -v freshclam >/dev/null 2>&1; then
       sudo install -Dm755 "$SYSTEM_DIR/clamav/gigishell-clamav-update.sh" /usr/local/bin/gigishell-clamav-update \

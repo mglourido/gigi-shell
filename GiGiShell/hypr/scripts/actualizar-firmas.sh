@@ -128,8 +128,8 @@ avisar antivirus.actualizando -u low "Actualizando firmas…" "Descargando la ba
 # `sudo -n`: sin la regla sudoers falla en el acto en vez de colgarse pidiendo una contraseña que
 # nadie puede teclear (esto sale de un clic en una notificación, sin terminal donde escribir).
 #
-# `update` y no `update-enable`: reencender `clamav-freshclam` desde aquí volvería a meter en el
-# sistema el temporizador que se quitó a propósito, y encima sin interruptor visible.
+# El helper respeta el estado de `clamav-freshclam`; el automático se gestiona por separado desde
+# el booleano de AGS y no se convierte en un temporizador del sistema.
 err=$(sudo -n "$HELPER" update 2>&1 >/dev/null); rc=$?
 
 # La marca la escriben LOS DOS modos: una actualización manual reciente también cuenta como

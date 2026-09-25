@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
-# gigishell-clamav-update — actualiza la base de firmas de ClamAV (y, con verbos aparte, gobierna el
-# servicio periódico heredado `clamav-freshclam`).
+# gigishell-clamav-update — helper interno de AGS para actualizar las firmas de ClamAV y apagar el
+# servicio periódico heredado `clamav-freshclam`.
 #
 # OJO AL LEER LO DE ABAJO: desde el cambio a un interruptor booleano, "mantener las firmas al día"
 # ya NO es este servicio. Lo hace `hypr/scripts/actualizar-firmas.sh --auto` cuando hace falta (al
 # iniciar sesión, o cuando un análisis se encuentra la base ausente o vieja), leyendo
-# `clamavAutoUpdate` de ~/.config/gigishell/security.json. De los cinco verbos de aquí abajo, la regla
-# sudoers solo autoriza DOS: `update` (los dos botones y el arranque) y `auto-off` (AGS apaga el
-# servicio si lo encuentra vivo, para no dejar un actualizador periódico invisible). `update-enable`
-# y `auto-on` siguen existiendo pero ya no los llama nadie y **no se pueden ejecutar sin
-# contraseña**; `status` no necesita root. Ver la sección "Firmas de ClamAV desde la UI" de
-# docs/hyprland-modulos.md.
+# `clamavAutoUpdate` de ~/.config/gigishell/security.json. Este helper solo expone dos verbos internos:
+# `update` (los dos botones y el arranque) y `auto-off` (AGS apaga el servicio si lo encuentra
+# activo, para no dejar un actualizador periódico invisible). Ver "Firmas de ClamAV desde la UI"
+# en docs/hyprland-modulos.md.
 #
 # ESTE FICHERO SE INSTALA ROOT-OWNED en /usr/local/bin/gigishell-clamav-update (install.sh paso 9).
 # NO se symlinkea desde ~/GiGiShell: corre como root vía /etc/sudoers.d/gigishell-clamav, y apuntar a un
@@ -19,22 +17,23 @@
 # solo se vuelve efectiva al reinstalar con sudo a propósito.
 #
 # POR QUÉ ROOT: /var/lib/clamav es de `clamav:clamav` y el log de freshclam está en /var/log/clamav.
-# freshclam suelta privilegios él solo (DatabaseOwner), pero necesita poder escribir ahí y
-# `systemctl enable --now` es de root por definición.
+# freshclam suelta privilegios él solo (DatabaseOwner), pero necesita poder escribir ahí; detener,
+# iniciar y deshabilitar el servicio son operaciones de root.
 #
-# Uso:  gigishell-clamav-update {update|update-enable|auto-on|auto-off|status}
+# Uso interno: gigishell-clamav-update {update|auto-off}
 #   update        detiene el servicio (si corre), actualiza SÍNCRONAMENTE con freshclam y lo deja
 #                 COMO ESTABA. Imprime el resultado; sale != 0 si la actualización falló.
-#   update-enable igual, pero además deja la actualización automática habilitada.
-#   auto-on/off   solo el interruptor de actualización automática, sin descargar nada.
-#   status        imprime "<enabled|disabled|missing> <fecha-de-la-base|desconocida>" (sin sudo hace
-#                 falta: AGS lo lee de sysfs/systemctl por su cuenta; queda para diagnóstico manual).
+#   auto-off      deshabilita y detiene el servicio periódico heredado.
 set -uo pipefail
 
 UNIT=clamav-freshclam.service
 DB_DIR=/var/lib/clamav
 
-unit_exists() { systemctl list-unit-files "$UNIT" >/dev/null 2>&1; }
+unit_exists() {
+  local state
+  state=$(systemctl show --property=LoadState "$UNIT" 2>/dev/null) || return 1
+  [[ -n "$state" && "$state" != LoadState=not-found ]]
+}
 
 db_date() {
   local newest="" f
@@ -45,35 +44,17 @@ db_date() {
   if [[ -n "$newest" ]]; then date -r "$newest" '+%Y-%m-%d %H:%M'; else echo desconocida; fi
 }
 
-enable_after=keep   # keep | yes | no  → qué hacer con el servicio al terminar
 case "${1:-}" in
-  status)
-    if unit_exists; then
-      systemctl is-enabled --quiet "$UNIT" && printf 'enabled ' || printf 'disabled '
-    else
-      printf 'missing '
-    fi
-    db_date
-    exit 0
-    ;;
-  # `update` RESPETA el estado del servicio y `update-enable` lo enciende. Hoy TODOS los botones
-  # usan `update`: encender el servicio periódico desde ellos añadiría un segundo actualizador
-  # detrás del interruptor booleano, que es justo lo que se quitó. `update-enable` se conserva
-  # para instalaciones a medio migrar y porque la regla sudoers ya lo autoriza.
+  # El servicio periódico no es el interruptor de AGS: la actualización automática ocurre al
+  # iniciar sesión cuando el booleano está activo. `update` solo respeta el estado previo del servicio.
   update) ;;
-  update-enable) enable_after=yes ;;
-  # Solo el interruptor: encender/apagar la actualización automática sin descargar nada.
-  auto-on)
-    unit_exists || { echo "no existe $UNIT en esta distro" >&2; exit 1; }
-    systemctl enable --now "$UNIT" >/dev/null 2>&1 || { echo "no pude habilitar $UNIT" >&2; exit 1; }
-    echo enabled; exit 0 ;;
   auto-off)
     unit_exists || { echo "no existe $UNIT en esta distro" >&2; exit 1; }
     # `disable --now` para y deshabilita: "que no se actualice solo" incluye no dejar el timer
     # interno del demonio corriendo hasta el próximo reinicio.
     systemctl disable --now "$UNIT" >/dev/null 2>&1 || { echo "no pude deshabilitar $UNIT" >&2; exit 1; }
     echo disabled; exit 0 ;;
-  *) echo "uso: $0 {update|update-enable|auto-on|auto-off|status}" >&2; exit 2 ;;
+  *) echo "uso interno: $0 {update|auto-off}" >&2; exit 2 ;;
 esac
 
 command -v freshclam >/dev/null 2>&1 || { echo "freshclam no está instalado" >&2; exit 1; }
@@ -82,31 +63,63 @@ command -v freshclam >/dev/null 2>&1 || { echo "freshclam no está instalado" >&
 # demonio corriendo aborta con "locked by another process". Se para, se actualiza en primer plano
 # —así hay código de salida y salida que enseñarle al usuario, cosa que un `systemctl restart` no
 # da— y se vuelve a levantar. La ventana sin demonio es de segundos.
-was_active=false
+restaurar_pendiente=false
+actualizacion_completada=false
+restaurar_servicio() {
+  $restaurar_pendiente || return 0
+  # Dos intentos acotados cubren errores transitorios, tanto en el flujo normal como al salir por señal.
+  if systemctl start "$UNIT" >/dev/null 2>&1 \
+    || systemctl start "$UNIT" >/dev/null 2>&1; then
+    restaurar_pendiente=false
+    return 0
+  fi
+  echo "no pude restaurar $UNIT" >&2
+  return 1
+}
+
+al_salir() {
+  local rc=$?
+  trap - EXIT
+  trap '' HUP INT TERM
+  if ! $actualizacion_completada && $restaurar_pendiente; then
+    restaurar_servicio || rc=1
+  fi
+  exit "$rc"
+}
+
+# Si se cierra la sesión, se cancela el proceso o ocurre un error inesperado tras parar el servicio,
+# el trap de salida intenta dejarlo activo otra vez. SIGKILL y un apagado brusco no son atrapables.
+trap al_salir EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 if unit_exists && systemctl is-active --quiet "$UNIT"; then
-  was_active=true
-  systemctl stop "$UNIT" >/dev/null 2>&1
+  restaurar_pendiente=true
+  systemctl stop "$UNIT" >/dev/null 2>&1 || {
+    echo "no pude detener $UNIT; no se ejecutó freshclam" >&2
+    exit 1
+  }
 fi
 
 rc=0
 freshclam --stdout || rc=$?
 
-# Dejar el servicio como toque. Con `update` se devuelve al estado en que estaba —parar el demonio
-# es un detalle de implementación de esta actualización, no una decisión del usuario—, y con
-# `update-enable` se habilita. Si la unidad no existe (distro sin ese nombre), la actualización
+# Dejar el servicio como estaba. Si la unidad no existe (distro sin ese nombre), la actualización
 # manual ya se hizo y no es un error.
-if unit_exists; then
-  if [[ "$enable_after" == yes ]]; then
-    systemctl enable --now "$UNIT" >/dev/null 2>&1 \
-      || { $was_active && systemctl start "$UNIT" >/dev/null 2>&1; }
-  elif $was_active; then
-    systemctl start "$UNIT" >/dev/null 2>&1
-  fi
-fi
+service_rc=0
+restaurar_servicio || service_rc=1
+actualizacion_completada=true
 
 if (( rc == 0 )); then
-  echo "firmas actualizadas ($(db_date))"
+  if (( service_rc == 0 )); then
+    echo "firmas actualizadas ($(db_date))"
+  else
+    echo "firmas actualizadas, pero no se pudo dejar $UNIT en el estado solicitado" >&2
+    rc=1
+  fi
 else
   echo "freshclam falló (código $rc)" >&2
+  (( service_rc == 0 )) || rc=1
 fi
 exit "$rc"

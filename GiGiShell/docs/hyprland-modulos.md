@@ -2923,7 +2923,8 @@ silenciosa), así que la estructura separa **fuente versionada** de **copia de c
 
 **El flujo:** AGS ejecuta `sudo -n /usr/local/bin/gigishell-tlp-apply {normal|ahorro}`, que copia
 `/etc/gigishell/tlp/<modo>.conf` → `/etc/tlp.conf` (atómico, tmp+`mv`), lanza `tlp start` y anota el modo
-en `/etc/gigishell/tlp/active` (world-readable, que AGS relee al arrancar sin sudo). **`install.sh` NO
+en `/etc/gigishell/tlp/active` (world-readable, que AGS relee al arrancar sin sudo). Si `tlp start`
+falla, restaura el `/etc/tlp.conf` anterior e intenta reaplicarlo; no actualiza `active`. **`install.sh` NO
 toca `/etc/tlp.conf`** — eso lo hace el helper la primera vez que el usuario elige un perfil; si tenías
 un `tlp.conf` afinado, pega su contenido en `system/tlp/normal.conf` antes de reinstalar.
 
@@ -3424,10 +3425,11 @@ la tarjeta **Base de firmas**: fecha de la última actualización, el interrupto
 al día» y un botón que actualiza **ahora**.
 
 **Mismo esquema que TLP, y por el mismo motivo**: `/var/lib/clamav` es de `clamav`, el log de
-freshclam está en `/var/log/clamav` y `systemctl enable` es de root, así que AGS no toca nada —
-delega en `/usr/local/bin/gigishell-clamav-update` (root-owned, instalado por **`install.sh` paso 9**
+freshclam está en `/var/log/clamav` y gestionar el servicio con `systemctl` es de root, así que AGS
+no toca nada: delega en `/usr/local/bin/gigishell-clamav-update` (root-owned, instalado por **`install.sh` paso 9**
 desde `system/clamav/gigishell-clamav-update.sh`), autorizado sin contraseña por
-`/etc/sudoers.d/gigishell-clamav` **solo** para dos argumentos fijos (`update` y `auto-off`: los demás verbos del helper salieron de la regla al dejar de usarse — un NOPASSWD que puede *encender* un demonio no se deja puesto por si acaso). Ni el helper ni la regla se
+`/etc/sudoers.d/gigishell-clamav` **solo** para los dos verbos internos (`update` y `auto-off`); el
+helper no ofrece comandos que puedan *encender* el servicio periódico. Ni el helper ni la regla se
 symlinkean: apuntar algo que corre como root al árbol escribible por el usuario sería la escalada
 silenciosa contra la que avisan las secciones de USB, i2c-dev y TLP.
 
@@ -3468,18 +3470,18 @@ se conoce y la fila se pinta salvo que **falte el helper root** — sin él ni e
 actualización del arranque pueden funcionar, y un interruptor que no aplica nada es peor que su
 ausencia (ahí el texto dice qué instalar). Lo que se sigue preguntando al sistema es lo que solo el
 sistema sabe: la **fecha** de la base (mtime de `/var/lib/clamav/daily.*`) y si el **servicio
-periódico** heredado sigue vivo (`systemctl is-enabled`). Ese segundo dato solo se pinta cuando vale
+periódico** heredado está corriendo (`systemctl is-active`). Ese segundo dato solo se pinta cuando vale
 `true`; `null` (no se pudo consultar) no afirma nada, mismo criterio que `teclaCedidaAHyprland`.
 **Y AGS tampoco sondea**: `refreshClamavState()` se llama al montar la tarjeta y tras una orden del
 helper — no hay `setInterval` ni `Gio.FileMonitor` en `servicios/seguridad/clamav.ts`. Si algún día
 aparece uno, será el primer temporizador de ClamAV del sistema y hay que justificarlo ahí.
 
-**El helper conserva `update-enable`, `auto-on` y `auto-off` aunque el interruptor ya no los use.**
-`auto-off` sigue teniendo un consumidor: si `clamav-freshclam` se quedó habilitado de la etapa
-anterior (o lo enciende una reinstalación del paquete), `refreshClamavState` lo detecta y lo **apaga
-una vez, en silencio** — si no, volvería a haber un actualizador periódico, y encima invisible. Los
-otros dos verbos se quedan por compatibilidad con instalaciones a medio migrar y porque la regla
-sudoers ya los autoriza; el botón "Actualizar ahora" y el del popup usan los dos `update` a secas.
+**El helper solo ofrece `update` y `auto-off`, que son los verbos internos usados desde AGS y los
+scripts de arranque.** `auto-off` sigue teniendo un consumidor: si `clamav-freshclam` quedó
+corriendo de la etapa anterior (o lo arranca una reinstalación del paquete), `refreshClamavState`
+lo detecta y lo **apaga una vez, en silencio** — si no, volvería a haber un actualizador periódico,
+y encima invisible. El botón "Actualizar ahora" y el del popup usan los dos `update` a secas;
+ningún flujo de AGS necesita encender el servicio periódico.
 `install.sh` **ya no habilita el servicio**: descarga las firmas una vez con el helper y deja el
 resto al booleano.
 

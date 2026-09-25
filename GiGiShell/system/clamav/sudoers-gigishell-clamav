@@ -10,15 +10,12 @@
 #
 #   update    lo que hacen el botón de Ajustes y el del popup "ClamAV no puede analizar", y el
 #             `actualizar-firmas.sh --auto` del arranque de sesión.
-#   auto-off  lo usa AGS UNA vez, si se encuentra `clamav-freshclam` habilitado de una instalación
+#   auto-off  lo usa AGS UNA vez, si se encuentra `clamav-freshclam` activo de una instalación
 #             anterior: sin él quedaría un actualizador periódico invisible (ver
 #             servicios/seguridad/clamav.ts).
 #
-# Los otros verbos del helper (`update-enable`, `auto-on`, `status`) están fuera A PROPÓSITO desde
-# que la actualización automática dejó de ser un servicio: ya no los llama nadie, y un NOPASSWD que
-# puede **encender** un demonio del sistema no se deja puesto "por si acaso". `status` tampoco hace
-# falta: no necesita root (lee `systemctl is-enabled` y unos mtime world-readable), así que se
-# ejecuta a mano sin sudo. Si algún día vuelven a usarse, se añaden aquí y se reinstala la regla.
+# El helper solo ofrece estos dos verbos internos. No se autoriza ningún comando que pueda
+# **encender** el servicio periódico: la actualización automática se gestiona desde AGS.
 Cmnd_Alias GIGISHELL_CLAMAV = /usr/local/bin/gigishell-clamav-update update, \
                            /usr/local/bin/gigishell-clamav-update auto-off
 __GIGISHELL_USER__ ALL=(root) NOPASSWD: GIGISHELL_CLAMAV

@@ -28,7 +28,7 @@
     "sinAyudante": "Falta el ayudante con permisos de root (helper + regla sudoers), así que ni el botón ni la actualización automática pueden funcionar todavía. Instálalo una vez con «bash ~/GiGiShell/install.sh» y vuelve a abrir Ajustes. Mientras tanto, «sudo freshclam» en una terminal hace el mismo trabajo.",
     "boton": "Actualizar firmas ahora",
     "actualizando": "Actualizando… (puede tardar)",
-    "servicioPeriodico": "El servicio periódico clamav-freshclam sigue encendido y actualiza por su cuenta cada pocas horas. Al activar el interruptor de arriba se apaga: las firmas se comprueban al iniciar sesión y nada queda corriendo durante ella."
+    "servicioPeriodico": "El servicio periódico clamav-freshclam está corriendo y actualiza por su cuenta cada pocas horas. Al activar el interruptor de arriba se apaga: las firmas se comprueban al iniciar sesión y nada queda corriendo durante ella."
   },
   "grupos": {
     "kernelMemoria": "Kernel y memoria",

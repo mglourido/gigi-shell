@@ -7,16 +7,16 @@
 // esperando. Ese aviso decía "ejecuta sudo freshclam (o activa clamav-freshclam.service)" y no
 // había ningún sitio en la UI donde hacerlo: había que acordarse de abrir una terminal.
 //
-// /var/lib/clamav es de `clamav` y habilitar el servicio es de root, así que AGS no actualiza
+// /var/lib/clamav es de `clamav` y gestionar el servicio es de root, así que AGS no actualiza
 // nada por su cuenta: delega en un helper root-owned instalado por install.sh
 // (/usr/local/bin/gigishell-clamav-update), autorizado sin contraseña por /etc/sudoers.d/gigishell-clamav
 // SOLO para sus dos argumentos fijos. Mismo esquema que servicios/energia/tlp.ts; ver la sección
 // "Firmas de ClamAV" del CLAUDE.md raíz.
 //
 // LEER el estado, en cambio, NO necesita sudo y por eso no pasa por el helper: la fecha sale del
-// mtime de la base (world-readable) y el estado del servicio periódico de `systemctl is-enabled`,
-// que cualquiera puede consultar. Preguntarle al sistema es lo único que no puede mentir: el
-// helper puede estar instalado y el servicio apagado a mano.
+// mtime de la base (world-readable) y el estado actual del servicio de `systemctl is-active`, que
+// cualquiera puede consultar. Preguntarle al sistema es lo único que no puede mentir: el helper
+// puede estar instalado y el servicio apagado a mano.
 //
 // ── EL AUTOMÁTICO YA NO ES `clamav-freshclam`, Y NO HAY NINGÚN TEMPORIZADOR ────────────────
 // Aquel interruptor encendía y apagaba el servicio, o sea que la actualización iba POR PERIODO
@@ -30,11 +30,10 @@
 // una orden del helper — no hay `setInterval` ni `Gio.FileMonitor`. Si se añade uno algún día,
 // será el primer temporizador de ClamAV del sistema y hay que justificarlo aquí.
 //
-// Se conserva la lectura de `systemctl is-enabled` por una razón concreta: si el servicio se quedó
-// habilitado de la etapa anterior habría un actualizador periódico invisible. Con el booleano
-// encendido se apaga UNA vez, en silencio, vía el helper (`auto-off`, ya autorizado en la regla
-// sudoers). No se vuelve a tocar: si el usuario lo reactiva a mano por su cuenta, se le enseña el
-// estado y se le deja en paz.
+// Se consulta `systemctl is-active`: solo se avisa y se limpia si el servicio está corriendo ahora;
+// que esté habilitado para futuros arranques no basta. Con el booleano encendido, el servicio activo
+// se apaga UNA vez, en silencio, vía el helper (`auto-off`, ya autorizado en la regla sudoers). Si
+// el usuario lo reactiva a mano, se le enseña el estado y se le deja en paz hasta la siguiente lectura.
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createState } from "ags"
@@ -103,24 +102,30 @@ export function refreshClamavState(): void {
   _setClamavDbEpoch(readDbEpoch())
   let proc: Gio.Subprocess
   try {
-    proc = Gio.Subprocess.new(["systemctl", "is-enabled", UNIT], Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE)
+    proc = Gio.Subprocess.new(["systemctl", "is-active", UNIT], Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE)
   } catch (e) {
+    _setClamavServicioPeriodico(null)
     console.error("[clamav] no se pudo consultar el servicio:", e)
     return
   }
   proc.communicate_utf8_async(null, null, (p, res) => {
     try {
       const [, stdout] = (p as Gio.Subprocess).communicate_utf8_finish(res)
-      const v = (stdout ?? "").trim()
-      // "enabled", "enabled-runtime" o "static" = el servicio periódico sigue vivo. Cualquier
-      // otra cosa (disabled, masked, o la unidad no existe) = no.
-      const activo = v === "enabled" || v === "enabled-runtime" || v === "static"
+      const estado = (stdout ?? "").trim()
+      if (!estado || estado === "unknown") {
+        _setClamavServicioPeriodico(null)
+        console.error("[clamav] systemctl no pudo determinar si el servicio está activo")
+        return
+      }
+      // `is-active` informa de ejecución actual; estados de habilitación como `static` no cuentan.
+      const activo = estado === "active" || estado === "reloading"
       _setClamavServicioPeriodico(activo)
       // Un solo actualizador. Si el booleano de GiGiShell está encendido, el servicio periódico
       // sobra: se apaga una vez y en silencio (el usuario no ha pedido esto, así que no se le
       // notifica; y si falla, tampoco pasa nada grave: solo quedan dos actualizadores).
       if (activo && clamavAutoUpdatePref.get()) apagarServicioPeriodico()
     } catch (e) {
+      _setClamavServicioPeriodico(null)
       console.error("[clamav] no se pudo leer el estado del servicio:", e)
     }
   })
@@ -177,8 +182,7 @@ function runHelper(arg: string, exito: string, fallo: string): void {
 
 /**
  * Actualiza las firmas ahora. Puede tardar (descarga ~200 MB la primera vez), de ahí `clamavBusy`.
- * Usa `update` y **no** `update-enable`: con un interruptor de actualización automática al lado,
- * reencender el servicio desde aquí cambiaría un ajuste que el usuario no ha tocado.
+ * Usa el verbo interno `update`, que respeta el estado del servicio periódico heredado.
  */
 export function updateClamavDb(): void {
   runHelper("update",
@@ -200,7 +204,19 @@ function apagarServicioPeriodico(): void {
       ["sudo", "-n", HELPER, "auto-off"],
       Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE,
     )
-    proc.wait_async(null, () => { _setClamavServicioPeriodico(false) })
+    proc.wait_async(null, (p, res) => {
+      try {
+        const sub = p as Gio.Subprocess
+        sub.wait_finish(res)
+        if (sub.get_successful()) {
+          _setClamavServicioPeriodico(false)
+        } else {
+          console.error("[clamav] el helper no pudo apagar el servicio periódico")
+        }
+      } catch (e) {
+        console.error("[clamav] no se pudo confirmar que el servicio periódico se apagó:", e)
+      }
+    })
   } catch (e) {
     console.error("[clamav] no se pudo apagar el servicio periódico:", e)
   }
