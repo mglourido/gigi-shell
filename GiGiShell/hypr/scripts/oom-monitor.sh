@@ -1522,6 +1522,44 @@ _recoger_huerfanos() {
         done < <(pgrep -u "$USER" -f "$patron" 2>/dev/null)
     done
 }
+# ── Retirar cualquier instancia anterior, en CUALQUIERA de los dos modos ───────
+# Relanzar este script tiene que SUSTITUIR a lo que corría, sea lo que sea, o se duplican
+# todos los avisos (y dos escáneres de Descargas se pisan el índice y lanzan dos clamscan
+# por fichero). Hay dos cosas que pueden estar corriendo y ninguna se ve con un solo patrón:
+#   - un oom-monitor.sh en modo bash (sin binario, o con GIGISHELL_EVENTD=0): tras instalar
+#     el binario, relanzar dejaba ese bash vivo y le sumaba el daemon;
+#   - un gigishell-eventd que ya hizo `exec` y cuya línea de órdenes ya no dice
+#     «oom-monitor.sh»: tras quitar el binario, `pkill -f oom-monitor.sh` no lo encontraba y
+#     seguía corriendo junto al bash nuevo.
+# El daemon también se retira solo al arrancar otro (cerrojo), pero eso no cubre ninguno de
+# los dos casos de arriba, porque en los dos uno de los lados es bash.
+_retirar_anteriores() {
+    local pid ppid pf
+    # Nunca a sí mismo ni a sus propios subshells (el de `< <(…)` comparte línea de
+    # órdenes con este script y cuelga de $$).
+    while read -r pid ppid; do
+        [[ "$pid" == "$$" || "$ppid" == "$$" ]] && continue
+        kill "$pid" 2>/dev/null
+    done < <(ps -u "$USER" -o pid=,ppid=,args= 2>/dev/null |
+             awk '$3 ~ /(^|\/)bash$/ && $4 ~ /\/hypr\/scripts\/oom-monitor\.sh$/ {print $1, $2}')
+    # El daemon por su fichero de pid (el mismo que usa su cerrojo). Se comprueba el nombre
+    # del proceso antes de matar: un pid rancio puede ser ya de cualquier otra cosa.
+    pf="${XDG_RUNTIME_DIR:-$HOME/.cache/gigishell}/gigishell-eventd.pid"
+    [[ -d "${XDG_RUNTIME_DIR:-}" ]] || pf="$HOME/.cache/gigishell/gigishell-eventd.pid"
+    # `$(<f)` y no `read`: el daemon escribe el pid SIN salto de línea final, y `read` devuelve
+    # 1 al llegar al EOF aunque haya leído el número — la condición fallaba y el daemon viejo
+    # seguía vivo junto al bash nuevo (comprobado en vivo).
+    pid=""
+    [[ -r "$pf" ]] && pid=$(<"$pf")
+    if [[ "$pid" =~ ^[0-9]+$ && "$pid" != "$$" ]] &&
+       [[ "$(cat "/proc/$pid/comm" 2>/dev/null)" == gigishell-event ]]; then
+        kill "$pid" 2>/dev/null
+    fi
+    # Respiro para que el kernel reparente a init lo que acabamos de matar, y así
+    # `_recoger_huerfanos` lo encuentre (misma razón que en `_limpiar_al_salir`).
+    sleep 0.3
+}
+_retirar_anteriores
 _recoger_huerfanos
 
 # ── Run in parallel ───────────────────────────────────────────────────────────
@@ -1533,8 +1571,10 @@ _recoger_huerfanos
 # raíz de GiGiShell, lo compila `eventd/instalar.sh`). Mismas reglas, mismos ids de aviso y
 # misma agrupación, pero UN proceso (sd-journal, inotify nativo y los sondeos en hilos) en vez de
 # un bash por monitor con sus `journalctl -f`/`inotifywait` colgando, y relee security.json en
-# caliente. Muere solo con este script (PR_SET_PDEATHSIG), así que no necesita la red de
-# huérfanos de arriba.
+# caliente. Son dos procesos: un supervisor que relanza al trabajador si se cae (y avisa), y
+# que tras 5 caídas en 10 minutos vuelve a ejecutar ESTE script con GIGISHELL_EVENTD=0 — o sea,
+# a los monitores bash. Como hijo (`--hijo`) muere con este script (PR_SET_PDEATHSIG), así que
+# no necesita la red de huérfanos de arriba.
 #
 # QUÉ monitores cubre se le PREGUNTA (`--modulos`) en vez de suponerlo: con un binario de una
 # fase anterior y este script más nuevo, lo que el binario no sepa hacer lo sigue haciendo el
@@ -1557,7 +1597,16 @@ done
 if (( ${#_faltan[@]} == 0 )); then
     # Sin hijos que limpiar: se quita el trap de salida antes de ceder el proceso.
     trap - EXIT TERM INT HUP
+    # Sin `execfail`, un `exec` que falla (binario corrupto, sin permiso) TERMINA un bash no
+    # interactivo: la sesión se quedaría sin ningún monitor y sin nada que lo dijera.
+    shopt -s execfail
     exec "$EVENTD"
+    # Solo se llega aquí si el exec falló: todo vuelve al bash, y se dice.
+    trap _limpiar_al_salir EXIT TERM INT HUP
+    notificar monitor.fallo -u critical "Monitor de seguridad" \
+        "No se pudo arrancar gigishell-eventd; se usan los monitores bash de oom-monitor.sh." -t 15000
+    _en_rust=" "
+    _faltan=(kernel system files smart units downloads)
 fi
 [[ "$_en_rust" == " " || "$_en_rust" == "  " ]] || "$EVENTD" --hijo &
 for _m in "${_faltan[@]}"; do

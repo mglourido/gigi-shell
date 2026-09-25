@@ -159,6 +159,7 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   ev("archivos.actualizacion", "seguridad", "oom-monitor.sh", { clearOnBoot: true }),
   ev("sistema.reinicio-pendiente", "seguridad", "oom-monitor.sh", { clearOnBoot: true }),
   ev("monitor.sin-inotify", "seguridad", "oom-monitor.sh", { clearOnBoot: true }),
+  ev("monitor.fallo", "seguridad", "oom-monitor.sh", { clearOnBoot: true }),
   // Cámara en uso. Va en Seguridad y no en Hardware porque no informa de un
   // dispositivo sino de una PRIVACIDAD: alguien acaba de encender la cámara, y
   // eso es lo mismo que vigilan los avisos de esta categoría.

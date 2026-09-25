@@ -3013,17 +3013,31 @@ existe, `oom-monitor.sh` le **pregunta** qué cubre (`gigishell-eventd --modulos
 le cede el proceso con **`exec`** y no queda ningún bash; si cubre solo una parte (un binario de
 una fase anterior), lo lanza como hijo (`--hijo`) y corre en bash el resto, así que nunca queda un
 monitor sin nadie. Sin el binario, o con `GIGISHELL_EVENTD=0`, corren todas las funciones bash de
-siempre. **Relanzar = volver a ejecutar `oom-monitor.sh`**: el daemon lleva un cerrojo
-(`$XDG_RUNTIME_DIR/gigishell-eventd.pid`, `flock`) y la instancia nueva manda SIGTERM a la vieja y
-ocupa su sitio, así que un `hyprctl reload full-reset` no duplica avisos. Pararlo:
-`pkill -x gigishell-event` (el nombre de proceso se corta a 15 caracteres). Qué cambia y qué NO:
+siempre. **Relanzar = volver a ejecutar `oom-monitor.sh`**, en cualquier modo: el script retira
+al arrancar lo que corriera antes (`_retirar_anteriores`), tanto un `oom-monitor.sh` en modo bash
+como un daemon que ya hizo `exec` —cuya línea de órdenes ya no dice «oom-monitor.sh», así que
+`pkill -f oom-monitor.sh` no lo encuentra—. Sin eso, instalar el binario y relanzar dejaba el bash
+viejo vivo junto al daemon (avisos duplicados, dos `clamscan` por descarga, dos escritores del
+índice), y quitarlo dejaba el daemon junto al bash nuevo. El daemon además lleva su cerrojo
+(`$XDG_RUNTIME_DIR/gigishell-eventd.pid`, `flock`: la instancia nueva manda SIGTERM a la vieja),
+así que un `hyprctl reload full-reset` no duplica avisos. Pararlo: `pkill -x gigishell-event`
+(el nombre de proceso se corta a 15 caracteres). Qué cambia y qué NO:
 
 - **Mismo contrato de cara a AGS**: mismas reglas en el mismo orden, mismos ids
   `x-gigishell-event`, mismos títulos/cuerpos, misma agrupación (calma 4 s, tope 20 s, lista de 8,
   cap 300; en archivos, ventana ancha 30 s/900 s durante una actualización y «un texto repetido
   = un cambio»). Los tests (`cargo test` en `eventd/`) fijan los casos que el bash documenta.
-- **Un proceso con cinco hilos** en vez de un bash por monitor con sus `journalctl -f` e
-  `inotifywait -m` colgando: journal por sd-journal (FFI, disyunción `_TRANSPORT=kernel` OR los
+- **Dos procesos: un supervisor y un trabajador con cinco hilos**, en vez de un bash por
+  monitor con sus `journalctl -f` e `inotifywait -m` colgando. El supervisor existe porque en el
+  bash cada monitor iba aislado y aquí no: un aborto en cualquier hilo (`panic = "abort"`) o un
+  OOM tumba los seis a la vez, y quedarse sin vigilancia SIN SABERLO es el peor fallo posible.
+  Si el trabajador muere, lo relanza a los 5 s y avisa (`monitor.fallo`); tras **5 caídas en
+  10 min** avisa en crítico y se convierte (`exec`, mismo pid) en `oom-monitor.sh` con
+  `GIGISHELL_EVENTD=0`, o sea, en los monitores bash. El trabajador se relanza como
+  `/proc/self/exe`, no por ruta: `instalar.sh` sustituye el fichero y la ruta vieja pasaría a
+  «(deleted)». Tampoco se usa `eprintln!`/`thread::spawn` a pelo: los dos hacen panic si fallan
+  (stderr roto, sin hilos) y eso abortaría todo por una línea de diagnóstico. Dentro del
+  trabajador: journal por sd-journal (FFI, disyunción `_TRANSPORT=kernel` OR los
   identificadores), inotify nativo, y los dos sondeos (`systemctl --failed` cada 120 s y
   `smartctl` cada hora, con sus retardos de 25 s y 45 s y la puerta de juego portada de
   `lib/gaming-gate.sh`), más el escáner de Descargas. Anon ~0,4 MB; el resto del RSS (~20 MB) son páginas de los ficheros del
@@ -3053,7 +3067,26 @@ ocupa su sitio, así que un `hyprctl reload full-reset` no duplica avisos. Parar
   vez de relanzar `inotifywait -r`. Los tres avisos con botón (`--wait -A`) esperan en un hilo
   cada uno; el de «sin firmas» con su techo de 120 s.
 - **Si el journal no se puede abrir, el proceso NO sale**: los hilos de archivos y sondeos no
-  dependen de él y seguirían muertos con él.
+  dependen de él y seguirían muertos con él. Pero lo **avisa en crítico** (`monitor.fallo`): sin
+  journal no hay avisos de OOM, sudo, SSH ni errores de disco.
+- **Si el `exec` del script falla** (binario corrupto, sin permiso), `shopt -s execfail` evita
+  que el bash termine —sin él un bash no interactivo SALE—, se avisa y corren los seis monitores
+  bash.
+- **Rutas de Descargas como bytes, nunca como texto**: un nombre no UTF-8 (un `.zip` de Windows
+  extraído sin `-O`) pasado a `String` llevaba U+FFFD y dejaba de existir: ni hash, ni aviso, ni
+  ClamAV, en silencio y en cada barrido. El bash sí lo analizaba.
+- **Solo un `clamscan` que sale con 0 o 1 marca el lote como analizado.** El bash solo excluía
+  el 2 (sin firmas); un `clamscan` matado por el OOM (ClamAV 1.x ronda 1 GB) o un 126/127
+  (desinstalado a mitad de sesión) se daba por limpio PARA SIEMPRE, porque el memo va por hash
+  de contenido. `nice`/`ionice` se anteponen solo si existen, como en el bash.
+- **SMART sin permisos ahora SÍ avisa** (`disco.smart-sin-permisos`, una vez por sesión). El bash
+  lo esperaba de una salida vacía, pero sin root `smartctl` imprime su cabecera y «Permission
+  denied» en stdout: el aviso no salía nunca y el sondeo no hacía nada sin decirlo. Sin
+  `smartctl` instalado no se sondea ni se avisa (el bash hacía `return`).
+- La lista del lote de `clamscan` va a `$XDG_RUNTIME_DIR`, no a `/tmp` con nombre predecible
+  (otro usuario podía crearla antes y, con `protected_regular`, el escáner no escribía nunca).
+- La raíz de Descargas se vigila SIEMPRE, también cuando un barrido cae en pausa: si no, lo
+  descargado al salir de la pausa esperaba a la red de seguridad (5 min) en vez de ~3 s.
 - **Como hijo (`--hijo`) muere con su padre por `PR_SET_PDEATHSIG`**, así que no necesita la red
   de huérfanos. Tras el `exec` NO se pide: no hay bash que seguir, y el padre que haya (un
   `sh -c` de paso, un `setsid`) puede morir en cualquier momento sin que signifique nada.
@@ -3065,7 +3098,8 @@ Compilar e instalar: `eventd/instalar.sh` o `bash install.sh --solo eventd` (pas
 antes; `preflight.sh --installed` avisa si el binario es más viejo que `eventd/src`); quitar:
 `eventd/instalar.sh --quitar`. Para comparar con el bash sin avisos duplicados:
 `GIGISHELL_EVENTD=0` al lanzar el monitor y, a la vez, `gigishell-eventd --simular`, que imprime
-por stdout lo que habría notificado.
+por stdout lo que habría notificado y **no escribe ningún estado en disco** (índice, hashes), así
+que no le pisa el índice al bash. Sí lanza `clamscan` sobre lo nuevo.
 
 - `monitor_kernel` — `journalctl -kf` (kernel-only, avoids matching app logs): OOM, panic,
   hung tasks, disk I/O errors, hardware errors (MCE/ECC/EDAC), unsigned/out-of-tree kernel

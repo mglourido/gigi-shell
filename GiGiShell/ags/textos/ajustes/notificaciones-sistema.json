@@ -97,6 +97,7 @@
     "archivos.actualizacion": "Archivos de sistema tocados por una actualización",
     "sistema.reinicio-pendiente": "Reinicio pendiente tras actualizar kernel o drivers",
     "monitor.sin-inotify": "Vigilancia de ficheros desactivada (falta inotify-tools)",
+    "monitor.fallo": "Fallo del monitor de seguridad (reiniciado, degradado o detenido)",
     "camara.en-uso": "Cámara en uso",
     "gestos.no-disponible": "No se puede activar el modo gestos",
     "gestos.detenido": "Modo gestos detenido",

@@ -6,8 +6,9 @@
 #   eventd/instalar.sh            compilar, pasar los tests e instalar
 #   eventd/instalar.sh --quitar   borrar el binario (oom-monitor vuelve al bash)
 #
-# Tras instalar o quitar hay que relanzar el monitor para que lo note:
-#   pkill -f oom-monitor.sh; setsid -f ~/.config/hypr/scripts/oom-monitor.sh
+# Tras instalar o quitar hay que relanzar el monitor para que lo note. Basta con volver a
+# ejecutarlo: retira por su cuenta lo que corriera antes, en modo bash o en modo daemon.
+#   setsid -f ~/.config/hypr/scripts/oom-monitor.sh
 set -euo pipefail
 
 DEST="$HOME/.local/bin/gigishell-eventd"

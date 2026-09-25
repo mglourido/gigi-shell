@@ -12,7 +12,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use crate::notif::{notificar, Salida};
-use crate::sistema::{esperar_puerta, home, Config, Entorno, Real};
+use crate::sistema::{en_path, esperar_puerta, home, Config, Entorno, Real};
 
 const DELAY_UNITS: Duration = Duration::from_secs(25);
 const DELAY_SMART: Duration = Duration::from_secs(45);
@@ -123,6 +123,14 @@ fn discos() -> Vec<String> {
     v
 }
 
+/// ¿smartctl no pudo leer el disco? Sin root no sale VACÍO, como suponía el bash: imprime
+/// su cabecera y «Permission denied» en stdout, así que el aviso de permisos no llegaba
+/// nunca y el sondeo SMART no hacía nada sin decirlo.
+pub fn smart_sin_permiso(informe: &str) -> bool {
+    let l = informe.to_lowercase();
+    informe.trim().is_empty() || l.contains("permission denied") || l.contains("operation not permitted")
+}
+
 /// `result:\s*FAILED|FAILING_NOW`, sin distinguir mayúsculas.
 pub fn smart_falla(informe: &str) -> bool {
     let l = informe.to_lowercase();
@@ -131,6 +139,11 @@ pub fn smart_falla(informe: &str) -> bool {
 }
 
 pub fn smart(salida: Salida) {
+    // Sin smartctl no hay nada que sondear (el bash hacía `return`): no es un problema
+    // de permisos y avisarlo como tal en cada inicio de sesión sería mentir.
+    if !en_path("smartctl") {
+        return;
+    }
     std::thread::sleep(DELAY_SMART);
     let mut cfg = config();
     let mut avisado_permisos = false;
@@ -148,7 +161,7 @@ pub fn smart(salida: Salida) {
                     .output()
                     .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
                     .unwrap_or_default();
-                if informe.trim().is_empty() {
+                if smart_sin_permiso(&informe) {
                     if !avisado_permisos {
                         avisado_permisos = true;
                         notificar(salida, "disco.smart-sin-permisos", "normal", "Salud de disco",
@@ -190,5 +203,8 @@ mod tests {
         assert!(smart_falla("SMART overall-health self-assessment test result: FAILED!"));
         assert!(smart_falla("  5 Reallocated_Sector_Ct 0x0033 001 001 005 Pre-fail Always FAILING_NOW 2000"));
         assert!(!smart_falla("SMART overall-health self-assessment test result: PASSED"));
+        assert!(smart_sin_permiso("smartctl 7.4\nSmartctl open device: /dev/nvme0n1 failed: Permission denied\n"));
+        assert!(smart_sin_permiso("   \n"));
+        assert!(!smart_sin_permiso("SMART overall-health self-assessment test result: PASSED"));
     }
 }

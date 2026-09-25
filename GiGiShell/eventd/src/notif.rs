@@ -18,6 +18,37 @@ pub enum Salida {
     Simulado,
 }
 
+/// Escribe en stderr SIN poder abortar el proceso. `eprintln!`/`println!` hacen panic
+/// si la escritura falla (stderr/stdout cerrados o una tubería rota, p. ej. al lanzar el
+/// script desde un terminal que ya se cerró), y con `panic = "abort"` eso se llevaría
+/// los seis monitores por delante por una línea de diagnóstico.
+pub fn log(msg: &str) {
+    use std::io::Write;
+    let _ = writeln!(std::io::stderr(), "gigishell-eventd: {msg}");
+}
+
+fn imprimir(linea: &str) {
+    use std::io::Write;
+    let _ = writeln!(std::io::stdout(), "{linea}");
+}
+
+/// Lanza un hilo sin poder abortar: `thread::spawn` hace panic si el sistema no deja
+/// crear el hilo. Aquí eso solo cuesta la tarea (y queda dicho), no el proceso.
+pub fn hilo<F: FnOnce() + Send + 'static>(nombre: &str, f: F) {
+    if let Err(e) = std::thread::Builder::new().name(nombre.into()).spawn(f) {
+        log(&format!("no se pudo crear el hilo {nombre}: {e}"));
+    }
+}
+
+/// Recorte de notif_encolar: las líneas del kernel son larguísimas, 300 caracteres.
+pub fn recortar(texto: &str) -> String {
+    if texto.chars().count() > 300 {
+        texto.chars().take(299).chain(['…']).collect()
+    } else {
+        texto.to_string()
+    }
+}
+
 pub fn id_valido(id: &str) -> bool {
     // ^[a-z0-9]+([.-][a-z0-9]+)*$
     !id.is_empty()
@@ -28,7 +59,7 @@ pub fn id_valido(id: &str) -> bool {
 
 pub fn notificar(salida: Salida, evento: &str, urgencia: &str, titulo: &str, cuerpo: &str, tmo_ms: i64) {
     if salida == Salida::Simulado {
-        println!("[{evento}] ({urgencia}, {tmo_ms} ms) {titulo} — {}", cuerpo.replace('\n', " ⏎ "));
+        imprimir(&format!("[{evento}] ({urgencia}, {tmo_ms} ms) {titulo} — {}", cuerpo.replace('\n', " ⏎ ")));
         return;
     }
     let mut cmd = Command::new("notify-send");
@@ -36,7 +67,7 @@ pub fn notificar(salida: Salida, evento: &str, urgencia: &str, titulo: &str, cue
     if id_valido(evento) {
         cmd.arg("-h").arg(format!("string:x-gigishell-event:{evento}"));
     } else {
-        eprintln!("notificar: id de evento inválido: {evento:?} (se emite sin identidad)");
+        log(&format!("notificar: id de evento inválido: {evento:?} (se emite sin identidad)"));
     }
     cmd.args(["-u", urgencia, titulo, cuerpo, "-t", &tmo_ms.to_string()])
         .stdin(Stdio::null())
@@ -44,12 +75,10 @@ pub fn notificar(salida: Salida, evento: &str, urgencia: &str, titulo: &str, cue
     // Se recoge en un hilo aparte para no dejar zombis y no bloquear el bucle del
     // journal si el demonio de notificaciones tarda en contestar.
     match cmd.spawn() {
-        Ok(mut hijo) => {
-            std::thread::spawn(move || {
-                let _ = hijo.wait();
-            });
-        }
-        Err(e) => eprintln!("notify-send: {e}"),
+        Ok(mut hijo) => hilo("notify-send", move || {
+            let _ = hijo.wait();
+        }),
+        Err(e) => log(&format!("notify-send: {e}")),
     }
 }
 
@@ -70,7 +99,7 @@ pub fn aviso_con_boton(
     techo: Option<Duration>,
 ) -> bool {
     if salida == Salida::Simulado {
-        println!("[{evento}] ({urgencia}, {tmo_ms} ms, botón «{etiqueta}») {titulo} — {cuerpo}");
+        imprimir(&format!("[{evento}] ({urgencia}, {tmo_ms} ms, botón «{etiqueta}») {titulo} — {cuerpo}"));
         return false;
     }
     let mut cmd = Command::new("notify-send");
@@ -177,15 +206,10 @@ impl Agrupador {
 
     pub fn encolar(&mut self, cat: &str, texto: &str, ahora: Instant) {
         let Some(cola) = self.colas.get_mut(cat) else {
-            eprintln!("encolar: categoría no registrada: {cat}");
+            log(&format!("encolar: categoría no registrada: {cat}"));
             return;
         };
-        // Las líneas del kernel son larguísimas: se recortan a 300 caracteres.
-        let txt: String = if texto.chars().count() > 300 {
-            texto.chars().take(299).chain(['…']).collect()
-        } else {
-            texto.to_string()
-        };
+        let txt = recortar(texto);
         if let Some(&i) = cola.indice.get(&txt) {
             if self.unicas.contains(&cat) {
                 return;

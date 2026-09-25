@@ -15,7 +15,7 @@ lenguaje correcto para orquestar programas.
 
 - Crate en `eventd/` (raíz de GiGiShell, sin symlink: no es config). Binario en
   `~/.local/bin/gigishell-eventd`, instalado con `eventd/instalar.sh` o con el paso del
-  instalador `bash install.sh --solo eventd`. El paso **no instala Rust por su cuenta** (~500 MB
+  instalador `bash install.sh`. El paso **no instala Rust por su cuenta** (~500 MB
   de cadena para un binario de 500 KB): sin `cargo` avisa y el monitor sigue en bash.
 - `bin/preflight.sh --installed` avisa si el binario falta y, sobre todo, si es **más viejo que
   `eventd/src`**: el script le cede todo, así que un binario sin recompilar tras cambiar una regla
@@ -82,14 +82,40 @@ del security monitor de [`hyprland-modulos.md`](hyprland-modulos.md).
 
 ## Fase 4: medido
 
-- `oom-monitor.sh` completo = **1 proceso** (5 hilos, ~0,4 MB anónimos), frente a ~12 bash +
-  2 `journalctl` + 2 `inotifywait` de la auditoría. Ningún bash residente.
+- `oom-monitor.sh` completo = **2 procesos** (supervisor + trabajador de 5 hilos, ~0,4 MB
+  anónimos), frente a ~12 bash + 2 `journalctl` + 2 `inotifywait` de la auditoría. Ningún bash
+  residente. (Era uno solo hasta la revisión: ver abajo.)
 - Probado de extremo a extremo con un HOME de prueba y `--simular`: la primera pasada analiza lo
   existente y detecta EICAR en una subcarpeta (aviso de malware, sin avisos de ejecutables
   porque aún siembra); un `.sh` ejecutable creado después en esa subcarpeta despierta el
   barrido por inotify y da el aviso de ejecutable nuevo. Índice y hashes idénticos a lo que
   escribía el bash (`xxh64sum` da los mismos valores).
 - Relanzar el script sustituye a la instancia vieja (comprobado: cambia el pid y queda una).
+
+## Revisión del commit (subagente, 2026-09-25) y arreglos
+
+Una revisión independiente del commit de las fases 1–4 encontró cuatro fallos reales, todos
+arreglados en el commit siguiente:
+
+1. **Nombres no UTF-8 en Descargas no se analizaban nunca** (rutas convertidas a texto con
+   `to_string_lossy`). Ahora son `PathBuf` de principio a fin; hay un test con un nombre Latin-1
+   y se comprobó en vivo con un EICAR llamado `Instalaci\xf3n.com`.
+2. **Un `clamscan` muerto por señal o con 126/127 se daba por analizado para siempre.** Ahora
+   solo marcan 0 y 1.
+3. **Bash y daemon podían correr a la vez** tras instalar o quitar el binario. Ahora el script
+   retira al arrancar cualquier instancia anterior de los dos modos.
+4. **Un aborto en un hilo tumbaba los seis monitores sin que nadie lo relanzara.** Ahora hay un
+   supervisor que relanza, avisa, y tras 5 caídas en 10 min vuelve al bash; y un `exec` fallido
+   ya no deja la sesión sin monitor. Probado matando al trabajador con SIGKILL cinco veces en un
+   entorno aislado (HOME, `XDG_RUNTIME_DIR` y `notify-send` falsos): cuatro reinicios avisados y,
+   a la quinta, aviso crítico y `exec` al script con `GIGISHELL_EVENTD=0` conservando el pid.
+
+Más los menores: SMART sin permisos ahora avisa (antes nunca), sin `smartctl` no avisa, lista
+del lote fuera de `/tmp`, raíz de Descargas siempre vigilada, `--simular` sin estado en disco,
+recorrido de Descargas iterativo (sin riesgo de desbordar la pila), y las equivalencias finas
+con el bash (recorte a 300 caracteres y tope de 300 en el aviso de malware, `thresholdPct`
+decimal truncado, batería sin `type`, poda del índice de los ficheros con temporal al lado).
+El id nuevo `monitor.fallo` está dado de alta en el catálogo de AGS.
 
 ## Pendiente
 

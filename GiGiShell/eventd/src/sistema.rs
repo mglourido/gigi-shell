@@ -76,6 +76,11 @@ const GRACIA_FOCO: u64 = 300;
 const POLL_PUERTA: Duration = Duration::from_secs(10);
 const REANUDAR: Duration = Duration::from_secs(5);
 
+/// ¿Está `prog` en el PATH? (`command -v` sin shell.)
+pub fn en_path(prog: &str) -> bool {
+    std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(prog).is_file()))
+}
+
 pub fn home() -> PathBuf {
     std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default()
 }
