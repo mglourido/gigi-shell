@@ -44,7 +44,7 @@
     "grupo": "Gestos con la mano",
     "titulo": "Modo gestos",
     "descripcion": "Maneja el escritorio moviendo la mano delante de la cámara.",
-    "sinEntorno": "Falta el entorno de gestos (Python con MediaPipe y el modelo de manos). Instálalo con: bash ~/GiGiShell/install.sh --solo gestos",
+    "sinEntorno": "Falta el entorno de gestos (Python con MediaPipe y el modelo de manos). Instálalo con: bash ~/GiGiShell/install.sh",
     "swipe": {
       "titulo": "Deslizar la mano → cambiar de escritorio",
       "detalle": "Con la palma abierta, mueve la mano a un lado de un golpe. A la derecha vas al escritorio siguiente; a la izquierda, al anterior. No hace falta parar ni centrar la mano: pon la palma donde quieras y deslízala. Tiene que ser un movimiento SECO — moverla muy despacio no cuenta, y así mover la mano por moverla no te cambia de escritorio."

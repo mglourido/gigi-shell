@@ -16,8 +16,8 @@
 #
 # Qué se deja EN PIE a propósito: el helper `/usr/local/bin/gigishell-hibernacion` y su regla
 # sudoers. No hacen nada por sí solos sin swap ni resume= (`retardo N` solo escribe un
-# número que systemd nunca llega a usar), y quitarlos obligaría a `install.sh --solo
-# hibernacion` a reinstalarlos para poder volver a intentarlo. Este script deshace el
+# número que systemd nunca llega a usar), y quitarlos obligaría al script de preparación
+# a reinstalarlos para poder volver a intentarlo. Este script deshace el
 # DISCO y el ARRANQUE, no el runtime.
 set -uo pipefail
 
@@ -110,4 +110,4 @@ fi
 
 info "Listo. La hibernación ya NO FUNCIONA (el swap se desactivó al principio de este"
 info "script). El arranque dejará de esperar el resume desde el PRÓXIMO reinicio."
-info "Para volver a habilitarla: bash ~/GiGiShell/install.sh --solo hibernacion"
+info "Para volver a habilitarla: sudo bash ~/GiGiShell/system/hibernacion/gigishell-hibernacion-setup.sh"

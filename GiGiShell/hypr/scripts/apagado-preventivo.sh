@@ -7,7 +7,7 @@
 #
 # La acción la elige el usuario (`apagadoPreventivoAccion`). HIBERNAR es la que no
 # pierde nada —todo sigue abierto al volver—, pero depende de que el equipo esté
-# preparado (swap + resume=, `install.sh --solo hibernacion`). Por eso se pregunta
+# preparado (swap + resume=, `gigishell-hibernacion-setup.sh`). Por eso se pregunta
 # ANTES del aviso, para que la notificación diga lo que de verdad va a pasar, y si
 # `systemctl hibernate` falla igualmente se cae al apagado ordenado: quedarse sin
 # hacer nada con la batería al 3 % es lo único que no puede pasar.

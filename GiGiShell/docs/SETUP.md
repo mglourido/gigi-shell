@@ -93,7 +93,7 @@ son opcionales; su ausencia no impide arrancar GiGiShell.
 Si ya instalaste las dependencias o no usas Arch/CachyOS:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiShell/install.sh | INSTALL_PACKAGES=0 bash
+curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiShell/install.sh | bash -s -- --sin-paquetes
 ```
 
 En otra distribución tendrás que traducir manualmente los paquetes descritos debajo.
@@ -431,7 +431,7 @@ recuerda la respuesta de forma fiable, así que el paso `vscode` del instalador 
 decisión de una vez en `~/.vscode/argv.json`:
 
 ```sh
-bash ~/GiGiShell/install.sh --solo vscode   # o: ~/GiGiShell/bin/configurar-vscode.sh aplicar
+bash ~/GiGiShell/install.sh   # o: ~/GiGiShell/bin/configurar-vscode.sh aplicar
 ```
 
 Lo que fija es `"password-store": "basic"` — el equivalente permanente del botón *Use
@@ -592,10 +592,9 @@ versiona** (la elección de máquina es estado local, como manda
 echo sobremesa-nvidia > ~/.config/gigishell/gpu-perfil
 ```
 
-Normalmente no tendrás que escribirlo: el instalador lo hace por ti en el paso `gpu`
-(`install.sh --solo gpu` lo repite sin tocar nada más) recorriendo `/sys/bus/pci/devices`
+Normalmente no tendrás que escribirlo: el instalador lo hace por ti recorriendo `/sys/bus/pci/devices`
 y mirando la clase PCI `0x03xxxx` y el fabricante de cada tarjeta. Lee `/sys` y no
-`lspci` a propósito: el paso puede correr con `--sin paquetes`, donde `pciutils` no está
+`lspci` a propósito: el modo puede correr con `--sin-paquetes`, donde `pciutils` no está
 garantizado. La regla es:
 
 | Hardware detectado                    | Perfil que escribe |

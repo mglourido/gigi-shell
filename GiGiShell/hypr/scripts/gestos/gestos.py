@@ -656,7 +656,7 @@ class Demonio:
         if not os.path.exists(RUTA_MODELO):
             raise SystemExit(
                 f"falta el modelo de manos ({RUTA_MODELO}); "
-                "ejecuta: bash install.sh --solo gestos"
+                "ejecuta: bash ~/GiGiShell/install.sh"
             )
         nodo = self.resolver_camara()
         usuarios = [u for u in quien_usa(nodo) if u != "python3"]
@@ -679,7 +679,7 @@ class Demonio:
                 f"sin permiso para abrir {nodo}. Si bloqueaste la cámara alguna vez, "
                 "los permisos pueden haberse quedado a medias: repáralos con "
                 "'sudo chown root:video /dev/video* && sudo chmod 660 /dev/video*' "
-                "y reinstala el helper con 'bash ~/GiGiShell/install.sh --solo sistema'"
+                "y reinstala el helper con 'bash ~/GiGiShell/install.sh'"
             )
         self.nodo = nodo
 

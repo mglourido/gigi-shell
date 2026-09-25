@@ -5,38 +5,19 @@
 #
 # Uso:
 #   curl -sSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiShell/install.sh | bash
-#   bash install.sh --help                            # todas las opciones
+#   bash install.sh --solo-paquetes                   # solo dependencias
+#   bash install.sh --sin-paquetes                    # instalación completa sin gestionar paquetes
+#   curl -sSL <url> | bash -s -- --sin-paquetes
 #   curl -sSL <url> | DOTFILES_BRANCH=<rama> bash      # otra rama del repositorio (no por equipo: para eso están *_PROFILE)
-#   curl -sSL <url> | INSTALL_PACKAGES=0 bash         # sin instalar paquetes
 #   curl -sSL <url> | KITTY_PROFILE=desktop bash      # forzar perfil de Kitty
 #   curl -sSL <url> | FIREFOX_PROFILE=desktop bash    # forzar perfil de Firefox
 #   curl -sSL <url> | SDDM_AUTOLOGIN=0 bash           # SDDM pide contraseña en vez de entrar solo
 #
-# Opciones de línea de comandos (solo al ejecutar el archivo):
-#   --branch <rama>      --repo <url>       --no-packages
-#   --kitty <perfil>     --firefox <perfil> --cursor <tema>
-#   --hibernacion        prepara swap persistente y reanudación del kernel
-#   --yes                confirma pacman y omite la revisión de PKGBUILD de paru/yay
-#
-# ELEGIR QUÉ PASOS SE EJECUTAN (se pueden combinar todos los que quieras):
-#   --sin  a,b,c   ejecuta todos los pasos excepto esos
-#   --solo a,b,c   ejecuta únicamente esos pasos
-#   --pasos        lista los nombres disponibles y sale
-#
-# Ambas admiten lista separada por comas y se pueden repetir:
-#   bash install.sh --solo paquetes                  # solo dependencias; no toca nada más
-#   bash install.sh --sin clamav-db                  # todo, pero sin bajar las firmas
-#   bash install.sh --sin dolphin,kitty,firefox      # varios de una vez
-#   bash install.sh --sin cursor --sin shell         # repetible, equivale a la lista
-#
-# Alias que se conservan por compatibilidad con los comandos anteriores:
-#   --no-packages = --sin paquetes      --solo-paquetes  = --solo paquetes
-#   --skip-clamav-db = --sin clamav-db
+# Opciones: --solo-paquetes y --sin-paquetes. Sin opciones se ejecuta la instalación completa.
 #
 # Variables:
 #   DOTFILES_REPO    URL del repositorio (por defecto, HTTPS público)
 #   DOTFILES_BRANCH  rama a instalar (por defecto: main)
-#   INSTALL_PACKAGES 1 instala las dependencias (por defecto); 0 las omite
 #   KITTY_PROFILE    auto, laptop, desktop o conservar
 #   FIREFOX_PROFILE  auto, laptop, desktop o conservar
 #   INSTALL_HIBERNATION 1 prepara hibernación (por defecto: 0; también se pregunta)
@@ -45,11 +26,7 @@
 #   SDDM_AUTOLOGIN   1 inicia sesión automáticamente en Hyprland (valor predeterminado);
 #                    0 muestra la pantalla de inicio. En instalaciones nuevas vale 1;
 #                    si ya existe nuestra configuración, conserva Ajustes > Cuenta > Inicio de sesión.
-#   ASSUME_YES       1 equivale a --yes
-#   SKIP_CLAMAV_DB   1 equivale a --skip-clamav-db
-#   ONLY_PACKAGES    1 equivale a --solo-paquetes
-#   INSTALL_STEPS    lista para --solo   (ej. INSTALL_STEPS=paquetes,css)
-#   SKIP_STEPS       lista para --sin    (ej. SKIP_STEPS=clamav-db,cursor)
+#   ASSUME_YES       1 confirma pacman y omite la revisión de PKGBUILD de paru/yay
 #
 # PAQUETES: fuerza la sincronización de las bases y actualiza el sistema con `pacman -Syyu`.
 #          Después instala las dependencias en una sola operación.
@@ -65,14 +42,14 @@ GIGISHELL="$HOME/GiGiShell"
 BACKUP_BASE="$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
 BACKUP="$BACKUP_BASE"
 BACKUP_RESERVADO=0
-INSTALL_PACKAGES="${INSTALL_PACKAGES:-1}"
+MODO_INSTALACION=completa
 KITTY_PROFILE_EXPLICITO=0; [[ -n "${KITTY_PROFILE:-}" ]] && KITTY_PROFILE_EXPLICITO=1
 FIREFOX_PROFILE_EXPLICITO=0; [[ -n "${FIREFOX_PROFILE:-}" ]] && FIREFOX_PROFILE_EXPLICITO=1
 KITTY_PROFILE="${KITTY_PROFILE:-auto}"
 FIREFOX_PROFILE="${FIREFOX_PROFILE:-auto}"
 INSTALL_HIBERNATION="${INSTALL_HIBERNATION:-0}"
 TLP_SELECCION="${TLP_SELECCION:-auto}"
-# Un tema PEDIDO (--cursor o CURSOR_THEME= en el entorno) que no esté instalado es un
+# Un tema PEDIDO (CURSOR_THEME= en el entorno) que no esté instalado es un
 # error que hay que indicar; el tema predeterminado que no esté es solo un paquete opcional
 # ausente, y ahí el paso cae a otro tema en vez de fallar. Sin esta distinción las dos
 # situaciones daban el mismo aviso, que era el que confundía. Se mira ANTES de aplicar
@@ -81,82 +58,12 @@ CURSOR_THEME_EXPLICITO=0
 [ -n "${CURSOR_THEME:-}" ] && CURSOR_THEME_EXPLICITO=1
 CURSOR_THEME="${CURSOR_THEME:-Bibata-Modern-Ice}"
 ASSUME_YES="${ASSUME_YES:-0}"
-SKIP_CLAMAV_DB="${SKIP_CLAMAV_DB:-0}"
-ONLY_PACKAGES="${ONLY_PACKAGES:-0}"
 # Se recuerda si la variable venía PUESTA antes de darle valor: sin eso no hay forma
 # de distinguir «quiero autologin» de «no dije nada», y el paso `sddm` reescribiría en
 # cada reinstalación una decisión que el usuario puede haber cambiado desde
 # Ajustes > Cuenta > Inicio de sesión (que escribe la misma clave). Ver el paso `sddm`.
 SDDM_AUTOLOGIN_EXPLICITO=0; [ -n "${SDDM_AUTOLOGIN+x}" ] && SDDM_AUTOLOGIN_EXPLICITO=1
 SDDM_AUTOLOGIN="${SDDM_AUTOLOGIN:-1}"
-
-# Catálogo de pasos seleccionables. El orden es el de ejecución, que es también el orden
-# en que los lista `--pasos`. Añadir un paso nuevo es añadirlo aquí y envolver su bloque
-# en `if paso_activo <nombre>`; no hay que tocar el parseo de opciones.
-declare -A DESC_PASO=(
-  [paquetes]="actualizar el sistema con pacman -Syyu, instalar dependencias (repositorios y AUR) y activar servicios de red, Bluetooth y energía"
-  [repo]="clonar o actualizar ~/.dotfiles y desplegar sus archivos en \$HOME"
-  [symlinks]="crear enlaces simbólicos para las rutas XDG a ~/GiGiShell (bin/link.sh)"
-  [dolphin]="perfil ligero de Dolphin (miniaturas y comportamiento)"
-  [kitty]="perfil de rendimiento de Kitty"
-  [firefox]="perfil de rendimiento de Firefox"
-  [vscode]="almacén de secretos de VS Code (sin llavero del sistema en esta sesión)"
-  [css]="compilar ags/estilos/out.css con sass"
-  [mime]="bases MIME y caché de aplicaciones de KDE"
-  [sistema]="archivos de /etc: udev USB, i2c-dev, botón de encendido y utilidades de TLP, ClamAV, limpieza y cámara"
-  [hibernacion]="habilitar la hibernación: swapfile persistente, resume= en el kernel y VRAM de NVIDIA"
-  [sddm]="configurar SDDM y activarlo como gestor de sesión (display-manager.service)"
-  [gpu]="elegir el perfil de GPU de esta máquina (~/.config/gigishell/gpu-perfil)"
-  [clamav-db]="descarga de la base de firmas de ClamAV (~200 MB)"
-  [gestos]="entorno del modo gestos por cámara (venv con MediaPipe + modelo de manos, ~200 MB)"
-  [eventd]="compilar el monitor de seguridad en Rust (gigishell-eventd); sin él, oom-monitor.sh sigue en bash"
-  [cursor]="generar la mitad hyprcursor del tema de puntero"
-  [shell]="poner Zsh como shell predeterminado"
-  [preflight]="validación final de la instalación"
-)
-ORDEN_PASOS=(paquetes repo symlinks sistema hibernacion sddm clamav-db gestos eventd dolphin kitty firefox vscode css mime gpu cursor shell preflight)
-
-SOLO_PASOS=()
-SIN_PASOS=()
-
-listar_pasos() {
-  printf 'Pasos disponibles para --sin y --solo:\n\n'
-  local paso
-  for paso in "${ORDEN_PASOS[@]}"; do
-    printf '  %-11s %s\n' "$paso" "${DESC_PASO[$paso]}"
-  done
-  printf '\nEjemplo: bash install.sh --sin clamav-db,cursor\n'
-}
-
-# Acepta "a,b,c" y también "a b c", y es acumulativa: --sin a --sin b == --sin a,b.
-# Un nombre mal escrito es un error inmediato y no un paso que se salta en silencio: que
-# `--sin walpapers` (con una «l») se ejecutaría igual y descargaría los fondos; sería
-# exactamente el tipo de fallo mudo que no se quiere.
-anadir_pasos() {
-  local -n destino="$1"; shift
-  local bruto="$1" paso
-  for paso in ${bruto//,/ }; do
-    [[ -n "${DESC_PASO[$paso]:-}" ]] \
-      || die "Paso desconocido: '$paso'. Usa --pasos para ver la lista."
-    destino+=("$paso")
-  done
-}
-
-en_lista() {
-  local aguja="$1"; shift
-  local elemento
-  for elemento in "$@"; do [[ "$elemento" == "$aguja" ]] && return 0; done
-  return 1
-}
-
-# La regla: si hay --solo, manda --solo (y --sin puede recortarlo todavía más). Si no,
-# se ejecuta todo salvo lo que diga --sin.
-paso_activo() {
-  local paso="$1"
-  ((${#SIN_PASOS[@]})) && en_lista "$paso" "${SIN_PASOS[@]}" && return 1
-  ((${#SOLO_PASOS[@]})) || return 0
-  en_lista "$paso" "${SOLO_PASOS[@]}"
-}
 
 dotfiles() { git --git-dir="$DOTGIT" --work-tree="$HOME" "$@"; }
 info() { printf '\033[1;36m::\033[0m %s\n' "$*"; }
@@ -186,45 +93,21 @@ warn() {
   DEGRADED+=("$*")
 }
 
-# La ayuda es la cabecera del propio fichero, para que no pueda quedar desincronizada con
-# lo que el script hace. Se corta en la primera línea que no sea comentario en vez de en
-# un número de línea fijo: así añadir un párrafo arriba no parte la ayuda por la mitad.
-usage() {
-  local fuente="${BASH_SOURCE[0]:-}"
-  if [[ -r "$fuente" ]]; then
-    awk 'NR==1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$fuente"
-  else
-    # Ejecutado por `curl | bash` no hay fichero que leer.
-    printf 'install.sh — instalador de GiGiShell.\n'
-    printf 'Descarga el archivo y ejecuta "bash install.sh --help" para consultar todas las opciones.\n'
-  fi
-}
-
-while (($#)); do
-  case "$1" in
-    -h|--help) usage; exit 0 ;;
-    --branch)  BRANCH="${2:?--branch necesita una rama}"; shift 2 ;;
-    --repo)    REPO_URL="${2:?--repo necesita una URL}"; shift 2 ;;
-    --kitty)   KITTY_PROFILE="${2:?--kitty necesita un perfil}"; KITTY_PROFILE_EXPLICITO=1; shift 2 ;;
-    --firefox) FIREFOX_PROFILE="${2:?--firefox necesita un perfil}"; FIREFOX_PROFILE_EXPLICITO=1; shift 2 ;;
-    --hibernacion) INSTALL_HIBERNATION=1; shift ;;
-    --cursor)  CURSOR_THEME="${2:?--cursor necesita un tema}"; CURSOR_THEME_EXPLICITO=1; shift 2 ;;
-    --yes|-y)  ASSUME_YES=1; shift ;;
-    --pasos|--steps) listar_pasos; exit 0 ;;
-    --sin|--skip)  anadir_pasos SIN_PASOS "${2:?--sin necesita al menos un paso}"; shift 2 ;;
-    --solo|--only) anadir_pasos SOLO_PASOS "${2:?--solo necesita al menos un paso}"; shift 2 ;;
-    # Alias heredados. Se traducen al mecanismo nuevo en vez de mantener su propia
-    # variable: así no hay dos fuentes de verdad sobre si un paso corre o no.
-    --no-packages)    anadir_pasos SIN_PASOS paquetes; shift ;;
-    --skip-clamav-db) anadir_pasos SIN_PASOS clamav-db; shift ;;
-    --solo-paquetes|--only-packages) anadir_pasos SOLO_PASOS paquetes; shift ;;
-    *) die "Opción desconocida: '$1'. Usa --help para ver lo disponible." ;;
-  esac
-done
+case "$#" in
+  0) ;;
+  1)
+    case "$1" in
+      --solo-paquetes) MODO_INSTALACION=solo-paquetes ;;
+      --sin-paquetes)  MODO_INSTALACION=sin-paquetes ;;
+      *) die "Opción desconocida: '$1'. Usa --solo-paquetes o --sin-paquetes." ;;
+    esac
+    ;;
+  *) die "Usa como máximo una opción: --solo-paquetes o --sin-paquetes." ;;
+esac
 
 # `curl | bash` no tiene stdin utilizable, así que cualquier orden interactiva (pacman
 # preguntando por un proveedor, chsh pidiendo la contraseña) lee del pipe y se come el
-# resto del script. Con --yes no hace falta terminal: nada pregunta.
+# resto del script. Con ASSUME_YES=1 no hace falta terminal: nada pregunta.
 INTERACTIVE=0
 [[ -r /dev/tty ]] && INTERACTIVE=1
 
@@ -233,7 +116,7 @@ run_interactive() {
     "$@" </dev/tty
   else
     ((ASSUME_YES)) \
-      || die "Necesito una terminal interactiva. Descarga install.sh y ejecútalo con bash, o vuelve a iniciarlo con --yes."
+      || die "Necesito una terminal interactiva. Descarga install.sh y ejecútalo con bash, o vuelve a iniciarlo con ASSUME_YES=1."
     "$@" </dev/null
   fi
 }
@@ -295,12 +178,12 @@ elegir_perfil() {
 }
 
 # En una reinstalación, conservar por defecto la elección local que ya está activa.
-# Una instalación nueva sigue usando `auto`; --kitty/--firefox permiten forzarla.
-if paso_activo kitty && (( ! KITTY_PROFILE_EXPLICITO )); then
+# Una instalación nueva sigue usando `auto`; KITTY_PROFILE/FIREFOX_PROFILE permiten forzarla.
+if [[ "$MODO_INSTALACION" != solo-paquetes ]] && (( ! KITTY_PROFILE_EXPLICITO )); then
   perfil_guardado="$(perfil_actual "${KITTY_CONFIG_DIRECTORY:-${XDG_CONFIG_HOME:-$HOME/.config}/kitty}/active-profile.conf" || true)"
   KITTY_PROFILE="$(elegir_perfil Kitty "$perfil_guardado")"
 fi
-if paso_activo firefox && (( ! FIREFOX_PROFILE_EXPLICITO )); then
+if [[ "$MODO_INSTALACION" != solo-paquetes ]] && (( ! FIREFOX_PROFILE_EXPLICITO )); then
   perfil_guardado="$(perfil_actual "${FIREFOX_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/firefox}/active-profile.js" || true)"
   FIREFOX_PROFILE="$(elegir_perfil Firefox "$perfil_guardado")"
 fi
@@ -308,41 +191,16 @@ fi
 # La hibernación crea un swapfile de varios GiB y modifica el arranque; solo se prepara
 # con consentimiento explícito. Si se rechaza en una instalación existente, se conserva
 # cualquier preparación previa sin tocarla.
-if paso_activo hibernacion && [[ "$INSTALL_HIBERNATION" == 0 ]]; then
+if [[ "$MODO_INSTALACION" != solo-paquetes && "$INSTALL_HIBERNATION" == 0 ]]; then
   if preguntar_si_no "¿Quieres preparar la hibernación? (crea swapfile y modifica GRUB)" no; then
     INSTALL_HIBERNATION=1
   else
-    SIN_PASOS+=(hibernacion)
     info "Hibernación omitida; no se modifica la configuración que ya pudiera existir."
   fi
 fi
 
-case "$INSTALL_PACKAGES" in
-  0|1) ;;
-  *) die "INSTALL_PACKAGES debe valer 0 (omitir paquetes) o 1 (instalarlos); recibido: '$INSTALL_PACKAGES'." ;;
-esac
 case "$ASSUME_YES" in 0|1) ;; *) die "ASSUME_YES debe valer 0 o 1; recibido: '$ASSUME_YES'." ;; esac
-case "$SKIP_CLAMAV_DB" in 0|1) ;; *) die "SKIP_CLAMAV_DB debe valer 0 o 1; recibido: '$SKIP_CLAMAV_DB'." ;; esac
-case "$ONLY_PACKAGES" in 0|1) ;; *) die "ONLY_PACKAGES debe valer 0 o 1; recibido: '$ONLY_PACKAGES'." ;; esac
 case "$SDDM_AUTOLOGIN" in 0|1) ;; *) die "SDDM_AUTOLOGIN debe valer 1 (entrar solo) o 0 (pedir contraseña); recibido: '$SDDM_AUTOLOGIN'." ;; esac
-
-# Las variables de entorno se traducen al selector, igual que los alias de línea de
-# órdenes, para que exista una sola fuente de verdad sobre qué pasos corren.
-((ONLY_PACKAGES)) && anadir_pasos SOLO_PASOS paquetes
-((INSTALL_PACKAGES)) || anadir_pasos SIN_PASOS paquetes
-((SKIP_CLAMAV_DB)) && anadir_pasos SIN_PASOS clamav-db
-[[ -n "${INSTALL_STEPS:-}" ]] && anadir_pasos SOLO_PASOS "$INSTALL_STEPS"
-[[ -n "${SKIP_STEPS:-}" ]] && anadir_pasos SIN_PASOS "$SKIP_STEPS"
-
-# Un --solo cuyos pasos estén todos también en --sin no ejecutaría NADA y terminaría
-# diciendo "instalación completa". Mejor decirlo antes de empezar.
-if ((${#SOLO_PASOS[@]})); then
-  hay_activo=0
-  for paso_probe in "${ORDEN_PASOS[@]}"; do
-    paso_activo "$paso_probe" && { hay_activo=1; break; }
-  done
-  ((hay_activo)) || die "La combinación de --solo y --sin no deja ningún paso por ejecutar."
-fi
 case "$KITTY_PROFILE" in
   auto|laptop|desktop|conservar) ;;
   *) die "KITTY_PROFILE debe ser auto, laptop, desktop o conservar; recibido: '$KITTY_PROFILE'." ;;
@@ -378,7 +236,7 @@ tiene_bateria() {
 # pregunta antes de detenerlo; sin terminal, el valor seguro es conservar el gestor actual.
 TLP_HABILITADO=0
 gestor_energia_activo=0
-if tiene_bateria && { paso_activo paquetes || paso_activo sistema; }; then
+if tiene_bateria; then
     for unidad_energia in power-profiles-daemon.service tuned.service auto-cpufreq.service; do
       if systemctl is-enabled --quiet "$unidad_energia" 2>/dev/null || systemctl is-active --quiet "$unidad_energia" 2>/dev/null; then
         gestor_energia_activo=1
@@ -391,7 +249,7 @@ if tiene_bateria && { paso_activo paquetes || paso_activo sistema; }; then
       auto)
         if (( gestor_energia_activo )); then
           if preguntar_si_no "Hay otro gestor de energía activo. ¿Quieres sustituirlo por TLP?" no; then TLP_HABILITADO=1; fi
-        elif paso_activo paquetes || systemctl is-enabled --quiet tlp.service 2>/dev/null; then
+        elif [[ "$MODO_INSTALACION" != sin-paquetes ]] || systemctl is-enabled --quiet tlp.service 2>/dev/null; then
           TLP_HABILITADO=1
         fi
         ;;
@@ -403,7 +261,7 @@ fi
 # instalar el driver VA-API de NVIDIA) y `gpu` (para escribir el perfil). Tenerlo dos
 # veces era garantía de que un día dejaran de coincidir.
 #
-# Se lee /sys y no `lspci`: este paso puede correr con --sin paquetes, donde pciutils
+# Se lee /sys y no `lspci`: este modo puede correr con --sin-paquetes, donde pciutils
 # no está garantizado, y un `command -v lspci` fallido dejaría el perfil sin elegir sin
 # que se note. Clases PCI 0x03xxxx = VGA / 3D controller / Display controller.
 detectar_perfil_gpu() {
@@ -463,7 +321,6 @@ trap limpiar_keepalive EXIT
 # perfiles, el CSS y las bases MIME.
 PKGFILE_PID=""
 CLAMAV_PID=""
-CLAMAV_ESTADO="omitida"
 esperar_descargas_de_fondo() {
   if [[ -n "$PKGFILE_PID" ]]; then
     wait "$PKGFILE_PID" \
@@ -504,9 +361,9 @@ resumen_degradado() {
 # Instala una regla sudoers a partir de su plantilla versionada.
 #
 # VIVE AQUÍ, EN EL NIVEL SUPERIOR, y no dentro del bloque del paso `mime` como estaba:
-# quien la llama es el paso `sistema` (TLP, ClamAV, limpieza), así que con `--sin mime`
-# —o con cualquier `--solo` que no incluyera `mime`— la función NO llegaba a definirse y
-# la primera llamada salía con 127 «orden no encontrada», que con `set -e` ABORTA el
+# quien la llama es el paso `sistema` (TLP, ClamAV, limpieza), así que omitir MIME no debe
+# impedir que la función esté definida y pueda usarse.
+# La primera llamada salía con 127 «orden no encontrada», que con `set -e` ABORTA el
 # instalador entero. Una función no es un paso; no puede colgar de que un paso corra. Tres bloques hacían
 # esto mismo copiado y pegado (TLP, ClamAV, limpieza), cada uno con su `mktemp` sin
 # comprobar: si /tmp estaba lleno o era de solo lectura, `mktemp` fallaba, `sed` escribía
@@ -575,7 +432,7 @@ paquetes_instalar() {
   if [[ -n "$AYUDANTE_AUR" ]]; then
     gestor=("$AYUDANTE_AUR")
     # Sin esto, un paquete AUR abre tres preguntas por PKGBUILD (ver diff, editar,
-    # limpiar) que en `curl | bash` no puede contestar nadie. Solo con --yes: por
+    # limpiar) que en `curl | bash` no puede contestar nadie. Solo con ASSUME_YES=1: por
     # defecto se respeta que el usuario quiera revisar lo que se compila.
     if ((ASSUME_YES)); then
       flags+=(--noconfirm)
@@ -783,14 +640,14 @@ install_packages() {
     mesa-utils lshw github-cli
   )
 
-  command -v pacman >/dev/null || die "La instalación automática solo admite Arch/CachyOS (falta pacman). Define INSTALL_PACKAGES=0 y sigue las instrucciones de docs/SETUP.md."
+  command -v pacman >/dev/null || die "La instalación automática de paquetes solo admite Arch/CachyOS. Usa --sin-paquetes y sigue las instrucciones de docs/SETUP.md."
   command -v sudo >/dev/null || die "Falta sudo. Instálalo y concede permisos al usuario antes de continuar."
   comprobar_pacman_libre
   sudo_prime
 
   # Mantener sincronizadas las bases y los paquetes antes de instalar dependencias.
   # Arch es una distribución rolling release y una instalación parcial (-Sy o -S sin
-  # -u) puede dejar una mezcla de versiones incompatible. --yes también confirma esta
+  # -u) puede dejar una mezcla de versiones incompatible. ASSUME_YES también confirma esta
   # actualización; en el modo normal pacman conserva su confirmación interactiva.
   local -a flags_actualizacion=(-Syyu)
   ((ASSUME_YES)) && flags_actualizacion+=(--noconfirm)
@@ -900,7 +757,7 @@ install_packages() {
   paquetes_instalar "${official[@]}"
 
   if [[ -z "$AYUDANTE_AUR" ]] && ! command -v ags >/dev/null 2>&1; then
-    warn "No se pudo instalar AGS/Astal porque falta paru o yay. Instala uno y repite --solo paquetes; el resto continúa."
+    warn "No se pudo instalar AGS/Astal porque falta paru o yay. Instala uno y repite bash ~/GiGiShell/install.sh --solo-paquetes; el resto continúa."
   fi
 
   # Uno por uno y no en una sola orden: `systemctl enable --now a b` falla ENTERO si una
@@ -1045,47 +902,45 @@ configure_default_shell() {
     fi
   fi
   warn "No se pudo cambiar el shell a Zsh (sigue siendo $current_shell). Ejecuta: chsh -s '$zsh_path'"
-}
+  }
 
-# Resumen de lo que se va a hacer, antes de hacerlo. Con opciones combinadas es fácil
-# equivocarse de lista; verlo escrito evita descubrir a posteriori que faltaba un paso.
-pasos_previstos=()
-pasos_omitidos=()
-for paso_probe in "${ORDEN_PASOS[@]}"; do
-  if paso_activo "$paso_probe"; then pasos_previstos+=("$paso_probe")
-  else pasos_omitidos+=("$paso_probe"); fi
-done
-info "Pasos a ejecutar: ${pasos_previstos[*]:-ninguno}"
-((${#pasos_omitidos[@]})) && info "Pasos omitidos:    ${pasos_omitidos[*]}"
-echo
+  case "$MODO_INSTALACION" in
+  solo-paquetes) info "Modo: solo instalar paquetes." ;;
+  sin-paquetes) info "Modo: instalación completa sin gestionar paquetes." ;;
+  *) info "Modo: instalación completa." ;;
+  esac
+  echo
 
-if paso_activo paquetes; then
+  if [[ "$MODO_INSTALACION" != sin-paquetes ]]; then
   install_packages
-else
+  else
   info "Paquetes omitidos; no se comprobará su disponibilidad."
-fi
+  fi
 
-# Si no hay que tocar el repo no hace falta git, y exigirlo impediría un
-# `--solo paquetes` en una máquina donde git todavía no está.
-if paso_activo repo; then
+  if [[ "$MODO_INSTALACION" == solo-paquetes ]]; then
+  esperar_descargas_de_fondo
+  echo
+  info "Instalación de paquetes terminada."
+  resumen_degradado
+  exit 0
+  fi
+
   command -v git >/dev/null || die "git no está instalado."
-fi
 
-if paso_activo repo; then
   # --- 1. Clonar el repo bare (o reutilizar) ---
-  if [ -d "$DOTGIT" ]; then
+    if [ -d "$DOTGIT" ]; then
     # Existir no basta: un clon interrumpido (Ctrl+C, red caída) deja el directorio creado
     # pero sin repo dentro, y a partir de ahí TODAS las reejecuciones fallaban en el fetch
     # con "not a git repository" sin decir que la causa es un clon a medias.
     if git --git-dir="$DOTGIT" rev-parse --git-dir >/dev/null 2>&1; then
-  info "Ya existe $DOTGIT; actualizaré el repositorio."
+    info "Ya existe $DOTGIT; actualizaré el repositorio."
     else
       reservar_backup
       warn "$DOTGIT no es un repositorio Git válido; lo guardaré en $BACKUP."
       mv "$DOTGIT" "$BACKUP/dotfiles-roto"
     fi
-  fi
-  if [ ! -d "$DOTGIT" ]; then
+    fi
+    if [ ! -d "$DOTGIT" ]; then
     info "Clonando $REPO_URL en $DOTGIT ..."
     # Sin esto, un clon fallido deja el directorio a medias y la siguiente ejecución
     # tropieza con él en vez de reintentar limpio.
@@ -1093,28 +948,28 @@ if paso_activo repo; then
       rm -rf "$DOTGIT"
       die "No se pudo clonar $REPO_URL. Comprueba la conexión y la URL y vuelve a ejecutar el instalador."
     }
-  fi
+    fi
 
-  # refspec estándar para tener refs/remotes/origin/* y upstreams correctos
-  dotfiles config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-  dotfiles config status.showUntrackedFiles no
-  info "Fetch de origin ..."
-  dotfiles fetch --prune origin || die "Falló la actualización desde origin. Comprueba la conexión y vuelve a ejecutar el instalador."
+    # refspec estándar para tener refs/remotes/origin/* y upstreams correctos
+    dotfiles config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+    dotfiles config status.showUntrackedFiles no
+    info "Fetch de origin ..."
+    dotfiles fetch --prune origin || die "Falló la actualización desde origin. Comprueba la conexión y vuelve a ejecutar el instalador."
 
-  dotfiles rev-parse --verify --quiet "refs/remotes/origin/$BRANCH" >/dev/null \
+    dotfiles rev-parse --verify --quiet "refs/remotes/origin/$BRANCH" >/dev/null \
     || die "La rama '$BRANCH' no existe en origin. Prueba con DOTFILES_BRANCH=<rama>."
 
-  # --- 2. Checkout/actualización con backup de conflictos ---
-  # -B es importante al reutilizar ~/.dotfiles: un checkout normal de una rama
-  # local existente no la avanza después del fetch y dejaría instalada una versión
-  # antigua. La copia desplegada debe seguir exactamente origin/$BRANCH.
-  #
-  # PERO `-B` MUEVE EL PUNTERO DE LA RAMA. En una máquina ya instalada —que es el caso
-  # normal al reejecutar el instalador— cualquier commit local que todavía no esté en
-  # origin desaparece del historial: solo queda en el reflog, donde nadie lo va a buscar
-  # porque nada avisa de que se perdió. Antes de tocar nada se comprueba y se deja una
-  # etiqueta de rescate con un nombre que se puede volver a encontrar.
-  if dotfiles rev-parse --verify --quiet "refs/heads/$BRANCH" >/dev/null; then
+    # --- 2. Checkout/actualización con backup de conflictos ---
+    # -B es importante al reutilizar ~/.dotfiles: un checkout normal de una rama
+    # local existente no la avanza después del fetch y dejaría instalada una versión
+    # antigua. La copia desplegada debe seguir exactamente origin/$BRANCH.
+    #
+    # PERO `-B` MUEVE EL PUNTERO DE LA RAMA. En una máquina ya instalada —que es el caso
+    # normal al reejecutar el instalador— cualquier commit local que todavía no esté en
+    # origin desaparece del historial: solo queda en el reflog, donde nadie lo va a buscar
+    # porque nada avisa de que se perdió. Antes de tocar nada se comprueba y se deja una
+    # etiqueta de rescate con un nombre que se puede volver a encontrar.
+    if dotfiles rev-parse --verify --quiet "refs/heads/$BRANCH" >/dev/null; then
     commits_locales="$(dotfiles rev-list --count "origin/$BRANCH..$BRANCH" 2>/dev/null || echo 0)"
     if [[ "$commits_locales" != 0 ]]; then
       rescate="gigishell-preinstall-$(date +%Y%m%d-%H%M%S)"
@@ -1123,40 +978,40 @@ if paso_activo repo; then
       dotfiles log --oneline "origin/$BRANCH..$BRANCH" 2>/dev/null | sed 's/^/    /' >&2 || true
       warn "Los guardé en la etiqueta '$rescate'; recupéralos con: dotfiles log $rescate"
     fi
-  fi
+    fi
 
-  # Los ficheros rastreados que hayas modificado a mano podrían bloquear el checkout. Se
-  # enumeran antes de actualizar para mostrar cuáles difieren del destino; solo se mueven
-  # al backup los que realmente impidan el checkout.
-  # Solo cuentan los que EXISTEN en $HOME: en una máquina nueva el diff da todo el árbol como
-  # borrado y el aviso listaba cientos de ficheros que no se iban a respaldar porque no hay nada.
-  modificados="$(dotfiles diff --name-only "origin/$BRANCH" -- 2>/dev/null \
+    # Los ficheros rastreados que hayas modificado a mano podrían bloquear el checkout. Se
+    # enumeran antes de actualizar para mostrar cuáles difieren del destino; solo se mueven
+    # al backup los que realmente impidan el checkout.
+    # Solo cuentan los que EXISTEN en $HOME: en una máquina nueva el diff da todo el árbol como
+    # borrado y el aviso listaba cientos de ficheros que no se iban a respaldar porque no hay nada.
+    modificados="$(dotfiles diff --name-only "origin/$BRANCH" -- 2>/dev/null \
     | while IFS= read -r f; do [[ -e "$HOME/$f" || -L "$HOME/$f" ]] && printf '%s\n' "$f"; done || true)"
-  if [[ -n "$modificados" ]]; then
+    if [[ -n "$modificados" ]]; then
     warn "Estos archivos difieren de origin/$BRANCH y podrían bloquear la actualización:"
     printf '%s\n' "$modificados" | sed 's/^/    /' >&2
-  fi
+    fi
 
-  info "Actualizando los archivos desde origin/$BRANCH ..."
-  # Preparar los posibles bloqueos antes del checkout, usando listas NUL de Git en vez
-  # de interpretar el mensaje traducible del error. Se contemplan cambios rastreados,
-  # archivos sin seguimiento y enlaces rotos, incluidos los ignorados por Git. Se
-  # consultan solo las rutas de destino, sin recorrer todo HOME buscando ignorados.
-  declare -A cambios_destino=() cambios_locales=() archivos_actuales=() bloqueos_checkout=() bloqueos_ignorados=()
-  archivos_destino_lista=() cambios_destino_lista=() cambios_locales_lista=() archivos_actuales_lista=()
-  mapfile -d '' -t archivos_destino_lista < <(dotfiles ls-tree -r -z --name-only "origin/$BRANCH" 2>/dev/null)
-  mapfile -d '' -t archivos_actuales_lista < <(dotfiles ls-files -z 2>/dev/null)
-  for f in "${archivos_actuales_lista[@]}"; do archivos_actuales["$f"]=1; done
-  if dotfiles rev-parse --verify HEAD >/dev/null 2>&1; then
+    info "Actualizando los archivos desde origin/$BRANCH ..."
+    # Preparar los posibles bloqueos antes del checkout, usando listas NUL de Git en vez
+    # de interpretar el mensaje traducible del error. Se contemplan cambios rastreados,
+    # archivos sin seguimiento y enlaces rotos, incluidos los ignorados por Git. Se
+    # consultan solo las rutas de destino, sin recorrer todo HOME buscando ignorados.
+    declare -A cambios_destino=() cambios_locales=() archivos_actuales=() bloqueos_checkout=() bloqueos_ignorados=()
+    archivos_destino_lista=() cambios_destino_lista=() cambios_locales_lista=() archivos_actuales_lista=()
+    mapfile -d '' -t archivos_destino_lista < <(dotfiles ls-tree -r -z --name-only "origin/$BRANCH" 2>/dev/null)
+    mapfile -d '' -t archivos_actuales_lista < <(dotfiles ls-files -z 2>/dev/null)
+    for f in "${archivos_actuales_lista[@]}"; do archivos_actuales["$f"]=1; done
+    if dotfiles rev-parse --verify HEAD >/dev/null 2>&1; then
     mapfile -d '' -t cambios_destino_lista < <(dotfiles diff --name-only --no-renames -z HEAD "origin/$BRANCH" -- 2>/dev/null)
     mapfile -d '' -t cambios_locales_lista < <(dotfiles diff --name-only --no-renames -z HEAD -- 2>/dev/null)
     for f in "${cambios_destino_lista[@]}"; do cambios_destino["$f"]=1; done
     for f in "${cambios_locales_lista[@]}"; do cambios_locales["$f"]=1; done
-  fi
-  for f in "${!cambios_locales[@]}"; do
+    fi
+    for f in "${!cambios_locales[@]}"; do
     [[ -n "${cambios_destino[$f]:-}" ]] && bloqueos_checkout["$f"]=1
-  done
-  for f in "${archivos_destino_lista[@]}"; do
+    done
+    for f in "${archivos_destino_lista[@]}"; do
     if [[ -z "${archivos_actuales[$f]:-}" && ( -e "$HOME/$f" || -L "$HOME/$f" ) ]]; then
       bloqueos_checkout["$f"]=1
       dotfiles check-ignore -q -- "$f" 2>/dev/null && bloqueos_ignorados["$f"]=1
@@ -1169,12 +1024,12 @@ if paso_activo repo; then
           dotfiles check-ignore -q -- "$padre" 2>/dev/null && bloqueos_ignorados["$padre"]=1
         fi
     done
-  done
+    done
 
-  # Git puede sobrescribir sin error algunos archivos ignorados que origin empieza a
-  # versionar. Copiamos esas rutas antes del checkout, aunque Git no las anuncie como
-  # conflicto; al copiar, un fallo ajeno no aparta el archivo de su sitio.
-  for f in "${!bloqueos_ignorados[@]}"; do
+    # Git puede sobrescribir sin error algunos archivos ignorados que origin empieza a
+    # versionar. Copiamos esas rutas antes del checkout, aunque Git no las anuncie como
+    # conflicto; al copiar, un fallo ajeno no aparta el archivo de su sitio.
+    for f in "${!bloqueos_ignorados[@]}"; do
     [[ -e "$HOME/$f" || -L "$HOME/$f" ]] || continue
     [[ -f "$HOME/$f" || -L "$HOME/$f" ]] || continue
     reservar_backup
@@ -1183,9 +1038,9 @@ if paso_activo repo; then
       || die "No pude respaldar el archivo ignorado que coincide con origin: $HOME/$f"
     echo "  Copia de seguridad (archivo ignorado): $f"
     unset 'bloqueos_checkout[$f]'
-  done
+    done
 
-  if ! checkout_error="$(LC_ALL=C dotfiles checkout -B "$BRANCH" "origin/$BRANCH" 2>&1)"; then
+    if ! checkout_error="$(LC_ALL=C dotfiles checkout -B "$BRANCH" "origin/$BRANCH" 2>&1)"; then
     if [[ "$checkout_error" != *"would be overwritten by checkout"* \
        && "$checkout_error" != *"would lose untracked files"* ]]; then
       printf '%s\n' "$checkout_error" >&2
@@ -1209,41 +1064,37 @@ if paso_activo repo; then
     warn "Se respaldaron $respaldados archivo(s) que impedían actualizar la rama. Copias en: $BACKUP."
     LC_ALL=C dotfiles checkout -B "$BRANCH" "origin/$BRANCH" \
       || die "Git sigue sin poder actualizar los archivos; revisa $BACKUP."
-  fi
-  dotfiles branch --set-upstream-to="origin/$BRANCH" "$BRANCH" >/dev/null 2>&1 || true
-  info "Dotfiles en su lugar (rama $BRANCH)."
-fi
+    fi
+    dotfiles branch --set-upstream-to="origin/$BRANCH" "$BRANCH" >/dev/null 2>&1 || true
+    info "Dotfiles en su lugar (rama $BRANCH)."
 
-if paso_activo symlinks; then
   # --- 3. Symlinks de GiGiShell (respaldando lo que estorbe) ---
-  LINK="$GIGISHELL/bin/link.sh"
-  if [ -x "$LINK" ]; then
+    LINK="$GIGISHELL/bin/link.sh"
+    if [ -x "$LINK" ]; then
     info "Creando enlaces simbólicos de GiGiShell ..."
     if (( BACKUP_RESERVADO )); then
       LINK_BACKUP="$BACKUP" bash "$LINK" --force || die "No se pudieron crear todos los enlaces. Revisa los mensajes anteriores."
     else
       bash "$LINK" --force || die "No se pudieron crear todos los enlaces. Revisa los mensajes anteriores."
     fi
-  else
+    else
     die "No encontré $LINK. El repositorio no contiene GiGiShell/bin/link.sh."
-  fi
-fi
+    fi
 
-if paso_activo sistema; then
   # --- 4. Ficheros de sistema (/etc) ---
-  # Los archivos de sistema se instalan aquí, justo detrás de los enlaces simbólicos.
-  # Solo dependen del checkout ($HOME/GiGiShell/system) y de sudo.
-  # NO se symlinkean, se copian: udev y systemd leen /etc antes de que $HOME esté montado, y
-  # apuntar /etc a un directorio escribible por el usuario sería una escalada silenciosa.
-  # Sin este paso la instalación arranca igual, pero con dos fallos mudos:
-  #   • sin la regla udev, una copia a un USB "termina" con cientos de MB aún en RAM y retirar
-  #     el pendrive pierde los datos de verdad (ver CLAUDE.md, sección USB);
-  #   • sin i2c-dev no existen los nodos /dev/i2c-*, así que ddcutil no ve el monitor y el
-  #     slider de brillo desaparece en un sobremesa (en un portátil da igual: usa sysfs).
-  SYSTEM_DIR="$GIGISHELL/system"
-  if [ -d "$SYSTEM_DIR" ] && command -v sudo >/dev/null; then
+    # Los archivos de sistema se instalan aquí, justo detrás de los enlaces simbólicos.
+    # Solo dependen del checkout ($HOME/GiGiShell/system) y de sudo.
+    # NO se symlinkean, se copian: udev y systemd leen /etc antes de que $HOME esté montado, y
+    # apuntar /etc a un directorio escribible por el usuario sería una escalada silenciosa.
+    # Sin este paso la instalación arranca igual, pero con dos fallos mudos:
+    #   • sin la regla udev, una copia a un USB "termina" con cientos de MB aún en RAM y retirar
+    #     el pendrive pierde los datos de verdad (ver CLAUDE.md, sección USB);
+    #   • sin i2c-dev no existen los nodos /dev/i2c-*, así que ddcutil no ve el monitor y el
+    #     slider de brillo desaparece en un sobremesa (en un portátil da igual: usa sysfs).
+    SYSTEM_DIR="$GIGISHELL/system"
+    if [ -d "$SYSTEM_DIR" ] && command -v sudo >/dev/null; then
     info "Instalando los archivos de sistema en /etc (se solicitará la contraseña de sudo si hace falta) ..."
-    # Con INSTALL_PACKAGES=0 no se pasó por install_packages, así que sudo no está
+    # Con --sin-paquetes no se pasó por install_packages, así que sudo no está
     # precalentado y el primer `sudo install` abriría un prompt de contraseña en mitad del
     # paso. Es idempotente: si ya hay credencial válida, no hace nada.
     sudo_prime
@@ -1280,7 +1131,7 @@ if paso_activo sistema; then
     # regla sudoers acotada al comando exacto. NO se toca /etc/tlp.conf aquí: eso lo
     # hace el helper cuando el usuario elige un perfil.
     if (( TLP_HABILITADO )) && command -v tlp >/dev/null 2>&1; then
-      if ! paso_activo paquetes; then
+      if [[ "$MODO_INSTALACION" == sin-paquetes ]]; then
         for conflicto in power-profiles-daemon.service tuned.service auto-cpufreq.service; do
           systemctl is-enabled --quiet "$conflicto" 2>/dev/null ||
             systemctl is-active --quiet "$conflicto" 2>/dev/null || continue
@@ -1296,7 +1147,7 @@ if paso_activo sistema; then
       instalar_sudoers "$SYSTEM_DIR/tlp/sudoers-gigishell-tlp" /etc/sudoers.d/gigishell-tlp \
         "el cambio de perfil de energía pedirá contraseña."
     else
-      info "TLP no está instalado; instala 'tlp' y repite el paso sistema para configurar los perfiles de energía."
+      info "TLP no está instalado; instala 'tlp' y vuelve a ejecutar bash ~/GiGiShell/install.sh para configurar los perfiles de energía."
     fi
     # Cámara: interruptor "Cámara bloqueada" de QuickSettings y de Ajustes > Cámara. Mismo
     # esquema que TLP y ClamAV (helper root-owned + regla sudoers acotada a los verbos exactos)
@@ -1317,7 +1168,7 @@ if paso_activo sistema; then
       instalar_sudoers "$SYSTEM_DIR/clamav/sudoers-gigishell-clamav" /etc/sudoers.d/gigishell-clamav \
         "actualizar las firmas pedirá contraseña."
     else
-      info "ClamAV no está instalado; instala 'clamav' y repite el paso sistema para configurar las firmas."
+      info "ClamAV no está instalado; instala 'clamav' y vuelve a ejecutar bash ~/GiGiShell/install.sh para configurar las firmas."
     fi
     # Limpieza de disco: Ajustes > Almacenamiento > Liberar espacio. Tercer helper con el mismo
     # esquema (root-owned + sudoers acotado), y aquí el NOPASSWD es lo que hace posible la
@@ -1330,14 +1181,13 @@ if paso_activo sistema; then
       || warn "No pude instalar el script auxiliar de limpieza; el sistema pedirá instalarlo al liberar espacio."
     instalar_sudoers "$SYSTEM_DIR/limpieza/sudoers-gigishell-limpieza" /etc/sudoers.d/gigishell-limpieza \
       "la autolimpieza quedará limitada a tu carpeta personal (sin caché de pacman ni journal)."
-  else
+    else
     warn "No puedo configurar los archivos de /etc (falta sudo o $SYSTEM_DIR); el brillo DDC/CI y la escritura a USB quedarán sin configurar."
-  fi
-fi
+    fi
 
-# La descarga de firmas es un paso independiente del resto de la configuración de /etc.
-# Así se puede ejecutar con `--solo clamav-db` sin depender de que también se ejecute `sistema`.
-if paso_activo clamav-db && command -v freshclam >/dev/null 2>&1 \
+  # La descarga de firmas es un paso independiente del resto de la configuración de /etc.
+  # Este bloque no depende de que se ejecute antes otra configuración del sistema.
+  if command -v freshclam >/dev/null 2>&1 \
   && command -v sudo >/dev/null 2>&1 \
   && [[ ! -x /usr/local/bin/gigishell-clamav-update ]] \
   && [[ -r "$GIGISHELL/system/clamav/gigishell-clamav-update.sh" ]]; then
@@ -1347,22 +1197,21 @@ if paso_activo clamav-db && command -v freshclam >/dev/null 2>&1 \
     || warn "No se pudo instalar el actualizador de ClamAV; no se descargarán las firmas."
   instalar_sudoers "$GIGISHELL/system/clamav/sudoers-gigishell-clamav" \
     /etc/sudoers.d/gigishell-clamav "actualizar las firmas pedirá contraseña."
-fi
-if paso_activo clamav-db; then
+  fi
   if ! command -v freshclam >/dev/null 2>&1; then
     CLAMAV_ESTADO="no_disponible"
     info "ClamAV no está instalado; omito la descarga de firmas."
-  elif ! command -v sudo >/dev/null 2>&1; then
+    elif ! command -v sudo >/dev/null 2>&1; then
     CLAMAV_ESTADO="no_disponible"
     warn "No se encuentra sudo; no se pueden actualizar las firmas de ClamAV."
-  elif [[ ! -x /usr/local/bin/gigishell-clamav-update ]]; then
+    elif [[ ! -x /usr/local/bin/gigishell-clamav-update ]]; then
     CLAMAV_ESTADO="no_disponible"
-    warn "No se encuentra el actualizador de ClamAV; ejecuta el paso sistema para instalarlo."
-  elif compgen -G '/var/lib/clamav/daily.c?d' >/dev/null &&
+    warn "No se encuentra el actualizador de ClamAV; vuelve a ejecutar bash ~/GiGiShell/install.sh para instalarlo."
+    elif compgen -G '/var/lib/clamav/daily.c?d' >/dev/null &&
     [[ -n "$(find /var/lib/clamav -maxdepth 1 -name 'daily.c?d' -mtime -1 -print -quit 2>/dev/null)" ]]; then
     CLAMAV_ESTADO="al_dia"
     info "Las firmas de ClamAV ya están al día; no es necesario descargarlas."
-  else
+    else
     # Se lanzan en segundo plano porque ningún paso intermedio depende de ellas.
     # Se recogen en `esperar_descargas_de_fondo`, antes de la validación final.
     # sudo -n evita que un proceso en segundo plano se quede esperando una contraseña.
@@ -1371,32 +1220,19 @@ if paso_activo clamav-db; then
     sudo -n /usr/local/bin/gigishell-clamav-update update >/dev/null 2>&1 &
     CLAMAV_PID=$!
     CLAMAV_ESTADO="descargando"
-  fi
-else
-  CLAMAV_ESTADO="omitida"
-fi
+    fi
 
-if paso_activo hibernacion; then
+  if [[ "$INSTALL_HIBERNATION" == 1 ]]; then
   # --- Hibernación ---
   #
-  # Va APARTE del paso `sistema` aunque instale ficheros en /etc, y es a propósito: este paso
-  # CREA UN FICHERO DE VARIOS GiB en el disco y REESCRIBE LA LÍNEA DE COMANDOS DEL KERNEL. Eso
-  # no se cuela dentro de un paso que la gente lanza a la ligera; tiene que poder omitirse con
-  # `--sin hibernacion` y lanzarse solo con `--solo hibernacion`.
+  # Va APARTE del paso `sistema`: crea un fichero de varios GiB y modifica el arranque, por
+  # eso se ejecuta únicamente tras consentimiento explícito.
   #
   # Sin este paso, el tiempo de hibernación de Ajustes > Pantalla > Suspensión sale apagado con
   # su motivo ("sin swap o sin resume"), que es la degradación que se busca: visible, no muda.
   SYSTEM_DIR="$GIGISHELL/system"
   if [ -d "$SYSTEM_DIR/hibernacion" ] && command -v sudo >/dev/null; then
     sudo_prime
-    # El helper de runtime y su regla sudoers se instalan SIEMPRE que se pida el paso, incluso
-    # si la preparación del swap fallara: el retardo es un ajuste, y que el usuario pueda fijarlo
-    # antes de que la máquina sepa hibernar no rompe nada (systemd lee HibernateDelaySec cuando
-    # le toca). Al revés sí duele: swap listo y helper ausente = ajuste que no se puede tocar.
-    sudo install -Dm755 "$SYSTEM_DIR/hibernacion/gigishell-hibernacion.sh" /usr/local/bin/gigishell-hibernacion \
-      || warn "No pude instalar el script auxiliar de hibernación; no podrás cambiar su tiempo desde Ajustes."
-    instalar_sudoers "$SYSTEM_DIR/hibernacion/sudoers-gigishell-hibernacion" /etc/sudoers.d/gigishell-hibernacion \
-      "cambiar el tiempo de hibernación pedirá contraseña en cada pulsación (y el ajuste quedará inservible)."
     info "Preparando la hibernación (swapfile + resume= + NVIDIA). Esto tarda un rato ..."
     if sudo bash "$SYSTEM_DIR/hibernacion/gigishell-hibernacion-setup.sh"; then
       HIBERNACION_LISTA=1
@@ -1406,48 +1242,47 @@ if paso_activo hibernacion; then
   else
     warn "No puedo configurar la hibernación (falta sudo o $SYSTEM_DIR/hibernacion)."
   fi
-fi
+  fi
 
-if paso_activo sddm; then
   # --- SDDM: configuración + activación como gestor de sesión ---
-  #
-  # Son DOS cosas distintas y cada una falla en silencio por su lado:
-  #
-  #   • La configuración (/etc/sddm.conf.d/zz-gigishell.conf): autologin en Hyprland,
-  #     tema del saludador y rango de usuarios. Sin ella SDDM arranca igual, con su
-  #     aspecto de fábrica y pidiendo contraseña — molesto, no roto.
-  #
-  #   • La ACTIVACIÓN, que en systemd ES UN SYMLINK:
-  #       /etc/systemd/system/display-manager.service -> /usr/lib/systemd/system/sddm.service
-  #     Lo crea `systemctl enable sddm.service`, porque la unidad declara
-  #     `Alias=display-manager.service`. Sin ese enlace no hay ningún error: el equipo
-  #     arranca hasta un TTY y ahí se queda. Todo lo que instalan los pasos anteriores
-  #     está bien y nada lo lanza. Por eso este paso comprueba el enlace DESPUÉS de
-  #     activar, en vez de fiarse del código de salida de systemctl.
-  #
-  # Igual que los ficheros de /etc del paso anterior, la config NO se symlinkea a
-  # ~/GiGiShell: SDDM la lee como root y antes de que exista sesión de usuario, y apuntar
-  # /etc a un directorio escribible por el usuario sería una escalada silenciosa. Se
-  # materializa desde la plantilla system/sddm/zz-gigishell.conf.in sustituyendo los campos
-  # que son de cada máquina (usuario, sesión, tema, método de entrada).
-  #
-  # EL NOMBRE ES "zz-" A PROPÓSITO, no es un capricho: conf.d se lee en orden alfabético
-  # y gana el último, y los dígitos van ANTES que las letras. El nombre anterior
-  # (99-gigios.conf) quedaba por delante de los restos de HyDE (the_hyde_project.conf) y
-  # los dejaba a ELLOS mandando, en silencio. Ver la cabecera de la plantilla.
-  SDDM_PLANTILLA="$GIGISHELL/system/sddm/zz-gigishell.conf.in"
-  SDDM_DESTINO=/etc/sddm.conf.d/zz-gigishell.conf
-  # Restos de instalaciones anteriores de GiGiShell con el nombre malo. No se deja: dos
-  # ficheros nuestros con valores distintos es exactamente el enredo que cuesta una tarde.
-  SDDM_DESTINO_VIEJO=/etc/sddm.conf.d/99-gigios.conf
-  # El drop-in de antes del renombrado del proyecto (GiGiOS -> GiGiShell). Se lee para
-  # conservar el autologin que el usuario tuviera y se retira igual que el anterior.
-  SDDM_DESTINO_GIGIOS=/etc/sddm.conf.d/zz-gigios.conf
+    #
+    # Son DOS cosas distintas y cada una falla en silencio por su lado:
+    #
+    #   • La configuración (/etc/sddm.conf.d/zz-gigishell.conf): autologin en Hyprland,
+    #     tema del saludador y rango de usuarios. Sin ella SDDM arranca igual, con su
+    #     aspecto de fábrica y pidiendo contraseña — molesto, no roto.
+    #
+    #   • La ACTIVACIÓN, que en systemd ES UN SYMLINK:
+    #       /etc/systemd/system/display-manager.service -> /usr/lib/systemd/system/sddm.service
+    #     Lo crea `systemctl enable sddm.service`, porque la unidad declara
+    #     `Alias=display-manager.service`. Sin ese enlace no hay ningún error: el equipo
+    #     arranca hasta un TTY y ahí se queda. Todo lo que instalan los pasos anteriores
+    #     está bien y nada lo lanza. Por eso este paso comprueba el enlace DESPUÉS de
+    #     activar, en vez de fiarse del código de salida de systemctl.
+    #
+    # Igual que los ficheros de /etc del paso anterior, la config NO se symlinkea a
+    # ~/GiGiShell: SDDM la lee como root y antes de que exista sesión de usuario, y apuntar
+    # /etc a un directorio escribible por el usuario sería una escalada silenciosa. Se
+    # materializa desde la plantilla system/sddm/zz-gigishell.conf.in sustituyendo los campos
+    # que son de cada máquina (usuario, sesión, tema, método de entrada).
+    #
+    # EL NOMBRE ES "zz-" A PROPÓSITO, no es un capricho: conf.d se lee en orden alfabético
+    # y gana el último, y los dígitos van ANTES que las letras. El nombre anterior
+    # (99-gigios.conf) quedaba por delante de los restos de HyDE (the_hyde_project.conf) y
+    # los dejaba a ELLOS mandando, en silencio. Ver la cabecera de la plantilla.
+    SDDM_PLANTILLA="$GIGISHELL/system/sddm/zz-gigishell.conf.in"
+    SDDM_DESTINO=/etc/sddm.conf.d/zz-gigishell.conf
+    # Restos de instalaciones anteriores de GiGiShell con el nombre malo. No se deja: dos
+    # ficheros nuestros con valores distintos es exactamente el enredo que cuesta una tarde.
+    SDDM_DESTINO_VIEJO=/etc/sddm.conf.d/99-gigios.conf
+    # El drop-in de antes del renombrado del proyecto (GiGiOS -> GiGiShell). Se lee para
+    # conservar el autologin que el usuario tuviera y se retira igual que el anterior.
+    SDDM_DESTINO_GIGIOS=/etc/sddm.conf.d/zz-gigios.conf
 
-  # Último valor no comentado de una clave en un .conf de SDDM. Vale para comprobar si
-  # /etc/sddm.conf —que tiene MÁS precedencia que todo /etc/sddm.conf.d/, ver
-  # `man 5 sddm.conf`— nos está pisando lo que acabamos de escribir.
-  sddm_valor() {
+    # Último valor no comentado de una clave en un .conf de SDDM. Vale para comprobar si
+    # /etc/sddm.conf —que tiene MÁS precedencia que todo /etc/sddm.conf.d/, ver
+    # `man 5 sddm.conf`— nos está pisando lo que acabamos de escribir.
+    sddm_valor() {
     [[ -r "$1" ]] || return 0
     awk -F= -v clave="$2" '
       /^[[:space:]]*[#;]/ { next }
@@ -1462,15 +1297,15 @@ if paso_activo sddm; then
       }
       END { print valor }
     ' "$1" 2>/dev/null
-  }
+    }
 
-  if ! command -v sudo >/dev/null; then
+    if ! command -v sudo >/dev/null; then
     warn "No puedo configurar SDDM (falta sudo); el equipo podría arrancar en una consola sin gestor de sesión."
-  elif [ ! -r "$SDDM_PLANTILLA" ]; then
+    elif [ ! -r "$SDDM_PLANTILLA" ]; then
     warn "Falta $SDDM_PLANTILLA; no configuro SDDM."
-  elif ! pacman -Qq sddm >/dev/null 2>&1 && ! command -v sddm >/dev/null 2>&1; then
-    warn "SDDM no está instalado; no lo configuro ni lo activo (sudo pacman -S --needed sddm && bash install.sh --solo sddm)."
-  else
+    elif ! pacman -Qq sddm >/dev/null 2>&1 && ! command -v sddm >/dev/null 2>&1; then
+    warn "SDDM no está instalado; no lo configuro ni lo activo. Instala sddm y vuelve a ejecutar bash ~/GiGiShell/install.sh."
+    else
     info "Configurando SDDM ..."
     sudo_prime
 
@@ -1524,7 +1359,7 @@ if paso_activo sddm; then
           # fc-cache actualiza el índice de fontconfig. Sin él la fuente está en disco
           # pero fc-match no la encuentra hasta el siguiente arranque.
           # El `|| true` NO es decorativo: con `set -e` esta línea es la última del
-          # bloque, y sin fontconfig instalado (INSTALL_PACKAGES=0) el `command -v` falso
+          # bloque, y sin fontconfig instalado (--sin-paquetes) el `command -v` falso
           # abortaría el instalador entero por no poder refrescar una caché de fuentes.
           { command -v fc-cache >/dev/null 2>&1 && sudo fc-cache -f >/dev/null 2>&1; } || true
         else
@@ -1645,50 +1480,48 @@ if paso_activo sddm; then
         warn "SDDM no se activó: falta display-manager.service. El equipo arrancará en una consola; actívalo con: sudo systemctl enable sddm.service"
       fi
     fi
-  fi
-fi
+    fi
 
-if paso_activo gestos; then
   GESTOS_ESTADO="fallido"
-  # --- Entorno del MODO GESTOS por cámara ---
-  #
-  # Dos cosas que no pueden vivir en el repo: un venv de Python y un modelo de 7,8 MB.
-  #
-  # ── POR QUÉ UN VENV Y NO UN PAQUETE ────────────────────────────────────────────────
-  # MediaPipe no está en los repos oficiales. En AUR hay dos, y ninguno sirve:
-  # `python-mediapipe` compila contra `python-tensorflow` (build de horas) y
-  # `python-mediapipe-bin` se quedó en la 0.10.32. La rueda de PyPI (1.0.1) sí funciona
-  # con el Python 3.14 de Arch — comprobado antes de escribir esto — pero `pip` al sistema
-  # está prohibido en Arch (PEP 668, `externally-managed-environment`) y saltárselo con
-  # --break-system-packages es exactamente lo que su nombre dice.
-  #
-  # `--system-site-packages` para reaprovechar `python-numpy` y `python-opencv`, que sí son
-  # paquetes del sistema: sin él, pip se bajaría su propia copia de OpenCV (~90 MB) y
-  # tendríamos dos, con la de pip ganando por orden de búsqueda.
-  #
-  # ── EL VENV MUERE CON CADA ACTUALIZACIÓN MAYOR DE PYTHON, Y HAY QUE DECIRLO ────────
-  # Un venv guarda la versión de Python con la que se creó. Cuando Arch pase a 3.15, este
-  # venv apuntará a un intérprete que ya no existe y el modo dejará de arrancar. No es un
-  # fallo mudo —`gestos.sh` avisa con el motivo y Ajustes lo enseña— pero la solución es
-  # rehacerlo: `bash install.sh --solo gestos`. Por eso el paso BORRA un venv roto en vez
-  # de intentar repararlo.
-  GESTOS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/gigishell/gestos"
-  GESTOS_MODELO="$GESTOS_DIR/hand_landmarker.task"
-  GESTOS_VENV="$GESTOS_DIR/venv"
-  # URL oficial de Google para el modelo del Hand Landmarker (variante float16, la que
-  # recomiendan para CPU). No se versiona en el repo: son 7,8 MB de binario que git
-  # guardaría entero en cada cambio, y el repo no tiene ningún otro blob.
-  GESTOS_URL="https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+    # --- Entorno del MODO GESTOS por cámara ---
+    #
+    # Dos cosas que no pueden vivir en el repo: un venv de Python y un modelo de 7,8 MB.
+    #
+    # ── POR QUÉ UN VENV Y NO UN PAQUETE ────────────────────────────────────────────────
+    # MediaPipe no está en los repos oficiales. En AUR hay dos, y ninguno sirve:
+    # `python-mediapipe` compila contra `python-tensorflow` (build de horas) y
+    # `python-mediapipe-bin` se quedó en la 0.10.32. La rueda de PyPI (1.0.1) sí funciona
+    # con el Python 3.14 de Arch — comprobado antes de escribir esto — pero `pip` al sistema
+    # está prohibido en Arch (PEP 668, `externally-managed-environment`) y saltárselo con
+    # --break-system-packages es exactamente lo que su nombre dice.
+    #
+    # `--system-site-packages` para reaprovechar `python-numpy` y `python-opencv`, que sí son
+    # paquetes del sistema: sin él, pip se bajaría su propia copia de OpenCV (~90 MB) y
+    # tendríamos dos, con la de pip ganando por orden de búsqueda.
+    #
+    # ── EL VENV MUERE CON CADA ACTUALIZACIÓN MAYOR DE PYTHON, Y HAY QUE DECIRLO ────────
+    # Un venv guarda la versión de Python con la que se creó. Cuando Arch pase a 3.15, este
+    # venv apuntará a un intérprete que ya no existe y el modo dejará de arrancar. No es un
+    # fallo mudo —`gestos.sh` avisa con el motivo y Ajustes lo enseña— pero la solución es
+    # rehacerlo: `bash ~/GiGiShell/install.sh`. Por eso el paso BORRA un venv roto en vez
+    # de intentar repararlo.
+    GESTOS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/gigishell/gestos"
+    GESTOS_MODELO="$GESTOS_DIR/hand_landmarker.task"
+    GESTOS_VENV="$GESTOS_DIR/venv"
+    # URL oficial de Google para el modelo del Hand Landmarker (variante float16, la que
+    # recomiendan para CPU). No se versiona en el repo: son 7,8 MB de binario que git
+    # guardaría entero en cada cambio, y el repo no tiene ningún otro blob.
+    GESTOS_URL="https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 
-  mkdir -p "$GESTOS_DIR"
+    mkdir -p "$GESTOS_DIR"
 
-  # El venv se rehace si su intérprete ya no existe (ver arriba).
-  if [ -d "$GESTOS_VENV" ] && [ ! -x "$GESTOS_VENV/bin/python" ]; then
+    # El venv se rehace si su intérprete ya no existe (ver arriba).
+    if [ -d "$GESTOS_VENV" ] && [ ! -x "$GESTOS_VENV/bin/python" ]; then
     warn "El entorno de gestos apuntaba a un Python que ya no existe; lo rehago."
     rm -rf "$GESTOS_VENV"
-  fi
+    fi
 
-  if [ ! -x "$GESTOS_VENV/bin/python" ]; then
+    if [ ! -x "$GESTOS_VENV/bin/python" ]; then
     info "Creando el entorno de gestos (venv con MediaPipe) ..."
     if python3 -m venv --system-site-packages "$GESTOS_VENV" 2>/dev/null; then
       # `--upgrade` en pip primero: las ruedas de MediaPipe usan etiquetas de plataforma
@@ -1698,20 +1531,20 @@ if paso_activo gestos; then
         warn "No se pudo actualizar pip; el modo gestos no se instalará en esta ejecución."
         rm -rf "$GESTOS_VENV"
       elif ! "$GESTOS_VENV/bin/pip" install --quiet mediapipe; then
-        warn "No se pudo instalar MediaPipe. El modo gestos (SUPER+SHIFT+G) no funcionará; vuelve a intentarlo con: bash install.sh --solo gestos"
+        warn "No se pudo instalar MediaPipe. El modo gestos (SUPER+SHIFT+G) no funcionará; vuelve a intentarlo con: bash ~/GiGiShell/install.sh"
         rm -rf "$GESTOS_VENV"
       fi
     else
       warn "No pude crear el venv de gestos (¿falta python-virtualenv?). El modo gestos no funcionará."
     fi
-  else
+    else
     info "El entorno de gestos ya existe."
-  fi
+    fi
 
-  # El modelo, aparte del venv: son dos fallos independientes y arreglar uno no debe
-  # obligar a rehacer el otro (bajar 200 MB de MediaPipe otra vez por un .task que se
-  # truncó sería absurdo).
-  if [ ! -s "$GESTOS_MODELO" ]; then
+    # El modelo, aparte del venv: son dos fallos independientes y arreglar uno no debe
+    # obligar a rehacer el otro (bajar 200 MB de MediaPipe otra vez por un .task que se
+    # truncó sería absurdo).
+    if [ ! -s "$GESTOS_MODELO" ]; then
     info "Descargando el modelo de manos (7,8 MB) ..."
     # A un temporal y solo entonces al sitio: una descarga cortada dejaría un .task
     # truncado que MediaPipe rechaza al arrancar con un error de FlatBuffer que no dice
@@ -1720,212 +1553,188 @@ if paso_activo gestos; then
       mv -f "$GESTOS_MODELO.parcial" "$GESTOS_MODELO"
     else
       rm -f "$GESTOS_MODELO.parcial"
-      warn "No se pudo descargar el modelo de manos. El modo gestos (SUPER+SHIFT+G) no funcionará; vuelve a intentarlo con: bash install.sh --solo gestos"
+      warn "No se pudo descargar el modelo de manos. El modo gestos (SUPER+SHIFT+G) no funcionará; vuelve a intentarlo con: bash ~/GiGiShell/install.sh"
     fi
-  else
+    else
     info "El modelo de manos ya está descargado."
-  fi
+    fi
 
-  # Comprobación de verdad: que el intérprete del venv pueda IMPORTAR lo que hace falta.
-  # Que pip dijera "ok" no basta — una rueda instalada para otra versión de Python instala
-  # sin quejarse y revienta al importar, que es justo el modo de fallo que este paso
-  # existe para descartar.
-  if [ -x "$GESTOS_VENV/bin/python" ] && [ -s "$GESTOS_MODELO" ]; then
+    # Comprobación de verdad: que el intérprete del venv pueda IMPORTAR lo que hace falta.
+    # Que pip dijera "ok" no basta — una rueda instalada para otra versión de Python instala
+    # sin quejarse y revienta al importar, que es justo el modo de fallo que este paso
+    # existe para descartar.
+    if [ -x "$GESTOS_VENV/bin/python" ] && [ -s "$GESTOS_MODELO" ]; then
     if "$GESTOS_VENV/bin/python" -c 'import mediapipe, cv2' >/dev/null 2>&1; then
       GESTOS_ESTADO="listo"
       info "Modo gestos listo: SUPER+SHIFT+G lo enciende y lo apaga."
     else
       warn "El entorno de gestos se instaló pero no importa (mediapipe/cv2). El modo no funcionará."
     fi
-  fi
-else
-  GESTOS_ESTADO="omitido"
-fi
+    fi
 
-if paso_activo eventd; then
-  EVENTD_ESTADO="fallido"
+    EVENTD_ESTADO="fallido"
   # --- Monitor de seguridad en Rust (gigishell-eventd) ---
-  #
-  # Es OPCIONAL a propósito: `oom-monitor.sh` pregunta al binario qué sabe hacer y, si no
-  # existe, corre sus funciones bash de siempre. Por eso este paso nunca instala por su
-  # cuenta la cadena de Rust (~500 MB para compilar un binario de 500 KB): si no hay
-  # `cargo`, lo dice y sigue. Ver docs/rust-migracion.md.
-  #
-  # rustup instalado a mano deja cargo en ~/.cargo/bin, que no siempre está en el PATH de
-  # un script no interactivo; se añade aquí para no dar por ausente algo que sí está.
-  export PATH="$HOME/.cargo/bin:$PATH"
-  if ! command -v cargo >/dev/null 2>&1; then
+    #
+    # Es OPCIONAL a propósito: `oom-monitor.sh` pregunta al binario qué sabe hacer y, si no
+    # existe, corre sus funciones bash de siempre. Por eso este paso nunca instala por su
+    # cuenta la cadena de Rust (~500 MB para compilar un binario de 500 KB): si no hay
+    # `cargo`, lo dice y sigue. Ver docs/rust-migracion.md.
+    #
+    # rustup instalado a mano deja cargo en ~/.cargo/bin, que no siempre está en el PATH de
+    # un script no interactivo; se añade aquí para no dar por ausente algo que sí está.
+    export PATH="$HOME/.cargo/bin:$PATH"
+    if ! command -v cargo >/dev/null 2>&1; then
     EVENTD_ESTADO="sin-cargo"
-    warn "No hay cargo: el monitor de seguridad seguirá en bash. Para compilarlo: sudo pacman -S --needed rust && bash install.sh --solo eventd"
-  elif ! command -v cc >/dev/null 2>&1; then
+    warn "No hay cargo: el monitor de seguridad seguirá en bash. Instala Rust y vuelve a ejecutar bash ~/GiGiShell/install.sh para compilarlo."
+    elif ! command -v cc >/dev/null 2>&1; then
     EVENTD_ESTADO="sin-cargo"
-    warn "Hay cargo pero no un enlazador (cc): sudo pacman -S --needed base-devel && bash install.sh --solo eventd"
-  else
+    warn "Hay cargo pero no un enlazador (cc): instala base-devel y vuelve a ejecutar bash ~/GiGiShell/install.sh para compilarlo."
+    else
     info "Compilando gigishell-eventd (pasa los tests antes de instalar) ..."
     # `instalar.sh` corre `cargo test` y solo instala si pasan: un binario que no cumple
     # las reglas del bash es peor que ningún binario, porque el script le cede todo.
     if bash "$GIGISHELL/eventd/instalar.sh"; then
       EVENTD_ESTADO="listo"
     else
-      warn "No se pudo compilar gigishell-eventd; el monitor de seguridad seguirá en bash. Reintento: bash install.sh --solo eventd"
+      warn "No se pudo compilar gigishell-eventd; el monitor de seguridad seguirá en bash. Reintento: bash ~/GiGiShell/install.sh"
     fi
-  fi
-else
-  EVENTD_ESTADO="omitido"
-fi
+    fi
 
-if paso_activo dolphin; then
   # --- 4. Aplicar el perfil ligero de Dolphin ---
-  DOLPHIN_CONFIGURATOR="$GIGISHELL/bin/configurar-dolphin.sh"
-  # No es fatal: el perfil de Dolphin son miniaturas y comportamiento del gestor de
-  # archivos. Necesita kwriteconfig6, así que con INSTALL_PACKAGES=0 o con kconfig sin
-  # instalar fallaba y se llevaba por delante la instalación entera por un ajuste estético.
-  if [ -x "$DOLPHIN_CONFIGURATOR" ]; then
+    DOLPHIN_CONFIGURATOR="$GIGISHELL/bin/configurar-dolphin.sh"
+    # No es fatal: el perfil de Dolphin son miniaturas y comportamiento del gestor de
+    # archivos. Necesita kwriteconfig6, así que con --sin-paquetes o con kconfig sin
+    # instalar fallaba y se llevaba por delante la instalación entera por un ajuste estético.
+    if [ -x "$DOLPHIN_CONFIGURATOR" ]; then
     info "Configurando miniaturas y comportamiento de Dolphin ..."
     "$DOLPHIN_CONFIGURATOR" aplicar \
       || warn "No se pudo aplicar el perfil de Dolphin (¿falta kconfig?). Vuelve a intentarlo con: $DOLPHIN_CONFIGURATOR aplicar"
-  else
+    else
     warn "No encontré $DOLPHIN_CONFIGURATOR; Dolphin se queda con sus ajustes de fábrica."
-  fi
-fi
+    fi
 
-if paso_activo kitty && [[ "$KITTY_PROFILE" != conservar ]]; then
   # --- 5. Seleccionar el perfil de rendimiento de Kitty ---
-  KITTY_SELECTOR="$GIGISHELL/bin/kitty-profile.sh"
-  if [ -x "$KITTY_SELECTOR" ]; then
+    KITTY_SELECTOR="$GIGISHELL/bin/kitty-profile.sh"
+    if [ -x "$KITTY_SELECTOR" ]; then
     info "Seleccionando el perfil de Kitty ($KITTY_PROFILE) ..."
     "$KITTY_SELECTOR" "$KITTY_PROFILE" \
       || warn "No se pudo activar el perfil de Kitty '$KITTY_PROFILE'. Vuelve a intentarlo con: $KITTY_SELECTOR $KITTY_PROFILE"
-  else
+    else
     warn "No encontré $KITTY_SELECTOR; Kitty arrancará sin perfil de rendimiento."
-  fi
-fi
+    fi
 
-if paso_activo firefox && [[ "$FIREFOX_PROFILE" != conservar ]]; then
   # --- 6. Seleccionar y aplicar el perfil de rendimiento de Firefox ---
-  FIREFOX_SELECTOR="$GIGISHELL/bin/firefox-profile.sh"
-  if [ -x "$FIREFOX_SELECTOR" ]; then
+    FIREFOX_SELECTOR="$GIGISHELL/bin/firefox-profile.sh"
+    if [ -x "$FIREFOX_SELECTOR" ]; then
     info "Seleccionando el perfil de Firefox ($FIREFOX_PROFILE) ..."
     "$FIREFOX_SELECTOR" "$FIREFOX_PROFILE" \
       || warn "No se pudo activar el perfil de Firefox '$FIREFOX_PROFILE'. Vuelve a intentarlo con: $FIREFOX_SELECTOR $FIREFOX_PROFILE"
-  else
+    else
     warn "No encontré $FIREFOX_SELECTOR; Firefox arrancará sin perfil de rendimiento."
-  fi
-fi
+    fi
 
-if paso_activo vscode; then
   # --- 6b. Fijar el almacén de secretos de VS Code ---
-  # VS Code lo instala el paso `paquetes` (official+=(code)), pero NADIE en esta sesión
-  # ofrece el Secret Service `org.freedesktop.secrets`: KWallet/ksecretd está retirado a
-  # propósito (hypr/gigishell/autostart.lua) y gnome-keyring no se instala. Sin esto, toda
-  # instalación limpia recibe un cartel modal pidiendo el llavero del sistema en CADA
-  # arranque de VS Code. El porqué del compromiso, en la cabecera del script.
-  VSCODE_CONFIGURATOR="$GIGISHELL/bin/configurar-vscode.sh"
-  if [ -x "$VSCODE_CONFIGURATOR" ]; then
+    # VS Code lo instala el paso `paquetes` (official+=(code)), pero NADIE en esta sesión
+    # ofrece el Secret Service `org.freedesktop.secrets`: KWallet/ksecretd está retirado a
+    # propósito (hypr/gigishell/autostart.lua) y gnome-keyring no se instala. Sin esto, toda
+    # instalación limpia recibe un cartel modal pidiendo el llavero del sistema en CADA
+    # arranque de VS Code. El porqué del compromiso, en la cabecera del script.
+    VSCODE_CONFIGURATOR="$GIGISHELL/bin/configurar-vscode.sh"
+    if [ -x "$VSCODE_CONFIGURATOR" ]; then
     info "Fijando el almacén de secretos de VS Code ..."
     "$VSCODE_CONFIGURATOR" aplicar \
       || warn "No se pudo configurar password-store en ~/.vscode/argv.json. Vuelve a intentarlo con: $VSCODE_CONFIGURATOR aplicar"
-  else
+    else
     warn "No encontré $VSCODE_CONFIGURATOR; VS Code pedirá el llavero del sistema en cada arranque."
-  fi
-fi
+    fi
 
-if paso_activo css; then
   # --- 7. Generar el CSS que importa app.ts ---
-  SCSS="$GIGISHELL/ags/estilos/style.scss"
-  CSS="$GIGISHELL/ags/estilos/out.css"
-  APP_ICONS="$GIGISHELL/ags/config/app_icons.json"
+    SCSS="$GIGISHELL/ags/estilos/style.scss"
+    CSS="$GIGISHELL/ags/estilos/out.css"
+    APP_ICONS="$GIGISHELL/ags/config/app_icons.json"
 
-  [[ -f "$SCSS" ]] || die "Falta $SCSS. La copia de GiGiShell está incompleta; vuelve a ejecutar el instalador o comprueba la rama '$BRANCH'."
-  if [[ ! -s "$APP_ICONS" ]]; then
+    [[ -f "$SCSS" ]] || die "Falta $SCSS. La copia de GiGiShell está incompleta; vuelve a ejecutar el instalador o comprueba la rama '$BRANCH'."
+    if [[ ! -s "$APP_ICONS" ]]; then
     warn "Falta $APP_ICONS o está vacío; los workspaces usarán iconos gráficos."
-  elif command -v jq >/dev/null 2>&1; then
+    elif command -v jq >/dev/null 2>&1; then
     jq -e 'type == "object" and length > 0 and all(to_entries[]; (.key | type == "string") and (.value | type == "string"))' \
       "$APP_ICONS" >/dev/null \
       || warn "$APP_ICONS no contiene un mapa válido; los workspaces usarán iconos gráficos."
-  fi
-  # out.css es una caché sin versionar: la genera ags/scripts/compilar-css.sh (el mismo
-  # que corre antes de cada `ags run`). Sin sass solo es fatal si no hay ninguno previo.
-  info "Compilando el CSS de AGS ..."
-  if ! "$GIGISHELL/ags/scripts/compilar-css.sh" --forzar; then
+    fi
+    # out.css es una caché sin versionar: la genera ags/scripts/compilar-css.sh (el mismo
+    # que corre antes de cada `ags run`). Sin sass solo es fatal si no hay ninguno previo.
+    info "Compilando el CSS de AGS ..."
+    if ! "$GIGISHELL/ags/scripts/compilar-css.sh" --forzar; then
     [[ -s "$CSS" ]] || die "No se pudo generar $CSS (¿falta dart-sass o hay un error de Sass?)."
     warn "No se pudo recompilar el CSS; conservo el out.css anterior."
-  fi
-else
-  info "Omito la compilación del CSS (se conserva el out.css que haya)."
-fi
+    fi
 
-if paso_activo mime; then
   # --- 8. Reconstruir las bases MIME y de aplicaciones de KDE/Dolphin ---
-  if command -v update-mime-database >/dev/null; then
+    if command -v update-mime-database >/dev/null; then
     info "Reconstruyendo la base MIME del usuario ..."
     # Sin `|| warn` esto abortaba el instalador con `set -e` cuando la base MIME del
     # usuario tenía un XML inválido: un tipo MIME roto tumbaba una instalación entera.
     update-mime-database "$HOME/.local/share/mime" \
       || warn "Falló update-mime-database; los tipos MIME propios pueden no reconocerse."
-  else
+    else
     warn "No encontré update-mime-database; los tipos MIME propios no estarán disponibles."
-  fi
+    fi
 
-  if command -v kbuildsycoca6 >/dev/null; then
+    if command -v kbuildsycoca6 >/dev/null; then
     info "Reconstruyendo la caché de aplicaciones de KDE 6 ..."
     kbuildsycoca6 --noincremental \
       || warn "Falló kbuildsycoca6; el menú 'Abrir con...' puede quedar incompleto."
-  elif command -v kbuildsycoca5 >/dev/null; then
+    elif command -v kbuildsycoca5 >/dev/null; then
     info "Reconstruyendo la caché de aplicaciones de KDE 5 ..."
     kbuildsycoca5 --noincremental \
       || warn "Falló kbuildsycoca5; el menú 'Abrir con...' puede quedar incompleto."
-  else
+    else
     warn "No encontré kbuildsycoca6 ni kbuildsycoca5; el menú 'Abrir con...' podría quedar vacío."
-  fi
-
-fi
+    fi
 
 
-if paso_activo gpu; then
+
   # --- 10. Perfil de GPU de esta máquina ---
-  # Sin este fichero, gigishell/gpu.lua avisa EN PANTALLA EN CADA INICIO DE SESIÓN («sin
-  # perfil de GPU: escribe uno en ~/.config/gigishell/gpu-perfil»). Era el único paso de
-  # docs/SETUP.md que quedaba pendiente después del instalador, y como el escritorio
-  # arranca igual, lo normal era no hacerlo nunca y convivir con el aviso.
-  #
-  # La elección NO se versiona (es estado local por máquina, igual que el perfil de
-  # Kitty o el de Firefox; ver docs/anadir-perfiles-por-equipo.md), por eso se escribe
-  # aquí y no en el repo.
-  #
-  # La detección (detectar_perfil_gpu) está definida arriba, junto a tiene_bateria:
-  # el paso `paquetes` la necesita antes que este para decidir el driver VA-API.
-  GPU_PERFIL="$HOME/.config/gigishell/gpu-perfil"
-  if [[ -s "$GPU_PERFIL" ]]; then
+    # Sin este fichero, gigishell/gpu.lua avisa EN PANTALLA EN CADA INICIO DE SESIÓN («sin
+    # perfil de GPU: escribe uno en ~/.config/gigishell/gpu-perfil»). Era el único paso de
+    # docs/SETUP.md que quedaba pendiente después del instalador, y como el escritorio
+    # arranca igual, lo normal era no hacerlo nunca y convivir con el aviso.
+    #
+    # La elección NO se versiona (es estado local por máquina, igual que el perfil de
+    # Kitty o el de Firefox; ver docs/anadir-perfiles-por-equipo.md), por eso se escribe
+    # aquí y no en el repo.
+    #
+    # La detección (detectar_perfil_gpu) está definida arriba, junto a tiene_bateria:
+    # el paso `paquetes` la necesita antes que este para decidir el driver VA-API.
+    GPU_PERFIL="$HOME/.config/gigishell/gpu-perfil"
+    if [[ -s "$GPU_PERFIL" ]]; then
     info "Perfil de GPU ya elegido ($(tr -d '[:space:]' < "$GPU_PERFIL")); no lo toco."
-  elif perfil_gpu="$(detectar_perfil_gpu)"; then
+    elif perfil_gpu="$(detectar_perfil_gpu)"; then
     if mkdir -p "$(dirname "$GPU_PERFIL")" && printf '%s\n' "$perfil_gpu" > "$GPU_PERFIL"; then
       info "Perfil de GPU detectado y escrito en $GPU_PERFIL: $perfil_gpu"
     else
       warn "No pude escribir $GPU_PERFIL; Hyprland avisará al iniciar sesión. Escríbelo a mano: echo $perfil_gpu > $GPU_PERFIL"
     fi
-  else
+    else
     warn "No pude identificar la GPU de esta máquina; elige el perfil a mano (ver docs/SETUP.md §9): echo <perfil> > $GPU_PERFIL"
-  fi
-fi
+    fi
 
-if paso_activo cursor; then
   # --- 10. Mitad hyprcursor del tema de puntero ---
-  # El compositor dibuja su cursor con hyprcursor; XWayland y los toolkits siguen
-  # con XCursor. Un tema de paquete solo trae la mitad XCursor, y libhyprcursor
-  # ante un nombre que no encuentra no falla: coge el primer tema con manifest.hl
-  # que haya, por orden de lectura del directorio. Sin esto, el tema que elija el
-  # usuario en Ajustes no tendría mitad hyprcursor y el compositor acabaría
-  # dibujando OTRO tema. Esto le añade esa mitad a $CURSOR_THEME, dejando un único
-  # nombre válido para las dos variables.
-  #
-  # NO se elige el tema aquí: eso es `temaCursor` en ~/.config/gigishell/devices.json,
-  # que escribe el usuario desde Ajustes > Dispositivos > Puntero. Generar el tema
-  # es preparar el terreno; cambiarle el puntero a alguien que no lo ha pedido, no.
-  CURSOR_GEN="$GIGISHELL/bin/generar-hyprcursor.sh"
-  CURSOR_AVISO_HECHO=0
-  CURSOR_THEME="${CURSOR_THEME:-Bibata-Modern-Ice}"
-  if [ -x "$CURSOR_GEN" ]; then
+    # El compositor dibuja su cursor con hyprcursor; XWayland y los toolkits siguen
+    # con XCursor. Un tema de paquete solo trae la mitad XCursor, y libhyprcursor
+    # ante un nombre que no encuentra no falla: coge el primer tema con manifest.hl
+    # que haya, por orden de lectura del directorio. Sin esto, el tema que elija el
+    # usuario en Ajustes no tendría mitad hyprcursor y el compositor acabaría
+    # dibujando OTRO tema. Esto le añade esa mitad a $CURSOR_THEME, dejando un único
+    # nombre válido para las dos variables.
+    #
+    # NO se elige el tema aquí: eso es `temaCursor` en ~/.config/gigishell/devices.json,
+    # que escribe el usuario desde Ajustes > Dispositivos > Puntero. Generar el tema
+    # es preparar el terreno; cambiarle el puntero a alguien que no lo ha pedido, no.
+    CURSOR_GEN="$GIGISHELL/bin/generar-hyprcursor.sh"
+    CURSOR_AVISO_HECHO=0
+    CURSOR_THEME="${CURSOR_THEME:-Bibata-Modern-Ice}"
+    if [ -x "$CURSOR_GEN" ]; then
     # El tema por defecto viene de un paquete que puede no estar (ver el gate de
     # bibata-cursor-theme en el paso de paquetes: otra distro, sin chaotic-aur y sin
     # ayudante de AUR). Antes eso terminaba en "no pude generar el tema hyprcursor
@@ -1974,13 +1783,10 @@ if paso_activo cursor; then
     elif ((CURSOR_AVISO_HECHO == 0)); then
       warn "No hay ningún tema de puntero instalado al que añadirle la mitad hyprcursor; el compositor usará XCursor."
     fi
-  fi
-fi
+    fi
 
-# --- 11. Verificación y notas finales ---
-if paso_activo shell; then
+  # --- 11. Verificación y notas finales ---
   configure_default_shell
-fi
 
 # La validación ya no aborta con `die`. Morir aquí imprimía "la instalación no está
 # completa" y CORTABA antes de las notas finales, que es justo donde se explica qué hacer
@@ -1992,28 +1798,23 @@ fi
 esperar_descargas_de_fondo
 
 preflight_fallo=0
-if paso_activo preflight; then
-  if [ -x "$GIGISHELL/bin/preflight.sh" ]; then
-    info "Validando la instalación ..."
-    HOME="$HOME" GIGISHELL="$GIGISHELL" "$GIGISHELL/bin/preflight.sh" --installed \
-      || preflight_fallo=1
-  else
-    warn "No se encontró bin/preflight.sh; no puedo validar la instalación."
-    preflight_fallo=1
-  fi
+if [ -x "$GIGISHELL/bin/preflight.sh" ]; then
+  info "Validando la instalación ..."
+  HOME="$HOME" GIGISHELL="$GIGISHELL" "$GIGISHELL/bin/preflight.sh" --installed \
+    || preflight_fallo=1
+else
+  warn "No se encontró bin/preflight.sh; no puedo validar la instalación."
+  preflight_fallo=1
 fi
 echo
 if ((preflight_fallo)); then
   warn "La validación encontró errores; consulta el detalle anterior."
 fi
-# Las notas dicen lo que REALMENTE se hizo. Antes era un heredoc fijo que afirmaba
-# "Zsh quedó como predeterminado" y "las firmas ya se descargaron" aunque esos pasos se
-# hubieran omitido con --sin/--solo: el instalador terminaba mintiendo sobre su propio
-# resultado, que es peor que no decir nada.
+# El resumen final informa del resultado de validación y del modo de instalación.
 if ((preflight_fallo)); then
   info "Instalación finalizada con errores de validación."
-elif ((${#pasos_omitidos[@]})); then
-  info "Instalación parcial finalizada (pasos ejecutados: ${pasos_previstos[*]})."
+elif [[ "$MODO_INSTALACION" == sin-paquetes ]]; then
+  info "Instalación completa sin gestionar paquetes."
 else
   info "Instalación base completa."
 fi
@@ -2026,28 +1827,23 @@ cat <<'EOF'
               NO están en el repositorio (excluidos de Git). Restaura tus copias o ejecuta
               ~/GiGiShell/ags/scripts/spotify-auth.sh y ~/GiGiShell/ags/scripts/google-calendar-auth.sh
 EOF
-if paso_activo shell && command -v zsh >/dev/null 2>&1 \
+if command -v zsh >/dev/null 2>&1 \
   && shell_de_login_es "$(id -un)" "$(command -v zsh)"; then
   cat <<'EOF'
   • Shell:    Zsh es el shell predeterminado.
 EOF
 fi
-if paso_activo kitty; then
-  if [[ "$KITTY_PROFILE" == conservar ]]; then
-    printf '  • Kitty:    se conserva el perfil que ya estaba activo.\n'
-  else
-    printf '  • Kitty:    perfil seleccionado: %s. Cámbialo con ~/GiGiShell/bin/kitty-profile.sh <perfil>.\n' "$KITTY_PROFILE"
-  fi
+if [[ "$KITTY_PROFILE" == conservar ]]; then
+  printf '  • Kitty:    se conserva el perfil que ya estaba activo.\n'
+else
+  printf '  • Kitty:    perfil seleccionado: %s. Cámbialo con ~/GiGiShell/bin/kitty-profile.sh <perfil>.\n' "$KITTY_PROFILE"
 fi
-if paso_activo firefox; then
-  if [[ "$FIREFOX_PROFILE" == conservar ]]; then
-    printf '  • Firefox:  se conserva el perfil que ya estaba activo.\n'
-  else
-    printf '  • Firefox:  perfil seleccionado: %s. Cámbialo con ~/GiGiShell/bin/firefox-profile.sh <perfil> y reinícialo.\n' "$FIREFOX_PROFILE"
-  fi
+if [[ "$FIREFOX_PROFILE" == conservar ]]; then
+  printf '  • Firefox:  se conserva el perfil que ya estaba activo.\n'
+else
+  printf '  • Firefox:  perfil seleccionado: %s. Cámbialo con ~/GiGiShell/bin/firefox-profile.sh <perfil> y reinícialo.\n' "$FIREFOX_PROFILE"
 fi
-if paso_activo sddm; then
-  if [ -L /etc/systemd/system/display-manager.service ]; then
+if [ -L /etc/systemd/system/display-manager.service ]; then
     gestor_actual="$(basename "$(readlink -f /etc/systemd/system/display-manager.service)")"
     if [[ "$gestor_actual" == sddm.service ]]; then
       printf '  • SDDM:     activado (display-manager.service -> %s)%s.\n' \
@@ -2061,9 +1857,8 @@ if paso_activo sddm; then
   • SDDM:     No se activó; el equipo arrancará en una consola. Actívalo con:
               sudo systemctl enable sddm.service
 EOF
-  fi
 fi
-paso_activo repo && cat <<'EOF'
+cat <<'EOF'
   • Cambios:  el remoto está configurado con HTTPS; para subir cambios, cámbialo a SSH:
               dotfiles remote set-url origin git@github.com:mglourido/gigi-shell.git
 EOF
@@ -2071,39 +1866,30 @@ GPU_PERFIL="${GPU_PERFIL:-$HOME/.config/gigishell/gpu-perfil}"
 if [[ -s "$GPU_PERFIL" ]]; then
   printf '  • GPU:      perfil «%s» en %s (consulta docs/SETUP.md §9 para cambiarlo).\n' \
     "$(tr -d '[:space:]' < "$GPU_PERFIL")" "$GPU_PERFIL"
-elif paso_activo gpu; then
+else
   cat <<'EOF'
   • GPU:      no se pudo elegir perfil. Escribe uno en ~/.config/gigishell/gpu-perfil o
               Hyprland avisará en cada inicio de sesión; consulta docs/SETUP.md §9.
 EOF
-else
-  cat <<'EOF'
-  • GPU:      no hay perfil guardado. Elige uno antes de iniciar Hyprland; consulta docs/SETUP.md §9.
-EOF
 fi
-paso_activo cursor && cat <<'EOF'
+cat <<'EOF'
   • Puntero:  elige el tema en Ajustes > Dispositivos > Puntero. Sin elegirlo, el
               compositor usa el puntero de XCursor; para añadir soporte hyprcursor
               a otro tema, ~/GiGiShell/bin/generar-hyprcursor.sh --list.
 EOF
-if [[ "${GESTOS_ESTADO:-omitido}" == listo ]]; then
+if [[ "$GESTOS_ESTADO" == listo ]]; then
   cat <<'EOF'
   • Gestos:   SUPER+SHIFT+G activa el modo. Configúralo en Ajustes > Cámara > Gestos.
               Mientras esté activo, la cámara no estará disponible para videollamadas;
               el indicador rojo de la barra lo señala.
 EOF
-elif [[ "${GESTOS_ESTADO:-omitido}" == fallido ]]; then
+elif [[ "$GESTOS_ESTADO" == fallido ]]; then
   cat <<'EOF'
   • Gestos:   no se pudo completar la instalación del modo gestos por cámara. Revisa los avisos
-              anteriores y vuelve a intentarlo con: bash ~/GiGiShell/install.sh --solo gestos
-EOF
-else
-  cat <<'EOF'
-  • Gestos:   se omitió la instalación del modo gestos por cámara; puedes instalarlo con:
-              bash ~/GiGiShell/install.sh --solo gestos
+              anteriores y vuelve a intentarlo con: bash ~/GiGiShell/install.sh
 EOF
 fi
-case "${EVENTD_ESTADO:-omitido}" in
+case "$EVENTD_ESTADO" in
   listo) cat <<'EOF'
   • Seguridad: el monitor corre en Rust (gigishell-eventd). En una sesión ya abierta, vuelve
               a ejecutar ~/.config/hypr/scripts/oom-monitor.sh para que lo use.
@@ -2111,7 +1897,7 @@ EOF
   ;;
   sin-cargo|fallido) cat <<'EOF'
   • Seguridad: el monitor sigue en bash (no se compiló gigishell-eventd). Funciona igual;
-              para pasarlo a Rust: bash ~/GiGiShell/install.sh --solo eventd
+              para pasarlo a Rust: bash ~/GiGiShell/install.sh
 EOF
   ;;
 esac
@@ -2134,17 +1920,11 @@ EOF
   no_disponible)
     cat <<'EOF'
   • Antivirus: no se pudieron descargar las firmas de ClamAV porque falta ClamAV, sudo o el
-              actualizador del sistema. Revisa los avisos anteriores y vuelve a ejecutar el paso.
-EOF
-    ;;
-  *)
-  cat <<'EOF'
-  • Antivirus: se omitió la descarga de firmas de ClamAV en esta ejecución. Si faltan o están
-              desactualizadas, el escáner no podrá analizar archivos hasta que se actualicen.
+              actualizador del sistema. Revisa los avisos anteriores y vuelve a ejecutar bash ~/GiGiShell/install.sh.
 EOF
     ;;
 esac
-if paso_activo hibernacion; then
+if [[ "$INSTALL_HIBERNATION" == 1 ]]; then
   if [[ -n "${HIBERNACION_LISTA:-}" ]]; then
     cat <<'EOF'
   • Hibernar: hace falta REINICIAR. resume= entra por la línea de comandos del kernel y la de
@@ -2156,7 +1936,7 @@ EOF
     cat <<'EOF'
   • Hibernar: la preparación NO terminó bien. Sin swapfile persistente y sin resume= el equipo
               no puede hibernar, y la fila de Ajustes se queda apagada con su motivo. Repítelo
-              con: bash ~/GiGiShell/install.sh --solo hibernacion
+              con: sudo bash ~/GiGiShell/system/hibernacion/gigishell-hibernacion-setup.sh
 EOF
   fi
 fi

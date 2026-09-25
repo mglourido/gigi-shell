@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# gigishell-hibernacion-setup — deja la máquina CAPAZ de hibernar. Se ejecuta UNA vez, como root,
-# desde install.sh (paso `hibernacion`). No se instala en /usr/local/bin: no es un helper de
-# runtime, es una instalación.
+# gigishell-hibernacion-setup — deja la máquina CAPAZ de hibernar. Se ejecuta como root desde
+# install.sh o desde Ajustes > Pantalla > Suspensión. No se instala en /usr/local/bin: prepara
+# el sistema y también instala el helper de runtime.
 #
 # Hibernar no es "otro modo de suspender": es volcar la RAM entera a un dispositivo de swap
 # PERSISTENTE y apagar. En esta máquina, tal cual venía, era IMPOSIBLE, y de la peor manera: sin
@@ -32,6 +32,25 @@ GRUB_DEFAULT_FILE=/etc/default/grub
 info() { printf '\033[1;36m  ::\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m  !!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m  xx\033[0m %s\n' "$*" >&2; exit 1; }
+
+# Este script también se puede ejecutar desde Ajustes sin pasar por install.sh. Instala el
+# helper y su regla sudoers aquí para que ambas vías de preparación dejen el mismo estado.
+DIRECTORIO_SCRIPT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+USUARIO_GIGISHELL="${SUDO_USER:-}"
+[[ -n "$USUARIO_GIGISHELL" && "$USUARIO_GIGISHELL" != root ]] \
+  || die "Ejecuta este script con sudo desde la cuenta del usuario que usa GiGiShell."
+PLANTILLA_SUDOERS="$DIRECTORIO_SCRIPT/sudoers-gigishell-hibernacion"
+HELPER_RUNTIME="$DIRECTORIO_SCRIPT/gigishell-hibernacion.sh"
+[[ -r "$PLANTILLA_SUDOERS" && -r "$HELPER_RUNTIME" ]] \
+  || die "Faltan los archivos del helper de hibernación en $DIRECTORIO_SCRIPT."
+SUDOERS_TEMPORAL="$(mktemp)"
+trap 'rm -f "$SUDOERS_TEMPORAL"' EXIT
+sed "s/__GIGISHELL_USER__/$USUARIO_GIGISHELL/" "$PLANTILLA_SUDOERS" > "$SUDOERS_TEMPORAL"
+chmod 0440 "$SUDOERS_TEMPORAL"
+visudo -cf "$SUDOERS_TEMPORAL" >/dev/null \
+  || die "La regla sudoers de hibernación no es válida; no se instala."
+install -Dm755 "$HELPER_RUNTIME" /usr/local/bin/gigishell-hibernacion
+install -o root -g root -m 0440 "$SUDOERS_TEMPORAL" /etc/sudoers.d/gigishell-hibernacion
 
 # ── 1. Swap persistente ─────────────────────────────────────────────────────────────────────
 #

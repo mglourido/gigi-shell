@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
 # Comprueba que el checkout contiene todo lo necesario y, opcionalmente, que la
 # máquina instalada tiene las herramientas principales.
+# Uso: bin/preflight.sh [--installed]
 set -uo pipefail
 
 GIGISHELL="${GIGISHELL:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
-mode="${1:-}"
+mode=""
+case "$#" in
+  0) ;;
+  1)
+    case "$1" in
+      --installed) mode="$1" ;;
+      *) printf 'Uso: %s [--installed]\n' "${BASH_SOURCE[0]}" >&2; exit 2 ;;
+    esac
+    ;;
+  *) printf 'Uso: %s [--installed]\n' "${BASH_SOURCE[0]}" >&2; exit 2 ;;
+esac
 errors=0
 warnings=0
 
@@ -237,7 +248,7 @@ if [[ "$mode" == "--installed" ]]; then
   # aplicando las reglas viejas sin ningún síntoma.
   eventd_bin="$HOME/.local/bin/gigishell-eventd"
   if [[ ! -x "$eventd_bin" ]]; then
-    warn "gigishell-eventd no instalado: el monitor de seguridad corre en bash (bash install.sh --solo eventd)"
+    warn "gigishell-eventd no instalado: el monitor de seguridad corre en bash (bash ~/GiGiShell/install.sh)"
   elif ! "$eventd_bin" --modulos >/dev/null 2>&1; then
     fail "gigishell-eventd no arranca (--modulos falla): recompila con $GIGISHELL/eventd/instalar.sh o quítalo con --quitar"
   elif [[ -n "$(find "$GIGISHELL/eventd/src" "$GIGISHELL/eventd/Cargo.toml" -newer "$eventd_bin" -print -quit 2>/dev/null)" ]]; then
@@ -651,7 +662,7 @@ EOF
           ;;
         integrada)
           (( gpu_hay_nvidia )) \
-            && warn "hay una NVIDIA pero el perfil de GPU es 'integrada', que no configura nada (ejecutá: rm $gpu_perfil_ruta && bash install.sh --solo gpu)"
+            && warn "hay una NVIDIA pero el perfil de GPU es 'integrada', que no configura nada (ejecutá: rm $gpu_perfil_ruta && bash ~/GiGiShell/install.sh)"
           ;;
       esac
       if [[ "$gpu_perfil" == laptop-hibrida ]] && (( ! gpu_hay_integrada )); then
@@ -670,7 +681,7 @@ EOF
       fail "perfil de GPU desconocido: '$gpu_perfil' (no existe hypr/gigishell/gpu/$gpu_perfil.lua)"
     fi
   else
-    warn "sin perfil de GPU en $gpu_perfil_ruta (Hyprland avisará en cada inicio; ejecutá install.sh --solo gpu)"
+    warn "sin perfil de GPU en $gpu_perfil_ruta (Hyprland avisará en cada inicio; ejecutá install.sh)"
   fi
 
   # Cámara bloqueada SIN forma de desbloquearla. Es la única trampa del killswitch, y es
@@ -684,7 +695,7 @@ EOF
     if [[ -x /usr/local/bin/gigishell-camara ]]; then
       ok "cámara bloqueada a propósito (el interruptor de Ajustes > Cámara puede desbloquearla)"
     else
-      fail "la cámara está bloqueada y falta /usr/local/bin/gigishell-camara para desbloquearla (bash install.sh --solo sistema, o sudo rm /etc/udev/rules.d/71-gigishell-camara-bloqueada.rules)"
+      fail "la cámara está bloqueada y falta /usr/local/bin/gigishell-camara para desbloquearla (bash ~/GiGiShell/install.sh, o sudo rm /etc/udev/rules.d/71-gigishell-camara-bloqueada.rules)"
     fi
   fi
 
@@ -699,16 +710,16 @@ EOF
   gestos_dir="${XDG_DATA_HOME:-$HOME/.local/share}/gigishell/gestos"
   if [[ -e "$gestos_dir/venv" || -e "$gestos_dir/hand_landmarker.task" ]]; then
     if [[ ! -x "$gestos_dir/venv/bin/python" ]]; then
-      fail "el entorno del modo gestos está a medias: falta el intérprete del venv (bash install.sh --solo gestos)"
+      fail "el entorno del modo gestos está a medias: falta el intérprete del venv (bash ~/GiGiShell/install.sh)"
     elif ! "$gestos_dir/venv/bin/python" -c 'import mediapipe, cv2' >/dev/null 2>&1; then
-      fail "el venv de gestos existe pero no importa mediapipe/cv2 (¿cambió la versión de Python?): bash install.sh --solo gestos"
+      fail "el venv de gestos existe pero no importa mediapipe/cv2 (¿cambió la versión de Python?): bash ~/GiGiShell/install.sh"
     elif [[ ! -s "$gestos_dir/hand_landmarker.task" ]]; then
-      fail "falta el modelo de manos del modo gestos (bash install.sh --solo gestos)"
+      fail "falta el modelo de manos del modo gestos (bash ~/GiGiShell/install.sh)"
     else
       ok "modo gestos instalado (SUPER+SHIFT+G)"
     fi
   else
-    warn "sin entorno del modo gestos; SUPER+SHIFT+G no hará nada (opcional: bash install.sh --solo gestos)"
+    warn "sin entorno del modo gestos; SUPER+SHIFT+G no hará nada (opcional: bash ~/GiGiShell/install.sh)"
   fi
 
   # TLP. Sólo aplica donde hay batería del sistema: el instalador no instala TLP en un
@@ -756,11 +767,11 @@ EOF
   if [[ -r "$archivo_hibernacion" ]] && command -v jq >/dev/null 2>&1 &&
      jq -e '.enabled == true' "$archivo_hibernacion" >/dev/null 2>&1; then
     if [[ ! -x /usr/local/bin/gigishell-hibernacion ]]; then
-      fail "la hibernación está activada pero falta su ayudante (bash install.sh --solo hibernacion)"
+      fail "la hibernación está activada pero falta su ayudante (sudo bash ~/GiGiShell/system/hibernacion/gigishell-hibernacion-setup.sh)"
     else
       case "$(/usr/local/bin/gigishell-hibernacion estado 2>/dev/null | sed -n 's/^disponible=//p')" in
         si) ok "hibernación disponible (tiempo en Ajustes > Pantalla > Suspensión)" ;;
-        *)  fail "la hibernación está activada en Ajustes pero el equipo NO puede hibernar: falta swap persistente o resume= en el kernel (bash install.sh --solo hibernacion, y reiniciá)" ;;
+        *)  fail "la hibernación está activada en Ajustes pero el equipo NO puede hibernar: falta swap persistente o resume= en el kernel (sudo bash ~/GiGiShell/system/hibernacion/gigishell-hibernacion-setup.sh, y reiniciá)" ;;
       esac
     fi
     # El otro fallo mudo del par: con la NVIDIA cargada y sin los servicios que conservan la
@@ -768,7 +779,7 @@ EOF
     # con la sesión restaurada y sin nada que apunte a la GPU.
     if [[ -e /proc/driver/nvidia/version ]] &&
        ! systemctl is-enabled --quiet nvidia-hibernate.service 2>/dev/null; then
-      warn "nvidia-hibernate.service no está activado: al volver de la hibernación puede quedar la pantalla negra (bash install.sh --solo hibernacion)"
+      warn "nvidia-hibernate.service no está activado: al volver de la hibernación puede quedar la pantalla negra (sudo bash ~/GiGiShell/system/hibernacion/gigishell-hibernacion-setup.sh)"
     fi
   fi
 
@@ -781,7 +792,7 @@ EOF
     if [[ -z "$gestor_sesion" ]]; then
       fail "ningún gestor de sesión activado: el equipo arrancará en un TTY (sudo systemctl enable sddm.service)"
     elif [[ "$(basename "$gestor_sesion")" != sddm.service ]]; then
-      warn "el gestor de sesión es $(basename "$gestor_sesion"), no SDDM (bash install.sh --solo sddm si lo querés cambiar)"
+      warn "el gestor de sesión es $(basename "$gestor_sesion"), no SDDM (bash ~/GiGiShell/install.sh si lo querés cambiar)"
     else
       ok "SDDM activado (display-manager.service -> sddm.service)"
     fi
@@ -799,10 +810,10 @@ EOF
         fi
       done
       if [[ -e /etc/sddm.conf.d/99-gigios.conf ]]; then
-        warn "queda /etc/sddm.conf.d/99-gigios.conf, de una instalación vieja y con el nombre malo (bash install.sh --solo sddm lo retira)"
+        warn "queda /etc/sddm.conf.d/99-gigios.conf, de una instalación vieja y con el nombre malo (bash ~/GiGiShell/install.sh lo retira)"
       fi
     else
-      warn "falta /etc/sddm.conf.d/zz-gigishell.conf: SDDM usará su configuración de fábrica (bash install.sh --solo sddm)"
+      warn "falta /etc/sddm.conf.d/zz-gigishell.conf: SDDM usará su configuración de fábrica (bash ~/GiGiShell/install.sh)"
     fi
     # El tema del saludador. Su ausencia no rompe nada: SDDM cae a su aspecto de fábrica.
     if [[ -r /usr/share/sddm/themes/gigishell/metadata.desktop ]]; then
@@ -812,7 +823,7 @@ EOF
       # saludador se ve con otra tipografía sin ningún error.
       if command -v fc-match >/dev/null 2>&1 &&
          [[ "$(fc-match -f '%{family}' Thunderman 2>/dev/null)" != *Thunderman* ]]; then
-        warn "la fuente Thunderman del saludador no está en el sistema: se verá con otra tipografía (bash install.sh --solo sddm)"
+        warn "la fuente Thunderman del saludador no está en el sistema: se verá con otra tipografía (bash ~/GiGiShell/install.sh)"
       fi
       # El fondo es un .mp4 y quien lo reproduce es QtMultimedia. Sin el backend de
       # ffmpeg se queda el PNG de reserva: parece que el tema no está animado.
@@ -820,10 +831,10 @@ EOF
         warn "falta qt6-multimedia-ffmpeg: el fondo animado del saludador no se reproducirá (se queda el PNG)"
       fi
     else
-      warn "falta el tema del saludador en /usr/share/sddm/themes/gigishell (bash install.sh --solo sddm)"
+      warn "falta el tema del saludador en /usr/share/sddm/themes/gigishell (bash ~/GiGiShell/install.sh)"
     fi
   else
-    fail "SDDM no está instalado: nada lanzará Hyprland al arrancar (sudo pacman -S --needed sddm && bash install.sh --solo sddm)"
+    fail "SDDM no está instalado: nada lanzará Hyprland al arrancar (sudo pacman -S --needed sddm && bash ~/GiGiShell/install.sh)"
   fi
 
   "$GIGISHELL/bin/link.sh" --check || fail "symlinks incompletos"

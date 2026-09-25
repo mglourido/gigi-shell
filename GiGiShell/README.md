@@ -132,20 +132,22 @@ This will:
    (never overwriting one you wrote yourself).
 9. Run a final preflight check.
 
-Every one of those is a named step: `install.sh --pasos` lists them, `--solo`/`--sin` pick
-or skip any combination (`install.sh --solo gpu`, `install.sh --sin clamav-db,cursor`).
+The default command runs the full installation. To change package handling, use
+`install.sh --solo-paquetes` for dependencies only or `install.sh --sin-paquetes` to run the
+full installation without managing packages. When piping the installer from `curl`, pass the
+option with `bash -s -- --sin-paquetes`.
 
 Useful overrides:
 
 ```sh
-curl -fsSL <url> | INSTALL_PACKAGES=0 bash        # skip package installation
+curl -fsSL <url> | bash -s -- --sin-paquetes     # skip package installation
 curl -fsSL <url> | KITTY_PROFILE=desktop bash     # force a Kitty profile
 curl -fsSL <url> | FIREFOX_PROFILE=laptop bash    # force a Firefox profile
 curl -fsSL <url> | DOTFILES_BRANCH=<branch> bash     # install a different branch
 curl -fsSL <url> | ASSUME_YES=1 bash              # unattended: no confirmations at all
 ```
 
-`ASSUME_YES=1` (or `--yes`) is what you want for an unattended reinstall: it silences
+`ASSUME_YES=1` is what you want for an unattended reinstall: it silences
 pacman's confirmation and, for anything that really has to be built from AUR, the
 helper's PKGBUILD review prompts too.
 

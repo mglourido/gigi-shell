@@ -63,7 +63,7 @@
     "autologin": {
       "titulo": "Entrar sin contraseña",
       "descripcion": "Abre la sesión de {{usuario}} al encender, sin pasar por la pantalla de acceso. Se aplica al reiniciar.",
-      "sinConfiguracion": "SDDM no tiene la configuración de GiGiShell (/etc/sddm.conf.d/zz-gigishell.conf). Ejecuta: bash install.sh --solo sddm",
+      "sinConfiguracion": "SDDM no tiene la configuración de GiGiShell (/etc/sddm.conf.d/zz-gigishell.conf). Ejecuta: bash ~/GiGiShell/install.sh",
       "sinSesion": "No hay ninguna sesión de Hyprland instalada (hyprland.desktop), y sin ella SDDM ignora el inicio automático.",
       "pisado": "{{fichero}} también fija el inicio automático y tiene más precedencia: cambiarlo aquí no tendría efecto."
     }

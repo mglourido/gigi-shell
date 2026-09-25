@@ -249,7 +249,7 @@ Puntos que conviene recordar sin abrir el documento:
   autostart**: abre la webcam, cuesta medio núcleo y la deja ocupada para el resto de apps (no se
   puede hacer una videollamada con él encendido), así que se pide a propósito. Lo enciende y apaga
   `hypr/scripts/gestos.sh`; el trabajo está en `hypr/scripts/gestos/` y su entorno (venv con
-  MediaPipe + modelo de manos) lo instala `install.sh --solo gestos` fuera del repo. **Antes de
+  MediaPipe + modelo de manos) lo instala `install.sh` fuera del repo. **Antes de
   tocarlo lee su sección en [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md)**: documenta que
   **el pellizco NO saca la ventana del mosaico** (hacerlo movía bien pero la dejaba sin recolocarse
   nunca más: una tilada se recoloca por pasos con la secuencia `preselect`/`movewindow`/`preselect
@@ -295,7 +295,8 @@ RTC, con `HibernateDelaySec` = total − suspensión, que es una **resta**); el 
 de `hypridle.conf` queda solo para cuando hibernar no llega a pasar por la suspensión.
 
 La autoridad es `~/.config/gigishell/hibernacion.json`; el listener de `hypridle.conf` es su espejo.
-Habilitarla en una máquina nueva es un paso propio del instalador (`--solo hibernacion`: swapfile
+Habilitarla en una máquina nueva se prepara desde Ajustes o ejecutando
+`sudo bash ~/GiGiShell/system/hibernacion/gigishell-hibernacion-setup.sh`: swapfile
 persistente, `resume=` en el kernel, VRAM de NVIDIA) y **no surte efecto hasta reiniciar**. Nada se
 asume: `gigishell-hibernacion estado` pregunta a logind y, si dice que no, la fila de Ajustes sale
 apagada con el motivo escrito **y un botón «Preparar hibernación…»** que lanza ese paso en una

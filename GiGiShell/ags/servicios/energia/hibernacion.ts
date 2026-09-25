@@ -62,7 +62,7 @@ export { disponible as hibernacionActivable, motivo as hibernacionMotivo }
 function traducirMotivo(clave: string): string {
   switch (clave) {
     case "sin-swap-o-sin-resume":
-      return "Este equipo no puede hibernar todavía: falta swap persistente o el parámetro resume= del kernel. Ejecuta: bash ~/GiGiShell/install.sh --solo hibernacion (y reinicia)."
+      return "Este equipo no puede hibernar todavía: falta swap persistente o el parámetro resume= del kernel. Prepara la hibernación desde este botón (y reinicia)."
     case "prohibido-por-politica":
       return "La política del sistema no permite hibernar en esta sesión."
     case "logind-no-responde":
@@ -89,7 +89,7 @@ export function comprobarHibernacion(): void {
       // El helper no está instalado (falta el paso `hibernacion` del instalador). Es el mismo
       // resultado práctico que "no se puede": fila apagada y motivo a la vista.
       setDisponible(false)
-      setMotivo("Falta el ayudante de hibernación. Ejecuta: bash ~/GiGiShell/install.sh --solo hibernacion")
+      setMotivo("Falta el ayudante de hibernación. Usa el botón «Preparar hibernación» en Ajustes.")
     })
 }
 
@@ -160,7 +160,7 @@ export function aplicarHibernacion(
 // `swapoff` antes que nada); preparar sigue sin notarse hasta reiniciar (resume= es cosa
 // del arranque), y eso ya lo explica `hibernarPrepararInfo`.
 export function prepararHibernacion(): void {
-  abrirEnTerminal(`bash ${GLib.shell_quote(`${RAIZ_REPO}/install.sh`)} --solo hibernacion`, "hibernacion")
+  abrirEnTerminal(`sudo bash ${GLib.shell_quote(`${RAIZ_REPO}/system/hibernacion/gigishell-hibernacion-setup.sh`)}`, "hibernacion")
     .then(comprobarHibernacion)
     .catch(() => {})
 }

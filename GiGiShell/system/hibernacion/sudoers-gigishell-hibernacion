@@ -2,7 +2,7 @@
 # sin contraseña.
 #
 # NO se symlinkea: sudoers.d se lee como root y apuntarlo al árbol del usuario sería una escalada.
-# Lo instala install.sh (paso `hibernacion`) sustituyendo __GIGISHELL_USER__ por el usuario real y
+# Lo instala gigishell-hibernacion-setup.sh sustituyendo __GIGISHELL_USER__ por el usuario real y
 # validándolo con `visudo -cf` antes de moverlo a su sitio.
 #
 # El NOPASSWD es lo que hace posible que el tiempo se edite desde Ajustes con un +/-: un diálogo de

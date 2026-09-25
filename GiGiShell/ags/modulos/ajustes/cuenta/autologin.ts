@@ -21,7 +21,7 @@
 //     se nota. Se comprueba antes y la fila sale apagada nombrando al culpable, en
 //     vez de dejar un interruptor que se mueve y no hace nada.
 //   · No se crea el fichero si falta: sin él SDDM está con su configuración de
-//     fábrica y lo que toca es `install.sh --solo sddm`, que además pone el tema y
+//     fábrica y lo que toca es `install.sh`, que además pone el tema y
 //     el resto de claves. Un fichero suelto con dos líneas escritas desde aquí
 //     dejaría el saludador a medias.
 //

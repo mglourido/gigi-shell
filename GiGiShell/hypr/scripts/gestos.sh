@@ -80,9 +80,9 @@ apagar() {
 encender() {
     local motivo=""
     if [[ ! -x "$VENV/bin/python" ]]; then
-        motivo="Falta el entorno de gestos. Instálalo con: bash ~/GiGiShell/install.sh --solo gestos"
+        motivo="Falta el entorno de gestos. Instálalo con: bash ~/GiGiShell/install.sh"
     elif [[ ! -f "$MODELO" ]]; then
-        motivo="Falta el modelo de manos. Instálalo con: bash ~/GiGiShell/install.sh --solo gestos"
+        motivo="Falta el modelo de manos. Instálalo con: bash ~/GiGiShell/install.sh"
     fi
     if [[ -n "$motivo" ]]; then
         notificar gestos.no-disponible -u normal "No se puede activar el modo gestos" "$motivo" -t 9000

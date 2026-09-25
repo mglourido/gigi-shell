@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gigishell-hibernacion — fija el retardo de HIBERNACIÓN DURANTE LA SUSPENSIÓN.
 #
-# ESTE FICHERO SE INSTALA ROOT-OWNED en /usr/local/bin/gigishell-hibernacion (install.sh, paso
-# `hibernacion`). NO se symlinkea desde ~/GiGiShell: corre como root vía /etc/sudoers.d/gigishell-hibernacion,
+# ESTE FICHERO SE INSTALA ROOT-OWNED en /usr/local/bin/gigishell-hibernacion por
+# `gigishell-hibernacion-setup.sh`. NO se symlinkea desde ~/GiGiShell: corre como root vía /etc/sudoers.d/gigishell-hibernacion,
 # y apuntar a un script escribible por el usuario sería una escalada silenciosa (misma regla que el
 # helper de TLP, el de cámara y el de limpieza; ver CLAUDE.md).
 #

@@ -339,7 +339,7 @@ replanifica, y todo cae en una sola escritura del fichero y un solo reinicio de 
 los dos patrones; al revés, ese listener se leería como suspensión y su tiempo saldría en la fila
 equivocada de Ajustes, sin ningún error.
 
-#### Habilitarla: el paso `hibernacion` del instalador
+#### Habilitarla desde el instalador o Ajustes
 
 Una máquina normal **no puede hibernar**, y lo descubre tarde. Tal como estaba esta:
 
@@ -348,13 +348,13 @@ swapon --show  → solo /dev/zram0   ← zram vive EN LA RAM. Volcar la RAM a la
 /proc/cmdline  → sin resume=       ← sin eso el kernel arranca en frío y la sesión se pierde.
 ```
 
-`bash install.sh --solo hibernacion` lo monta: swapfile persistente (en btrfs, **subvolumen
+Ejecuta `sudo bash ~/GiGiShell/system/hibernacion/gigishell-hibernacion-setup.sh` para crear el swapfile persistente (en btrfs, **subvolumen
 propio** — un swapfile dentro de `@` acabaría capturado por un snapshot de snapper y btrfs se
 niega a activar un swapfile con más de una referencia, así que `swapon` empezaría a fallar el día
 del primer snapshot, no hoy), entrada en `/etc/fstab` con `pri=-2` (por debajo de zram: el
 swapfile está para hibernar, no para paginar), `resume=`/`resume_offset=` en GRUB, e initramfs
-regenerado. Va **aparte** del paso `sistema` porque crea un fichero de varios GiB y reescribe la
-línea de comandos del kernel: eso tiene que poder omitirse.
+regenerado. La instalación completa pregunta antes de ejecutarlo porque crea un fichero de varios
+GiB y reescribe la línea de comandos del kernel.
 
 - **No hace falta el hook `resume` de mkinitcpio**: `HOOKS` lleva `systemd`, y ahí quien resume es
   `systemd-hibernate-resume-generator` leyendo `resume=`.
@@ -391,7 +391,7 @@ silencioso deba poder hacer. En vez de eso, `abrirEnTerminal()` (`utilidades/abr
 compartido con el botón de «Actualizaciones» de la barra que lanza `sudo pacman -Syu`) abre una
 terminal de verdad y dentro `sudo` pide la contraseña como en cualquier uso manual:
 
-- **Preparar** lanza `install.sh --solo hibernacion` (el mismo paso del instalador).
+- **Preparar** lanza `gigishell-hibernacion-setup.sh` directamente; también lo ejecuta el instalador completo si se acepta la pregunta.
 - **Quitar** lanza `system/hibernacion/gigishell-hibernacion-quitar.sh`, el simétrico del setup:
   `swapoff` primero (es lo único que se nota SIN reiniciar — `CanHibernate` mira el swap
   *activo*, no lo que diga fstab), borra el subvolumen `/swap` completo si solo contiene el
@@ -1750,7 +1750,7 @@ la sección sin un solo mando hasta salir y volver a entrar.
 El bloqueo sobrevive a todo (es un fichero en `/etc`), pero el **helper** no: una instalación nueva
 donde el paso `sistema` no llegó a correr, o un `/usr/local` limpiado, deja la cámara bloqueada **y
 sin nada capaz de desbloquearla desde la UI**. `bin/preflight.sh` comprueba el par entero y lo marca
-como ERROR con las dos salidas (`bash install.sh --solo sistema`, o borrar la regla a mano).
+como ERROR con las dos salidas (`bash install.sh`, o borrar la regla a mano).
 
 #### Vista previa
 
@@ -2507,7 +2507,7 @@ aparte y **no se versiona**: el repo no tiene ningún otro blob.
 **Un venv muere con cada actualización mayor de Python.** Guarda la versión con la que se creó, así
 que cuando Arch pase a 3.15 apuntará a un intérprete que ya no existe y el modo dejará de arrancar.
 No es un fallo mudo (`gestos.sh` avisa con el motivo y Ajustes lo enseña) pero la solución es
-rehacerlo: `bash install.sh --solo gestos`. `bin/preflight.sh --installed` lo caza comprobando que el
+rehacerlo: `bash install.sh`. `bin/preflight.sh --installed` lo caza comprobando que el
 intérprete **importe**, no que exista: un venv colgando conserva todos sus ficheros y pasa cualquier
 test de existencia.
 
@@ -2886,7 +2886,7 @@ aviso que culpa al tema y manda a elegir otro cuando lo que falta es un paquete.
   (`breeze_cursors`, `Adwaita`, o el primero que liste el generador). Generar la mitad hyprcursor de
   otro tema **no le cambia el puntero a nadie** —eso sigue siendo `temaCursor` en `devices.json`—,
   así que el peor caso de equivocarse es un directorio de más. Un tema pedido **explícitamente**
-  (`--cursor` o `CURSOR_THEME=` en el entorno) sí avisa, porque ahí el nombre lo eligió alguien:
+  (`CURSOR_THEME=` en el entorno) sí avisa, porque ahí el nombre lo eligió alguien:
   esa distinción es `CURSOR_THEME_EXPLICITO`, y hay que calcularla **antes** de aplicar el valor por
   defecto o siempre sale «explícito».
 - El aviso incluye el **stderr real del generador**. Antes el motivo se lo llevaba el scroll de
@@ -3094,7 +3094,7 @@ así que un `hyprctl reload full-reset` no duplica avisos. Pararlo: `pkill -x gi
   de órdenes contiene ese texto (un `bash -c '…'`, o la herramienta de un agente) se mata también
   a sí mismo antes de relanzar nada.
 
-Compilar e instalar: `eventd/instalar.sh` o `bash install.sh --solo eventd` (pasan los tests
+Compilar e instalar: `eventd/instalar.sh` o `bash install.sh` (pasan los tests
 antes; `preflight.sh --installed` avisa si el binario es más viejo que `eventd/src`); quitar:
 `eventd/instalar.sh --quitar`. Para comparar con el bash sin avisos duplicados:
 `GIGISHELL_EVENTD=0` al lanzar el monitor y, a la vez, `gigishell-eventd --simular`, que imprime
