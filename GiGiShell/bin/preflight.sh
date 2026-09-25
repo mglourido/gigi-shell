@@ -806,9 +806,33 @@ EOF
         [[ -f "$otro" ]] || continue
         [[ "$(basename "$otro")" > "zz-gigishell.conf" ]] || continue
         if grep -qE '^[[:space:]]*(Current|User|Session|InputMethod)[[:space:]]*=' "$otro"; then
-          warn "$otro se lee DESPUÉS de zz-gigishell.conf y fija claves nuestras: manda él (revisalo o borralo)"
+          warn "$otro se lee DESPUÉS de zz-gigishell.conf y fija claves nuestras: manda él (revísalo o bórralo)"
         fi
       done
+      if [[ -r /etc/sddm.conf ]]; then
+        claves_globales="$(awk -F= '
+          /^[[:space:]]*[#;]/ { next }
+          {
+            campo = $1
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", campo)
+            if (campo == "Current" || campo == "User" || campo == "Session" || campo == "InputMethod")
+              encontradas[campo] = 1
+          }
+          END {
+            separador = ""
+            for (i = 1; i <= 4; i++) {
+              clave = (i == 1 ? "Current" : i == 2 ? "User" : i == 3 ? "Session" : "InputMethod")
+              if (encontradas[clave]) {
+                printf "%s%s", separador, clave
+                separador = ", "
+              }
+            }
+          }
+        ' /etc/sddm.conf 2>/dev/null)"
+        if [[ -n "$claves_globales" ]]; then
+          warn "/etc/sddm.conf fija $claves_globales y tiene precedencia sobre zz-gigishell.conf; esos valores podrían prevalecer. Revísalo."
+        fi
+      fi
       if [[ -e /etc/sddm.conf.d/99-gigios.conf ]]; then
         warn "queda /etc/sddm.conf.d/99-gigios.conf, de una instalación vieja y con el nombre malo (bash ~/GiGiShell/install.sh lo retira)"
       fi
