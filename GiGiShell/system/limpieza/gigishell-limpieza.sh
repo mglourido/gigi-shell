@@ -52,7 +52,7 @@ case "${1:-}" in
     # salía 0 y la sección aseguraba que no hay instantáneas cuando sí las hay.
     instantaneas)
         if command -v snapper >/dev/null 2>&1; then
-            n=$(snapper --machine-readable csv list 2>/dev/null | tail -n +2 | grep -c . || true)
+            n=$(snapper --machine-readable csv list 2>/dev/null | awk 'NR > 1 && length($0) > 0 { n++ } END { print n+0 }' || true)
             [[ "$n" =~ ^[0-9]+$ ]] && { echo "$n"; exit 0; }
         fi
         if command -v btrfs >/dev/null 2>&1; then
@@ -71,8 +71,8 @@ case "${1:-}" in
     paccache)
         command -v paccache >/dev/null 2>&1 || { echo "falta paccache (pacman-contrib)" >&2; exit 1; }
         antes=$(_tam /var/cache/pacman/pkg)
-        paccache -rk1 >/dev/null 2>&1
-        paccache -ruk0 >/dev/null 2>&1
+        paccache -rk1 >/dev/null 2>&1 || { echo "paccache -rk1 falló" >&2; exit 1; }
+        paccache -ruk0 >/dev/null 2>&1 || { echo "paccache -ruk0 falló" >&2; exit 1; }
         despues=$(_tam /var/cache/pacman/pkg)
         echo $((antes - despues))
         ;;
@@ -86,7 +86,7 @@ case "${1:-}" in
         [[ "$retener" =~ ^[0-9]+[KMG]$ ]] || { echo "tamaño inválido: $retener" >&2; exit 2; }
         command -v journalctl >/dev/null 2>&1 || { echo "falta journalctl" >&2; exit 1; }
         antes=$(_tam /var/log/journal)
-        journalctl --vacuum-size="$retener" >/dev/null 2>&1
+        journalctl --vacuum-size="$retener" >/dev/null 2>&1 || { echo "journalctl --vacuum-size falló" >&2; exit 1; }
         despues=$(_tam /var/log/journal)
         echo $((antes - despues))
         ;;
@@ -98,7 +98,7 @@ case "${1:-}" in
     # que un instalador esté usando ahora mismo.
     tmp)
         antes=$(_tam /var/tmp)
-        find /var/tmp -xdev -mindepth 1 -mtime +1 -delete 2>/dev/null
+        find /var/tmp -xdev -mindepth 1 -mtime +1 -delete 2>/dev/null || { echo "find /var/tmp falló" >&2; exit 1; }
         despues=$(_tam /var/tmp)
         echo $((antes - despues))
         ;;
@@ -108,7 +108,23 @@ case "${1:-}" in
     # objetivos es un error de uso y quedaría como un fallo de la limpieza.
     huerfanos)
         command -v pacman >/dev/null 2>&1 || { echo "falta pacman" >&2; exit 1; }
-        mapfile -t orfanos < <(pacman -Qtdq 2>/dev/null)
+        salida=$(pacman -Qtdq 2>/dev/null)
+        rc=$?
+        if ((rc != 0)); then
+            # pacman devuelve rc=1 también cuando la consulta -Qdt no encuentra
+            # huérfanos. Comprueba que la BD local responde antes de tratarlo como vacío.
+            if ((rc == 1)) && [[ -z "$salida" ]] && pacman -Qq >/dev/null 2>&1; then
+                rc=0 # Consulta válida sin paquetes huérfanos.
+            else
+                echo "pacman -Qtdq falló" >&2
+                exit 1
+            fi
+        fi
+        if [[ -n "$salida" ]]; then
+            mapfile -t orfanos <<< "$salida"
+        else
+            orfanos=()
+        fi
         ((${#orfanos[@]} == 0)) && { echo 0; exit 0; }
         # El tamaño se mide ANTES de borrar, con los paquetes aún instalados:
         # después ya no hay a quién preguntarle cuánto ocupaban.
