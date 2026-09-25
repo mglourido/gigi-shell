@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Comprueba tests y ejecutables disfrazados entre los archivos versionados.
-# También optimiza los PNG de Wallpapers antes de permitir un push.
+# También optimiza los PNG modificados de Wallpapers antes de permitir un push.
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -32,17 +32,60 @@ fi
 shopt -s nullglob
 fondos=("$GIGISHELL"/Wallpapers/*.png)
 if ((${#fondos[@]})); then
-  if ! command -v oxipng >/dev/null 2>&1; then
-    echo "verify-files: falta oxipng; en Arch/CachyOS instálalo con: sudo pacman -S --needed oxipng" >&2
-    exit 1
+  cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell"
+  ruta_hash="$(printf '%s' "$GIGISHELL/Wallpapers" | sha256sum)"
+  cache_archivo="$cache_dir/wallpapers-${ruta_hash%% *}.sha256"
+  declare -A hashes_cache=()
+  if [[ -r "$cache_archivo" ]]; then
+    while IFS=$'\t' read -r hash nombre; do
+      [[ -n "$hash" && -n "$nombre" ]] && hashes_cache["$nombre"]="$hash"
+    done < "$cache_archivo"
   fi
 
-  oxipng -o 6 "${fondos[@]}"
+  fondos_cambiados=()
+  declare -A nombres_actuales=()
+  for archivo in "${fondos[@]}"; do
+    nombre="${archivo##*/}"
+    nombres_actuales["$nombre"]=1
+    resultado_hash="$(sha256sum -- "$archivo")"
+    hash="${resultado_hash%% *}"
+    if [[ "${hashes_cache[$nombre]:-}" != "$hash" ]]; then
+      fondos_cambiados+=("$archivo")
+    fi
+  done
+
+  cache_desactualizada=0
+  if ((${#nombres_actuales[@]} != ${#hashes_cache[@]})); then
+    cache_desactualizada=1
+  fi
+
+  if ((${#fondos_cambiados[@]})); then
+    if ! command -v oxipng >/dev/null 2>&1; then
+      echo "verify-files: falta oxipng; en Arch/CachyOS instálalo con: sudo pacman -S --needed oxipng" >&2
+      exit 1
+    fi
+
+    oxipng -o 6 "${fondos_cambiados[@]}"
+  fi
+
+  if ((${#fondos_cambiados[@]})) || ((cache_desactualizada)); then
+    # Guarda hashes posteriores a la optimización para no repetirla en el push
+    # que sigue al commit de los cambios. El renombrado publica el manifiesto
+    # completo de una vez y elimina de la caché los fondos que se borraron.
+    mkdir -p -- "$cache_dir"
+    cache_temporal="$(mktemp "$cache_archivo.XXXXXX")"
+    for archivo in "${fondos[@]}"; do
+      nombre="${archivo##*/}"
+      resultado_hash="$(sha256sum -- "$archivo")"
+      printf '%s\t%s\n' "${resultado_hash%% *}" "$nombre" >> "$cache_temporal"
+    done
+    mv -f -- "$cache_temporal" "$cache_archivo"
+  fi
 
   repo_root="$(git rev-parse --show-toplevel)"
   wallpapers_rel="$(realpath --relative-to="$repo_root" "$GIGISHELL/Wallpapers")"
   if ! git diff --quiet -- "$wallpapers_rel"; then
-    echo "verify-files: oxipng optimizó fondos; crea un commit con esos cambios y vuelve a hacer push." >&2
+    echo "verify-files: oxipng optimizó fondos; crea un commit con esos cambios y vuelve a hacer push (la caché evitará repetir la optimización)." >&2
     exit 1
   fi
 fi

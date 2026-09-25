@@ -531,9 +531,11 @@ sudo freshclam
 - `xdg-user-dirs` permite encontrar `~/Descargas` aunque el sistema use otro idioma.
 - `file` lo usa `bin/verify-files.sh` para detectar ejecutables disfrazados por sus
   magic bytes antes de cada `git push`.
-- `oxipng` optimiza sin pérdida los PNG de `Wallpapers/` antes de cada `git push`.
-  Si la optimización cambia algún fondo, el hook detiene ese push para que puedas
-  incluir el resultado en un commit. En Arch/CachyOS se instala con:
+- `oxipng` optimiza sin pérdida los PNG nuevos o modificados de `Wallpapers/` antes
+  de un `git push`. Guarda sus hashes en `~/.cache/gigishell/`; si la optimización
+  cambia algún fondo, el hook detiene ese push para que puedas incluir el resultado
+  en un commit, y el siguiente intento no vuelve a optimizarlo. En Arch/CachyOS
+  se instala con:
 
   ```sh
   sudo pacman -S --needed oxipng
