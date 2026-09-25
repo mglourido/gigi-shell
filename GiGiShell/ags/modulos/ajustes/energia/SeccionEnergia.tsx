@@ -1,6 +1,7 @@
 // modulos/ajustes/energia/SeccionEnergia.tsx
 // Sección de energía: umbral y funciones que se suspenden durante el ahorro.
 import { Gtk } from "ags/gtk4"
+import GLib from "gi://GLib"
 import Pango from "gi://Pango"
 import { createComputed, onCleanup } from "ags"
 import { InlineEditableValue } from "../../../componentes/InlineEditableValue"
@@ -35,7 +36,13 @@ import {
   accionesEnergiaOcultas, botonApagado, setAccionEnergiaOculta, setBotonApagado,
   accionTapa, setAccionTapa,
   tapaIgnorarConPantallaExterna, setTapaIgnorarConPantallaExterna,
+  apagadoPreventivo, setApagadoPreventivo,
+  apagadoPreventivoPct, setApagadoPreventivoPct,
+  apagadoPreventivoAccion, setApagadoPreventivoAccion,
+  APAGADO_PREVENTIVO_MIN, APAGADO_PREVENTIVO_MAX,
+  type AccionApagadoPreventivo,
 } from "../preferences.ts"
+import { comprobarHibernacion, hibernacionActivable, hibernacionMotivo } from "../../../servicios/energia/hibernacion.ts"
 import { ACCIONES_ENERGIA, accionesVisibles } from "../../menu-energia/acciones"
 import {
   ACCIONES_BOTON_ENCENDIDO,
@@ -52,8 +59,8 @@ import {
 } from "../../../servicios/energia/tapaPortatil.ts"
 import { DisplaySelect } from "../../../servicios/pantalla/controls"
 
-/** Deslizador 0..100 atado a un estado de `powerState`. Lo comparten el umbral de batería
- *  y el brillo del ahorro: los dos son un porcentaje entero con la misma presentación.
+/** Deslizador de porcentaje entero atado a un estado. Lo comparten el umbral de batería,
+ *  el brillo del ahorro y el apagado preventivo. Lo comparten el umbral de batería
  *  `minimo` existe porque el brillo no puede llegar a 0 (dejaría la pantalla apagada sin
  *  nada visible con lo que volver a subirla), mientras que en el umbral el 0 significa
  *  "desactivado" y sí es un valor legítimo. */
@@ -61,8 +68,9 @@ function DeslizadorPorcentaje(
   valor: typeof powerSaveThreshold,
   fijar: (v: number) => void,
   minimo = 0,
+  maximo = 100,
 ): Gtk.Scale {
-  const adj = new Gtk.Adjustment({ lower: minimo, upper: 100, stepIncrement: 1, pageIncrement: 5 })
+  const adj = new Gtk.Adjustment({ lower: minimo, upper: maximo, stepIncrement: 1, pageIncrement: 5 })
   adj.value = valor.get()
   onCleanup(valor.subscribe(() => {
     if (adj.value !== valor.get()) adj.value = valor.get()
@@ -71,6 +79,87 @@ function DeslizadorPorcentaje(
   scale.cssClasses = ["qs-slider", "brightness"]
   conectarCambioDeslizador(scale, fijar)
   return scale
+}
+
+/** Mismo criterio que battery-monitor.sh, que sale sin BAT0: sin batería del sistema no
+ *  hay nada que apagar a tiempo (un ratón inalámbrico también publica power_supply). */
+const hayBateria = GLib.file_test("/sys/class/power_supply/BAT0", GLib.FileTest.IS_DIR)
+
+/**
+ * Apagado preventivo. Aquí solo se guarda la elección: quien la ejecuta es
+ * `hypr/scripts/battery-monitor.sh`, que relee las dos claves en vivo por debajo del
+ * 20 % y lanza `apagado-preventivo.sh` (aviso cancelable, cierre ordenado de ventanas y
+ * poweroff, o hibernar). No depende de AGS ni del interruptor «Monitor de batería»:
+ * ese solo silencia los avisos del monitor, no lo mata.
+ *
+ * «Hibernar» se deja elegir aunque el equipo no pueda: el aviso dice por qué y que en
+ * su lugar se apagará, que es lo que hará el script. Bloquear el botón escondería el
+ * motivo; el remedio (el botón «Preparar hibernación…») vive en Ajustes > Pantalla > Suspensión.
+ */
+function TarjetaApagadoPreventivo() {
+  comprobarHibernacion()
+  const avisoHibernar = createComputed(() =>
+    apagadoPreventivoAccion() === "hibernar" && !hibernacionActivable()
+  )
+  return (
+    <TarjetaAjustes titulo={textos.grupos.apagadoPreventivo} icono="󰂃">
+      <AjusteInterruptor
+        titulo={textos.apagadoPreventivo.titulo}
+        informacion={textos.apagadoPreventivo.descripcion}
+        activo={apagadoPreventivo}
+        alAlternar={() => setApagadoPreventivo(!apagadoPreventivo.get())}
+      />
+      <box
+        orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand
+        visible={apagadoPreventivo}
+      >
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <TituloAjuste label={textos.apagadoPreventivo.umbral} hexpand halign={Gtk.Align.START} />
+          <InlineEditableValue
+            display={apagadoPreventivoPct((v) => `${Math.round(v)} %`)}
+            getValue={() => apagadoPreventivoPct.get()}
+            onCommit={setApagadoPreventivoPct}
+            min={APAGADO_PREVENTIVO_MIN} max={APAGADO_PREVENTIVO_MAX}
+            labelClass="sp-field-value"
+            tooltip={textos.apagadoPreventivo.tooltip}
+          />
+        </box>
+        {DeslizadorPorcentaje(
+          apagadoPreventivoPct, setApagadoPreventivoPct,
+          APAGADO_PREVENTIVO_MIN, APAGADO_PREVENTIVO_MAX,
+        ) as unknown as any}
+        <TextoInformativo label={textos.apagadoPreventivo.minimo} halign={Gtk.Align.START} wrap />
+      </box>
+      <box
+        orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand
+        visible={apagadoPreventivo}
+      >
+        <box spacing={8} valign={Gtk.Align.CENTER}>
+          <TituloAjuste label={textos.apagadoPreventivo.accion} hexpand halign={Gtk.Align.START} />
+          <Segmentado
+            current={apagadoPreventivoAccion}
+            onSelect={(v) => setApagadoPreventivoAccion(v as AccionApagadoPreventivo)}
+            options={[
+              { value: "apagar", label: textos.apagadoPreventivo.apagar },
+              { value: "hibernar", label: textos.apagadoPreventivo.hibernar },
+            ]}
+          />
+        </box>
+        <TextoInformativo
+          label={apagadoPreventivoAccion((a) => a === "hibernar"
+            ? textos.apagadoPreventivo.descripcionHibernar
+            : textos.apagadoPreventivo.descripcionApagar)}
+          halign={Gtk.Align.START} wrap
+        />
+        <TextoInformativo
+          visible={avisoHibernar}
+          label={hibernacionMotivo((m) => `${textos.apagadoPreventivo.sinHibernacion} ${m}`)}
+          cssClasses={["sp-field-hint-warn"]}
+          halign={Gtk.Align.START} wrap
+        />
+      </box>
+    </TarjetaAjustes>
+  )
 }
 
 const etiquetaAccion = (accion: AccionBotonEncendido) =>
@@ -290,6 +379,9 @@ export default function SeccionEnergia() {
         </box>
         <AjusteInterruptor titulo={textos.forzar.titulo} informacion={textos.forzar.descripcion} activo={forcePowerSave} alAlternar={() => setForcePowerSave(!forcePowerSave.get())} />
       </TarjetaAjustes>
+
+      {/* Ternario con `<></>` y no `&&` (ver la nota de TLP, justo debajo). */}
+      {hayBateria ? <TarjetaApagadoPreventivo /> : <></>}
 
       {/* Ternario con `<></>` y no `&&`: ver la nota larga en `SuspensionFalsa.tsx`. Con la
           rama falsa, `&&` deja el booleano `false` como hijo del árbol y el runtime de gnim

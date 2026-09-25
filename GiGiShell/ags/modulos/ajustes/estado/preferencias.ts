@@ -229,6 +229,8 @@ export function barTopMargin(px: number, offPx = 0) {
 // Monitor de batería (scripts/battery-monitor.sh): el propio script bash lee
 // este valor UNA sola vez al arrancar (no hay polling desde bash), así que un
 // cambio aquí solo se aplica reiniciando el script/Hyprland. Default: activado.
+// Apagado SOLO silencia los avisos: el script sigue vivo porque de él cuelga el
+// apagado preventivo (`apagadoPreventivo`, más abajo), que es un ajuste aparte.
 const [batteryMonitorEnabled, _setBatteryMonitorEnabled] = createState(true)
 export { batteryMonitorEnabled }
 
@@ -436,6 +438,34 @@ export { accionTapa }
 const [tapaIgnorarConPantallaExterna, _setTapaIgnorarConPantallaExterna] = createState(true)
 export { tapaIgnorarConPantallaExterna }
 
+// Apagado preventivo (Ajustes > Energía): al bajar a este porcentaje descargando,
+// hypr/scripts/battery-monitor.sh lanza apagado-preventivo.sh (aviso con cuenta atrás
+// cancelable, cierre ordenado de ventanas y poweroff). El monitor relee las dos claves
+// (y la acción, más abajo) en vivo por debajo del 20 %, así que los setters solo persisten. De fábrica ENCENDIDO al
+// 3 %: justo por encima de la acción crítica de UPower (`PercentageAction`, 2 %), que es
+// un corte sin aviso — por debajo de ese mínimo el ajuste nunca llegaría a actuar.
+// El máximo tiene que coincidir con APAGADO_TECHO de battery-monitor.sh.
+export const APAGADO_PREVENTIVO_MIN = 3
+export const APAGADO_PREVENTIVO_MAX = 20
+const [apagadoPreventivo, _setApagadoPreventivo] = createState(true)
+export { apagadoPreventivo }
+const [apagadoPreventivoPct, _setApagadoPreventivoPct] = createState(3)
+export { apagadoPreventivoPct }
+
+const clampApagadoPreventivoPct = (valor: number): number =>
+  Math.max(APAGADO_PREVENTIVO_MIN, Math.min(APAGADO_PREVENTIVO_MAX, Math.round(valor)))
+
+// Qué hace el apagado preventivo al llegar: apagar (cerrando antes las ventanas) o
+// hibernar. De fábrica "apagar", que funciona en cualquier equipo; hibernar necesita
+// el paso `hibernacion` del instalador. Si se elige sin estar disponible, el script
+// lo comprueba antes del aviso y apaga — nunca se queda sin hacer nada.
+export type AccionApagadoPreventivo = "apagar" | "hibernar"
+const normalizarAccionApagadoPreventivo = (valor: unknown): AccionApagadoPreventivo =>
+  valor === "hibernar" ? "hibernar" : "apagar"
+const [apagadoPreventivoAccion, _setApagadoPreventivoAccion] =
+  createState<AccionApagadoPreventivo>("apagar")
+export { apagadoPreventivoAccion }
+
 // Acciones retiradas del menú de energía (ids de modulos/menu-energia/acciones.ts).
 // Se guardan las OCULTAS y no las visibles a propósito: así una acción nueva aparece
 // sola en los perfiles que ya existen, en vez de quedarse invisible por no estar en
@@ -578,6 +608,11 @@ function load() {
     // cualquier cosa que no sea una acción conocida (ausente incluida).
     _setBotonApagado(normalizarAccionBotonEncendido(saved.botonApagado))
     _setAccionTapa(normalizarAccionTapa(saved.accionTapa))
+    if (typeof saved.apagadoPreventivo === "boolean") _setApagadoPreventivo(saved.apagadoPreventivo)
+    if (typeof saved.apagadoPreventivoPct === "number" && Number.isFinite(saved.apagadoPreventivoPct)) {
+      _setApagadoPreventivoPct(clampApagadoPreventivoPct(saved.apagadoPreventivoPct))
+    }
+    _setApagadoPreventivoAccion(normalizarAccionApagadoPreventivo(saved.apagadoPreventivoAccion))
     if (typeof saved.tapaIgnorarConPantallaExterna === "boolean") {
       _setTapaIgnorarConPantallaExterna(saved.tapaIgnorarConPantallaExterna)
     }
@@ -647,6 +682,9 @@ function save() {
       botonApagado: botonApagado.get(),
       accionTapa: accionTapa.get(),
       tapaIgnorarConPantallaExterna: tapaIgnorarConPantallaExterna.get(),
+      apagadoPreventivo: apagadoPreventivo.get(),
+      apagadoPreventivoPct: apagadoPreventivoPct.get(),
+      apagadoPreventivoAccion: apagadoPreventivoAccion.get(),
       accionesEnergiaOcultas: accionesEnergiaOcultas.get(),
     }
     GLib.file_set_contents(PREFS_PATH, JSON.stringify(config, null, 2))
@@ -938,6 +976,26 @@ export function setAccionTapa(accion: AccionTapa) {
 export function setTapaIgnorarConPantallaExterna(on: boolean) {
   if (tapaIgnorarConPantallaExterna.get() === on) return
   _setTapaIgnorarConPantallaExterna(on)
+  save()
+}
+export function setApagadoPreventivoAccion(accion: AccionApagadoPreventivo) {
+  const siguiente = normalizarAccionApagadoPreventivo(accion)
+  if (apagadoPreventivoAccion.get() === siguiente) return
+  _setApagadoPreventivoAccion(siguiente)
+  save()
+}
+// Sin relanzar nada: battery-monitor.sh relee las tres claves en cada comprobación
+// por debajo del 20 %.
+export function setApagadoPreventivo(on: boolean) {
+  if (apagadoPreventivo.get() === on) return
+  _setApagadoPreventivo(on)
+  save()
+}
+export function setApagadoPreventivoPct(valor: number) {
+  if (!Number.isFinite(valor)) return
+  const pct = clampApagadoPreventivoPct(valor)
+  if (apagadoPreventivoPct.get() === pct) return
+  _setApagadoPreventivoPct(pct)
   save()
 }
 /** Muestra u oculta una acción del menú de energía. Si el cambio dejaría el menú

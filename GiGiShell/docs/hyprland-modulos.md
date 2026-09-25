@@ -4332,6 +4332,38 @@ largo con margen de sobra) para reducir despertares. Los tres leen su interrupto
   (`prev_status=""`) se trata como válido en vez de como un caso aparte, para no disparar un falso
   "cargador desconectado" en el login. La detección de "carga completa" cubre tanto `status=Full`
   como `Charging` al 100 % — hay baterías que nunca reportan `Full`.
+
+  **Apagado preventivo** (Ajustes > Energía, `apagadoPreventivo`/`apagadoPreventivoPct` en
+  `preferences.json`, encendido al 3 % de fábrica). Al llegar a ese porcentaje descargando, el
+  monitor lanza `apagado-preventivo.sh` con `setsid` (un `pkill` del monitor no debe cancelar un
+  apagado en curso): notificación crítica con botón «Cancelar» y 60 s de cuenta atrás, cierre
+  ordenado de todas las ventanas por `hl.dsp.window.close` (lo que deja a cada app guardar su
+  sesión o preguntar por lo no guardado; se espera hasta 20 s) y `systemctl poweroff`. Enchufar
+  el cargador aborta en cualquier punto anterior al apagado. El disparo queda latcheado hasta que
+  el equipo cargue, así que un «Cancelar» vale hasta entonces.
+
+  **Apagar o hibernar** (`apagadoPreventivoAccion`, `"apagar"` de fábrica). Con `"hibernar"` no se
+  cierran las ventanas —es justo lo que hibernar evita— y se llama a `systemctl hibernate`. La
+  disponibilidad se pregunta ANTES del aviso (`gigishell-hibernacion estado`, o `CanHibernate` de
+  logind sin el helper), para que la notificación diga lo que va a pasar: si no se puede, se apaga
+  y el aviso lo dice. Si `systemctl hibernate` falla igualmente, se cae al apagado ordenado. Ojo:
+  **`systemctl hibernate` devuelve 0 al DESPERTAR**, así que tras él el script sale — seguir
+  apagaría el equipo recién restaurado. Ajustes deja elegir «Hibernar» aunque no esté disponible,
+  con el motivo y el «se apagará» escritos debajo, en vez de bloquear el botón y esconder el porqué.
+
+  Tres cosas no obvias:
+  - **El interruptor «Monitor de batería» ya NO mata el script**, solo silencia sus avisos. Antes
+    salía al arrancar, y colgar el apagado de él habría dejado el equipo sin apagado preventivo
+    por haber quitado unas notificaciones, sin ningún síntoma hasta agotar la batería. Sin `BAT0`
+    (sobremesa) sí sale.
+  - **El mínimo es 3 % por UPower**: su `PercentageAction` (2 % de fábrica, `/etc/UPower/UPower.conf`)
+    es un corte sin aviso; con un umbral igual o menor, UPower actuaría primero y este ajuste
+    nunca llegaría a verse. El máximo (20 %) es `APAGADO_TECHO` del monitor: por encima ni se lee
+    la preferencia, para no pagar un fork de `jq` en marcha normal — si se sube uno hay que subir
+    el otro.
+  - **El `notify-send --wait` en segundo plano cierra el descriptor del `flock` (`exec 9>&-`)**:
+    heredado, retenía el cerrojo hasta que la notificación caducaba y bloqueaba en silencio el
+    siguiente disparo tras un apagado cancelado al enchufar.
 - **`temp-monitor.sh`** — resuelve la ruta sysfs de `coretemp` ("Package id 0") **una sola vez** al
   arrancar, no en cada vuelta; la GPU usa `nvidia-smi` (este driver no expone temperatura por hwmon
   en esta máquina) solo si está presente. Histéresis 85 °C/80 °C, sondeo 15 s cerca del umbral, 60 s

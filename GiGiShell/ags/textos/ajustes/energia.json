@@ -12,7 +12,8 @@
     "suspensionFalsaApps": "Apps que se congelan en la suspensión falsa",
     "botonEncendido": "Botón de encendido",
     "menuEnergia": "Menú de energía",
-    "tapa": "Tapa del portátil"
+    "tapa": "Tapa del portátil",
+    "apagadoPreventivo": "Apagado preventivo"
   },
   "estado": {
     "sinBateria": "Sin batería detectada",
@@ -218,5 +219,18 @@
   "ondaSpotify": {
     "titulo": "Onda de Spotify sin analizar el audio",
     "descripcion": "Durante el ahorro, la onda deja de seguir la música y vuelve a su animación propia, sin capturar audio ni lanzar ningún proceso. Se sigue viendo y moviéndose. Solo se nota si el reproductor no está oculto por el ajuste anterior."
+  },
+  "apagadoPreventivo": {
+    "titulo": "Apagar antes de agotar la batería",
+    "descripcion": "Al llegar a este porcentaje sin cargador, avisa y deja 60 s para guardar o enchufar (con opción de cancelar) antes de apagar o hibernar. Conectar el cargador lo cancela en cualquier momento.",
+    "umbral": "Apagar al bajar de",
+    "tooltip": "Editar porcentaje de apagado",
+    "minimo": "El mínimo es 3 %: por debajo actúa antes la acción crítica del sistema (UPower), que apaga de golpe sin avisar.",
+    "accion": "Al llegar",
+    "apagar": "Apagar",
+    "hibernar": "Hibernar",
+    "descripcionApagar": "Cierra las ventanas para que cada app guarde lo suyo y apaga el equipo.",
+    "descripcionHibernar": "Guarda la sesión entera en disco y apaga: al encender, todo sigue abierto como estaba. Si hibernar falla, se cierran las ventanas y se apaga.",
+    "sinHibernacion": "Este equipo no puede hibernar ahora, así que se apagará."
   }
 }

@@ -81,6 +81,10 @@ export const CATALOGO_SISTEMA: EventoSistema[] = [
   ev("bateria.descargando", "energia", "battery-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("bateria.completa", "energia", "battery-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("bateria.modo-ahorro", "energia", "battery-monitor.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
+  // El popup dura lo mismo que la cuenta atrás (CUENTA_SECS del script): lleva el botón
+  // «Cancelar», y con los 10 s de un aviso normal desaparecería cuando aún sirve.
+  ev("bateria.apagado-preventivo", "energia", "apagado-preventivo.sh", { clearOnBoot: true, popupMs: 60_000 }),
+  ev("bateria.apagado-cancelado", "energia", "apagado-preventivo.sh", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("energia.perfil-tlp", "energia", "servicios/energia/tlp.ts", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("juegos.modo-juego", "energia", "servicios/energia/gamemode.ts", { clearOnBoot: true, popupMs: BREVE_MS }),
   ev("energia.wake-up-fin", "energia", "servicios/energia/mantenerDespierto.ts", { clearOnBoot: true, popupMs: BREVE_MS }),

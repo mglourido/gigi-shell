@@ -47,6 +47,7 @@ THRESHOLD_REFRESH_SECS=600   # re-read power-save config at most every 10min
 # Red de seguridad del bucle por eventos (ver cabecera). Solo entra en juego si el
 # driver no emitió el uevent que tocaba; en marcha normal nunca vence.
 SAFETY_ACTIVE=180  # discharging and near/under a threshold — keep it responsive
+SAFETY_CRITICO=45  # a pocos puntos del apagado preventivo
 SAFETY_IDLE=600    # discharging but comfortably above every threshold
 SAFETY_CHARGING=900 # charging (not yet full) or already full — nothing urgent
 COALESCE_SECS=2    # ventana para agrupar la ráfaga de uevents de un mismo hecho
@@ -63,16 +64,39 @@ prev_status=""
 power_save_threshold=$DEFAULT_POWER_SAVE_THRESHOLD
 last_threshold_check=-$THRESHOLD_REFRESH_SECS
 
+# Sin batería (sobremesa) no hay nada que vigilar.
+[[ -d "$BATTERY" ]] || exit 0
+
 # Ajuste "Monitor de batería" en Personalización (ags). Se lee UNA sola vez
 # aquí al arrancar — nada de polling — así que activar/desactivar el ajuste
 # solo surte efecto reiniciando este script (o en el próximo login).
+#
+# Apagarlo SILENCIA los avisos pero ya no mata el script: el apagado preventivo
+# (Ajustes > Energía) cuelga de este mismo bucle y es un ajuste aparte. Salir aquí
+# dejaba el equipo sin apagado preventivo por haber quitado unas notificaciones,
+# que es justo el fallo que no se ve hasta que la batería se agota.
+avisos=true
 if command -v jq >/dev/null 2>&1; then
     # NB: plain `.batteryMonitor // "true"` would be wrong — jq's `//` treats a
     # literal `false` as absent too, so it'd always resolve to "true".
     enabled=$(jq -r 'if has("batteryMonitor") then (.batteryMonitor|tostring) else "true" end' \
         "$AGS_PREFS_CONFIG" 2>/dev/null)
-    [[ "$enabled" == "false" ]] && exit 0
+    [[ "$enabled" == "false" ]] && avisos=false
 fi
+
+# ── Apagado preventivo ────────────────────────────────────────────────────────
+# Al llegar a `apagadoPreventivoPct` descargando, lanza apagado-preventivo.sh (aviso,
+# cuenta atrás cancelable, cierre ordenado de ventanas y poweroff). La preferencia se
+# relee EN VIVO, pero solo con la batería por debajo de APAGADO_TECHO: por encima
+# ningún valor del ajuste puede dispararse, así que no se paga ni un fork de jq en
+# marcha normal. El disparo se latchea hasta que el equipo cargue — un «Cancelar»
+# del usuario tiene que valer hasta entonces, no hasta el siguiente uevent.
+APAGADO_SCRIPT="$HOME/.config/hypr/scripts/apagado-preventivo.sh"
+APAGADO_TECHO=20            # = PREVENTIVO_MAX de ags (modulos/ajustes/estado/preferencias.ts)
+DEFAULT_APAGADO_PCT=3
+apagado_lanzado=false
+apagado_pct=0               # 0 = desactivado; lo fija leer_apagado
+apagado_accion=apagar       # apagar | hibernar; lo fija leer_apagado
 
 # [A] Read every sysfs value once per tick with bash built-in redirects —
 #     no subprocess forks; get_capacity and get_time_label use these globals.
@@ -144,12 +168,30 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
 fi
 
 send_notif() {
+    [[ "$avisos" == true ]] || return 0
     local evento=$1 urgency=$2 icon=$3 title=$4 body=$5
     notificar "$evento" \
         --urgency="$urgency" \
         --icon="$icon" \
         --expire-time=12000 \
         "$title" "$body"
+}
+
+# Deja en $apagado_pct el umbral vigente (0 si está desactivado) y en
+# $apagado_accion qué hacer al llegar. Solo se llama
+# por debajo de APAGADO_TECHO, así que el fork de jq no toca la marcha normal.
+leer_apagado() {
+    local v
+    v=$(jq -r '[(if has("apagadoPreventivo") then .apagadoPreventivo else true end),
+                (.apagadoPreventivoPct // '"$DEFAULT_APAGADO_PCT"'),
+                (.apagadoPreventivoAccion // "apagar")] | @tsv' \
+        "$AGS_PREFS_CONFIG" 2>/dev/null) || v=""
+    local on pct accion
+    IFS=$'\t' read -r on pct accion <<< "$v"
+    [[ -z "$v" ]] && { on=true; pct=$DEFAULT_APAGADO_PCT; }
+    [[ "$pct" =~ ^[0-9]+$ ]] || pct=$DEFAULT_APAGADO_PCT
+    [[ "$accion" == hibernar ]] && apagado_accion=hibernar || apagado_accion=apagar
+    if [[ "$on" == false ]]; then apagado_pct=0; else apagado_pct=$pct; fi
 }
 
 # Una pasada completa: lee sysfs y dispara lo que haya que disparar. Sin efectos
@@ -188,6 +230,8 @@ check_battery() {
                 ;;
         esac
     fi
+    # Cualquier estado que no sea descargar rearma el apagado preventivo.
+    [[ "$status" != "Discharging" ]] && apagado_lanzado=false
 
     # [D] Full-charge check unified — covers both Full status and Charging@100%.
     if [[ "$charged_notified" == false ]] && \
@@ -228,6 +272,17 @@ check_battery() {
         # Within 10 points of the power-save threshold (or already under any
         # low-battery threshold) → keep the finer poll interval for accuracy.
         (( capacity <= power_save_threshold + 10 )) && near_threshold=true
+
+        if (( capacity <= APAGADO_TECHO )); then
+            near_threshold=true
+            leer_apagado
+            if [[ "$apagado_lanzado" == false ]] && (( apagado_pct > 0 && capacity <= apagado_pct )); then
+                apagado_lanzado=true
+                # setsid: la cuenta atrás no puede morir con este monitor (un pkill
+                # del monitor durante esos segundos no debe cancelar el apagado).
+                setsid -f "$APAGADO_SCRIPT" "$capacity" "$apagado_accion" >/dev/null 2>&1
+            fi
+        fi
     fi
 
     prev_status=$status
@@ -256,7 +311,10 @@ poll_loop() {
 # un fork por vuelta del bucle, y este script no forkea salvo para notificar.
 safety_wait() {
     if [[ "$status" == "Discharging" ]]; then
-        if [[ "$near_threshold" == true ]]; then espera=$SAFETY_ACTIVE
+        # A pocos puntos del apagado preventivo quedan minutos de batería: tres
+        # minutos de red serían demasiados si el driver se salta un uevent.
+        if (( apagado_pct > 0 && capacity <= apagado_pct + 5 )); then espera=$SAFETY_CRITICO
+        elif [[ "$near_threshold" == true ]]; then espera=$SAFETY_ACTIVE
         else espera=$SAFETY_IDLE; fi
     else
         espera=$SAFETY_CHARGING

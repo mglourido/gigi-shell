@@ -214,7 +214,7 @@
   "monitores": {
     "bateria": {
       "titulo": "Monitor de batería",
-      "descripcion": "Avisa al conectar o desconectar el cargador, completar la carga y alcanzar niveles bajos."
+      "descripcion": "Avisa al conectar o desconectar el cargador, completar la carga y alcanzar niveles bajos. Desactivarlo no quita el apagado preventivo de Ajustes > Energía."
     },
     "temperatura": {
       "titulo": "Monitor de temperatura",

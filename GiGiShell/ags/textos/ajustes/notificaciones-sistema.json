@@ -36,6 +36,8 @@
     "bateria.descargando": "Cargador desconectado",
     "bateria.completa": "Carga completada",
     "bateria.modo-ahorro": "Modo ahorro activado",
+    "bateria.apagado-preventivo": "Apagado preventivo",
+    "bateria.apagado-cancelado": "Apagado preventivo cancelado",
     "energia.perfil-tlp": "Cambio de perfil TLP",
     "juegos.modo-juego": "Modo juego (GameMode)",
     "energia.wake-up-fin": "Fin del plazo de Wake up",

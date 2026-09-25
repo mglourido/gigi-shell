@@ -174,8 +174,10 @@ hl.on("hyprland.start", function()
   -- aún no la publica" (reintenta 30 s antes de avisar). Ver su cabecera.
   -- OJO al depurar: en un equipo SIN wifi (este sobremesa: solo enp4s0 +
   -- tailscale0) no aparece en `ps` y ES lo correcto. Lo mismo con
-  -- battery/temp-monitor, que salen solos si su toggle está en `false` en
-  -- preferences.json (aquí ambos lo están).
+  -- temp-monitor, que sale solo si su toggle está en `false` en
+  -- preferences.json, y con battery-monitor, que sale solo si no hay BAT0 (su
+  -- toggle ya no lo mata: solo silencia avisos, porque de él cuelga el apagado
+  -- preventivo).
   hl.exec_cmd("sleep 2 && ~/.config/hypr/scripts/wifi-monitor.sh")
   -- Screencast: necesita que PipeWire haya publicado sus nodos para que
   -- `pw-dump` vea algo.
