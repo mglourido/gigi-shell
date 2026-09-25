@@ -1180,7 +1180,8 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
       label: network.client.get_primary_connection()?.get_id() || "Ethernet",
       active: true,
     }
-    return { icon: "󰤨", label: wifi?.ssid || "Wi-Fi", active: wifi?.enabled ?? false }
+    const wifiActivo = !!wifi?.enabled && wifi.state === NET_DS.ACTIVATED
+    return { icon: "󰤨", label: wifiActivo ? wifi?.ssid || "Wi-Fi" : "Wi-Fi", active: wifi?.enabled ?? false }
   }
   const [netTile, setNetTile] = createState(computeNetTile())
   const syncNetTile = () => setNetTile(computeNetTile())
@@ -1190,6 +1191,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
   if (wifi) {
     wifi.connect("notify::ssid", syncNetTile)
     wifi.connect("notify::enabled", syncNetTile)
+    wifi.connect("notify::state", syncNetTile)
     wifi.connect("notify::strength", syncNetTile)
   }
   if (network.wired) {
@@ -1302,7 +1304,8 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           subtitleWidthRequest={96}
           active={netTile((t) => t.active)}
           onToggle={onWifiClick}
-          onRightClick={() => wifi && execAsync(["bash", "-c", wifi.enabled ? "nmcli radio wifi off" : "nmcli radio wifi on"])}
+          onRightClick={() => wifi && execAsync(["nmcli", "radio", "wifi", wifi.enabled ? "off" : "on"])
+            .catch((error) => console.error("WiFi Radio Error:", error))}
         />
         <QsTile
           icon={speakerVol && speakerMute ? speakerVol((v) => volIcon(v, speakerMute())) : "󰕾"}
@@ -4689,6 +4692,11 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   const network = AstalNetwork.get_default()
   const wifi = network.wifi
   const [scanning, setScanning] = createState(false)
+  const abrirEditorConexiones = () => {
+    execAsync("nm-connection-editor").catch((error) => {
+      console.error("No se pudo abrir el editor de conexiones:", error)
+    })
+  }
 
   if (!wifi) {
     const getWiredInfo = () => {
@@ -4719,7 +4727,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
         <QsMenuHeader title="Ethernet" onBack={onBack}>
           <button
             cssClasses={["qs-icon-btn"]}
-            onClicked={() => execAsync("nm-connection-editor")}
+            onClicked={abrirEditorConexiones}
           ><label label="󰒓" /></button>
         </QsMenuHeader>
         <label
@@ -4736,9 +4744,17 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   const [passwordTarget, setPasswordTarget] = createState<string | null>(null)
   const [passwordStr, setPasswordStr] = createState("")
   const [passwordError, setPasswordError] = createState(false)
-  const [wifiState, setWifiState] = createState({ ssid: wifi.ssid || "", connecting: null as string | null })
+  const [wifiNotice, setWifiNotice] = createState("")
+  const ssidConectado = () => wifi.enabled && wifi.state === AstalNetwork.DeviceState.ACTIVATED
+    ? wifi.ssid || ""
+    : ""
+  const [wifiState, setWifiState] = createState({ ssid: ssidConectado(), connecting: null as string | null })
   const [savedSsids, setSavedSsids] = createState<string[]>([])
   const [search, setSearch] = createState("")
+  // NetworkManager gestiona una activación por interfaz, pero dos órdenes
+  // solapadas desde la lista podían competir y dejar sus callbacks fuera de orden.
+  let conexionWifiEnCurso = false
+  let revisionIntentoWifi = 0
 
   const getBand = (freq: number) => {
     if (freq >= 5900) return "6GHz"
@@ -4747,9 +4763,37 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
     return "—"
   }
 
+  const perfilesWifi = async () => {
+    const salida = await execAsync(["nmcli", "-t", "-f", "UUID,TYPE", "connection", "show"])
+    return salida.split(/\r?\n/)
+      .map((linea) => linea.split(":"))
+      .filter((partes) => partes.length >= 2 && partes[0] && partes[1] === "802-11-wireless")
+      .map((partes) => partes[0])
+  }
+  const valorNmcli = (valor: string) => valor.replace(/\r?\n$/, "").replace(/\\([:\\])/g, "$1")
+  const propiedadPerfilWifi = async (uuid: string, propiedad: string) =>
+    valorNmcli(await execAsync(["nmcli", "-g", propiedad, "connection", "show", "uuid", uuid]))
+  const perfilesWifiConSeguridadPara = async (ssid: string, seguridades: string[]) => {
+    const perfiles = await perfilesWifi()
+    const coincidentes = await Promise.all(perfiles.map(async (uuid) => {
+      const [ssidPerfil, tipoSeguridad] = await Promise.all([
+        propiedadPerfilWifi(uuid, "802-11-wireless.ssid"),
+        propiedadPerfilWifi(uuid, "802-11-wireless-security.key-mgmt"),
+      ])
+      return ssidPerfil === ssid && seguridades.includes(tipoSeguridad) ? uuid : null
+    }))
+    return coincidentes.filter((uuid): uuid is string => uuid !== null)
+  }
+  let revisionListaGuardadas = 0
   const updateSaved = () => {
-    execAsync(["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep 802-11-wireless | cut -d: -f1"])
-      .then((out) => setSavedSsids(out.split("\n").filter(Boolean)))
+    const revision = ++revisionListaGuardadas
+    perfilesWifi()
+      .then((perfiles) => Promise.all(perfiles.map((uuid) => propiedadPerfilWifi(uuid, "802-11-wireless.ssid"))))
+      .then((ssids) => {
+        if (revision === revisionListaGuardadas) {
+          setSavedSsids([...new Set(ssids.filter(Boolean))])
+        }
+      })
       .catch(() => { })
   }
   savedSsids.subscribe(() => setWifiState({ ...wifiState() }))
@@ -4759,20 +4803,114 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   // notify::connectivity lanzaba un pipeline nmcli|grep|cut aunque nadie mirara,
   // y una conexión dispara varias transiciones seguidas.
   const inWifiView = () => qsView.get() === "wifi"
+  const nuevaOperacionWifi = () => ++revisionIntentoWifi
+  const operacionWifiVigente = (revision: number) =>
+    revision === revisionIntentoWifi && inWifiView() && quickSettingsVisible.get() && wifi.enabled
+  const avisarSiOperacionVigente = (revision: number, mensaje: string) => {
+    if (operacionWifiVigente(revision)) setWifiNotice(mensaje)
+  }
+  const actualizarPuntosAcceso = () => {
+    try {
+      setApsVar(wifi.get_access_points())
+    } catch (error) {
+      console.warn("No se pudo actualizar la lista de redes Wi-Fi:", error)
+    }
+  }
+  const sincronizarWifi = (connecting = wifiState().connecting) => {
+    setWifiState({ ssid: ssidConectado(), connecting })
+  }
+  let comprobacionEnCurso = false
+  const comprobarConectividad = () => {
+    if (comprobacionEnCurso) return
+    comprobacionEnCurso = true
+    execAsync(["nmcli", "networking", "connectivity", "check"])
+      .catch(() => { })
+      .finally(() => { comprobacionEnCurso = false })
+  }
 
-  wifi.connect("notify::access-points", () => { if (inWifiView()) setApsVar(wifi.get_access_points()) })
+  // Entrega el secreto por la entrada estándar de nmcli. Así no aparece en argv
+  // ni necesita interpolarse en una orden de shell.
+  const conectarConContrasena = (ssid: string, contrasena: string) => new Promise<void>((resolve, reject) => {
+    try {
+      const banderas = Gio.SubprocessFlags.STDIN_PIPE
+        | Gio.SubprocessFlags.STDOUT_PIPE
+        | Gio.SubprocessFlags.STDERR_PIPE
+      const proceso = Gio.Subprocess.new(
+        ["timeout", "20", "nmcli", "--ask", "device", "wifi", "connect", ssid],
+        banderas,
+      )
+      proceso.communicate_utf8_async(`${contrasena}\n`, null, (subproceso, resultado) => {
+        try {
+          const [, , stderr] = subproceso.communicate_utf8_finish(resultado)
+          if (subproceso.get_successful()) resolve()
+          else reject(new Error((stderr ?? "").trim() || "No se pudo activar la conexión Wi-Fi"))
+        } catch (error) {
+          reject(error)
+        }
+      })
+    } catch (error) {
+      reject(error)
+    }
+  })
+
+  // Los perfiles 802.1X los crea el instalador/usuario en NetworkManager. No
+  // usamos `device wifi connect` para estas redes: ese comando intenta la ruta
+  // PSK y puede terminar mostrando un formulario de contraseña que no aplica.
+  const perfilesEmpresarialesPara = (ssid: string) =>
+    perfilesWifiConSeguridadPara(ssid, ["wpa-eap", "wpa-eap-suite-b-192"])
+
+  const conectarPerfilEmpresarial = async (ssid: string, revision: number): Promise<"connected" | "missing" | "ambiguous" | "failed" | "cancelled"> => {
+    try {
+      const perfiles = await perfilesEmpresarialesPara(ssid)
+      if (!operacionWifiVigente(revision)) return "cancelled"
+      if (perfiles.length !== 1) {
+        if (perfiles.length === 0) {
+          avisarSiOperacionVigente(revision, `No hay un perfil empresarial configurado para ${ssid}. Ejecuta el instalador de esa red y vuelve a intentarlo.`)
+          return "missing"
+        }
+        avisarSiOperacionVigente(revision, `Hay varios perfiles empresariales para ${ssid}. Revisa las conexiones guardadas en NetworkManager.`)
+        return "ambiguous"
+      }
+      await execAsync(["timeout", "20", "nmcli", "connection", "up", "uuid", perfiles[0]])
+      avisarSiOperacionVigente(revision, "")
+      updateSaved()
+      comprobarConectividad()
+      return "connected"
+    } catch (error) {
+      console.error("WiFi Enterprise Connect Error:", error)
+      avisarSiOperacionVigente(revision, `No se pudo consultar o activar el perfil empresarial de ${ssid}. Revisa la configuración, las credenciales y los certificados en NetworkManager.`)
+      return "failed"
+    }
+  }
+
+  wifi.connect("notify::access-points", () => { if (inWifiView()) actualizarPuntosAcceso() })
   wifi.connect("notify::active-access-point", () => {
     if (!inWifiView()) return
-    setApsVar(wifi.get_access_points())
-    setWifiState({ ...wifiState(), ssid: wifi.ssid || "" })
+    actualizarPuntosAcceso()
+    sincronizarWifi()
   })
   wifi.connect("notify::ssid", () => {
     if (!inWifiView()) return
-    setWifiState({ ...wifiState(), ssid: wifi.ssid || "" })
+    sincronizarWifi()
+  })
+  wifi.connect("notify::state", () => {
+    if (inWifiView()) sincronizarWifi()
+    if (wifi.enabled && wifi.state === AstalNetwork.DeviceState.ACTIVATED) comprobarConectividad()
+  })
+  wifi.connect("notify::enabled", () => {
+    if (!inWifiView()) return
+    sincronizarWifi(wifi.enabled ? wifiState().connecting : null)
+    if (!wifi.enabled) {
+      nuevaOperacionWifi()
+      setPasswordTarget(null)
+      setPasswordStr("")
+      setPasswordError(false)
+      setWifiNotice("")
+    }
   })
   network.connect("notify::connectivity", () => {
     if (!inWifiView()) return
-    setWifiState({ ...wifiState() })
+    sincronizarWifi()
     updateSaved()
   })
 
@@ -4784,16 +4922,18 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
     if (!wifi.enabled) return   // radio apagada: escanear es imposible y nmcli falla
     const now = Date.now()
     if (!force && now - lastScan < 10000) {
-      setApsVar(wifi.get_access_points())
+      actualizarPuntosAcceso()
       updateSaved()
       return
     }
     lastScan = now
     setScanning(true)
-    execAsync(["nmcli", "device", "wifi", "rescan"]).finally(() => {
+    execAsync(["nmcli", "device", "wifi", "rescan"]).catch((error) => {
+      console.error("WiFi Rescan Error:", error)
+    }).finally(() => {
       setTimeout(() => setScanning(false), 2000)
       updateSaved()
-      setApsVar(wifi.get_access_points())
+      actualizarPuntosAcceso()
     })
   }
 
@@ -4802,16 +4942,18 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   // y el `nmcli device wifi list` de arranque por monitor; ahora todo es perezoso.
   qsView.subscribe(() => {
     if (qsView.get() !== "wifi") {
+      nuevaOperacionWifi()
       // Al salir de la vista se descarta el intento de contraseña a medias: el
       // menú no se desmonta (solo se oculta con `visible`), así que sin esto el
       // formulario seguía ahí al volver a entrar.
       setPasswordTarget(null)
       setPasswordStr("")
       setPasswordError(false)
+      setWifiNotice("")
       return
     }
-    setApsVar(wifi.get_access_points())
-    setWifiState({ ...wifiState(), ssid: wifi.ssid || "" })
+    actualizarPuntosAcceso()
+    sincronizarWifi()
     updateSaved()
     // Con la radio apagada no tiene sentido escanear ni sondear conectividad:
     // ambos nmcli fallarían/serían inútiles. La lista de guardadas (updateSaved)
@@ -4821,8 +4963,16 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
       // Fuerza a NM a re-evaluar la conectividad ahora (en vez de esperar su chequeo
       // periódico de ~5 min). Así, si el usuario acaba de iniciar sesión en el portal,
       // el estado portal→full se limpia al instante tanto aquí como en el glifo del bar.
-      execAsync(["nmcli", "networking", "connectivity", "check"]).catch(() => { })
+      comprobarConectividad()
     }
+  })
+  quickSettingsVisible.subscribe(() => {
+    if (quickSettingsVisible.get()) return
+    nuevaOperacionWifi()
+    setPasswordTarget(null)
+    setPasswordStr("")
+    setPasswordError(false)
+    setWifiNotice("")
   })
 
   const wifiEnabled = createBinding(wifi, "enabled")
@@ -4842,24 +4992,31 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   // `passwordTarget`, nunca al teclear— el campo queda quieto y sin reselección.
   const connectWithPassword = () => {
     const ssid = passwordTarget()
-    if (!ssid) return
+    if (!ssid || !wifi.enabled || conexionWifiEnCurso) return
     const pass = passwordStr()
     if (!pass) return
+    const revision = nuevaOperacionWifi()
+    conexionWifiEnCurso = true
     setWifiState({ ...wifiState(), connecting: ssid })
     setPasswordTarget(null)
     setPasswordError(false)
-    execAsync(["bash", "-c", `timeout 20 nmcli device wifi connect "${ssid}" password "${pass}"`])
+    const intento = conectarConContrasena(ssid, pass)
+    setPasswordStr("")
+    intento
       .then(() => {
-        setPasswordStr("")
-        setWifiState({ ...wifiState(), connecting: null })
         updateSaved()
+        comprobarConectividad()
       })
       .catch(e => {
         console.error("WiFi Connect Error:", e)
-        setWifiState({ ...wifiState(), connecting: null })
-        setPasswordStr("")
-        setPasswordError(true)
-        setPasswordTarget(ssid)   // contraseña incorrecta: volver a pedirla
+        if (operacionWifiVigente(revision)) {
+          setPasswordError(true)
+          setPasswordTarget(ssid)
+        }
+      })
+      .finally(() => {
+        conexionWifiEnCurso = false
+        sincronizarWifi(null)
       })
   }
 
@@ -4873,9 +5030,10 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
     <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["qs-wifi-item", "password-prompt"]} spacing={6}>
       <label
         label={passwordError((err) => err
-          ? `Contraseña incorrecta · ${target}`
+          ? `No se pudo conectar a ${target}. Comprueba la contraseña, la señal o la configuración e inténtalo de nuevo.`
           : `Contraseña para ${target}`)}
         halign={Gtk.Align.START}
+        wrap
         cssClasses={passwordError((err) => err
           ? ["qs-wifi-password-label", "error"]
           : ["qs-wifi-password-label"])}
@@ -4929,7 +5087,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
         </box>
         <button
           cssClasses={["qs-icon-btn"]}
-          onClicked={() => execAsync("nm-connection-editor")}
+          onClicked={abrirEditorConexiones}
         ><label label="󰒓" /></button>
         <button
           cssClasses={scanning((s) => s ? ["qs-icon-btn", "scanning"] : ["qs-icon-btn"])}
@@ -4937,7 +5095,8 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
         ><label label="󰑐" /></button>
         <Interruptor
           activo={wifiEnabled}
-          alAlternar={() => execAsync(["bash", "-c", wifi.enabled ? "nmcli radio wifi off" : "nmcli radio wifi on"])}
+          alAlternar={() => execAsync(["nmcli", "radio", "wifi", wifi.enabled ? "off" : "on"])
+            .catch((error) => console.error("WiFi Radio Error:", error))}
         />
       </QsMenuHeader>
 
@@ -4952,6 +5111,13 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
           {(target: string | null) => target ? formularioPassword(target) : <box />}
         </With>
       </box>
+      <label
+        label={wifiNotice}
+        visible={wifiNotice((notice) => !!notice)}
+        wrap
+        halign={Gtk.Align.START}
+        cssClasses={["qs-wifi-password-label", "error"]}
+      />
 
       <Gtk.ScrolledWindow
         cssClasses={["qs-wifi-list-scroll"]}
@@ -5002,21 +5168,65 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
                     if (wifiState().ssid === ap.ssid) {
                       if (network.connectivity === AstalNetwork.Connectivity.PORTAL) {
                         execAsync("xdg-open http://nmcheck.gnome.org/check_network_status.txt")
+                          .catch((error) => console.error("No se pudo abrir la página de estado de red:", error))
                       }
                       return
                     }
+                    if (!wifi.enabled || conexionWifiEnCurso) return
+                    const revision = nuevaOperacionWifi()
+                    conexionWifiEnCurso = true
+                    setWifiNotice("")
+                    setPasswordTarget(null)
+                    setPasswordStr("")
+                    setPasswordError(false)
                     setWifiState({ ...wifiState(), connecting: ap.ssid })
-                    // Intentar reactivar conexion guardada primero, si falla, intentar crear nueva conexion (max 10s wait)
-                    execAsync(["bash", "-c", `timeout 5 nmcli connection up "${ap.ssid}" || timeout 10 nmcli device wifi connect "${ap.ssid}"`])
-                      .then(() => setWifiState({ ...wifiState(), connecting: null }))
+                    const flagsSeguridad = (ap.wpaFlags ?? 0) | (ap.rsnFlags ?? 0)
+                    // Suite-B-192 (0x2000) puede anunciarse separado del bit 802.1X (0x200).
+                    const admiteEap = (flagsSeguridad & (0x200 | 0x2000)) !== 0
+                    const admitePsk = (flagsSeguridad & 0x100) !== 0
+                    const admiteSae = (flagsSeguridad & 0x400) !== 0
+                    const tieneMetodoClave = (flagsSeguridad & (0x100 | 0x200 | 0x400 | 0x800 | 0x1000 | 0x2000)) !== 0
+                    const admiteWep = ((ap.flags ?? 0) & 0x1) !== 0 && !tieneMetodoClave
+                    // Allowlist de métodos con secreto: OWE/OWE-TM por sí solos no lo requieren.
+                    const admiteCredencial = admitePsk || admiteSae || admiteWep
+                    let usoRutaPersonal = !admiteEap
+                    const intento = admiteEap
+                      ? conectarPerfilEmpresarial(ap.ssid, revision).then(async (resultado) => {
+                        // Solo se usa autenticación personal si no existe perfil
+                        // EAP. Un perfil empresarial existente conserva prioridad.
+                        if (admiteCredencial && resultado === "missing") {
+                          if (!operacionWifiVigente(revision)) return
+                          usoRutaPersonal = true
+                          setWifiNotice("")
+                          await execAsync(["timeout", "15", "nmcli", "device", "wifi", "connect", ap.ssid])
+                          comprobarConectividad()
+                        }
+                      })
+                      : execAsync(["timeout", "15", "nmcli", "device", "wifi", "connect", ap.ssid])
+                    intento
+                      .then(() => {
+                        if (!admiteEap) comprobarConectividad()
+                      })
                       .catch(e => {
-                        console.error("WiFi Connect Error:", e)
-                        setWifiState({ ...wifiState(), connecting: null })
-                        if (isSecure) {
+                        const detalle = e instanceof Error ? e.message : String(e)
+                        const faltaSecreto = /Secrets were required, but not provided|Se necesitan secretos, pero no se han proporcionado/i.test(detalle)
+                          || (/802-11-wireless-security\.psk/i.test(detalle)
+                            && /--ask/i.test(detalle)
+                            && /not (?:given|provided)|no se (?:indica|ha proporcionado|proporciona)/i.test(detalle))
+                        if (faltaSecreto) {
+                          console.warn("Wi-Fi requiere una contraseña; se mostrará el formulario.")
+                        } else {
+                          console.error("WiFi Connect Error:", e)
+                        }
+                        if (operacionWifiVigente(revision) && admiteCredencial && usoRutaPersonal) {
                           setPasswordStr("")
                           setPasswordError(false)
                           setPasswordTarget(ap.ssid)
                         }
+                      })
+                      .finally(() => {
+                        conexionWifiEnCurso = false
+                        sincronizarWifi(null)
                       })
                   }}
                 >

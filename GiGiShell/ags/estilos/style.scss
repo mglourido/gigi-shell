@@ -2823,7 +2823,7 @@ button.qs-user-settings-btn {
   padding: 6px 10px;
   transition: all 100ms ease;
 
-  &:hover {
+  &:hover:not(.active) {
     background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
   }
 
@@ -6067,7 +6067,7 @@ progressbar.alm-barra {
 
     .qs-wifi-item {
       background: $bg;
-      &:hover { background: sobre-fondo(rgba(255, 255, 255, 0.06), $bg); }
+      &:hover:not(.active) { background: sobre-fondo(rgba(255, 255, 255, 0.06), $bg); }
     }
     .qs-wifi-item.active { background: acento-cian-sobre($bg, 0.12); }
     .qs-wifi-item.portal { background: sobre-fondo(rgba(255, 123, 0, 0.15), $bg); }

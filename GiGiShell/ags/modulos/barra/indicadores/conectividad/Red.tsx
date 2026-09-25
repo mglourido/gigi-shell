@@ -17,7 +17,7 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
   const DS = AstalNetwork.DeviceState
 
   const cableActivo = () => !!red.wired && red.wired.state === DS.ACTIVATED
-  const wifiActiva = () => !!red.wifi?.ssid
+  const wifiActiva = () => !!red.wifi?.enabled && red.wifi.state === DS.ACTIVATED
   const tipoPrimario = (): "wired" | "wifi" | "unknown" =>
     red.primary === P.WIRED ? "wired" : red.primary === P.WIFI ? "wifi" : "unknown"
   const calcularTipo = () => determinarTipoRed(tipoPrimario(), cableActivo(), wifiActiva())
@@ -54,7 +54,7 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
   const enlazarWifi = () => {
     desconectarWifi?.()
     desconectarWifi = red.wifi
-      ? cicloVida.conectarSenales(red.wifi, ["notify::strength", "notify::ssid", "notify::internet"], actualizarVisible)
+      ? cicloVida.conectarSenales(red.wifi, ["notify::strength", "notify::ssid", "notify::internet", "notify::enabled", "notify::state"], actualizarVisible)
       : null
   }
   const enlazarCable = () => {
