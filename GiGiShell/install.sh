@@ -671,7 +671,7 @@ comprobar_pacman_libre() {
 install_packages() {
   local official=(
     git curl python xdg-utils shared-mime-info base-devel util-linux polkit
-    less man-db wget tar hwinfo openbsd-netcat neovim
+    less man-db tar hwinfo openbsd-netcat neovim
     # Estas cuatro llegaban SIEMPRE como dependencia transitiva de otra cosa, así que
     # nunca se notó que no estaban declaradas. Se declaran porque su ausencia no da
     # error, da un escritorio a medias:
@@ -731,14 +731,14 @@ install_packages() {
     # no abren y el fallo aparece como "la app no arranca", no como una dependencia ausente.
     xorg-xwayland
     xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt6-wayland qt6ct
-    gjs gtk4-layer-shell gobject-introspection npm dart-sass
+    gjs gtk4-layer-shell gobject-introspection dart-sass
     # noto-fonts (además del -emoji): qt6ct/qt6ct.conf fija "Noto Sans" y "Noto Sans Mono"
     # como fuentes general y monoespaciada de TODAS las apps Qt, y preflight.sh lo exige.
     # Solo estaba noto-fonts-emoji, que no trae ninguna de las dos: sin esto Qt cae a la
     # fuente sustituta que le toque y las ventanas salen con otra tipografía y otra métrica.
     ttf-meslo-nerd ttf-cascadia-code-nerd noto-fonts noto-fonts-emoji
     rofi rofimoji wtype cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl
-    qalculate-gtk wf-recorder grim slurp jq bc hyprshot btop
+    qalculate-gtk wf-recorder grim slurp jq hyprshot btop
     # libcanberra: reproduce el `sound-name` de las notificaciones (alarmas y temporizador del
     # panel de reloj). Sin él la alerta se ve pero no suena, sin error visible.
     libcanberra

@@ -196,13 +196,13 @@ if [[ "$mode" == "--installed" ]]; then
     slurp:slurp hyprshot:hyprshot awww:awww awww-daemon:awww
     notify-send:libnotify nmcli:networkmanager
     nm-connection-editor:nm-connection-editor bluetoothctl:bluez-utils
-    blueman-manager:blueman bc:bc inotifywait:inotify-tools
+    blueman-manager:blueman inotifywait:inotify-tools
     dbus-monitor:dbus busctl:systemd udevadm:systemd rfkill:util-linux flock:util-linux pkexec:polkit
     udisksctl:udisks2 lsof:lsof ntfsfix:ntfsprogs fsck.fat:dosfstools fsck.exfat:exfatprogs
     modprobe:kmod btop:btop kitty:kitty firefox:firefox
     zsh:zsh stty:util-linux fzf:fzf eza:eza bat:bat duf:duf
     pkgfile:pkgfile fastfetch:fastfetch less:less man:man-db whatis:man-db
-    wget:wget tar:tar expac:expac hwinfo:hwinfo nc:openbsd-netcat nvim:neovim
+    tar:tar expac:expac hwinfo:hwinfo nc:openbsd-netcat nvim:neovim
     code:code fc-match:fontconfig
     dolphin:dolphin kbuildsycoca6:kservice kwriteconfig6:kconfig qt6ct:qt6ct xdg-open:xdg-utils
     update-mime-database:shared-mime-info
