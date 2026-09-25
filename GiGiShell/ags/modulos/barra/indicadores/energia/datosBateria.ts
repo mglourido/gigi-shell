@@ -4,9 +4,10 @@ export const UMBRAL_BATERIA_BAJA = 10
 export const UMBRAL_AVISO_BATERIA = 15
 
 export function formatearTiempoBateria(segundos: number): string {
-  const horas = Math.floor(segundos / 3600)
-  const minutos = Math.floor((segundos % 3600) / 60)
-  return horas > 0 ? `${horas}h ${minutos}m` : `${minutos}m`
+  const minutosTotales = Math.ceil(segundos / 60)
+  const horas = Math.floor(minutosTotales / 60)
+  const minutos = minutosTotales % 60
+  return horas > 0 ? `${horas} h ${minutos} min` : `${minutos} min`
 }
 
 export function claseEstadoBateria(porcentaje: number, cargando: boolean): string {

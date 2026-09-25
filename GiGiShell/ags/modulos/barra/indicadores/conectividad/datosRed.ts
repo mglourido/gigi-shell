@@ -22,11 +22,8 @@ export function determinarTipoRed(
   return "none"
 }
 
-export function clasesBarrasRed(intensidad: number, tipo: TipoRed): string[][] {
-  const activas = tipo === "wifi" ? barrasActivas(intensidad) : 0
-  return Array.from({ length: 4 }, (_, indice) => {
-    const clases = ["network-bar", `bar-${indice + 1}`]
-    if (indice < activas) clases.push("active")
-    return clases
-  })
+export function clasesBarraRed(indice: number, cantidadActivas: number): string[] {
+  const clases = ["network-bar", `bar-${indice + 1}`]
+  if (indice < cantidadActivas) clases.push("active")
+  return clases
 }

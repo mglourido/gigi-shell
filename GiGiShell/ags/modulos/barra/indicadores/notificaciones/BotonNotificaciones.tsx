@@ -12,26 +12,34 @@ export default function BotonNotificaciones({ cadena }: { cadena: CadenaEstado }
   const indice = ESLABON.notificaciones
   const notifd = AstalNotifd.get_default()
 
-  const getUnread    = () => notifications.get().filter(n => !n.read).length
+  const getResumenNotificaciones = () => {
+    const lista = notifications.get()
+    let noLeidas = 0
+    for (const notificacion of lista) {
+      if (!notificacion.read) noLeidas++
+    }
+    return { noLeidas, hayNotificaciones: lista.length > 0 }
+  }
   const getDnd       = () => notifd.dontDisturb
   const getPanelOpen = () => notifPanelVisible.get()
-  const getHasNotifs  = () => notifications.get().length > 0
 
-  const getIconLabel   = () => getDnd() ? "󰪑" : getUnread() > 0 ? "󰂚" : "󰂜"
-  const getIconClasses = () => getDnd() ? ["nb-icon", "dnd"] : getUnread() > 0 ? ["nb-icon", "has-notifs"] : ["nb-icon"]
+  const resumenInicial = getResumenNotificaciones()
+  const getIconLabel   = (noLeidas: number) => getDnd() ? "󰪑" : noLeidas > 0 ? "󰂚" : "󰂜"
+  const getIconClasses = (noLeidas: number) => getDnd() ? ["nb-icon", "dnd"] : noLeidas > 0 ? ["nb-icon", "has-notifs"] : ["nb-icon"]
 
-  const [unread,      setUnread]      = createState(getUnread())
+  const [unread,      setUnread]      = createState(resumenInicial.noLeidas)
   const [panelOpen,   setPanelOpen]   = createState(getPanelOpen())
-  const [iconLabel,   setIconLabel]   = createState(getIconLabel())
-  const [iconClasses, setIconClasses] = createState(getIconClasses())
-  const [hasNotifs,   setHasNotifs]   = createState(getHasNotifs())
+  const [iconLabel,   setIconLabel]   = createState(getIconLabel(resumenInicial.noLeidas))
+  const [iconClasses, setIconClasses] = createState(getIconClasses(resumenInicial.noLeidas))
+  const [hasNotifs,   setHasNotifs]   = createState(resumenInicial.hayNotificaciones)
 
   const update = () => {
-    setUnread(getUnread())
+    const resumen = getResumenNotificaciones()
+    setUnread(resumen.noLeidas)
     setPanelOpen(getPanelOpen())
-    setIconLabel(getIconLabel())
-    setIconClasses(getIconClasses())
-    setHasNotifs(getHasNotifs())
+    setIconLabel(getIconLabel(resumen.noLeidas))
+    setIconClasses(getIconClasses(resumen.noLeidas))
+    setHasNotifs(resumen.hayNotificaciones)
   }
 
   cicloVida.conectarSenales(notifd, ["notify::dont-disturb", "notified", "resolved"], update)

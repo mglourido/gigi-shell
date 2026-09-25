@@ -22,16 +22,20 @@ export default function Bateria({ visibilidad }: { visibilidad: EstadoVisibilida
 
   const crearTooltip = () => {
     if (!bateria) return ""
-    let texto = `${porcentaje()}%`
-    if (bateria.charging && (bateria.percentage >= 1 || estaCompleta())) {
-      texto += " · cargado"
+    let texto = `  ${porcentaje()}%`
+    if (estaCompleta() || (bateria.charging && bateria.percentage >= 1)) {
+      texto += "\n✓"
     } else if (bateria.charging) {
-      if (bateria.timeToFull > 0) texto += ` · + ${formatearTiempoBateria(bateria.timeToFull)}`
-    } else if (bateria.timeToEmpty > 0) {
-      texto += ` · - ${formatearTiempoBateria(bateria.timeToEmpty)}`
+      if (bateria.timeToFull > 0) texto += `\n↑ ${formatearTiempoBateria(bateria.timeToFull)}`
+    } else {
+      if (bateria.timeToEmpty > 0) texto += `\n↓ ${formatearTiempoBateria(bateria.timeToEmpty)}`
     }
-    const vatios = potenciaInstantanea ?? Math.abs(bateria.energyRate)
-    if (vatios > 0) texto += `\n${bateria.charging ? "+" : "-"} ${vatios.toFixed(1)}w`
+    const vatios = potenciaInstantanea && potenciaInstantanea > 0
+      ? potenciaInstantanea
+      : Math.abs(bateria.energyRate)
+    if (vatios > 0) {
+      texto += `\n${bateria.charging ? "↑" : "↓"} ${vatios.toFixed(1).replace(".", ",")} W`
+    }
     return texto
   }
 

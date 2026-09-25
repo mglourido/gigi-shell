@@ -2,12 +2,13 @@ import AstalNetwork from "gi://AstalNetwork"
 import { For, createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import { crearCicloVida } from "../../../../utilidades/cicloVida"
-import { clasesBarrasRed, determinarTipoRed } from "./datosRed"
+import { barrasActivas, clasesBarraRed, determinarTipoRed } from "./datosRed"
 import type { CalidadRed, TipoRed } from "./datosRed"
 import type { EstadoVisibilidadBarra } from "../../../../estado/visibilidadBarra"
 import { tituloBarra } from "../../componentes/tituloBarra"
 
 const GLIFO_ETHERNET = "󰈀"
+const INDICES_BARRAS = [0, 1, 2, 3]
 
 export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBarra }) {
   const cicloVida = crearCicloVida()
@@ -40,13 +41,19 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
     return {
       tipo,
       calidad,
-      barras: clasesBarrasRed(red.wifi?.strength ?? 0, tipo),
       tooltip: calcularTooltip(tipo, calidad),
     }
   }
 
   const [instantanea, establecerInstantanea] = createState(obtenerInstantanea())
-  const sincronizar = () => establecerInstantanea(obtenerInstantanea())
+  const [cantidadBarras, establecerCantidadBarras] = createState(
+    instantanea().tipo === "wifi" ? barrasActivas(red.wifi?.strength ?? 0) : 0,
+  )
+  const sincronizar = () => {
+    const dato = obtenerInstantanea()
+    establecerInstantanea(dato)
+    establecerCantidadBarras(dato.tipo === "wifi" ? barrasActivas(red.wifi?.strength ?? 0) : 0)
+  }
   const actualizarVisible = () => { if (visibilidad.visible.get()) sincronizar() }
 
   let desconectarWifi: (() => void) | null = null
@@ -85,8 +92,13 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
         valign={Gtk.Align.CENTER}
         visible={instantanea((dato) => dato.tipo !== "wired")}
       >
-        <For each={instantanea((dato) => dato.barras)}>
-          {(clases) => <box cssClasses={clases} valign={Gtk.Align.END} />}
+        <For each={() => INDICES_BARRAS}>
+          {(indice) => (
+            <box
+              cssClasses={cantidadBarras((cantidad) => clasesBarraRed(indice, cantidad))}
+              valign={Gtk.Align.END}
+            />
+          )}
         </For>
       </box>
       <label cssClasses={["network-wired-glyph"]} label={GLIFO_ETHERNET} visible={instantanea((dato) => dato.tipo === "wired")} />
