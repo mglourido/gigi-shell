@@ -60,6 +60,17 @@ install -o root -g root -m 0440 "$SUDOERS_TEMPORAL" /etc/sudoers.d/gigishell-hib
 # `systemctl hibernate` que falla el día que la RAM está llena, que es justo el día que importa.
 ram_kib=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
 swap_gib=${GIGISHELL_SWAP_GIB:-$(( (ram_kib + 1048575) / 1048576 + 2 ))}
+[[ $swap_gib =~ ^[0-9]+$ ]] \
+  || die "GIGISHELL_SWAP_GIB debe ser un entero decimal positivo expresado en GiB."
+# Quitar ceros iniciales antes de usar aritmética: Bash interpretaría, por ejemplo, 08 como
+# octal. El máximo es técnico, no una política de tamaño: es el mayor número de GiB cuyo tamaño
+# en bytes cabe en el entero con signo de 64 bits usado por la aritmética de Bash.
+while [[ ${#swap_gib} -gt 1 && ${swap_gib:0:1} == 0 ]]; do swap_gib=${swap_gib:1}; done
+[[ $swap_gib != 0 ]] || die "GIGISHELL_SWAP_GIB debe ser mayor que cero."
+(( ${#swap_gib} <= 10 )) \
+  || die "GIGISHELL_SWAP_GIB excede el rango aritmético representable."
+(( swap_gib <= 8589934591 )) \
+  || die "GIGISHELL_SWAP_GIB excede el rango aritmético representable."
 
 fs_raiz=$(findmnt -no FSTYPE /)
 uuid_raiz=$(findmnt -no UUID /)
@@ -106,6 +117,17 @@ case "$fs_raiz" in
   *) die "Raíz en '$fs_raiz': no sé crear ahí un swapfile de hibernación. Créalo a mano y vuelve a lanzar el paso." ;;
 esac
 
+# Un archivo preexistente puede ser cualquier cosa: no se sobrescribe a ciegas, pero tampoco se
+# configura el arranque como si sirviera para hibernar. El tamaño pedido es el mínimo deliberado
+# (RAM + 2 GiB por defecto, o GIGISHELL_SWAP_GIB si se fijó explícitamente).
+[[ -f $SWAPFILE ]] || die "No se creó el swapfile esperado: $SWAPFILE."
+tipo_swap=$(blkid -p -s TYPE -o value -- "$SWAPFILE" 2>/dev/null || true)
+[[ $tipo_swap == swap ]] || die "$SWAPFILE ya existe, pero no tiene un formato swap válido; revísalo antes de volver a ejecutar este paso."
+tamano_swap=$(stat -c %s -- "$SWAPFILE")
+tamano_minimo=$((swap_gib * 1024 * 1024 * 1024))
+(( tamano_swap >= tamano_minimo )) \
+  || die "$SWAPFILE tiene menos de ${swap_gib} GiB; amplíalo o define GIGISHELL_SWAP_GIB con el tamaño deseado antes de continuar."
+
 # El desplazamiento del PRIMER bloque del swapfile dentro de la partición. El kernel resume leyendo
 # a pelo del dispositivo, sin sistema de ficheros montado: `resume=` le dice qué partición y
 # `resume_offset=` en qué página empieza la imagen. Sin el offset, un swapfile no sirve para
@@ -131,7 +153,8 @@ if ! grep -qE "^[^#]*[[:space:]]$SWAPFILE[[:space:]]|^$SWAPFILE[[:space:]]" /etc
   printf '\n# GiGiShell: swap persistente para hibernar (ver system/hibernacion/)\n%s none swap defaults,pri=-2 0 0\n' "$SWAPFILE" >> /etc/fstab
   systemctl daemon-reload || true
 fi
-swapon --show=NAME --noheadings | grep -qx "$SWAPFILE" || swapon "$SWAPFILE" || warn "No pude activar el swapfile ahora; se activará al reiniciar."
+swapon --show=NAME --noheadings | grep -qx "$SWAPFILE" || swapon "$SWAPFILE" \
+  || die "No pude activar $SWAPFILE; no se completó la preparación de la hibernación."
 
 # ── 2. Línea de comandos del kernel ─────────────────────────────────────────────────────────
 if [[ -f $GRUB_DEFAULT_FILE ]] && command -v grub-mkconfig >/dev/null 2>&1; then

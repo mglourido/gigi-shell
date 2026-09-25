@@ -15,10 +15,9 @@
 #     módulo nvidia sigue cargado con las opciones viejas hasta que se recargue.
 #
 # Qué se deja EN PIE a propósito: el helper `/usr/local/bin/gigishell-hibernacion` y su regla
-# sudoers. No hacen nada por sí solos sin swap ni resume= (`retardo N` solo escribe un
-# número que systemd nunca llega a usar), y quitarlos obligaría al script de preparación
-# a reinstalarlos para poder volver a intentarlo. Este script deshace el
-# DISCO y el ARRANQUE, no el runtime.
+# sudoers. El ajuste de retardo sí se elimina para que una configuración anterior no afecte a
+# futuras llamadas a `suspend-then-hibernate`. Conservar el helper permite volver a preparar el
+# sistema sin reinstalarlo. Este script deshace el DISCO, el ARRANQUE y el retardo runtime.
 set -uo pipefail
 
 [[ $EUID -eq 0 ]] || { echo "gigishell-hibernacion-quitar: hay que ejecutarlo como root (sudo)" >&2; exit 1; }
@@ -26,6 +25,7 @@ set -uo pipefail
 SWAP_SUBVOL=/swap
 SWAPFILE="$SWAP_SUBVOL/swapfile"
 GRUB_DEFAULT_FILE=/etc/default/grub
+DROPIN=/etc/systemd/sleep.conf.d/99-gigishell-hibernacion.conf
 
 info() { printf '\033[1;36m  ::\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m  !!\033[0m %s\n' "$*" >&2; }
@@ -37,6 +37,12 @@ warn() { printf '\033[1;33m  !!\033[0m %s\n' "$*" >&2; }
 if swapon --show=NAME --noheadings 2>/dev/null | grep -qx "$SWAPFILE"; then
   info "Desactivando el swap ($SWAPFILE) ..."
   swapoff "$SWAPFILE" || warn "No pude desactivar el swap ahora mismo; seguirá activo hasta reiniciar."
+fi
+
+# Evita que el retardo de GiGiShell siga habilitando una hibernación automática posterior.
+if [[ -f $DROPIN ]]; then
+  info "Quitando el retardo de hibernación de GiGiShell ..."
+  rm -f "$DROPIN"
 fi
 
 # ── 2. fstab ─────────────────────────────────────────────────────────────────────────────

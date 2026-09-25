@@ -40,7 +40,7 @@ leer_retardo() {
 # lado seguro, porque el único efecto es que la fila de Ajustes salga apagada con su motivo, en vez
 # de un interruptor que promete algo que fallaría en silencio a las tres de la mañana.
 estado() {
-  local can="" motivo=""
+  local can=""
   if command -v busctl >/dev/null 2>&1; then
     can=$(busctl --no-pager call org.freedesktop.login1 /org/freedesktop/login1 \
             org.freedesktop.login1.Manager CanHibernate 2>/dev/null \
@@ -65,7 +65,9 @@ case "${1:-}" in
     # Validación ESTRICTA aquí y no en la regla sudoers: el comodín de sudoers es lo que abre la
     # puerta, este `[[ =~ ]]` es lo que decide qué entra. Sin él, un argumento con espacios o `..`
     # llegaría al printf de abajo.
-    [[ "$2" =~ ^[0-9]+$ ]] || { echo "el retardo debe ser un número de segundos" >&2; exit 2; }
+    [[ "$2" =~ ^(0|[1-9][0-9]*)$ ]] \
+      || { echo "el retardo debe ser un entero decimal sin ceros iniciales" >&2; exit 2; }
+    ((${#2} <= 5)) || { echo "retardo fuera de rango (máximo 86400)" >&2; exit 2; }
     # Techo de 24 h. No es paranoia de seguridad (el fichero solo lo lee systemd), es que un
     # HibernateDelaySec absurdo arma una alarma RTC absurda y el equipo se queda suspendido para
     # siempre creyendo que va a hibernar.

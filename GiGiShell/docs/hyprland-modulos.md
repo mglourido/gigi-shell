@@ -396,13 +396,13 @@ terminal de verdad y dentro `sudo` pide la contraseña como en cualquier uso man
   `swapoff` primero (es lo único que se nota SIN reiniciar — `CanHibernate` mira el swap
   *activo*, no lo que diga fstab), borra el subvolumen `/swap` completo si solo contiene el
   swapfile (si hay algo más dentro, avisa y borra solo el fichero), quita `resume=`/
-  `resume_offset=` de GRUB y regenera `grub.cfg`, desactiva únicamente los dos servicios de
+  `resume_offset=` de GRUB y regenera `grub.cfg`, elimina el drop-in `HibernateDelaySec` de
+  GiGiShell, desactiva únicamente los dos servicios de
   NVIDIA que son puramente de hibernación (`nvidia-hibernate`,
   `nvidia-suspend-then-hibernate`) — **no** `nvidia-suspend`/`nvidia-resume`, que conservan la
   VRAM en cualquier S3 y no tienen nada que ver con lo que se desinstala —, y regenera el
   initramfs. Dejar `/usr/local/bin/gigishell-hibernacion` y su sudoers instalados es intencional:
-  sin swap ni `resume=` no hacen nada por sí solos, y quitarlos obligaría a reinstalarlos para
-  poder volver a intentarlo.
+  conservar el helper permite volver a preparar el sistema sin reinstalarlo.
 
 Las dos vuelven a llamar a `comprobarHibernacion()` en cuanto la terminal se cierra, así que la
 fila refleja el estado nuevo sin reabrir el panel de Ajustes.
