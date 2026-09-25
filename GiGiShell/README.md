@@ -39,8 +39,8 @@ lives in this one repository and is deployed to your `$HOME` via symlinks, dotfi
 - Spotify and Google Calendar integrations, authenticated once via helper scripts, credentials kept
   outside the repo.
 
-### The compositor (Hyprland, config fully in **Lua**, hyprlang retired)
-- Hyprland ≥ 0.55 dropped hyprlang in favor of a Lua config — this rice fully embraced that:
+### The compositor (Hyprland, config fully in **Lua**, hyprlang retired from this repo)
+- Since Hyprland 0.55, hyprlang is deprecated in favor of Lua. This rice fully embraced that:
   every module (`env`, `monitores`, `input`, `ventanas`, `animaciones`, `reglas`, `keybinds`,
   `autostart`, …) is Lua, loaded through a small `util.carga()` wrapper so **one broken module
   can't take down your keybinds** — it logs on-screen and every other module still loads.

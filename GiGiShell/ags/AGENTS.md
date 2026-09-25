@@ -8,8 +8,7 @@ Este es un shell de escritorio AGS v2/Astal para Hyprland/Wayland, escrito en Ty
 
 - `ags quit` seguido de `ags run ~/.config/ags/app.ts`: detiene primero cualquier instancia de AGS y después lanza o recarga el shell localmente.
 - `hyprctl reload full-reset`: reinicia Hyprland y vuelve a ejecutar el autostart de `hypr/gigishell/autostart.lua`; una recarga normal (`hyprctl reload`) no actualiza el autostart.
-- `node --test $(rg --files modulos servicios textos -g '*.test.ts')`: ejecuta toda la suite de lógica pura.
-- `node --test modulos/notificaciones/rules/engine.evaluate.test.ts`: ejecuta un único archivo de pruebas mientras iteras.
+- Actualmente no hay archivos `*.test.ts` bajo `ags/`, así que no existe una suite TypeScript ejecutable en este checkout. Si se añade una prueba pura, ejecútala con `node --test ruta/al/archivo.test.ts`.
 
 No hay `package.json`, `tsconfig.json` ni un paso de build del proyecto en este repositorio; AGS se encarga del empaquetado, la transpilación y la carga en tiempo de ejecución.
 
@@ -70,7 +69,7 @@ Usa español de forma consistente en los nombres y la documentación orientados 
 
 ## Guías de pruebas
 
-Las pruebas usan el ejecutor nativo de Node y están colocadas junto a los archivos de implementación como `*.test.ts`. Prefiere probar módulos de lógica pura sin imports de GTK. Cuando añadas comportamiento de reglas de notificación, historial, limpieza o ajustes, añade o actualiza una prueba concreta junto al módulo relevante.
+Cuando añadas pruebas TypeScript, usa el ejecutor nativo de Node y colócalas junto a la implementación como `*.test.ts`. Prefiere probar módulos de lógica pura sin imports de GTK, especialmente reglas de notificación, historial, limpieza y ajustes.
 
 ## Guías de commits y pull requests
 

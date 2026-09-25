@@ -202,7 +202,7 @@ imprescindible para no romper la sesión:
   `eTogglableAction` (dpms, fullscreen, float, pin, lockgroups…). Costó el bug de la pantalla
   negra al salir de suspensión — ver la sección de suspensión en
   [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md).
-- `hyprctl binds -j` sigue roto en 0.56; usa la salida de texto.
+- `hyprctl binds -j` devuelve JSON válido desde Hyprland 0.56.1; en 0.56.0 usa la salida de texto por el fallo de esa versión.
 - Los callbacks (`hl.on`, binds con función) tienen **timeout de 100 ms**: nada bloqueante dentro.
 - **Todo atajo nuevo debe pasar por el envoltorio `bind()`** de `gigishell/keybinds.lua`, no por
   `hl.bind` directo — si no, no da error, solo deja un bind sordo duplicado (ver

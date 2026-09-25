@@ -45,7 +45,7 @@ llega a commitearse.
   guardado por `grep -q "^ok"` nunca dispara. El único síntoma es que el estado sale invertido, y
   solo cuando el estado de partida no era el que suponías. Ver la sección de suspensión en
   [`hyprland-modulos.md`](hyprland-modulos.md).
-- **`hyprctl binds -j` sigue roto** en 0.56 (JSON inválido); usa la salida de texto.
+- **`hyprctl binds -j` devuelve JSON válido desde 0.56.1**; en 0.56.0 usa la salida de texto por el fallo de esa versión.
 - **Los callbacks (`hl.on`, binds con función) tienen timeout de 100 ms**: nada bloqueante dentro.
   Los `*-monitor.sh` siguen en bash por eso, lanzados igual desde `gigishell/autostart.lua`.
 - **Lo que se inlineó** (ya no se invocan sus scripts, que quedan solo para la config legacy):
@@ -114,13 +114,13 @@ valida los `util.carga()` de `hyprland.lua`, los perfiles de `gigishell/gpu.lua`
 
 **La sección "Atajos" de Orion parsea el CONFIG COMO CÓDIGO FUENTE**, y eso era el bloqueante de
 esta limpieza: leía `keybinds.conf` + `variables.conf` como texto. Hoy lee `gigishell/keybinds.lua` +
-`gigishell/variables.lua` (`ags/modulos/orion/data/keybinds.parse.ts`, puro y con tests de node). El
+`gigishell/variables.lua` (`ags/modulos/orion/data/keybinds.parse.ts`, lógica pura; este checkout no contiene su archivo de pruebas). El
 Lua trae dos formas que hyprlang no tenía y que el parser **debe** entender: expresiones
 (`mod .. " + SHIFT + F"`) y **bucles** — los 20 atajos de workspace y los 8 de foco/movimiento ya no
 están escritos uno a uno. Sin expandir los bucles la lista perdía 28 de 67 atajos **en silencio**,
-de ahí el test que cuenta.
+de ahí la comprobación que cuenta las combinaciones.
 
-**El test cuenta COMBINACIONES, no llamadas a `bind()`, y esa distinción no es cosmética.**
+**La comprobación cuenta COMBINACIONES, no llamadas a `bind()`, y esa distinción no es cosmética.**
 Hyprland ejecuta **todos** los binds de una combinación, y el config se apoya en eso: `SUPER + clic
 izquierdo` lleva **tres** (el `bindm` del arrastre más los dos enganches con los que
 `gigishell/reparto-ventanas.lua` sabe cuándo empieza y cuándo acaba). Los enganches no son atajos que
@@ -128,8 +128,8 @@ se puedan pulsar por separado, así que listarlos duplicaba la fila en Orion y l
 internos (`GiGiShell: reparto_arrastre_inicio`). El parser **deduplica por combinación y gana el
 primero**, que es el que describe lo que la combinación hace de cara al usuario — los enganches se
 registran después a propósito. Así el recuento cuadra con la tabla `usados` de `gigishell/keybinds.lua`,
-que también es un conjunto de combinaciones (verificado en vivo: 69 y 69). Sin la dedup el test
-llevaba tiempo en rojo, porque el número esperado se escribió contra `usados` y el parser contaba
+que también es un conjunto de combinaciones (verificado en vivo: 69 y 69). Sin la dedup la prueba de regresión
+fallaba, porque el número esperado se escribió contra `usados` y el parser contaba
 llamadas.
 
 **Un atajo nuevo cuyo bind llame a una función de `GiGiShell` necesita su etiqueta** en
@@ -138,4 +138,3 @@ llamadas.
 otro comentario debajo: es lo que distingue un encabezado de la prosa que documenta el módulo. Un
 bloque explicativo de varias líneas **no abre grupo**, y sus atajos se cuelan en la sección
 anterior sin dar ningún error.
-

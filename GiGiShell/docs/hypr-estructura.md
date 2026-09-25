@@ -126,7 +126,7 @@ que el usuario vea cuántos caracteres se registraron.
 
 ## Perfiles de GPU: `gigishell/gpu/`
 
-Cuatro módulos, uno por hardware. **Ya no se descomenta una línea**: el perfil de
+Tres módulos, uno por hardware. **Ya no se descomenta una línea**: el perfil de
 cada máquina lo dice `~/.config/gigishell/gpu-perfil`, un fichero local de una línea
 **fuera del repo** (la elección de máquina es estado local, como manda
 [`anadir-perfiles-por-equipo.md`](anadir-perfiles-por-equipo.md)):
@@ -215,12 +215,13 @@ sección.
 observador tanto `rofi-launch.py` como `lanzar-anclado.py` (ver `CLAUDE.md`,
 sección de anclaje de ventanas).
 
-`scripts/lib/gaming-gate.sh` no es un script ejecutable por sí mismo — se
-`source`ea desde `updates-monitor.sh` y desde `oom-monitor.sh` (sus
-sub-monitores SMART y unidades) para congelar ese sondeo caro mientras juegas o
-en modo ahorro. `monitor_downloads` (también dentro de `oom-monitor.sh`) usa en
-cambio su propia pausa independiente (`dlPauseWhileGaming`), no esta librería
-— ver `CLAUDE.md`.
+`scripts/lib/gaming-gate.sh` no es un script ejecutable por sí mismo. Se carga desde
+`updates-monitor.sh` y desde los sub-monitores SMART y de unidades del modo de respaldo Bash de
+`oom-monitor.sh`, para congelar ese sondeo caro mientras juegas o en modo ahorro. Con
+`gigishell-eventd` instalado, el daemon Rust cubre esos monitores y aplica sus propias reglas de
+pausa. `monitor_downloads` (también dentro de `oom-monitor.sh`) usa en cambio su pausa
+independiente (`dlPauseWhileGaming`), no esta librería — ver `CLAUDE.md` y
+`docs/rust-migracion.md`.
 
 ## Ver también
 

@@ -3,12 +3,12 @@
 Detalle completo de la estructura de `hypr/gigishell/*.lua` (perfil de GPU, dispositivos, pantalla, idioma) y
 el porqué de cada script/módulo individual del sistema (Wake up, gaming-gate, USB, TLP, ClamAV, monitores de
 recursos, etc). Referenciado desde `CLAUDE.md` — leer la sección correspondiente antes de tocar el script o
-módulo que nombra su título. Para el mapa de directorios y orden de carga, ver `docs/hypr-estructura.md`.
+módulo que nombra su título. Para el mapa de directorios y orden de carga, ver `hypr-estructura.md`.
 
 ## Hyprland structure
 
 For the directory layout, the module load order, and which script fires from where, see
-[`docs/hypr-estructura.md`](docs/hypr-estructura.md) — this section only covers the *why* behind
+[`hypr-estructura.md`](hypr-estructura.md) — this section only covers the *why* behind
 specific decisions, not a structural map.
 
 **El razonamiento de abajo sigue vigente aunque la sintaxis haya cambiado**: `gigishell/*.lua` es un

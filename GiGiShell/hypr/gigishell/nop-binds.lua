@@ -9,7 +9,7 @@
 -- config que los atajos reales, cada reload recalcula la lista solo — la tabla
 -- `usados` que llena el envoltorio bind() de gigishell/keybinds.lua es la fuente,
 -- fresca en cada ejecución. Desaparecen de paso las dos trampas del generador
--- (el JSON roto de `hyprctl binds -j` en 0.56 y el filtro de sus propios binds
+-- (el parseo de `hyprctl binds -j` y el filtro de sus propios binds
 -- para no auto-apagarse). El único modo de fallo restante: un atajo añadido
 -- con hl.bind directo en vez del envoltorio queda con un no_op sordo de más —
 -- inofensivo (Hyprland ejecuta ambos binds), ver el aviso gordo en keybinds.lua.

@@ -20,5 +20,5 @@ El resto del código se agrupa por responsabilidad:
 - `autoDnd/`: detección y activación automática de No molestar.
 - `settings/`: interfaz y lógica de configuración.
 
-Los tests permanecen junto al código que verifican. Los consumidores externos deben importar
+Si se añaden pruebas, deben permanecer junto al código que verifican. Los consumidores externos deben importar
 las fachadas de la raíz salvo que necesiten explícitamente una pieza interna concreta.

@@ -12,7 +12,7 @@ GiGiShell es un árbol personal de dotfiles para Hyprland/Wayland. Los archivos 
 - `ags quit` seguido de `ags run ~/.config/ags/app.ts`: detiene primero cualquier instancia de AGS y después lanza o recarga el shell tras cambios en la interfaz.
 - `hyprctl reload`: aplica cambios de configuración de Hyprland sin reiniciar los `exec-once`.
 - `hyprctl reload full-reset`: reinicia Hyprland correctamente y vuelve a ejecutar el autostart de `hypr/gigishell/autostart.lua`; usarlo cuando haya que actualizar el autostart o reiniciar el compositor.
-- `node --test $(rg --files ags -g '*.test.ts')`: ejecuta todas las pruebas TypeScript locales.
+- Actualmente no hay archivos `*.test.ts` en `ags/`, así que no existe una suite TypeScript ejecutable en este checkout. Si se añade una prueba pura, ejecútala con `node --test ruta/al/archivo.test.ts`.
 
 ## Control de versiones
 
@@ -79,7 +79,7 @@ puede soportar la aplicación.
 
 ## Guías de pruebas
 
-Las pruebas usan el ejecutor nativo de Node y viven junto a los archivos de implementación como `*.test.ts`. Prioriza pruebas para lógica pura sin imports de GTK, especialmente reglas de notificaciones, historial, limpieza, migraciones de ajustes, lógica de visualización y parseo de Spotify. Para cambios de UI, verifica manualmente ejecutando `ags quit` y después `ags run ~/.config/ags/app.ts`.
+Cuando se añadan pruebas TypeScript, deben usar el ejecutor nativo de Node y vivir junto a la implementación como `*.test.ts`. Prioriza lógica pura sin imports de GTK, especialmente reglas de notificaciones, historial, limpieza, migraciones de ajustes, lógica de visualización y parseo de Spotify. Para cambios de UI, verifica manualmente ejecutando `ags quit` y después `ags run ~/.config/ags/app.ts`.
 
 ## Guías de commits y pull requests
 

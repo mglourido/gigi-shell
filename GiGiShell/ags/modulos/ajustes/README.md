@@ -7,8 +7,8 @@ componentes específicos vivan juntos:
 - `componentes/`: piezas visuales reutilizables entre secciones.
 - `estado/`: preferencias compartidas y persistencia general.
 - `accesibilidad/`, `barra/`, `camara/`, `cuenta/`, `disco/`, `dispositivos/`,
-  `energia/`, `fecha-idioma/`, `juegos/`, `pantalla/`, `personalizacion/`,
-  `seguridad/` y `sistema/`: implementación de cada dominio. `disco/` (Almacenamiento y Liberar
+  `energia/`, `fecha-idioma/`, `inicio/`, `juegos/`, `pantalla/`, `personalizacion/`,
+  `seguridad/`, `sistema/` y `atajos/`: implementación de cada dominio. `disco/` (Almacenamiento y Liberar
   espacio) se llama así y no `almacenamiento/` porque ese nombre ya identifica a
   `servicios/almacenamiento/`, que es la persistencia JSON del shell.
 

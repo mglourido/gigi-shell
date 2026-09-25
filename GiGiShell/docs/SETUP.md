@@ -12,7 +12,8 @@ curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiShell
 El instalador se encarga de:
 
 - instalar Hyprland, AGS/Astal y las herramientas del escritorio;
-- descargar la rama `laptop` mediante el repositorio bare de dotfiles;
+- descargar la rama `main` mediante el repositorio bare de dotfiles. Es la rama
+  predeterminada; puede cambiarse con `DOTFILES_BRANCH`;
 - respaldar los archivos locales que entren en conflicto;
 - crear los enlaces de `~/.config/ags`, `~/.config/hypr` y demás rutas XDG;
 - elegir los perfiles de Kitty y Firefox según la presencia de una batería;
@@ -23,7 +24,7 @@ El instalador se encarga de:
 - ejecutar la validación final.
 
 El mismo comando sirve para actualizar un equipo que ya tenga GiGiShell instalado: hace
-`fetch` en `~/.dotfiles`, avanza el checkout local hasta `origin/laptop` y vuelve a
+`fetch` en `~/.dotfiles`, avanza el checkout local hasta `origin/main` por defecto y vuelve a
 comprobar los enlaces. Un `git pull` realizado en otro clon independiente no actualiza
 por sí solo la copia desplegada por `~/.dotfiles`.
 
@@ -194,13 +195,13 @@ lo toma en cuanto dunst lo libera. Comprobación:
 busctl --user list | grep org.freedesktop.Notifications   # debe apuntar al PID de gjs, no a dunst
 ```
 
-Dependencias que arrastra `aylurs-gtk-shell-git` (para que compile/corra el bundler):
-`gjs`, `gtk4-layer-shell`, `gobject-introspection`, `npm`, y opcionalmente `dart-sass`
-(compilar `style.scss`) y `blueprint-compiler` (no se usa aquí, pero es dependencia
-opcional del paquete).
+Dependencias necesarias para ejecutar AGS: `gjs`, `gtk4-layer-shell` y
+`gobject-introspection`. `npm` es opcional: solo se usa para limpiar su caché si ya está
+instalado. `dart-sass` permite compilar `style.scss` y `blueprint-compiler` es una dependencia
+opcional del paquete que GiGiShell no usa.
 
 ```sh
-sudo pacman -S gjs gtk4-layer-shell gobject-introspection npm dart-sass
+sudo pacman -S gjs gtk4-layer-shell gobject-introspection dart-sass
 ```
 
 Comprueba versión con `ags --version` (aquí: `3.1.0`). No hay `package.json` — AGS resuelve
@@ -220,15 +221,9 @@ No hace falta hacerlo manualmente durante la primera instalación.
 En Arch/CachyOS, si aparece `sass: command not found`, instálalo con
 `sudo pacman -S --needed dart-sass` y vuelve a ejecutar el instalador.
 
-**Tests de Node** (opcionales, solo para desarrollo, no para que el shell funcione):
-
-```sh
-node --test modulos/notificaciones/rules/*.test.ts modulos/notificaciones/history/*.test.ts \
-  modulos/notificaciones/cleanup/*.test.ts modulos/notificaciones/settings/*.test.ts \
-  servicios/spotify/*.test.ts
-```
-
-Necesita `nodejs` (probado con v26).
+Actualmente no hay archivos `*.test.ts` en el árbol de AGS; por tanto, no hay una suite TypeScript
+ejecutable con Node en este checkout. Si se añaden pruebas puras, pueden ejecutarse con
+`node --test ruta/al/archivo.test.ts`.
 
 ## 3. Fuentes
 
@@ -654,8 +649,8 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
 ### Antes de migrar: preflight del repositorio
 
 El instalador remoto solo puede descargar archivos que estén **versionados, incluidos en
-un commit y publicados en `origin/laptop`**. Que AGS funcione en la máquina de desarrollo
-no demuestra que esos archivos estén en Git.
+un commit y publicados en `origin/main`** (o en la rama indicada por `DOTFILES_BRANCH`).
+Que AGS funcione en la máquina de desarrollo no demuestra que esos archivos estén en Git.
 
 Ejecuta esto en la máquina origen antes del push:
 
@@ -680,7 +675,7 @@ La primera orden no debe mostrar cambios pendientes antes de probar la URL públ
 segunda debe imprimir los tres archivos. El workflow debe vivir en
 `.github/workflows/gigishell-validate.yml` en la **raíz del repositorio**, no dentro de
 `GiGiShell/.github/`. Después de hacer commit y push, verifica que la acción de GitHub pase
-en la rama `laptop`.
+en la rama `main` (o en la rama de publicación configurada).
 
 Comprueba además que no falte ningún archivo referenciado por la configuración:
 
