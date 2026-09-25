@@ -373,9 +373,9 @@ resumen_degradado() {
 # se VALIDA con visudo y solo entonces se instala. Una regla sudoers malformada en
 # /etc/sudoers.d rompe sudo en toda la máquina, así que nunca se escribe sin validar.
 instalar_sudoers() {
-  local plantilla="$1" destino="$2" aviso="$3" tmp
+  local plantilla="$1" destino="$2" aviso="$3" tmp resultado=0
   [[ -r "$plantilla" ]] || { warn "Falta la plantilla sudoers $plantilla; $aviso"; return 1; }
-    tmp="$(mktemp)" || { warn "No pude crear un archivo temporal para $destino; $aviso"; return 1; }
+  tmp="$(mktemp)" || { warn "No pude crear un archivo temporal para $destino; $aviso"; return 1; }
   if ! sed "s/__GIGISHELL_USER__/$(id -un)/" "$plantilla" > "$tmp"; then
     rm -f "$tmp"
     warn "No pude preparar la regla sudoers $destino; $aviso"
@@ -383,11 +383,13 @@ instalar_sudoers() {
   fi
   if sudo visudo -cf "$tmp" >/dev/null; then
     sudo install -Dm440 "$tmp" "$destino" \
-      || warn "No pude instalar $destino; $aviso"
+      || { warn "No pude instalar $destino; $aviso"; resultado=1; }
   else
     warn "La regla sudoers de $destino no validó; no la instalo. $aviso"
+    resultado=1
   fi
   rm -f "$tmp"
+  return "$resultado"
 }
 
 # Instala paquetes SIN que uno malo se lleve por delante al resto.
@@ -1140,14 +1142,27 @@ configure_default_shell() {
             || warn "No se pudo desactivar $conflicto; puede competir con TLP."
         done
       fi
-      sudo install -Dm755 "$SYSTEM_DIR/tlp/gigishell-tlp-apply.sh" /usr/local/bin/gigishell-tlp-apply \
+      # El helper se ejecuta como root y confía en los perfiles y active de este
+      # directorio. Aseguramos dueño y permisos incluso si ya existía con permisos
+      # demasiado abiertos; install -D por sí solo no corrige los directorios existentes.
+      if sudo install -d -o root -g root -m755 /etc/gigishell /etc/gigishell/tlp \
+        && sudo install -Dm755 "$SYSTEM_DIR/tlp/gigishell-tlp-apply.sh" /usr/local/bin/gigishell-tlp-apply \
         && sudo install -Dm644 "$SYSTEM_DIR/tlp/normal.conf" /etc/gigishell/tlp/normal.conf \
-        && sudo install -Dm644 "$SYSTEM_DIR/tlp/ahorro.conf" /etc/gigishell/tlp/ahorro.conf \
-        || warn "No pude instalar los perfiles TLP de GiGiShell."
-      instalar_sudoers "$SYSTEM_DIR/tlp/sudoers-gigishell-tlp" /etc/sudoers.d/gigishell-tlp \
-        "el cambio de perfil de energía pedirá contraseña."
+        && sudo install -Dm644 "$SYSTEM_DIR/tlp/ahorro.conf" /etc/gigishell/tlp/ahorro.conf; then
+        if ! instalar_sudoers "$SYSTEM_DIR/tlp/sudoers-gigishell-tlp" /etc/sudoers.d/gigishell-tlp \
+          "el cambio de perfil de energía pedirá contraseña."; then
+          sudo rm -f /etc/sudoers.d/gigishell-tlp \
+            || warn "No pude retirar el permiso sudoers anterior de TLP."
+        fi
+      else
+        warn "No pude asegurar el directorio o instalar los perfiles TLP; no instalo el permiso sudoers."
+        sudo rm -f /etc/sudoers.d/gigishell-tlp \
+          || warn "No pude retirar el permiso sudoers anterior de TLP."
+      fi
     else
       info "TLP no está instalado; instala 'tlp' y vuelve a ejecutar bash ~/GiGiShell/install.sh para configurar los perfiles de energía."
+      sudo rm -f /etc/sudoers.d/gigishell-tlp \
+        || warn "No pude retirar el permiso sudoers anterior de TLP."
     fi
     # Cámara: interruptor "Cámara bloqueada" de QuickSettings y de Ajustes > Cámara. Mismo
     # esquema que TLP y ClamAV (helper root-owned + regla sudoers acotada a los verbos exactos)
@@ -1157,7 +1172,7 @@ configure_default_shell() {
     sudo install -Dm755 "$SYSTEM_DIR/camara/gigishell-camara.sh" /usr/local/bin/gigishell-camara \
       || warn "No pude instalar el script auxiliar de cámara; no aparecerá el interruptor de bloqueo."
     instalar_sudoers "$SYSTEM_DIR/camara/sudoers-gigishell-camara" /etc/sudoers.d/gigishell-camara \
-      "bloquear la cámara pedirá contraseña."
+      "bloquear la cámara pedirá contraseña." || true
     # ClamAV: botón "Actualizar firmas" de Ajustes > Seguridad > Antivirus. Mismo esquema que TLP
     # (helper root-owned + regla sudoers acotada al comando exacto) porque /var/lib/clamav es de
     # `clamav` y detener/iniciar/deshabilitar el servicio es de root. Sin esto el botón no se pinta;
@@ -1166,7 +1181,7 @@ configure_default_shell() {
       sudo install -Dm755 "$SYSTEM_DIR/clamav/gigishell-clamav-update.sh" /usr/local/bin/gigishell-clamav-update \
         || warn "No pude instalar el script auxiliar de ClamAV; no aparecerá el botón de firmas en Ajustes."
       instalar_sudoers "$SYSTEM_DIR/clamav/sudoers-gigishell-clamav" /etc/sudoers.d/gigishell-clamav \
-        "actualizar las firmas pedirá contraseña."
+        "actualizar las firmas pedirá contraseña." || true
     else
       info "ClamAV no está instalado; instala 'clamav' y vuelve a ejecutar bash ~/GiGiShell/install.sh para configurar las firmas."
     fi
@@ -1180,7 +1195,7 @@ configure_default_shell() {
     sudo install -Dm755 "$SYSTEM_DIR/limpieza/gigishell-limpieza.sh" /usr/local/bin/gigishell-limpieza \
       || warn "No pude instalar el script auxiliar de limpieza; el sistema pedirá instalarlo al liberar espacio."
     instalar_sudoers "$SYSTEM_DIR/limpieza/sudoers-gigishell-limpieza" /etc/sudoers.d/gigishell-limpieza \
-      "la autolimpieza quedará limitada a tu carpeta personal (sin caché de pacman ni journal)."
+      "la autolimpieza quedará limitada a tu carpeta personal (sin caché de pacman ni journal)." || true
     else
     warn "No puedo configurar los archivos de /etc (falta sudo o $SYSTEM_DIR); el brillo DDC/CI y la escritura a USB quedarán sin configurar."
     fi
@@ -1196,7 +1211,7 @@ configure_default_shell() {
     /usr/local/bin/gigishell-clamav-update \
     || warn "No se pudo instalar el actualizador de ClamAV; no se descargarán las firmas."
   instalar_sudoers "$GIGISHELL/system/clamav/sudoers-gigishell-clamav" \
-    /etc/sudoers.d/gigishell-clamav "actualizar las firmas pedirá contraseña."
+    /etc/sudoers.d/gigishell-clamav "actualizar las firmas pedirá contraseña." || true
   fi
   if ! command -v freshclam >/dev/null 2>&1; then
     CLAMAV_ESTADO="no_disponible"
@@ -1334,16 +1349,48 @@ configure_default_shell() {
       info "Instalando el tema de inicio de sesión en $SDDM_TEMA_DESTINO ..."
       # --delete: si una actualización quita un fichero del tema, el de la copia vieja
       # no puede quedarse (un Themes/*.conf huérfano confundiría al siguiente que mire).
-      # rsync no está garantizado en un Arch pelado, así que el camino sin él es borrar
-      # y copiar, que para 2,5 MB da igual.
+      # rsync no está garantizado en un Arch pelado; sin él se prepara una copia temporal
+      # y se sustituye el directorio solo después de comprobar que la copia está completa.
       if command -v rsync >/dev/null 2>&1; then
         sudo rsync -a --delete "$SDDM_TEMA_ORIGEN/" "$SDDM_TEMA_DESTINO/" \
           || warn "No se pudo copiar el tema de inicio de sesión; SDDM conservará el que tuviera."
       else
-        sudo rm -rf "$SDDM_TEMA_DESTINO" \
-          && sudo mkdir -p "$SDDM_TEMA_DESTINO" \
-          && sudo cp -a "$SDDM_TEMA_ORIGEN/." "$SDDM_TEMA_DESTINO/" \
-          || warn "No se pudo copiar el tema de inicio de sesión; SDDM conservará el que tuviera."
+        # Preparar una copia completa al lado del destino antes de mover la versión
+        # actual. Si el copiado falla, el tema anterior sigue intacto.
+        _sddm_tema_tmp=""
+        _sddm_tema_respaldo=""
+        if sudo install -d -m755 /usr/share/sddm/themes; then
+          _sddm_tema_tmp="$(sudo mktemp -d /usr/share/sddm/themes/.gigishell-nuevo.XXXXXX 2>/dev/null || true)"
+        fi
+        if [[ -n "$_sddm_tema_tmp" ]] && \
+           sudo cp -a "$SDDM_TEMA_ORIGEN/." "$_sddm_tema_tmp/" && \
+           sudo test -r "$_sddm_tema_tmp/metadata.desktop" && \
+           sudo chmod -R a+rX "$_sddm_tema_tmp"; then
+          if [[ -e "$SDDM_TEMA_DESTINO" || -L "$SDDM_TEMA_DESTINO" ]]; then
+            _sddm_tema_respaldo="$(sudo mktemp -d /usr/share/sddm/themes/.gigishell-anterior.XXXXXX 2>/dev/null || true)"
+            if [[ -n "$_sddm_tema_respaldo" ]] && \
+               sudo rmdir "$_sddm_tema_respaldo" && \
+               sudo mv "$SDDM_TEMA_DESTINO" "$_sddm_tema_respaldo"; then
+              :
+            else
+              [[ -z "$_sddm_tema_respaldo" ]] || sudo rm -rf "$_sddm_tema_respaldo"
+              sudo rm -rf "$_sddm_tema_tmp"
+              _sddm_tema_tmp=""
+            fi
+          fi
+          if [[ -n "$_sddm_tema_tmp" ]] && sudo mv "$_sddm_tema_tmp" "$SDDM_TEMA_DESTINO"; then
+            [[ -z "$_sddm_tema_respaldo" ]] || sudo rm -rf "$_sddm_tema_respaldo"
+          else
+            if [[ -n "$_sddm_tema_respaldo" && ( -e "$_sddm_tema_respaldo" || -L "$_sddm_tema_respaldo" ) ]]; then
+              sudo mv "$_sddm_tema_respaldo" "$SDDM_TEMA_DESTINO" || true
+            fi
+            [[ -z "$_sddm_tema_tmp" ]] || sudo rm -rf "$_sddm_tema_tmp"
+            warn "No se pudo copiar el tema de inicio de sesión; SDDM conserva el que tuviera."
+          fi
+        else
+          [[ -z "$_sddm_tema_tmp" ]] || sudo rm -rf "$_sddm_tema_tmp"
+          warn "No se pudo preparar el tema de inicio de sesión; SDDM conserva el que tuviera."
+        fi
       fi
       # Legible por el usuario `sddm`, que no es root: la copia hereda los permisos del
       # checkout y un umask restrictivo del usuario dejaría el tema sin leer.
@@ -1474,7 +1521,8 @@ configure_default_shell() {
       # Se comprueba el ENLACE, no el código de salida: es el enlace lo que arranca el
       # escritorio, y quedarse sin él es la diferencia entre un equipo que entra en
       # Hyprland y uno que se para en un TTY.
-      if [ -L /etc/systemd/system/display-manager.service ]; then
+      _dm="$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null || true)"
+      if [ -n "$_dm" ] && [ "$(basename "$_dm")" = sddm.service ]; then
         info "OK: display-manager.service -> $(readlink /etc/systemd/system/display-manager.service)"
       else
         warn "SDDM no se activó: falta display-manager.service. El equipo arrancará en una consola; actívalo con: sudo systemctl enable sddm.service"
