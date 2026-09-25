@@ -106,11 +106,15 @@ carga_compartida() {  # $1 fichero local, $2 ruta compartida esperada
   # y no confunde una mención en texto con una carga real.
   awk -v patron="$patron" '
     /^[[:space:]]*#/ { next }
-    index($0, patron) {
-      prefijo = substr($0, 1, index($0, patron) - 1)
-      sub(/^[[:space:]]*/, "", prefijo)
-      if (prefijo ~ /^(source|\.)[[:space:]]/ ||
-          prefijo ~ /(&&|\|\||;)[[:space:]]*(source|\.)[[:space:]]/) encontrado = 1
+    {
+      linea = $0
+      while ((posicion = index(linea, patron)) > 0) {
+        prefijo = substr(linea, 1, posicion - 1)
+        sub(/^[[:space:]]*/, "", prefijo)
+        if (prefijo ~ /^(source|\.)[[:space:]]/ ||
+            prefijo ~ /(&&|\|\||;)[[:space:]]*(source|\.)[[:space:]]/) encontrado = 1
+        linea = substr(linea, posicion + length(patron))
+      }
     }
     END { exit !encontrado }
   ' "$dst"

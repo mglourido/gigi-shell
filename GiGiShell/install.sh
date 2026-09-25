@@ -1663,7 +1663,9 @@ configure_default_shell() {
 
   # --- 5. Seleccionar el perfil de rendimiento de Kitty ---
     KITTY_SELECTOR="$GIGISHELL/bin/kitty-profile.sh"
-    if [ -x "$KITTY_SELECTOR" ]; then
+    if [[ "$KITTY_PROFILE" == conservar ]]; then
+    info "Se conserva el perfil actual de Kitty."
+    elif [ -x "$KITTY_SELECTOR" ]; then
     info "Seleccionando el perfil de Kitty ($KITTY_PROFILE) ..."
     "$KITTY_SELECTOR" "$KITTY_PROFILE" \
       || warn "No se pudo activar el perfil de Kitty '$KITTY_PROFILE'. Vuelve a intentarlo con: $KITTY_SELECTOR $KITTY_PROFILE"
@@ -1673,7 +1675,9 @@ configure_default_shell() {
 
   # --- 6. Seleccionar y aplicar el perfil de rendimiento de Firefox ---
     FIREFOX_SELECTOR="$GIGISHELL/bin/firefox-profile.sh"
-    if [ -x "$FIREFOX_SELECTOR" ]; then
+    if [[ "$FIREFOX_PROFILE" == conservar ]]; then
+    info "Se conserva el perfil actual de Firefox."
+    elif [ -x "$FIREFOX_SELECTOR" ]; then
     info "Seleccionando el perfil de Firefox ($FIREFOX_PROFILE) ..."
     "$FIREFOX_SELECTOR" "$FIREFOX_PROFILE" \
       || warn "No se pudo activar el perfil de Firefox '$FIREFOX_PROFILE'. Vuelve a intentarlo con: $FIREFOX_SELECTOR $FIREFOX_PROFILE"
