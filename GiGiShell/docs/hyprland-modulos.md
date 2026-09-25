@@ -809,7 +809,7 @@ sub-monitores ya duermen en primer plano, así que ahí `sleep` a secas es lo co
 Abrir Spotify, un daemon de controladores o un script propio al entrar al escritorio, sin editar
 ninguna configuración a mano. La **lista es dato** —`~/.config/gigishell/apps-inicio.json`, que
 escribe AGS— y quien la **ejecuta** es este script, al que `gigishell/autostart.lua` llama con una
-sola línea a **t=7**.
+sola línea a **t=3,5**.
 
 **Por qué la lista no vive en `autostart.lua`.** Añadir una app al inicio no puede obligar a tocar
 Lua: un error de sintaxis ahí deja la sesión **sin atajos salvo `SUPER + Q`** (ver
@@ -822,20 +822,20 @@ momento para una app gráfica: hasta que el compositor no está en pie no hay `W
 conectarse. Lo que sí se gana es que la lista sea independiente del config del compositor. Mismo
 reparto que `init.sh`, que también sale de un `exec-once` pese a llamarse inicializador.
 
-**t=7, y las apps escalonadas entre sí.** Son lo más caro que puede entrar en el arranque —apps de
+**t=3,5, y las apps escalonadas entre sí.** Son lo más caro que puede entrar en el arranque —apps de
 escritorio completas, cada una con su runtime y su GL— y a t=0 competirían con AGS por el driver,
 que es el medio segundo que decide cuándo se ve la barra. Más tarde tampoco: quien pone Spotify en
 el inicio lo quiere ahí al llegar. Dentro, las apps salen de una en una con `RETARDO_ENTRE` (2 s)
 por medio, porque media docena arrancando a la vez es exactamente la avalancha que el resto del
 calendario se pasa entero evitando — solo que aquí el usuario puede crearla con tres clics. El
-primer lanzamiento **no** espera: el retardo del arranque global ya lo pone el `sleep 7` del punto
+primer lanzamiento **no** espera: el retardo del arranque global ya lo pone el `sleep 3.5` del punto
 de llamada, y el de aquí es solo el hueco *entre* apps.
 
 **Una vez por sesión, con marca en `$XDG_RUNTIME_DIR`.** `hyprctl reload full-reset` **repite** el
 autostart (es su razón de ser), así que sin guarda cada recarga del compositor mientras se afina
 algo abriría un segundo Spotify. La marca lleva el `HYPRLAND_INSTANCE_SIGNATURE`, que cambia con
 cada arranque del compositor y no con una recarga: sesión nueva sí, recarga no. Se escribe **al
-final** y solo si se llegó a recorrer la lista — ponerla antes convertiría un JSON ilegible en
+final** y solo si jq validó y leyó la lista — ponerla antes convertiría un JSON ilegible en
 "esta sesión ya lanzó sus apps". `--forzar` se la salta, y `--probar <id>` lanza una sola entrada
 (activa o no, sin tocar la marca): es lo que hay detrás del botón ▶ de cada fila en Ajustes.
 
@@ -869,7 +869,7 @@ Lua, escapando `\` y `'` (misma función que `lanzar-anclado.py`). Verificado co
 mezcla comillas de los dos tipos y una barra invertida: idéntico por el camino de `hyprctl` y por el
 de la reserva `setsid`.
 
-**Convive con el escáner de apps de aquí abajo, y conviene saberlo**: t=7 cae **dentro** de su
+**Convive con el escáner de apps de aquí abajo, y conviene saberlo**: t=3,5 cae **dentro** de su
 ventana de 30 s, y esas son justo las ventanas que el escáner existe para encontrar. Con
 `escanerAppsInicio` activado, te llevará al escritorio de estas apps al cerrar su ventana — lo que
 en la práctica deshace el "sin llevarte a él" de una entrada silenciosa. No es un fallo de ninguno

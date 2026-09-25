@@ -121,13 +121,18 @@ lanzar() {
 # dentro: jq las emite escapadas y el comando llegaría alterado, sin un solo
 # error por medio.
 if [ "$modo" = "probar" ]; then
-    filtro='(.apps // [])[] | select((.id // "") == $id) | @base64'
+    filtro='if type != "object" then error("la raíz debe ser un objeto") else . end | (if (has("apps") | not) or .apps == null then [] elif (.apps | type) == "array" then .apps else error("apps debe ser una lista") end)[] | select((.id // "") == $id) | @base64'
 else
-    filtro='(.apps // [])[] | select(.activo != false) | @base64'
+    filtro='if type != "object" then error("la raíz debe ser un objeto") else . end | (if (has("apps") | not) or .apps == null then [] elif (.apps | type) == "array" then .apps else error("apps debe ser una lista") end)[] | select(.activo != false) | @base64'
 fi
 
+# Capturar la salida permite comprobar el código de jq antes de procesar nada.
+# Con sustitución de proceso, un JSON inválido fallaba dentro del productor y
+# el while acababa vacío, escribiendo igualmente la marca de esta sesión.
+filas=$(jq -r --arg id "$id_probar" "$filtro" "$CONFIG" 2>/dev/null) || exit 0
+
 primera=1
-while IFS= read -r fila; do
+while IFS= read -r fila || [ -n "$fila" ]; do
     [ -n "$fila" ] || continue
     entrada=$(printf '%s' "$fila" | base64 -d 2>/dev/null) || continue
 
@@ -139,10 +144,10 @@ while IFS= read -r fila; do
     [ "$primera" -eq 1 ] || sleep "$RETARDO_ENTRE"
     primera=0
     lanzar "$cmd" "$escritorio" "$silencioso"
-done < <(jq -r --arg id "$id_probar" "$filtro" "$CONFIG" 2>/dev/null)
+done <<< "$filas"
 
-# La marca se pone al final y solo si de verdad se recorrió la lista: dejarla
-# antes convertiría un JSON ilegible en "esta sesión ya lanzó sus apps".
+# La marca se pone al final y solo si jq validó y leyó la lista: dejarla antes
+# convertiría un JSON ilegible en "esta sesión ya lanzó sus apps".
 [ -n "$marca" ] && : > "$marca"
 
 exit 0
