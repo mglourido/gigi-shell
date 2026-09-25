@@ -228,6 +228,39 @@ end)
 bind(mod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
 bind(mod .. " + mouse_up", hl.dsp.focus({ workspace = "e-1" }))
 
+-- con ALT además, recorrido completo: del 1 al 10 aunque estén vacíos, más
+-- cualquier otro normal (id > 0) que exista fuera de ese rango, en orden y en
+-- círculo. No hay selector nativo para esto: "r±1" no da la vuelta y "e±1"
+-- salta los vacíos, así que la lista se arma a mano en cada giro.
+local function recorrer_todos(paso)
+  local ids, visto = {}, {}
+  for i = 1, 10 do
+    ids[#ids + 1] = i
+    visto[i] = true
+  end
+  for _, ws in ipairs(hl.get_workspaces() or {}) do
+    if ws.id and ws.id > 0 and not visto[ws.id] then
+      ids[#ids + 1] = ws.id
+      visto[ws.id] = true
+    end
+  end
+  table.sort(ids)
+
+  local activo = hl.get_active_workspace()
+  local actual = activo and not activo.special and activo.id or nil
+  local pos
+  for i, id in ipairs(ids) do
+    if id == actual then pos = i break end
+  end
+  -- desde un especial (o sin activo) se entra por el primero o el último
+  if not pos then pos = paso > 0 and 0 or #ids + 1 end
+
+  local destino = ids[(pos - 1 + paso) % #ids + 1]
+  hl.dispatch(hl.dsp.focus({ workspace = destino }))
+end
+bind(mod .. " + ALT + mouse_down", function() recorrer_todos(1) end)
+bind(mod .. " + ALT + mouse_up", function() recorrer_todos(-1) end)
+
 -- llevarse la ventana al workspace siguiente/anterior con mod + SHIFT + rueda
 -- (alternativa a mod+SHIFT+número, mismo envoltorio). "r±1" y no "e±1": con
 -- "e" no se podría sacar la ventana a un escritorio vacío nuevo.

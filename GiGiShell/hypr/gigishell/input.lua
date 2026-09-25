@@ -44,6 +44,44 @@ hl.config({
 -- Se mantiene aquí (y no en gigishell/dispositivos) para no registrarlo dos veces.
 hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 
+-- Tres dedos arriba: maximizar ↔ restaurar. Tres dedos abajo: flotante ↔
+-- mosaico. Siempre sobre la ventana con foco.
+--
+-- Guard: si es la ÚNICA ventana visible de su workspace, el gesto no la
+-- maximiza ni la saca a flotante (sola ya ocupa todo el hueco). Deshacer sí se
+-- deja: una ventana que ya está maximizada o flotante vuelve atrás aunque esté
+-- sola — si no, cerrar la otra ventana la dejaría atascada en ese estado.
+--
+-- Por eso son callbacks y no las acciones nativas "fullscreen"/"float", que no
+-- admiten condición. `finish` se dispara una vez, al levantar los dedos.
+-- Ojo: el callback tiene timeout de 100 ms; aquí solo hay consultas en memoria.
+local function sola_en_su_workspace()
+  local ws = hl.get_active_workspace()
+  if not ws then return false end
+  local ok, lista = pcall(hl.get_workspace_windows, ws)
+  if not ok or not lista then return false end
+  local visibles = 0
+  for _, v in ipairs(lista) do
+    if not v.hidden then visibles = visibles + 1 end
+  end
+  return visibles <= 1
+end
+
+hl.gesture({ fingers = 3, direction = "up", action = { finish = function()
+  local w = hl.get_active_window()
+  if not w then return end
+  -- fullscreen: 0 = normal; 1 = maximizada; 2 = pantalla completa
+  if (w.fullscreen or 0) == 0 and sola_en_su_workspace() then return end
+  hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized" }))
+end } })
+
+hl.gesture({ fingers = 3, direction = "down", action = { finish = function()
+  local w = hl.get_active_window()
+  if not w then return end
+  if not w.floating and sola_en_su_workspace() then return end
+  hl.dispatch(hl.dsp.window.float({ action = "toggle" }))
+end } })
+
 -- Ejemplo de config por dispositivo.
 -- https://wiki.hypr.land/Configuring/Keywords/#per-device-input-configs
 hl.device({
