@@ -85,7 +85,7 @@ recargar_udev() {
     udevadm trigger --action=change --subsystem-match=video4linux || return 1
     # `settle` para no devolverle el control a la UI antes de que los permisos estén puestos: el
     # panel relee el estado justo después y pintaría el interruptor a medio camino.
-    udevadm settle --timeout=5 2>/dev/null
+    udevadm settle --timeout=5 2>/dev/null || return 1
     return 0
 }
 
@@ -94,7 +94,7 @@ case "${1:-}" in
         # La PRESENCIA del fichero es el interruptor. No hay estado en ningún otro sitio: así el
         # bloqueo sobrevive a reiniciar sin que nada tenga que acordarse de reponerlo, y se puede
         # deshacer desde un TTY con `rm` si algún día la UI no arranca.
-        cat > "$REGLA" <<'EOF'
+        if ! cat > "$REGLA" <<'EOF'
 # Generado por gigishell-camara (GiGiShell). Su PRESENCIA es el interruptor de bloqueo
 # de la cámara: para desbloquear se BORRA el fichero (`gigishell-camara unblock`).
 #
@@ -103,20 +103,45 @@ case "${1:-}" in
 # tag entre esas dos. En 99- llegaría tarde y no bloquearía nada, sin dar error.
 SUBSYSTEM=="video4linux", TAG-="uaccess", OWNER="root", GROUP="root", MODE="0000"
 EOF
-        chmod 644 "$REGLA"
-        recargar_udev || echo "aviso: no pude recargar udev; el bloqueo se aplicará al reiniciar" >&2
+        then
+            echo "error: no pude crear la regla de bloqueo" >&2
+            exit 1
+        fi
+        if ! chmod 644 "$REGLA"; then
+            echo "error: no pude ajustar los permisos de la regla de bloqueo" >&2
+            exit 1
+        fi
+        fallo=0
+        recargar_udev || {
+            echo "aviso: no pude completar la recarga de udev; comprueba el bloqueo antes de confiar en él" >&2
+            fallo=1
+        }
         # Los nodos vivos, a mano: ver la cabecera (la ACL ya concedida no la revoca el trigger).
         for dev in /dev/video*; do
             [[ -c $dev ]] || continue
-            chown root:root "$dev" 2>/dev/null
-            chmod 000 "$dev" 2>/dev/null
+            if ! chown root:root "$dev" 2>/dev/null; then
+                echo "error: no pude cambiar el propietario de $dev al bloquear" >&2
+                fallo=1
+            fi
+            if ! chmod 000 "$dev" 2>/dev/null; then
+                echo "error: no pude retirar los permisos de $dev al bloquear" >&2
+                fallo=1
+            fi
         done
+        (( fallo == 0 )) || exit 1
         en_uso && echo "aviso: una aplicación tiene la cámara abierta; seguirá viéndola hasta que la cierre" >&2
         echo "blocked $(nodos)"
         ;;
     unblock)
-        rm -f "$REGLA"
-        recargar_udev || echo "aviso: no pude recargar udev; desbloquea del todo al reiniciar" >&2
+        if ! rm -f "$REGLA"; then
+            echo "error: no pude retirar la regla de bloqueo" >&2
+            exit 1
+        fi
+        fallo=0
+        recargar_udev || {
+            echo "aviso: no pude completar la recarga de udev; comprueba el desbloqueo antes de confiar en él" >&2
+            fallo=1
+        }
         # ⚠️ EL TRIGGER NO DESHACE EL `chmod 000`, y creer que sí dejaba la cámara MUERTA hasta el
         # siguiente arranque —sin un solo error, y con `status` diciendo "unblocked"—. Es la misma
         # asimetría que documenta la cabecera para la ACL, en el otro sentido: udev fija dueño y
@@ -131,9 +156,16 @@ EOF
         # `uaccess` puso al arrancar vuelve a ser efectiva y la cámara se abre sin reiniciar.
         for dev in /dev/video*; do
             [[ -c $dev ]] || continue
-            chown root:video "$dev" 2>/dev/null
-            chmod 660 "$dev" 2>/dev/null
+            if ! chown root:video "$dev" 2>/dev/null; then
+                echo "error: no pude restaurar el propietario de $dev al desbloquear" >&2
+                fallo=1
+            fi
+            if ! chmod 660 "$dev" 2>/dev/null; then
+                echo "error: no pude restaurar los permisos de $dev al desbloquear" >&2
+                fallo=1
+            fi
         done
+        (( fallo == 0 )) || exit 1
         echo "unblocked $(nodos)"
         ;;
     status)
