@@ -194,6 +194,7 @@ if [[ "$mode" == "--installed" ]]; then
     brightnessctl:brightnessctl ddcutil:ddcutil playerctl:playerctl wpctl:wireplumber
     pactl:libpulse pw-metadata:pipewire wf-recorder:wf-recorder grim:grim
     slurp:slurp hyprshot:hyprshot awww:awww awww-daemon:awww
+    v4l2-ctl:v4l-utils fuser:psmisc mpv:mpv
     notify-send:libnotify nmcli:networkmanager
     nm-connection-editor:nm-connection-editor bluetoothctl:bluez-utils
     blueman-manager:blueman inotifywait:inotify-tools

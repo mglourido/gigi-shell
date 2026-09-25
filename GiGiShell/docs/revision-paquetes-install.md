@@ -23,6 +23,16 @@ No encontré una pareja de paquetes de uso activo que se pueda fusionar sin camb
 |---|---|---|---|
 | `npm` | GiGiShell no arranca con npm. El uso de runtime localizado es `npm cache clean --force` en la limpieza de caché; el resto de menciones son detección/contabilidad del gestor. | **Aplicado:** retirado de la instalación base; se conserva la detección para mostrar/limpiar cachés cuando esté presente. | GiGiShell y AGS siguen arrancando. En instalaciones nuevas npm se instala aparte si se necesita; su caché no aparecerá ni podrá limpiarse desde Ajustes hasta entonces. |
 
+## Dependencias directas de cámara añadidas
+
+La revisión también encontró comandos de cámara usados por el shell que no estaban declarados explícitamente. Se añadieron a la instalación y al preflight para que las funciones no dependan de paquetes arrastrados de forma indirecta:
+
+| Paquete | Comando | Uso en GiGiShell | Motivo |
+|---|---|---|---|
+| `v4l-utils` | `v4l2-ctl` | Consulta y configuración de controles y formatos V4L2 de la cámara. | El preflight ahora comprueba el ejecutable que usa el shell. |
+| `psmisc` | `fuser` | Detecta procesos que están usando el dispositivo de cámara. | Sin el comando, la comprobación de uso no puede identificar correctamente procesos activos. |
+| `mpv` | `mpv` | Reproduce la vista previa de la cámara. | Haruna ya hacía que mpv llegase como dependencia indirecta, pero el shell ejecuta `mpv` directamente y ahora lo declara como dependencia propia. |
+
 ## Paquetes que parecen duplicados, pero cubren usos diferentes
 
 - **`grim`, `slurp` y `hyprshot`:** `hyprshot` simplifica capturas por atajo, pero el shell invoca `grim` directamente para vistas previas/capturas y `slurp` para seleccionar región al grabar pantalla. Quitarlos exigiría migrar esos usos y comprobar que la captura por monitor, selección y grabación conservan el mismo flujo.
@@ -47,7 +57,7 @@ En los paquetes activos examinados no aparece una sustitución que ofrezca el mi
 
 ## Resultado
 
-Se quitaron `wget`, `bc` y `npm` de la lista de dependencias obligatorias y del preflight. npm sigue siendo una función opcional de la limpieza de caché cuando el usuario ya lo tenga instalado. Las parejas restantes requieren migrar o perder funciones; no se recortaron.
+Se quitaron `wget`, `bc` y `npm` de la lista de dependencias obligatorias y del preflight. npm sigue siendo una función opcional de la limpieza de caché cuando el usuario ya lo tenga instalado. Se añadieron `v4l-utils`, `psmisc` y `mpv` como dependencias directas de las funciones de cámara, con sus ejecutables comprobados en el preflight. Las parejas restantes requieren migrar o perder funciones; no se recortaron.
 
 ## Fuentes consultadas
 

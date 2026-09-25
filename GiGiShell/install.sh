@@ -740,6 +740,11 @@ install_packages() {
     ttf-meslo-nerd ttf-cascadia-code-nerd noto-fonts noto-fonts-emoji
     rofi rofimoji wtype cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl
     qalculate-gtk wf-recorder grim slurp jq hyprshot btop
+    # Dependencias directas de las funciones de cámara: v4l-utils da controles y
+    # formatos V4L2, psmisc aporta fuser para detectar procesos que usan el dispositivo,
+    # y mpv abre la vista previa. Haruna ya traía mpv indirectamente, pero el shell lo
+    # ejecuta directamente y debe declararlo por sí mismo.
+    v4l-utils psmisc mpv
     # libcanberra: reproduce el `sound-name` de las notificaciones (alarmas y temporizador del
     # panel de reloj). Sin él la alerta se ve pero no suena, sin error visible.
     libcanberra
