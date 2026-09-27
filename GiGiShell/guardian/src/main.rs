@@ -10,6 +10,7 @@
 mod arranque;
 mod bpf;
 mod categorias;
+mod daemon;
 mod depurar;
 mod fanotify;
 mod historial;
@@ -18,6 +19,7 @@ mod motor;
 mod politica;
 mod proceso;
 mod protocolo;
+mod senales;
 mod tipos;
 
 fn main() {
@@ -30,7 +32,13 @@ fn main() {
 
 fn ejecutar(args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
-        None => Err("modo daemon: Fase 2".to_string()),
+        None => {
+            let uid = std::env::var("GUARDIAN_UID")
+                .map_err(|_| "falta GUARDIAN_UID (el UID del usuario; lo pone la unidad systemd)")?
+                .parse::<u32>()
+                .map_err(|_| "GUARDIAN_UID no es un número")?;
+            daemon::ejecutar(uid)
+        }
         Some("--depurar") => depurar::ejecutar(&args[1..]),
         Some("--tras-parada") => bpf::tras_parada(),
         Some(otro) => Err(format!("opción desconocida: {otro}")),

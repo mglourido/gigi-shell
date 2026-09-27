@@ -20,6 +20,11 @@ impl Categorias {
         Ok(Categorias(mapa))
     }
 
+    /// Sin categorías: todo acceso se pregunta.
+    pub fn vacias() -> Self {
+        Categorias(BTreeMap::new())
+    }
+
     pub fn cargar(ruta: &Path) -> Result<Self, String> {
         let texto =
             fs::read_to_string(ruta).map_err(|e| format!("leyendo {}: {e}", ruta.display()))?;

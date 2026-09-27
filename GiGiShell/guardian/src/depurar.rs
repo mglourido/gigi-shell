@@ -22,6 +22,7 @@ use std::time::Duration;
 use crate::bpf;
 use crate::fanotify;
 use crate::proceso;
+use crate::senales;
 use crate::tipos;
 
 /// Id interno fijo del único fichero que este modo protege. El daemon de
@@ -40,8 +41,8 @@ pub fn ejecutar(args: &[String]) -> Result<(), String> {
     // kernel la deja pendiente en vez de matar el proceso con el manejador
     // por defecto — se recoge en la primera vuelta del `poll` de más abajo,
     // no se pierde.
-    let mascara_senales = bloquear_senales()?;
-    let fd_senales = crear_signalfd(&mascara_senales)?;
+    let mascara_senales = senales::bloquear()?;
+    let fd_senales = senales::signalfd(&mascara_senales)?;
 
     // GUARDIAN_LIBBPF_DEBUG=1: volcar el log completo de libbpf (y del
     // verificador) a stderr; sin él, un fallo de carga solo dice el errno.
@@ -363,29 +364,4 @@ fn parsear_args(
     }
 
     Ok((ruta, auto, concesiones))
-}
-
-/// Bloquea SIGINT/SIGTERM en este hilo (proceso de un solo hilo: basta con
-/// esto) para poder recogerlas por `signalfd` en el `poll` del bucle
-/// principal en vez de por un manejador asíncrono, que no podría llamar con
-/// seguridad a `parar_limpio` (E/S, bpffs) desde el contexto de la señal.
-fn bloquear_senales() -> Result<libc::sigset_t, String> {
-    unsafe {
-        let mut mascara: libc::sigset_t = std::mem::zeroed();
-        libc::sigemptyset(&mut mascara);
-        libc::sigaddset(&mut mascara, libc::SIGINT);
-        libc::sigaddset(&mut mascara, libc::SIGTERM);
-        if libc::sigprocmask(libc::SIG_BLOCK, &mascara, std::ptr::null_mut()) != 0 {
-            return Err(format!("sigprocmask: {}", io::Error::last_os_error()));
-        }
-        Ok(mascara)
-    }
-}
-
-fn crear_signalfd(mascara: &libc::sigset_t) -> Result<RawFd, String> {
-    let fd = unsafe { libc::signalfd(-1, mascara, libc::SFD_CLOEXEC) };
-    if fd < 0 {
-        return Err(format!("signalfd: {}", io::Error::last_os_error()));
-    }
-    Ok(fd)
 }

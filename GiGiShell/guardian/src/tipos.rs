@@ -124,6 +124,7 @@ pub struct Evento {
 /// coincide con lo que `clave_de_inodo()` lee en `guardian.bpf.c` (en btrfs, el
 /// dev del subvolumen). `fanotify::clave_de_fd` hace la misma combinación con
 /// el major/minor ya separados que da `statx`.
+#[cfg(test)]
 pub fn kdev(dev: u64) -> u64 {
     let major = libc::major(dev) as u64;
     let minor = libc::minor(dev) as u64;
