@@ -17,6 +17,7 @@
 #   - ls -l no se ve afectado (no abre el contenido)
 #   - R2 (caída del proceso: falla cerrado; reenganche; parada limpia)
 #   - R3 (guardado atómico: la protección sigue al inodo nuevo)
+#   - btrfs: fichero bajo $HOME real; mismo ino en dos subvolúmenes
 #   - R5 (coste: solo informativo, no cuenta para el resultado)
 #
 # Imprime OK/FALLO por caso y termina con "---- fallos: N" (código de salida N).
@@ -60,6 +61,7 @@ sudo -u "$SUDO_USER" bash -c "printf 'contenido original\n' > '$ARCHIVO'"
 PID_DEP=""
 LOG_ACTIVO=""
 DIR_BTRFS=""
+DIR_SUBVOL=""
 
 # Parada ordenada de $PID_DEP: SIGTERM y esperar (acotado, ~3s en pasos de
 # 0.1s) a que aparezca PARADO en el log activo o a que el proceso termine
@@ -116,6 +118,14 @@ cleanup() {
     # (con el BPF desanclado, el fichero ya no tiene por qué seguir denegando).
     if [ -n "$DIR_BTRFS" ]; then
         rm -rf "$DIR_BTRFS" 2>/dev/null || true
+    fi
+    # Los subvolúmenes se borran como subvolúmenes: `rm -rf` no puede con un
+    # subvolumen que no esté vacío.
+    if [ -n "$DIR_SUBVOL" ]; then
+        for sv in "$DIR_SUBVOL/a" "$DIR_SUBVOL/b"; do
+            [ -d "$sv" ] && btrfs -q subvolume delete "$sv" >/dev/null 2>&1 || true
+        done
+        rm -rf "$DIR_SUBVOL" 2>/dev/null || true
     fi
     rm -rf "$TMPDIR_PROP"
 }
@@ -325,12 +335,12 @@ parar_depurador
 
 echo "== btrfs: fichero protegido bajo el \$HOME real del usuario (no tmpfs) =="
 # El caso que se le escapó a todo lo de arriba: $TMPDIR_PROP (de `mktemp -d`
-# a secas) suele caer en tmpfs, donde por casualidad el `dev` de `stat()`
-# coincide con el del superbloque. Bajo el HOME real del usuario (btrfs en
-# esta máquina, con subvolúmenes) NO coincide — es justo el bug que hizo
-# fallar R3 con `os.replace` (EPERM inesperado, `EVENTO tipo=1 op=2`): la
-# clave construida con `st_dev` nunca casaba con la que ve el BPF
-# (`inode->i_sb->s_dev`). Este caso repite la comprobación más básica —
+# a secas) suele caer en tmpfs, donde el `dev` de `stat()` coincide con el
+# del superbloque. Bajo el HOME real del usuario (btrfs en esta máquina, con
+# subvolúmenes) NO coincide — es justo lo que hizo fallar R3 con `os.replace`
+# (EPERM inesperado, `EVENTO tipo=1 op=2`): el userspace y el BPF construían
+# el `dev` de la clave de formas distintas. Hoy los dos usan el de `stat()`
+# (en btrfs, el del subvolumen; ver `clave_de_inodo()` en guardian.bpf.c). Este caso repite la comprobación más básica —
 # proteger y denegar una lectura— pero sobre un fichero de verdad bajo
 # `$HOME`, no bajo un directorio de pruebas que puede estar en un filesystem
 # distinto del que usan los ficheros reales que este daemon protegerá.
@@ -362,7 +372,49 @@ else
 fi
 
 # Parada ORDENADA (no-op si ya se paró en el `matar_depurador_atascado` de
-# arriba): antes de que R5 arranque el suyo propio, justo debajo.
+# arriba): antes de que el caso de subvolúmenes arranque el suyo, justo debajo.
+parar_depurador
+
+echo "== btrfs: mismo número de inodo en dos subvolúmenes =="
+# El fallo que se le escapó al caso de arriba: en btrfs los números de inodo
+# solo son únicos DENTRO de cada subvolumen, y todos comparten superbloque. Con
+# la clave (dev del superbloque, ino), proteger un fichero protegía también a
+# cualquier otro con el mismo ino en otro subvolumen. Dos subvolúmenes recién
+# creados dan su primer fichero con el mismo ino (257), así que la colisión se
+# reproduce sin buscarla. La comprobación usa `chmod` y no `cat`: sobre el
+# fichero ajeno un `cat` pasaba igual con el fallo (el BPF lo creía protegido
+# pero fanotify no lo tenía marcado), mientras que `chmod` lo corta el LSM
+# directamente con EPERM.
+if [ -z "$HOME_USUARIO" ] || [ "$(stat -f -c %T "$HOME_USUARIO" 2>/dev/null)" != "btrfs" ] \
+    || ! command -v btrfs >/dev/null 2>&1; then
+    info "subvolúmenes: \$HOME no es btrfs o falta btrfs-progs; caso omitido"
+else
+    DIR_SUBVOL="$(sudo -u "$SUDO_USER" mktemp -d "$HOME_USUARIO/.cache/guardian-subvol.XXXXXX")"
+    btrfs -q subvolume create "$DIR_SUBVOL/a" >/dev/null
+    btrfs -q subvolume create "$DIR_SUBVOL/b" >/dev/null
+    chown "$SUDO_USER":"$GRUPO_USUARIO" "$DIR_SUBVOL/a" "$DIR_SUBVOL/b"
+    sudo -u "$SUDO_USER" bash -c "printf 'protegido\n' > '$DIR_SUBVOL/a/f'; printf 'ajeno\n' > '$DIR_SUBVOL/b/f'"
+
+    if [ "$(stat -c %i "$DIR_SUBVOL/a/f")" != "$(stat -c %i "$DIR_SUBVOL/b/f")" ]; then
+        info "subvolúmenes: los dos ficheros no salieron con el mismo ino; caso omitido"
+    else
+        LOG5="$TMPDIR_PROP/depurador5.log"
+        iniciar_depurador "$LOG5" "$DIR_SUBVOL/a/f" --auto denegar
+        if ! esperar_patron '^LISTO' "$LOG5"; then
+            fallo "subvolúmenes: arranque del depurador"
+            matar_depurador_atascado
+        else
+            como_usuario chmod 600 "$DIR_SUBVOL/b/f" 2>/dev/null
+            check "subvolúmenes: el fichero de OTRO subvolumen con el mismo ino no queda protegido (chmod pasa)" $?
+            como_usuario chmod 600 "$DIR_SUBVOL/a/f" 2>/dev/null
+            sub_a=$?
+            check "subvolúmenes: el protegido sigue protegido (chmod denegado)" \
+                $([ "$sub_a" -ne 0 ] && echo 0 || echo 1)
+        fi
+    fi
+fi
+
+# Parada ORDENADA antes de que R5 arranque el suyo propio, justo debajo.
 parar_depurador
 
 echo "== R5: coste (informativo) =="

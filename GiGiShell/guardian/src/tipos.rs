@@ -120,16 +120,13 @@ pub struct Evento {
 /// que hay que reproducir a mano porque `libc::major`/`libc::minor` deshacen el
 /// empaquetado de GLIBC, no el del kernel.
 ///
-/// NO USAR sobre `stat()/fstat().st_dev` para construir un `ClaveInodo`: en
-/// btrfs (con subvolúmenes) `st_dev` es el dev ANÓNIMO del subvolumen, no el
-/// del superbloque real que ve `guardian.bpf.c` — la vía correcta es
-/// `fanotify::clave_de_fd`/`clave_de_ruta`, que resuelven el dev por
-/// `statx(STATX_MNT_ID)` + `/proc/self/mountinfo`. Esta función queda como
-/// utilidad de propósito general para convertir un `dev_t` YA empaquetado (no
-/// hace falta para el `major:minor` de mountinfo, que llega ya separado).
+/// Es el `dev` que usan las claves de inodo: `stat().st_dev` pasado por aquí
+/// coincide con lo que `clave_de_inodo()` lee en `guardian.bpf.c` (en btrfs, el
+/// dev del subvolumen). `fanotify::clave_de_fd` hace la misma combinación con
+/// el major/minor ya separados que da `statx`.
 pub fn kdev(dev: u64) -> u64 {
-    let major = unsafe { libc::major(dev) } as u64;
-    let minor = unsafe { libc::minor(dev) } as u64;
+    let major = libc::major(dev) as u64;
+    let minor = libc::minor(dev) as u64;
     (major << 20) | minor
 }
 

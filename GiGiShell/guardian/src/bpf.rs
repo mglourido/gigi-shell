@@ -151,8 +151,10 @@ impl Bpf {
 
         // Anclar cada mapa ANTES de `load()`: si ya existe un anclaje de una
         // carga anterior, libbpf reutiliza ese mapa (y su contenido) en vez de
-        // crear uno vacío — así el conjunto de ficheros protegidos sobrevive a
-        // un reinicio del daemon sin que nadie tenga que volver a marcarlos.
+        // crear uno vacío — así el conjunto de ficheros protegidos (y sus
+        // permisos) sobrevive a un reinicio del daemon y el BPF sigue
+        // denegando entretanto. Lo que NO sobrevive son las marcas de
+        // fanotify: ver `desmarcar_todo` justo después de `load()`.
         for mut mapa in skel_abierto.open_object_mut().maps_mut() {
             let nombre = mapa
                 .name()
@@ -196,6 +198,18 @@ impl Bpf {
             );
             Error::Bpf(e)
         })?;
+
+        // Las marcas de fanotify NO sobreviven al proceso que las puso (mueren
+        // con su fd), pero los mapas anclados sí: tras una caída `protegidos`
+        // seguiría diciendo `marcado = 1` para inodos que ya no tiene marcados
+        // nadie. `g_file_open` dejaría pasar la apertura a la espera de una
+        // respuesta de fanotify que nunca llega — falla ABIERTO, sin error. Se
+        // desmarca todo ANTES de nada más, para que el BPF (los programas
+        // viejos, todavía enganchados, comparten estos mismos mapas) deniegue
+        // hasta que el nuevo proceso vuelva a marcar cada fichero. Las
+        // peticiones pendientes de antes tampoco valen: eran para aperturas
+        // que ya se resolvieron sin nadie.
+        desmarcar_todo(&skel)?;
 
         let pid = std::process::id();
         // Sufijo único por carga, no solo el pid: si el daemon se cae y el pid
@@ -397,6 +411,18 @@ impl Bpf {
         Ok(())
     }
 
+    /// Entrada de `protegidos` para `clave`, si la hay. Es lo que dice a qué
+    /// id de fichero corresponde el fd de un evento de fanotify.
+    pub fn protegido(&self, clave: ClaveInodo) -> Option<ValorProtegido> {
+        let bytes = self
+            .skel
+            .maps
+            .protegidos
+            .lookup(como_bytes(&clave), MapFlags::ANY)
+            .ok()??;
+        desde_bytes::<ValorProtegido>(&bytes)
+    }
+
     /// Lee y borra (atómicamente) la petición pendiente del hilo `tid` — clave
     /// por TID y no por TGID, ver el comentario junto a `pend.fichero` en
     /// `guardian.bpf.c`: es la que fanotify puede casar de verdad con su propio
@@ -442,6 +468,34 @@ impl Bpf {
         fs::remove_dir_all(RAIZ)?;
         Ok(())
     }
+}
+
+/// Pone `marcado = 0` en toda entrada de `protegidos` y vacía `pendientes`
+/// (ver la llamada en `Bpf::cargar`). Conserva el id de fichero: los permisos
+/// y categorías ya concedidos siguen valiendo cuando se vuelva a marcar.
+fn desmarcar_todo(skel: &GuardianSkel<'_>) -> Resultado<()> {
+    let protegidos = &skel.maps.protegidos;
+    let claves: Vec<Vec<u8>> = protegidos.keys().collect();
+    for clave in claves {
+        let Some(bytes) = protegidos.lookup(&clave, MapFlags::ANY)? else {
+            continue;
+        };
+        let Some(mut valor) = desde_bytes::<ValorProtegido>(&bytes) else {
+            continue;
+        };
+        if valor.marcado != 0 {
+            valor.marcado = 0;
+            protegidos.update(&clave, como_bytes(&valor), MapFlags::EXIST)
+                .or_else(|e| if e.kind() == ErrorKind::NotFound { Ok(()) } else { Err(e) })?;
+        }
+    }
+
+    let pendientes = &skel.maps.pendientes;
+    let claves: Vec<Vec<u8>> = pendientes.keys().collect();
+    for clave in claves {
+        borrar(pendientes, &clave)?;
+    }
+    Ok(())
 }
 
 /// Engancha por nombre uno de los nueve programas LSM del esqueleto ya cargado.

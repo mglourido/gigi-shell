@@ -204,7 +204,18 @@ fn bucle_eventos(
             let aperturas = fan.leer().map_err(|e| format!("leyendo fanotify: {e}"))?;
             for apertura in aperturas {
                 let tid = apertura.tid;
-                let pendiente = bpf.pendiente(tid);
+                // La pendiente va por hilo, no por fichero: si este hilo dejó
+                // antes una de OTRO fichero protegido sin consumir (p.ej. uno
+                // que el BPF reconoce pero fanotify no tiene marcado), esa
+                // pendiente —quizá con `permitido`— respondería por este. Solo
+                // vale si su id de fichero es el del inodo que trae el evento.
+                let fichero_evento = fanotify::clave_de_fd(apertura.fd.as_fd())
+                    .ok()
+                    .and_then(|(clave, _)| bpf.protegido(clave))
+                    .map(|vp| vp.fichero);
+                let pendiente = bpf
+                    .pendiente(tid)
+                    .filter(|p| Some(p.fichero) == fichero_evento);
                 let exe = resolver_exe(tid);
                 let pendiente_str = match pendiente {
                     Some(p) => format!("Some(({}, {}))", p.pedido, p.permitido),

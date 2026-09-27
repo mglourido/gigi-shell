@@ -172,6 +172,60 @@ struct {
 // Lógica común.
 // ---------------------------------------------------------------------------
 
+#define BTRFS_SUPER_MAGIC 0x9123683E
+
+// Espejos CO-RE mínimos de btrfs: solo los campos que se leen. El sufijo
+// `___guardian` lo ignora libbpf al casar con el BTF del kernel en ejecución
+// (casan con `struct btrfs_inode`/`struct btrfs_root` de verdad, con sus
+// offsets reales), y definirlos aquí en vez de usar los de vmlinux.h hace que
+// el programa COMPILE aunque btrfs no esté en vmlinux (btrfs como módulo: sus
+// tipos viven en el BTF del módulo, no en /sys/kernel/btf/vmlinux, que es de
+// donde build.rs saca vmlinux.h).
+struct btrfs_root___guardian {
+	dev_t anon_dev;
+} __attribute__((preserve_access_index));
+
+struct btrfs_inode___guardian {
+	struct btrfs_root___guardian *root;
+	struct inode vfs_inode;
+} __attribute__((preserve_access_index));
+
+// Clave (dev, ino) de un inodo, con el MISMO dev que devuelve stat(): así el
+// userspace construye las claves con statx/fstat sin traducir nada.
+//
+// En btrfs no vale i_sb->s_dev: todos los subvolúmenes comparten superbloque
+// (en esta máquina @, @home, @tmp… son todos 0:35) y los números de inodo solo
+// son únicos DENTRO de cada subvolumen, así que (s_dev, ino) colisiona entre
+// ficheros sin relación. btrfs le da a cada subvolumen su propio dev anónimo
+// (root->anon_dev), que es lo que stat() informa; con él la clave es única.
+//
+// `bpf_core_type_exists` guarda la rama de btrfs: en un kernel sin btrfs la
+// reubicación CO-RE de `struct btrfs_inode` no se resuelve y, sin la guarda,
+// libbpf rechazaría la carga del programa entero. Con ella la rama es código
+// muerto que el verificador descarta. (libbpf también busca en el BTF de los
+// módulos, así que btrfs como módulo funciona; solo un btrfs SIN BTF dejaría
+// s_dev, que no casa con stat(): esos ficheros no se reconocerían como
+// protegidos. Esta máquina lo trae compilado dentro, CONFIG_BTRFS_FS=y.)
+static __always_inline void clave_de_inodo(struct inode *inodo, struct clave_inodo *clave)
+{
+	struct super_block *sb = BPF_CORE_READ(inodo, i_sb);
+
+	clave->dev = 0;
+	clave->ino = BPF_CORE_READ(inodo, i_ino);
+	if (!sb)
+		return;
+	if (bpf_core_type_exists(struct btrfs_inode___guardian) &&
+	    BPF_CORE_READ(sb, s_magic) == BTRFS_SUPER_MAGIC) {
+		// container_of(inodo, struct btrfs_inode, vfs_inode), con el offset
+		// real del kernel en ejecución (reubicado por CO-RE).
+		struct btrfs_inode___guardian *bi = (void *)inodo -
+			bpf_core_field_offset(struct btrfs_inode___guardian, vfs_inode);
+		clave->dev = BPF_CORE_READ(bi, root, anon_dev);
+	} else {
+		clave->dev = BPF_CORE_READ(sb, s_dev);
+	}
+}
+
 // Identidad del proceso actual: (dev, ino) del ejecutable (mm->exe_file->f_inode)
 // y tgid. Devuelve 0 (identidad vacía, tratada como "exento") si el proceso no
 // tiene mm (kernel thread) o si es el propio daemon (no se aplica a sí mismo las
@@ -182,7 +236,6 @@ static __always_inline int identidad(struct clave_inodo *id, __u32 *tgid)
 	struct mm_struct *mm;
 	struct file *exe;
 	struct inode *inodo;
-	struct super_block *sb;
 	__u32 pid_daemon = 0;
 	__u32 idx = 0;
 	struct control *ctl;
@@ -225,10 +278,7 @@ static __always_inline int identidad(struct clave_inodo *id, __u32 *tgid)
 	if (!inodo)
 		return 1;
 
-	sb = BPF_CORE_READ(inodo, i_sb);
-	id->dev = sb ? BPF_CORE_READ(sb, s_dev) : 0;
-	id->ino = BPF_CORE_READ(inodo, i_ino);
-
+	clave_de_inodo(inodo, id);
 	return 1;
 }
 
@@ -236,15 +286,11 @@ static __always_inline int identidad(struct clave_inodo *id, __u32 *tgid)
 static __always_inline struct valor_protegido *protegido(struct inode *inodo)
 {
 	struct clave_inodo clave = {};
-	struct super_block *sb;
 
 	if (!inodo)
 		return NULL;
 
-	sb = BPF_CORE_READ(inodo, i_sb);
-	clave.dev = sb ? BPF_CORE_READ(sb, s_dev) : 0;
-	clave.ino = BPF_CORE_READ(inodo, i_ino);
-
+	clave_de_inodo(inodo, &clave);
 	return bpf_map_lookup_elem(&protegidos, &clave);
 }
 
@@ -505,13 +551,10 @@ int BPF_PROG(g_rename, struct inode *old_dir, struct dentry *old_dentry,
 		// ocupar su sitio hereda la protección con el mismo id de fichero,
 		// sin marcar (el usuario no lo ha marcado él mismo todavía).
 		struct clave_inodo id_origen = {};
-		struct super_block *sb;
 		struct valor_protegido nuevo = {};
 		__u32 tgid = 0;
 
-		sb = BPF_CORE_READ(origen, i_sb);
-		id_origen.dev = sb ? BPF_CORE_READ(sb, s_dev) : 0;
-		id_origen.ino = BPF_CORE_READ(origen, i_ino);
+		clave_de_inodo(origen, &id_origen);
 
 		nuevo.fichero = vp_destino->fichero;
 		nuevo.marcado = 0;

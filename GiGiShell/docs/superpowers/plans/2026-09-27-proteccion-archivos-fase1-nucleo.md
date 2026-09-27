@@ -27,7 +27,7 @@
 3. «Permitir a este proceso» se indexa por TGID y se revoca con `pidfd` al morir el proceso.
 4. Fechas en epoch (segundos). Cada fichero lleva `id: u32` (clave de los mapas BPF).
 5. `kioworker` fuera de «Miniaturas» (es el mismo binario que copia/mueve en Dolphin).
-6. `dev_t`: el BPF compara contra `i_sb->s_dev` (codificación del kernel `(major << 20) | minor`). En btrfs `stat()` devuelve el dev del **subvolumen**, distinto, así que el dev de toda clave sale de `statx(STATX_MNT_ID)` + `/proc/self/mountinfo` (`fanotify::clave_de_fd`), nunca de `st_dev` (ver Resultados).
+6. `dev_t`: la clave de inodo usa el `dev` que da `stat()`, en la codificación del kernel `(major << 20) | minor`. El BPF lo reproduce en `clave_de_inodo()`: `i_sb->s_dev` en general y, en btrfs, el dev anónimo del subvolumen (`root->anon_dev`), porque en btrfs todos los subvolúmenes comparten superbloque y los inodos solo son únicos dentro de cada uno. En userspace sale de `fanotify::clave_de_fd` (ver Resultados, punto 3).
 
 ## Datos verificados en esta máquina
 
@@ -197,5 +197,22 @@ diseño ya los identificaba como riesgo a verificar) obligaron a corregir códig
    — nunca de `st_dev`. El caso "btrfs" de la tabla de arriba es la prueba añadida para que esto no
    se vuelva a colar sin que ningún caso lo note.
 
-**Regla para la Fase 2: toda `ClaveInodo` sale de `fanotify::clave_de_fd`/`clave_de_ruta`; nunca de
-`st_dev`/`metadata().dev()`.**
+3. **La corrección del punto 2 era un fallo peor: `(dev del superbloque, ino)` no es único en
+   btrfs.** Todos los subvolúmenes (`@`, `@home`, `@tmp`…) comparten superbloque (`0:35`) y los
+   números de inodo solo son únicos DENTRO de cada subvolumen: proteger un fichero protegía también
+   a cualquier otro con el mismo ino en otro subvolumen (y un permiso concedido a un ejecutable
+   valía para otros binarios). Lo encontró la revisión final, no las pruebas. Corregido al revés:
+   el BPF calcula la clave con el dev que informa `stat()` (`clave_de_inodo()`; en btrfs lee
+   `BTRFS_I(inode)->root->anon_dev` por CO-RE) y `clave_de_fd` usa `stx_dev_major:minor` de
+   `statx`. `mountinfo` ya no interviene. `riesgos.sh` añade el caso «mismo ino en dos
+   subvolúmenes», que crea dos subvolúmenes nuevos (su primer fichero sale con el mismo ino) y
+   comprueba que proteger uno no afecta al otro.
+
+   En la misma revisión: tras una caída los mapas anclados conservaban `marcado = 1` aunque las
+   marcas de fanotify hubieran muerto con el proceso (falla abierto); `Bpf::cargar` ahora desmarca
+   todo y vacía `pendientes`. Y una pendiente solo responde por la apertura de fanotify si su id de
+   fichero es el del fd del evento (la pendiente va por hilo, no por fichero).
+
+**Regla para la Fase 2: toda `ClaveInodo` sale de `fanotify::clave_de_fd`/`clave_de_ruta` (o, si
+hace falta a mano, de `tipos::kdev(metadata().dev())`, que da lo mismo). El `dev` de una clave NO se
+puede comparar con los `major:minor` de `mountinfo`: en btrfs son distintos.**
