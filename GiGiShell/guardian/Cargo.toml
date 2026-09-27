@@ -1,0 +1,32 @@
+[package]
+name = "gigishell-guardian"
+version = "0.1.0"
+edition = "2021"
+description = "Daemon de protección de archivos de GiGiShell (LSM/BPF): deniega, avisa o permite en silencio según lo marcado desde Ajustes"
+publish = false
+build = "build.rs"
+
+[dependencies]
+libbpf-rs = "0.25"
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[build-dependencies]
+libbpf-cargo = "0.25"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+# A diferencia de eventd, un pánico aquí no es solo perder un monitor: mientras
+# el proceso userspace está caído, el programa LSM sigue cargado en el kernel y
+# sigue denegando según el último estado que dejó en sus mapas BPF. Un panic =
+# abort fuerza el reinicio del servicio (systemd Restart=on-failure) en vez de
+# intentar desenredar un estado a medio actualizar; mientras tanto el fichero
+# marcado sigue protegido, no se abre en falso por un unwind a medias.
+panic = "abort"
+strip = true
