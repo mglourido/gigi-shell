@@ -13,9 +13,19 @@ pub const LEER: u32 = 1;
 pub const MODIFICAR: u32 = 2;
 pub const BORRAR: u32 = 4;
 
-// Categoría con la que Ajustes marca un fichero protegido (`ValorProtegido.marcado`):
+// Categoría de acceso silencioso/automático, mapa `categorias` (clave por
+// fichero+ejecutable) — NO tiene relación con `ValorProtegido.marcado` pese al
+// nombre parecido, ver `MARCADO` justo debajo.
 pub const CAT_PERMITIR: u32 = 1;
 pub const CAT_SILENCIO: u32 = 2;
+
+// `ValorProtegido.marcado`: ≠0 quiere decir que el inodo YA tiene puesta una
+// marca de fanotify (`FAN_MARK_ADD`) y las aperturas sin derechos generan una
+// petición pendiente que el daemon puede responder; 0 es el estado transitorio
+// de un inodo recién heredado (guardado atómico, `EV_HEREDADO`) que el LSM
+// deniega directamente porque, sin marca de fanotify, ninguna petición
+// pendiente que generara llegaría a tener respuesta.
+pub const MARCADO: u32 = 1;
 
 // Tipos de evento que el BPF empuja al ring buffer / perf buffer para que el
 // daemon los procese (notificar, pedir permiso al usuario, registrar auditoría…).

@@ -57,12 +57,37 @@ ARCHIVO="$TMPDIR_PROP/protegido.txt"
 sudo -u "$SUDO_USER" bash -c "printf 'contenido original\n' > '$ARCHIVO'"
 
 PID_DEP=""
+LOG_ACTIVO=""
 
+# Limpieza final. IMPORTANTE: `rm -rf "$TMPDIR_PROP"` no vale por sí solo si
+# queda un depurador vivo (o recién matado con -9): el fichero protegido sigue
+# denegando incluso a root, que esta BPF no exime — ni siquiera vale parar en
+# seco y confiar en que "ya no hay quien lo aplique", porque un `kill -9` deja
+# los programas LSM enganchados y ANCLADOS en bpffs, todavía enforzando. Orden
+# obligatorio: SIGTERM y esperar (acotado) a que él mismo haga su parada
+# limpia; si no lo consigue, matarlo con -9 y entonces desactivar/desanclar a
+# mano (`--tras-parada` + `rm -r` del propio bpffs, el ÚNICO sitio fuera del
+# `mktemp -d` que este script toca) ANTES de poder borrar el directorio
+# temporal. Los tres pasos son idempotentes (no pasa nada si ya estaban
+# hechos), así que se ejecutan siempre, haya hecho falta el -9 o no.
 cleanup() {
     if [ -n "$PID_DEP" ] && kill -0 "$PID_DEP" 2>/dev/null; then
-        kill -9 "$PID_DEP" 2>/dev/null || true
-        wait "$PID_DEP" 2>/dev/null || true
+        kill -TERM "$PID_DEP" 2>/dev/null || true
+        local intentos=0
+        while kill -0 "$PID_DEP" 2>/dev/null && [ "$intentos" -lt 30 ]; do
+            if [ -n "$LOG_ACTIVO" ] && grep -q '^PARADO' "$LOG_ACTIVO" 2>/dev/null; then
+                break
+            fi
+            sleep 0.1
+            intentos=$((intentos + 1))
+        done
+        if kill -0 "$PID_DEP" 2>/dev/null; then
+            kill -9 "$PID_DEP" 2>/dev/null || true
+            wait "$PID_DEP" 2>/dev/null || true
+        fi
     fi
+    "$BIN" --tras-parada >/dev/null 2>&1 || true
+    rm -rf /sys/fs/bpf/gigishell-guardian 2>/dev/null || true
     rm -rf "$TMPDIR_PROP"
 }
 trap cleanup EXIT
@@ -99,6 +124,20 @@ iniciar_depurador() {
     shift
     "$BIN" --depurar "$@" >"$log" 2>&1 </dev/null &
     PID_DEP=$!
+    LOG_ACTIVO="$log"
+}
+
+matar_depurador_atascado() {
+    # Si esperar_patron '^LISTO' se agotó, el proceso puede seguir vivo (y
+    # ocupando el anclaje de bpffs) aunque nunca haya llegado a arrancar del
+    # todo: hay que matarlo ANTES de seguir, no dejarlo para el trap de salida
+    # — un segundo `iniciar_depurador` mientras el primero sigue vivo
+    # competiría por el mismo `RAIZ` de bpffs.
+    if [ -n "$PID_DEP" ] && kill -0 "$PID_DEP" 2>/dev/null; then
+        kill -9 "$PID_DEP" 2>/dev/null || true
+        wait "$PID_DEP" 2>/dev/null || true
+    fi
+    PID_DEP=""
 }
 
 esperar_fin() {
@@ -120,6 +159,7 @@ LOG1="$TMPDIR_PROP/depurador1.log"
 iniciar_depurador "$LOG1" "$ARCHIVO" --auto denegar
 if ! esperar_patron '^LISTO' "$LOG1"; then
     fallo "arranque del depurador (Fase A)"
+    matar_depurador_atascado
 else
     ok "arranque del depurador (Fase A)"
 
@@ -151,7 +191,11 @@ else
     como_usuario chmod 600 "$ARCHIVO" >/dev/null 2>&1 && destructivo_ok=1
     como_usuario truncate -s0 "$ARCHIVO" >/dev/null 2>&1 && destructivo_ok=1
     como_usuario ln "$ARCHIVO" "$TMPDIR_PROP/enlazado.txt" >/dev/null 2>&1 && destructivo_ok=1
-    grep -q 'EVENTO tipo=1 op=4' "$LOG1"
+    # El ring buffer se consume de forma asíncrona en el bucle del depurador:
+    # que `rm` ya haya devuelto EPERM no garantiza que el evento correspondiente
+    # ya esté escrito en el log en ESTE instante — un `grep` inmediato aquí es
+    # una carrera. Se usa el mismo bucle acotado que para `LISTO`/`PARADO`.
+    esperar_patron 'EVENTO tipo=1 op=4' "$LOG1" 20
     evento_ok=$?
     check "borrar/mover/chmod/truncate/ln deniegan (EVENTO tipo=1 op=4)" \
         $([ "$destructivo_ok" -eq 0 ] && [ "$evento_ok" -eq 0 ] && echo 0 || echo 1)
@@ -200,6 +244,7 @@ LOG3="$TMPDIR_PROP/depurador3.log"
 iniciar_depurador "$LOG3" "$ARCHIVO" --auto denegar --conceder "$PYTHON3:3"
 if ! esperar_patron '^LISTO' "$LOG3"; then
     fallo "arranque del depurador (R3)"
+    matar_depurador_atascado
 else
     ok "arranque del depurador (R3)"
 
@@ -245,6 +290,15 @@ medir_coste() {
     fin=$(date +%s.%N)
     awk -v a="$inicio" -v b="$fin" 'BEGIN { printf "%.3f", b - a }'
 }
+
+# Una pasada de calentamiento, descartada: sin ella, la caché de páginas
+# estaría fría solo para la PRIMERA de las dos medidas (típicamente "con
+# guardián", que se mide primero) y el resultado compararía E/S de disco
+# contra E/S de caché en vez de guardián contra guardián, sesgando la
+# comparación a favor de la segunda medida sin que tenga nada que ver con el
+# coste del propio BPF/fanotify.
+info "calentando la caché de páginas (una pasada descartada)..."
+find /usr/share -name '*.desktop' -exec cat {} + >/dev/null 2>&1
 
 if [ -n "$PID_DEP" ] && kill -0 "$PID_DEP" 2>/dev/null; then
     coste_con="$(medir_coste)"

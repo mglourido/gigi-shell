@@ -52,7 +52,7 @@ pub fn ejecutar(args: &[String]) -> Result<(), String> {
         fanotify::clave_de_fd(opath.as_fd()).map_err(|e| format!("fstat {}: {e}", ruta.display()))?;
     fan.marcar(opath.as_fd())
         .map_err(|e| format!("marcando fanotify sobre {}: {e}", ruta.display()))?;
-    bpf.proteger(clave, FICHERO, tipos::CAT_PERMITIR)
+    bpf.proteger(clave, FICHERO, tipos::MARCADO)
         .map_err(|e| format!("protegiendo {}: {e}", ruta.display()))?;
 
     for (exe, mascara) in &concesiones {
@@ -87,6 +87,54 @@ pub fn ejecutar(args: &[String]) -> Result<(), String> {
     let fd_fan = fan.fd().as_raw_fd();
     let fd_anillo = anillo.epoll_fd();
 
+    // El resultado del bucle (señal recibida ⇒ Ok, cualquier error de E/S en
+    // medio ⇒ Err) SIEMPRE pasa por la misma parada limpia de aquí abajo, en
+    // vez de que cada `?` de dentro del bucle devuelva directamente: un `?`
+    // temprano dejaría el BPF cargado y `Control.activo = 1` sin nadie ya
+    // escuchando fanotify — el mismo "falla abierto" que un crash de verdad,
+    // solo que disparado por un fallo de E/S en vez de una señal, y sin que
+    // `pruebas/riesgos.sh` (ni el dueño de la máquina) tuviera forma de
+    // distinguirlo de una parada limpia a partir del log.
+    let resultado = bucle_eventos(&bpf, &fan, &anillo, &cola, &ruta, auto, fd_fan, fd_anillo, fd_senales);
+
+    // `anillo` toma prestado `bpf` por referencia (vive mientras el ring
+    // buffer exista): hay que soltarlo antes de poder mover `bpf` a
+    // `parar_limpio`, que lo consume.
+    drop(anillo);
+    let parada = bpf.parar_limpio().map_err(|e| format!("parando limpio: {e}"));
+
+    match resultado {
+        Ok(()) => {
+            parada?;
+            println!("PARADO");
+            flush();
+            Ok(())
+        }
+        Err(e) => {
+            if let Err(e2) = parada {
+                eprintln!("gigishell-guardian: {e2} (tras el error original: {e})");
+            }
+            Err(e)
+        }
+    }
+}
+
+/// El bucle de eventos en sí: `poll(2)` sobre fanotify/ring-buffer/signalfd,
+/// sin límite de vueltas. Devuelve `Ok(())` en cuanto llega SIGINT/SIGTERM
+/// (ya leída del signalfd) y `Err` ante cualquier fallo de E/S real — ninguno
+/// de los dos casos limpia el BPF aquí dentro, eso es cosa de la única
+/// llamada a `parar_limpio` en `ejecutar`, después de esta función.
+fn bucle_eventos(
+    bpf: &bpf::Bpf,
+    fan: &fanotify::Fanotify,
+    anillo: &libbpf_rs::RingBuffer<'_>,
+    cola: &Rc<RefCell<Vec<tipos::Evento>>>,
+    ruta: &std::path::Path,
+    auto: Option<bool>,
+    fd_fan: RawFd,
+    fd_anillo: i32,
+    fd_senales: RawFd,
+) -> Result<(), String> {
     loop {
         let mut fds = [
             libc::pollfd {
@@ -115,22 +163,13 @@ pub fn ejecutar(args: &[String]) -> Result<(), String> {
             return Err(format!("poll: {err}"));
         }
 
-        // Señal (SIGINT/SIGTERM): parada limpia y fin. Se comprueba primero
-        // porque, a diferencia de fanotify/ring buffer, no tiene sentido
-        // seguir procesando eventos de un ciclo que ya se está cerrando.
+        // Señal (SIGINT/SIGTERM): fin del bucle, la parada limpia la hace
+        // quien nos llama.
         if fds[2].revents & libc::POLLIN != 0 {
             let mut buf = [0u8; std::mem::size_of::<libc::signalfd_siginfo>()];
             unsafe {
                 libc::read(fd_senales, buf.as_mut_ptr() as *mut libc::c_void, buf.len());
             }
-            // `anillo` toma prestado `bpf` por referencia (vive mientras el
-            // ring buffer exista): hay que soltarlo antes de poder mover
-            // `bpf` a `parar_limpio`, que lo consume.
-            drop(anillo);
-            bpf.parar_limpio()
-                .map_err(|e| format!("parando limpio: {e}"))?;
-            println!("PARADO");
-            flush();
             return Ok(());
         }
 
@@ -149,7 +188,7 @@ pub fn ejecutar(args: &[String]) -> Result<(), String> {
                 flush();
 
                 if ev.tipo == tipos::EV_HEREDADO {
-                    procesar_heredado(&bpf, &fan, &ruta);
+                    procesar_heredado(bpf, fan, ruta);
                 }
             }
         }
@@ -214,7 +253,7 @@ fn procesar_heredado(bpf: &bpf::Bpf, fan: &fanotify::Fanotify, ruta: &std::path:
         eprintln!("gigishell-guardian: fallo marcando el fichero heredado: {e}");
         return;
     }
-    if let Err(e) = bpf.proteger(clave_nueva, FICHERO, tipos::CAT_PERMITIR) {
+    if let Err(e) = bpf.proteger(clave_nueva, FICHERO, tipos::MARCADO) {
         eprintln!("gigishell-guardian: fallo protegiendo el fichero heredado: {e}");
         return;
     }

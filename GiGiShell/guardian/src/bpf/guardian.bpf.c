@@ -41,7 +41,12 @@ char LICENSE[] SEC("license") = "GPL";
 #define OP_MODIFICAR 2
 #define OP_BORRAR 4
 
-// Categorías de protección (valor_protegido.marcado) — CAT_PERMITIR/CAT_SILENCIO.
+// Categoría de acceso silencioso/automático (mapa `categorias`, clave por
+// fichero+ejecutable) — NO es lo mismo que `valor_protegido.marcado` de abajo
+// pese al nombre parecido: esta decide si una LECTURA se concede sin
+// preguntar; `marcado` dice si el inodo ya tiene puesta una marca de
+// fanotify. Coinciden en que CAT_PERMITIR vale 1 igual que "marcado" — son
+// campos distintos con valores que solo comparten número por casualidad.
 #define CAT_PERMITIR 1
 #define CAT_SILENCIO 2
 
@@ -62,7 +67,13 @@ struct clave_inodo {
 	__u64 ino;
 };
 
-// ValorProtegido { fichero: u32, marcado: u32 } — 8 bytes.
+// ValorProtegido { fichero: u32, marcado: u32 } — 8 bytes. `marcado` != 0
+// quiere decir que el inodo tiene puesta una marca de fanotify (userspace
+// puede recibir su petición pendiente y responderla); 0 es el estado
+// transitorio de un inodo recién heredado por un guardado atómico (ver
+// EV_HEREDADO más abajo) antes de que el daemon lo vuelva a marcar — con
+// marcado == 0, `g_file_open` deniega directamente en vez de generar una
+// petición que nadie va a responder.
 struct valor_protegido {
 	__u32 fichero;
 	__u32 marcado;

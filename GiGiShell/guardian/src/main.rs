@@ -25,10 +25,7 @@ fn ejecutar(args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
         None => Err("modo daemon: Fase 2".to_string()),
         Some("--depurar") => depurar::ejecutar(&args[1..]),
-        Some("--tras-parada") => {
-            bpf::tras_parada();
-            Ok(())
-        }
+        Some("--tras-parada") => bpf::tras_parada(),
         Some(otro) => Err(format!("opción desconocida: {otro}")),
     }
 }

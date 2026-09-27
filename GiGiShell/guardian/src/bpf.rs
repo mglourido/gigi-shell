@@ -243,9 +243,15 @@ impl Bpf {
         Ok(())
     }
 
-    /// Marca `clave` (dev, ino) como protegida bajo el id interno `fichero` con
-    /// la categoría `marcado` (`CAT_PERMITIR`/`CAT_SILENCIO`, o 0 para "solo
-    /// preguntar", que es como lo interpreta `guardian.bpf.c`).
+    /// Marca `clave` (dev, ino) como protegida bajo el id interno `fichero`.
+    /// `marcado` NO es la categoría de acceso silencioso (esa vive aparte, en
+    /// el mapa `categorias` — ver `categoria()`); aquí solo dice si el inodo
+    /// tiene ya una marca de fanotify puesta (`tipos::MARCADO`, ≠0) o si
+    /// todavía no la tiene (0, p.ej. el inodo recién heredado de un guardado
+    /// atómico antes de que el daemon vuelva a marcarlo — ver `EV_HEREDADO`
+    /// en `guardian.bpf.c`): con `marcado == 0` el LSM deniega directamente
+    /// en `file_open` en vez de generar una petición pendiente, porque sin
+    /// marca de fanotify nadie va a responder a esa petición jamás.
     pub fn proteger(&self, clave: ClaveInodo, fichero: u32, marcado: u32) -> Resultado<()> {
         let valor = ValorProtegido { fichero, marcado };
         self.skel
@@ -464,20 +470,28 @@ fn enganchar_programa(skel: &GuardianSkel<'_>, nombre: &str) -> Resultado<Link> 
 /// `systemctl stop` que quiere dejar de denegar accesos sin desmontar los
 /// programas (a diferencia de `Bpf::parar_limpio`, que sí los desmonta). Un
 /// `RAIZ/control` ausente (nunca se cargó, o ya se hizo `parar_limpio`) no es un
-/// error: no hay nada que desactivar.
-pub fn tras_parada() {
+/// error: no hay nada que desactivar, y se devuelve `Ok(())`.
+///
+/// Cualquier OTRO fallo (el anclaje existe pero no se puede abrir, o la
+/// escritura del mapa falla) SÍ se propaga: tragárselo en silencio, como hacía
+/// antes, dejaría `Control.activo` en 1 con el proceso userspace ya muerto —
+/// exactamente el escenario de "falla abierto" que este mismo comentario dice
+/// evitar (`exigir()`/`g_file_open` en `guardian.bpf.c` niegan cuando
+/// `!ctl->activo`, pero nunca llegan a ver `activo=0` si esta función no pudo
+/// escribirlo y nadie se entera).
+pub fn tras_parada() -> Result<(), String> {
     let ruta = Path::new(RAIZ).join("control");
     if !ruta.exists() {
-        return;
+        return Ok(());
     }
-    let mapa = match MapHandle::from_pinned_path(&ruta) {
-        Ok(m) => m,
-        Err(_) => return,
-    };
+    let mapa = MapHandle::from_pinned_path(&ruta)
+        .map_err(|e| format!("abriendo el mapa control anclado en {}: {e}", ruta.display()))?;
     let clave = 0u32;
     let valor = Control {
         activo: 0,
         pid_daemon: 0,
     };
-    let _ = mapa.update(como_bytes(&clave), como_bytes(&valor), MapFlags::ANY);
+    mapa.update(como_bytes(&clave), como_bytes(&valor), MapFlags::ANY)
+        .map_err(|e| format!("desactivando el control anclado en {}: {e}", ruta.display()))?;
+    Ok(())
 }
