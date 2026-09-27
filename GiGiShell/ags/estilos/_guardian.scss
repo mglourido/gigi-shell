@@ -1,0 +1,97 @@
+// Estilos de la PROTECCIÓN DE ARCHIVOS: la ventana de pregunta
+// (`modulos/guardian/VentanaGuardian.tsx`) y lo que la sección de Ajustes
+// (`modulos/ajustes/proteccion/`) añade sobre `.dev-card`/`.dev-row`.
+// Parcial propio, como los de la cámara y los gestos; se consume desde
+// `style.scss` con `@use`.
+@use 'sass:color';
+@use 'colores' as *;
+
+// ── Ventana de pregunta ─────────────────────────────────────────────────────
+window.guardian-ventana {
+  background: transparent;
+}
+
+.guardian-tarjeta {
+  min-width: 420px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--bg-shell, #{$bg-bar});
+  border: 1px solid $borde-menu;
+  color: $text;
+
+  &.denegado {
+    border-color: rgba($red, 0.55);
+    background: color.mix($red, $bg-bar, 14%);
+    .guardian-icono, .guardian-titulo { color: color.adjust($red, $lightness: 12%); }
+  }
+}
+
+.guardian-icono {
+  font-family: $font-icon;
+  font-size: 18px;
+  color: acento();
+}
+
+.guardian-titulo {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.guardian-cuenta {
+  font-size: 12px;
+  font-weight: 600;
+  color: $orange;
+}
+
+.guardian-archivo {
+  font-size: 12px;
+  color: $text;
+}
+
+.guardian-detalle {
+  font-size: 11px;
+  color: $text-dim;
+}
+
+.guardian-script {
+  font-family: monospace;
+}
+
+.guardian-aviso {
+  font-size: 11px;
+  color: $orange;
+}
+
+.guardian-botones {
+  margin-top: 6px;
+
+  button {
+    min-height: 28px;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: $text;
+    background: $bg-pill;
+    border: 1px solid $borde-menu;
+
+    &:hover { background: rgba(255, 255, 255, 0.12); }
+    &:disabled { opacity: 0.45; }
+  }
+}
+
+// ── Ajustes > Protección de archivos ────────────────────────────────────────
+.guardian-estado-dot {
+  font-size: 11px;
+  &.activo { color: $green; }
+  &.no-disponible { color: $orange; }
+}
+
+.guardian-historial-denegado {
+  color: color.adjust($red, $lightness: 12%);
+}
+
+.guardian-casilla {
+  font-size: 11px;
+  color: rgba($text, 0.8);
+}

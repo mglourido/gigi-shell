@@ -11,6 +11,7 @@ import NotificationPanel from "./modulos/notificaciones/NotificationPanel"
 import SettingsWindow from "./modulos/notificaciones/settings/SettingsWindow"
 import PanelCalendario from "./modulos/calendario/PanelCalendario"
 import SettingsPanel from "./modulos/ajustes/SettingsPanel"
+import VentanaGuardian from "./modulos/guardian/VentanaGuardian"
 import Orion from "./modulos/orion/Orion"
 import { togglePanel as alternarPanelOrion } from "./modulos/orion/state"
 import { orionEnabled } from "./modulos/ajustes/preferences"
@@ -187,6 +188,12 @@ app.start({
     }
     try { app.get_monitors().map(PanelCalendario) } catch(e) { console.error("[app] PanelCalendario failed:", e) }
     app.get_monitors().map(SettingsPanel)
+    // Protección de archivos: solo en el monitor principal (una pregunta por
+    // pantalla sería contestable dos veces). Oculta mientras no haya tarjetas.
+    try {
+      const [principal] = app.get_monitors()
+      if (principal) VentanaGuardian(principal)
+    } catch (e) { console.error("[app] VentanaGuardian failed:", e) }
     // Las dos ventanas de ajustes tapan la pantalla entera y no viven en ningún
     // escritorio: se cierran al cambiar de workspace. Va a t=0 (una conexión de
     // señal, coste nulo) para que no queden abiertas si el cambio ocurre pronto.

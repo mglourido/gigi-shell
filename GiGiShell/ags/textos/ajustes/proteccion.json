@@ -1,0 +1,95 @@
+{
+  "ventana": {
+    "quiere": "quiere",
+    "operaciones": {
+      "leer": "LEER",
+      "modificar": "MODIFICAR",
+      "leer y modificar": "LEER Y MODIFICAR",
+      "borrar": "BORRAR O MOVER",
+      "abrir": "ABRIR"
+    },
+    "cambiado": "Este programa ha cambiado desde que le diste permiso",
+    "script": "script: {{script}}",
+    "exePid": "{{exe}} · PID {{pid}}",
+    "segundos": "{{n}} s",
+    "denegar": "Denegar",
+    "proceso": "Permitir a este proceso",
+    "siempre": "Siempre",
+    "denegadoTitulo": "{{programa}} intentó {{operacion}} {{archivo}} — denegado",
+    "vale": "Vale",
+    "permitirSiempre": "Permitir siempre a {{programa}}",
+    "resumen": "Mientras el shell no estaba, se denegaron {{n}} accesos a archivos protegidos. El detalle está en Ajustes > Protección de archivos."
+  },
+  "seccion": {
+    "titulo": "Protección de archivos",
+    "estado": {
+      "tarjeta": "Estado",
+      "interruptor": "Proteger archivos",
+      "descripcion": "Los archivos protegidos no se pueden leer, cambiar, borrar ni mover sin tu permiso. Apagado, no gasta nada.",
+      "noInstalado": "No está instalado. Instálalo con bash ~/GiGiShell/guardian/instalar.sh",
+      "sinBpf": "El kernel no tiene BPF LSM: la protección no se puede usar en este equipo.",
+      "caido": "Se ha caído: los archivos protegidos están bloqueados hasta que vuelva.",
+      "reiniciar": "Reiniciar",
+      "resumen": "{{ficheros}} archivos protegidos · {{denegados}} accesos denegados esta semana",
+      "conectando": "Conectando con el servicio…"
+    },
+    "defecto": {
+      "tarjeta": "Valores por defecto para archivos nuevos",
+      "descripcion": "Qué hacer cuando estos programas intentan leer un archivo recién protegido. Solo dan permiso de lectura: cambiar o borrar siempre se pregunta."
+    },
+    "categorias": {
+      "miniaturas": "Miniaturas",
+      "busqueda": "Búsqueda en contenido",
+      "indexadores": "Indexadores",
+      "antivirus": "Antivirus",
+      "copias": "Copias de seguridad"
+    },
+    "modos": {
+      "permitir": "Permitir",
+      "preguntar": "Preguntar",
+      "silencio": "Bloquear en silencio"
+    },
+    "avisoBusqueda": "Permitir grep deja que cualquier script lea este archivo usando grep.",
+    "archivos": {
+      "tarjeta": "Archivos protegidos",
+      "proteger": "Proteger archivo…",
+      "dialogo": "Elige los archivos que quieres proteger",
+      "vacio": "Todavía no has protegido ningún archivo.",
+      "sinConexion": "Activa la protección para gestionar tus archivos."
+    },
+    "fichero": {
+      "activo": "activo",
+      "noDisponible": "no disponible (su disco no está montado)",
+      "programas": "{{n}} programas con permiso",
+      "habituales": "Accesos habituales",
+      "permisos": "Permisos",
+      "sinPermisos": "Ningún programa tiene permiso.",
+      "leer": "Leer",
+      "modificar": "Modificar",
+      "borrar": "Borrar/mover",
+      "quitar": "Quitar permiso",
+      "darPermiso": "Dar permiso a un programa…",
+      "buscarPrograma": "Busca una aplicación o escribe la ruta de un ejecutable",
+      "anadir": "Añadir",
+      "avisoInterprete": "{{programa}} es un intérprete: el permiso valdría para cualquier script que ejecute. Pulsa otra vez para confirmar.",
+      "historial": "Historial",
+      "todos": "Todos",
+      "soloDenegados": "Denegados",
+      "sinHistorial": "Sin accesos registrados.",
+      "permitirSiempre": "Permitir siempre",
+      "revocar": "Revocar",
+      "dejarDeProteger": "Dejar de proteger",
+      "confirmar": "Pulsa otra vez para dejar de protegerlo"
+    },
+    "resultados": {
+      "permitido": "permitido",
+      "automatico": "permitido (permiso guardado)",
+      "categoria": "permitido (acceso habitual)",
+      "denegado": "denegado",
+      "silencioso": "bloqueado en silencio",
+      "tiempo_agotado": "denegado (sin respuesta)",
+      "sin_ags": "denegado (shell cerrado)",
+      "retirado": "dejó de protegerse (se borró)"
+    }
+  }
+}

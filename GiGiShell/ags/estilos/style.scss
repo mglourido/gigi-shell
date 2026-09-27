@@ -5,6 +5,7 @@
 @use 'camara-barra';
 @use 'camara-ajustes';
 @use 'gestos';
+@use 'guardian';
 
 // Quita el fondo/borde/sombra por defecto del tema GTK de un nodo (botón,
 // popover, scrollbar...) para que solo se vea lo que defina la regla concreta.
