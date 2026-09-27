@@ -11,6 +11,7 @@ mod bpf;
 mod categorias;
 mod depurar;
 mod fanotify;
+mod historial;
 mod politica;
 mod proceso;
 mod tipos;
