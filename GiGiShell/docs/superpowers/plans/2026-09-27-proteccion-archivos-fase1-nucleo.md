@@ -27,7 +27,7 @@
 3. «Permitir a este proceso» se indexa por TGID y se revoca con `pidfd` al morir el proceso.
 4. Fechas en epoch (segundos). Cada fichero lleva `id: u32` (clave de los mapas BPF).
 5. `kioworker` fuera de «Miniaturas» (es el mismo binario que copia/mueve en Dolphin).
-6. `dev_t`: el kernel usa `(major << 20) | minor`, distinto de la codificación de `stat`; el daemon convierte siempre (`kdev`).
+6. `dev_t`: el BPF compara contra `i_sb->s_dev` (codificación del kernel `(major << 20) | minor`). En btrfs `stat()` devuelve el dev del **subvolumen**, distinto, así que el dev de toda clave sale de `statx(STATX_MNT_ID)` + `/proc/self/mountinfo` (`fanotify::clave_de_fd`), nunca de `st_dev` (ver Resultados).
 
 ## Datos verificados en esta máquina
 
