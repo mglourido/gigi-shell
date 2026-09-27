@@ -97,9 +97,11 @@ Modificar: guardian/src/main.rs, install.sh, bin/preflight.sh
 
 ### Task 4: Reconciliación al arrancar
 
-**Interfaces:** `Situacion { Existe(ClaveInodo), Ausente { disco_montado } }`; `reconciliar(&mut Politica, sondear, ahora) -> Vec<Entrada>` (existe ⇒ refresca dev/ino y pasa a Activo; ausente sin disco ⇒ NoDisponible y conserva; ausente con disco ⇒ se retira y se devuelve entrada Retirado); `devs_montados(mountinfo) -> HashSet<u64>` (campo 3 `major:minor` ⇒ codificación del kernel: son devs de SUPERBLOQUE y solo sirven para saber si el disco está montado, nunca para compararlos con `ClaveInodo.dev`, que en btrfs es el del subvolumen; el «disco montado» de un fichero se decide por el montaje que contiene su ruta, no por el `dev` de su clave); `sondear_real(f, montados)` (la `ClaveInodo` de `Existe` sale de `fanotify::clave_de_ruta` — ver Global Constraints).
+**Interfaces:** `Situacion { Existe { clave, fsid }, Ausente { disco_montado } }`; `reconciliar(&mut Politica, sondear, ahora) -> Vec<Entrada>` (existe ⇒ refresca dev/ino/fsid y pasa a Activo; ausente sin disco ⇒ NoDisponible y conserva; ausente con disco ⇒ se retira y se devuelve entrada Retirado); `sondear_real(f)`; `disco_montado(ruta, fsid)`; `fsid(ruta)`.
 
-**Tests:** los tres casos en una sola política; un NoDisponible que reaparece vuelve a Activo; parseo de dos líneas reales de `mountinfo`.
+**Cambio al implementar (sustituye a `devs_montados(mountinfo)`):** «su disco está montado» se decide con el `f_fsid` de `statvfs` guardado en `Fichero.fsid` (campo nuevo, `serde(default)`): la carpeta existente más cercana del fichero ausente tiene el mismo fsid ⇒ el disco está y el fichero se borró. Ni el `dev` de la clave (en btrfs es un dev anónimo que se reparte al montar: no es estable entre arranques) ni los `major:minor` de `mountinfo` (el superbloque, común a todos los subvolúmenes) sirven. fsid 0 (desconocido) nunca retira. `mountinfo` se sigue vigilando (`EPOLLPRI`), solo como señal para volver a reconciliar los NoDisponible.
+
+**Tests:** los tres casos en una sola política; un NoDisponible que reaparece vuelve a Activo; sondeo real en un tempdir (existe, borrado con su disco, carpeta en otro fsid).
 
 - [ ] **Steps:** tests ⇒ FAIL ⇒ implementar ⇒ PASS ⇒ commit `guardian: reconciliación al arrancar`.
 

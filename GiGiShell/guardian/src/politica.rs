@@ -70,6 +70,13 @@ pub struct Fichero {
     /// `stat()` (ver `fanotify::clave_de_fd`).
     pub dev: u64,
     pub ino: u64,
+    /// `f_fsid` de `statvfs` del sistema de ficheros donde vive: identifica el
+    /// DISCO (en btrfs, el subvolumen) de forma estable entre arranques, cosa
+    /// que `dev` no hace (los devs anónimos de btrfs se reparten al montar). Es
+    /// lo que decide si un fichero ausente se borró o solo tiene el disco
+    /// desmontado (ver arranque.rs). 0 = desconocido.
+    #[serde(default)]
+    pub fsid: u64,
     pub estado: Estado,
     pub anadido: u64,
     pub categorias: BTreeMap<String, ModoCategoria>,
@@ -181,6 +188,7 @@ impl Politica {
             ruta: ruta.to_string(),
             dev,
             ino,
+            fsid: 0,
             estado: Estado::Activo,
             anadido: ahora,
             categorias: self.categorias_por_defecto.clone(),

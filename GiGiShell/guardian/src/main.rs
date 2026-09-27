@@ -7,6 +7,7 @@
 // `--tras-parada` es el paso de limpieza que ya tenía `bpf::tras_parada()`
 // desde la Tarea 2: desactiva un anclaje huérfano sin reabrir todo el
 // esqueleto. El propio modo daemon (sin argumentos) es la Fase 2.
+mod arranque;
 mod bpf;
 mod categorias;
 mod depurar;
