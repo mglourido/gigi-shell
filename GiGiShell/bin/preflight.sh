@@ -257,6 +257,23 @@ if [[ "$mode" == "--installed" ]]; then
     ok "gigishell-eventd instalado y al día"
   fi
 
+  # gigishell-guardian (protección de archivos) también es opcional y viene APAGADO.
+  # Lo que se vigila es que el binario o las categorías instaladas no se queden atrás
+  # del repo: el servicio seguiría aplicando las reglas viejas sin ningún síntoma.
+  guardian_bin=/usr/local/bin/gigishell-guardian
+  guardian_cat=/usr/local/share/gigishell-guardian/categorias.json
+  if ! grep -qw bpf /sys/kernel/security/lsm 2>/dev/null; then
+    warn "el kernel no tiene BPF LSM ('bpf' en /sys/kernel/security/lsm): la protección de archivos no se puede usar"
+  elif [[ ! -x "$guardian_bin" ]]; then
+    warn "gigishell-guardian no instalado: sin protección de archivos (bash $GIGISHELL/guardian/instalar.sh)"
+  elif [[ -n "$(find "$GIGISHELL/guardian/src" "$GIGISHELL/guardian/Cargo.toml" -newer "$guardian_bin" -print -quit 2>/dev/null)" ]]; then
+    warn "gigishell-guardian es más viejo que su código: reinstala con bash $GIGISHELL/guardian/instalar.sh"
+  elif [[ ! -f "$guardian_cat" || "$GIGISHELL/guardian/categorias.json" -nt "$guardian_cat" ]]; then
+    warn "las categorías instaladas de gigishell-guardian no están al día: reinstala con bash $GIGISHELL/guardian/instalar.sh"
+  else
+    ok "gigishell-guardian instalado y al día ($(systemctl is-active gigishell-guardian.service 2>/dev/null || true))"
+  fi
+
   fc-match 'Noto Color Emoji' 2>/dev/null | grep -qi 'NotoColorEmoji' \
     || fail "falta Noto Color Emoji (sudo pacman -S --needed noto-fonts-emoji)"
 

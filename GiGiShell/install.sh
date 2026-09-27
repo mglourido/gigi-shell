@@ -1648,6 +1648,31 @@ configure_default_shell() {
     fi
     fi
 
+    GUARDIAN_ESTADO="fallido"
+  # --- Protección de archivos (gigishell-guardian) ---
+    #
+    # Se instala APAGADA: el servicio queda en /etc/systemd/system sin habilitar, y se
+    # enciende desde Ajustes > Protección de archivos. Apagada no engancha nada en el
+    # kernel (coste cero). Como eventd, no instala por su cuenta la cadena de Rust ni
+    # clang/bpftool: si faltan, lo dice y sigue. Necesita BPF LSM ('bpf' en
+    # /sys/kernel/security/lsm); sin él no se puede usar en este kernel.
+    if ! grep -qw bpf /sys/kernel/security/lsm 2>/dev/null; then
+    GUARDIAN_ESTADO="sin-bpf"
+    warn "El kernel no tiene BPF LSM activo: la protección de archivos no se puede usar en este equipo."
+    elif ! command -v cargo >/dev/null 2>&1 || ! command -v clang >/dev/null 2>&1 \
+      || ! command -v bpftool >/dev/null 2>&1; then
+    GUARDIAN_ESTADO="sin-herramientas"
+    warn "Faltan cargo, clang o bpftool: no se compila la protección de archivos (sudo pacman -S --needed rustup clang bpf y vuelve a ejecutar bash ~/GiGiShell/install.sh)."
+    else
+    info "Compilando gigishell-guardian (pasa los tests antes de instalar) ..."
+    sudo_prime
+    if bash "$GIGISHELL/guardian/instalar.sh"; then
+      GUARDIAN_ESTADO="listo"
+    else
+      warn "No se pudo instalar gigishell-guardian. Reintento: bash ~/GiGiShell/guardian/instalar.sh"
+    fi
+    fi
+
   # --- 4. Aplicar el perfil ligero de Dolphin ---
     DOLPHIN_CONFIGURATOR="$GIGISHELL/bin/configurar-dolphin.sh"
     # No es fatal: el perfil de Dolphin son miniaturas y comportamiento del gestor de
@@ -1950,6 +1975,21 @@ EOF
   sin-cargo|fallido) cat <<'EOF'
   • Seguridad: el monitor sigue en bash (no se compiló gigishell-eventd). Funciona igual;
               para pasarlo a Rust: bash ~/GiGiShell/install.sh
+EOF
+  ;;
+esac
+case "${GUARDIAN_ESTADO:-}" in
+  listo) cat <<'EOF'
+  • Protección de archivos: instalada y APAGADA; se enciende en Ajustes > Protección de archivos.
+EOF
+  ;;
+  sin-bpf) cat <<'EOF'
+  • Protección de archivos: no disponible, el kernel no tiene BPF LSM activo.
+EOF
+  ;;
+  sin-herramientas|fallido) cat <<'EOF'
+  • Protección de archivos: no instalada (revisa los avisos). Reintento:
+              bash ~/GiGiShell/guardian/instalar.sh
 EOF
   ;;
 esac

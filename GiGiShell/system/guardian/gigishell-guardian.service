@@ -1,0 +1,29 @@
+# gigishell-guardian: protección de archivos (BPF LSM + fanotify).
+#
+# NO se symlinkea: guardian/instalar.sh la copia a /etc/systemd/system/ sustituyendo
+# __UID__ por el UID del usuario (el dueño del socket y de los ficheros protegidos).
+# Se instala DESACTIVADA a propósito: apagada, el coste es cero (ningún gancho en el
+# kernel). La enciende y la apaga Ajustes > Protección de archivos (pkexec, con
+# contraseña: apagarla sin ella sería la forma más fácil de saltársela).
+#
+# Caída frente a parada — la diferencia importa:
+# - `systemctl stop` manda SIGTERM: el daemon desengancha el BPF y borra sus anclajes;
+#   los ficheros quedan accesibles.
+# - Una CAÍDA deja los programas BPF enganchados (anclados en /sys/fs/bpf). ExecStopPost
+#   pone `activo = 0`, así que todo lo protegido se deniega hasta que Restart= lo
+#   levante de nuevo y retome los mapas anclados. Nunca falla abierto.
+[Unit]
+Description=GiGiShell: protección de archivos (gigishell-guardian)
+
+[Service]
+Type=simple
+Environment=GUARDIAN_UID=__UID__
+ExecStart=/usr/local/bin/gigishell-guardian
+ExecStopPost=/usr/local/bin/gigishell-guardian --tras-parada
+Restart=on-failure
+RestartSec=1
+StateDirectory=gigishell-guardian
+StateDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target
