@@ -61,19 +61,21 @@ PID_DEP=""
 LOG_ACTIVO=""
 DIR_BTRFS=""
 
-# Limpieza final. IMPORTANTE: `rm -rf "$TMPDIR_PROP"` no vale por sí solo si
-# queda un depurador vivo (o recién matado con -9): el fichero protegido sigue
-# denegando incluso a root, que esta BPF no exime — ni siquiera vale parar en
-# seco y confiar en que "ya no hay quien lo aplique", porque un `kill -9` deja
-# los programas LSM enganchados y ANCLADOS en bpffs, todavía enforzando. Orden
-# obligatorio: SIGTERM y esperar (acotado) a que él mismo haga su parada
-# limpia; si no lo consigue, matarlo con -9 y entonces desactivar/desanclar a
-# mano (`--tras-parada` + `rm -r` del propio bpffs, el ÚNICO sitio fuera del
-# `mktemp -d` que este script toca) ANTES de poder borrar el directorio
-# temporal. Los tres pasos son idempotentes (no pasa nada si ya estaban
-# hechos), así que se ejecutan siempre, haya hecho falta el -9 o no.
-cleanup() {
-    if [ -n "$PID_DEP" ] && kill -0 "$PID_DEP" 2>/dev/null; then
+# Parada ordenada de $PID_DEP: SIGTERM y esperar (acotado, ~3s en pasos de
+# 0.1s) a que aparezca PARADO en el log activo o a que el proceso termine
+# solo; si no lo consigue, kill -9 + wait. SIEMPRE deja PID_DEP="" al salir —
+# es lo que impide que un caso posterior confunda un depurador ya muerto con
+# uno vivo, o arranque uno nuevo mientras el anterior sigue en pie (dos
+# depuradores a la vez competirían por el mismo anclaje de bpffs). Cada caso
+# que arranca un depurador con `iniciar_depurador` debe llamar a esta función
+# antes de que el SIGUIENTE caso arranque el suyo — la única excepción a
+# propósito es R2 "caída", que simula un crash y por eso mata en seco sin
+# pasar por aquí (ver su comentario).
+parar_depurador() {
+    if [ -z "$PID_DEP" ]; then
+        return 0
+    fi
+    if kill -0 "$PID_DEP" 2>/dev/null; then
         kill -TERM "$PID_DEP" 2>/dev/null || true
         local intentos=0
         while kill -0 "$PID_DEP" 2>/dev/null && [ "$intentos" -lt 30 ]; do
@@ -85,9 +87,27 @@ cleanup() {
         done
         if kill -0 "$PID_DEP" 2>/dev/null; then
             kill -9 "$PID_DEP" 2>/dev/null || true
-            wait "$PID_DEP" 2>/dev/null || true
         fi
+        wait "$PID_DEP" 2>/dev/null || true
     fi
+    PID_DEP=""
+}
+
+# Limpieza final. IMPORTANTE: `rm -rf "$TMPDIR_PROP"` no vale por sí solo si
+# queda un depurador vivo (o recién matado con -9): el fichero protegido sigue
+# denegando incluso a root, que esta BPF no exime — ni siquiera vale parar en
+# seco y confiar en que "ya no hay quien lo aplique", porque un `kill -9` deja
+# los programas LSM enganchados y ANCLADOS en bpffs, todavía enforzando. Orden
+# obligatorio: `parar_depurador` (SIGTERM/espera/kill -9 de reserva) y SOLO
+# ENTONCES desactivar/desanclar a mano (`--tras-parada` + `rm -r` del propio
+# bpffs, el ÚNICO sitio fuera del `mktemp -d`/HOME real que este script toca)
+# antes de poder borrar los directorios temporales. Con la disciplina de que
+# cada caso ya para su propio depurador antes de que el siguiente arranque el
+# suyo, esto es normalmente un no-op — pero si algo aborta el script a medias
+# (Ctrl-C, un `check`/`grep` inesperado) sigue siendo la única red de
+# seguridad, así que se ejecuta siempre.
+cleanup() {
+    parar_depurador
     "$BIN" --tras-parada >/dev/null 2>&1 || true
     rm -rf /sys/fs/bpf/gigishell-guardian 2>/dev/null || true
     # El directorio del caso btrfs vive bajo el HOME real del usuario, fuera
@@ -149,16 +169,6 @@ matar_depurador_atascado() {
     PID_DEP=""
 }
 
-esperar_fin() {
-    # Bucle acotado esperando a que el proceso depurador termine solo.
-    local intentos="${1:-50}" i
-    for ((i = 0; i < intentos; i++)); do
-        kill -0 "$PID_DEP" 2>/dev/null || return 0
-        sleep 0.1
-    done
-    return 1
-}
-
 como_usuario() {
     timeout 5 sudo -u "$SUDO_USER" "$@"
 }
@@ -213,20 +223,38 @@ else
     como_usuario ls -l "$ARCHIVO" >/dev/null 2>&1
     check "ls -l funciona" $?
 
-    kill -9 "$PID_DEP" 2>/dev/null
-    wait "$PID_DEP" 2>/dev/null
+    # Parada ORDENADA: ningún caso posterior debe encontrarse este depurador
+    # todavía vivo (dos depuradores a la vez competirían por el mismo anclaje
+    # de bpffs) — R2 "caída", justo debajo, arranca y mata el SUYO propio.
+    parar_depurador
 fi
 
 echo "== R2: caída del proceso =="
-# El BPF sigue anclado y "activo" tras el kill -9 (no fue una parada limpia):
-# --tras-parada es lo único que systemd correría antes de reiniciar el daemon,
-# y solo apaga el interruptor (`Control.activo = 0`). Con el programa inactivo,
-# `exigir()`/`g_file_open` fallan CERRADOS (deniegan), no abiertos.
-"$BIN" --tras-parada
-como_usuario cat "$ARCHIVO" >/dev/null 2>&1
-caida_fallo=$?
-check "R2 caída: --tras-parada deja fallo cerrado (cat falla)" \
-    $([ "$caida_fallo" -ne 0 ] && echo 0 || echo 1)
+# Caso AUTÓNOMO: arranca su propio depurador (nunca reutiliza el de un caso
+# anterior — Fase A ya paró el suyo de forma limpia arriba) y lo mata en seco
+# con kill -9 A PROPÓSITO, sin pasar por `parar_depurador`: esta es la ÚNICA
+# excepción a esa disciplina, porque lo que hay que comprobar es justo lo
+# contrario de una parada limpia — el BPF sigue anclado y "activo" en bpffs
+# tras la caída. `--tras-parada` es lo único que systemd correría antes de
+# reiniciar el daemon, y solo apaga el interruptor (`Control.activo = 0`);
+# con el programa inactivo, `exigir()`/`g_file_open` fallan CERRADOS
+# (deniegan), no abiertos.
+LOG_CAIDA="$TMPDIR_PROP/depurador_caida.log"
+iniciar_depurador "$LOG_CAIDA" "$ARCHIVO" --auto denegar
+if ! esperar_patron '^LISTO' "$LOG_CAIDA"; then
+    fallo "R2 caída: no se pudo arrancar el depurador que se iba a matar"
+    matar_depurador_atascado
+else
+    kill -9 "$PID_DEP" 2>/dev/null
+    wait "$PID_DEP" 2>/dev/null
+    PID_DEP=""
+
+    "$BIN" --tras-parada
+    como_usuario cat "$ARCHIVO" >/dev/null 2>&1
+    caida_fallo=$?
+    check "R2 caída: --tras-parada deja fallo cerrado (cat falla)" \
+        $([ "$caida_fallo" -ne 0 ] && echo 0 || echo 1)
+fi
 
 echo "== R2: reenganche =="
 LOG2="$TMPDIR_PROP/depurador2.log"
@@ -235,18 +263,15 @@ esperar_patron '^LISTO' "$LOG2"
 check "R2 reenganche (sale LISTO reutilizando el anclaje)" $?
 
 echo "== R2: parada limpia =="
-if kill -0 "$PID_DEP" 2>/dev/null; then
-    kill -TERM "$PID_DEP"
-    esperar_fin
-    esperar_patron '^PARADO' "$LOG2" 20
-fi
+parar_depurador
+grep -q '^PARADO' "$LOG2"
+parado_ok=$?
 como_usuario cat "$ARCHIVO" >/dev/null 2>&1
 cat_ok=$?
 [ -e /sys/fs/bpf/gigishell-guardian ]
 bpffs_queda=$?
-check "R2 parada limpia (cat funciona sin guardián y /sys/fs/bpf/gigishell-guardian no existe)" \
-    $([ "$cat_ok" -eq 0 ] && [ "$bpffs_queda" -ne 0 ] && echo 0 || echo 1)
-PID_DEP=""
+check "R2 parada limpia (PARADO en el log, cat funciona sin guardián, /sys/fs/bpf/gigishell-guardian no existe)" \
+    $([ "$parado_ok" -eq 0 ] && [ "$cat_ok" -eq 0 ] && [ "$bpffs_queda" -ne 0 ] && echo 0 || echo 1)
 
 echo "== R3: guardado atómico =="
 LOG3="$TMPDIR_PROP/depurador3.log"
@@ -291,6 +316,13 @@ os.replace(tmp, '$ARCHIVO')
         $([ "$r3_cat_fallo" -ne 0 ] && echo 0 || echo 1)
 fi
 
+# Parada ORDENADA antes de que el caso btrfs, justo debajo, arranque el suyo —
+# sin esto, este depurador (con el permiso de python3 concedido) sobrevivía
+# a todo el script: `PID_DEP` quedaba pisado por el del caso btrfs y nadie
+# volvía a pararlo, dejando el `rm -rf` final del directorio temporal
+# denegado por su propia BPF (EPERM) y R5 sin depurador que medir.
+parar_depurador
+
 echo "== btrfs: fichero protegido bajo el \$HOME real del usuario (no tmpfs) =="
 # El caso que se le escapó a todo lo de arriba: $TMPDIR_PROP (de `mktemp -d`
 # a secas) suele caer en tmpfs, donde por casualidad el `dev` de `stat()`
@@ -326,13 +358,12 @@ else
         btrfs_pend_ok=$?
         check "btrfs: fichero bajo \$HOME real se protege igual que en tmpfs (cat falla, pendiente=Some((1, 0)))" \
             $([ "$btrfs_cat_fallo" -ne 0 ] && [ "$btrfs_pend_ok" -eq 0 ] && echo 0 || echo 1)
-
-        kill -TERM "$PID_DEP" 2>/dev/null
-        esperar_fin
-        esperar_patron '^PARADO' "$LOG4" 20
-        PID_DEP=""
     fi
 fi
+
+# Parada ORDENADA (no-op si ya se paró en el `matar_depurador_atascado` de
+# arriba): antes de que R5 arranque el suyo propio, justo debajo.
+parar_depurador
 
 echo "== R5: coste (informativo) =="
 medir_coste() {
@@ -352,14 +383,21 @@ medir_coste() {
 info "calentando la caché de páginas (una pasada descartada)..."
 find /usr/share -name '*.desktop' -exec cat {} + >/dev/null 2>&1
 
-if [ -n "$PID_DEP" ] && kill -0 "$PID_DEP" 2>/dev/null; then
+# R5 arranca su PROPIO depurador para la mitad "con guardián" en vez de fiarse
+# de que algún caso anterior haya dejado uno vivo — con la disciplina de
+# `parar_depurador` al final de cada caso, a estas alturas nunca lo hay (y
+# antes de esa disciplina, este "si por casualidad queda uno vivo" era
+# justo el síntoma del bug: nunca medía nada porque el de R3 se había perdido
+# de vista, no porque de verdad no hubiera ningún guardián que medir).
+LOG5="$TMPDIR_PROP/depurador5.log"
+iniciar_depurador "$LOG5" "$ARCHIVO" --auto denegar
+if esperar_patron '^LISTO' "$LOG5"; then
     coste_con="$(medir_coste)"
     info "find /usr/share -name '*.desktop' -exec cat {} + CON guardián activo: ${coste_con}s"
-    kill -TERM "$PID_DEP" 2>/dev/null
-    esperar_fin
-    PID_DEP=""
+    parar_depurador
 else
-    info "no había un depurador vivo para medir 'con guardián'; se omite esa mitad"
+    info "no se pudo arrancar un depurador propio para medir 'con guardián'; se omite esa mitad"
+    matar_depurador_atascado
 fi
 
 if [ ! -e /sys/fs/bpf/gigishell-guardian ]; then

@@ -20,6 +20,10 @@
 - Solo se pueden proteger ficheros regulares (no enlaces simbólicos) cuyo dueño sea el usuario.
 - El servicio se instala **sin habilitar**.
 - Git y pasos root: como en la Fase 1.
+- Toda `ClaveInodo` sale de `fanotify::clave_de_fd`/`clave_de_ruta`; nunca de `st_dev`/
+  `metadata().dev()` a mano — medido en la Fase 1: en btrfs (subvolúmenes) `stat()` da el `dev`
+  ANÓNIMO del subvolumen, no el `inode->i_sb->s_dev` que ve el BPF; la vía correcta resuelve el
+  `dev` por `statx(STATX_MNT_ID)` + `/proc/self/mountinfo`.
 
 ## Estructura de ficheros de esta fase
 
@@ -91,7 +95,7 @@ Modificar: guardian/src/main.rs, install.sh, bin/preflight.sh
 
 ### Task 4: Reconciliación al arrancar
 
-**Interfaces:** `Situacion { Existe(ClaveInodo), Ausente { disco_montado } }`; `reconciliar(&mut Politica, sondear, ahora) -> Vec<Entrada>` (existe ⇒ refresca dev/ino y pasa a Activo; ausente sin disco ⇒ NoDisponible y conserva; ausente con disco ⇒ se retira y se devuelve entrada Retirado); `devs_montados(mountinfo) -> HashSet<u64>` (campo 3 `major:minor` ⇒ codificación del kernel); `sondear_real(f, montados)`.
+**Interfaces:** `Situacion { Existe(ClaveInodo), Ausente { disco_montado } }`; `reconciliar(&mut Politica, sondear, ahora) -> Vec<Entrada>` (existe ⇒ refresca dev/ino y pasa a Activo; ausente sin disco ⇒ NoDisponible y conserva; ausente con disco ⇒ se retira y se devuelve entrada Retirado); `devs_montados(mountinfo) -> HashSet<u64>` (campo 3 `major:minor` ⇒ codificación del kernel; sigue leyendo `mountinfo` directamente, sin cambios — ya da devs de superbloque); `sondear_real(f, montados)` (la `ClaveInodo` de `Existe` sale de `fanotify::clave_de_ruta`, NUNCA de `stat()`/`kdev()` a mano — ver la regla de Global Constraints y los Resultados de la Fase 1: en btrfs `stat()` da el `dev` anónimo del subvolumen, no el del superbloque que ve el BPF).
 
 **Tests:** los tres casos en una sola política; un NoDisponible que reaparece vuelve a Activo; parseo de dos líneas reales de `mountinfo`.
 
@@ -114,7 +118,7 @@ Modificar: guardian/src/main.rs, install.sh, bin/preflight.sh
 **Bucle `epoll`** con fanotify, anillo BPF, socket (escucha y cliente), `/proc/self/mountinfo` (`EPOLLPRI`), `signalfd` (SIGTERM/SIGINT) y los `pidfd` de los permisos «a este proceso». El tiempo de espera es el menor entre el próximo vencimiento del motor y la revisión diferida.
 
 **Manejadores:**
-- **fanotify:** `fstat` del fd ⇒ fichero de la política; tid ⇒ tgid ⇒ `InfoProceso`; `bpf.pendiente(tid)`. Si no hay fichero o el proceso ya no existe ⇒ denegar. Si no ⇒ `motor.apertura(…, politica.permiso_de(id, exe), …)`, guardando el `OwnedFd` hasta responder.
+- **fanotify:** `fanotify::clave_de_fd` del fd ⇒ fichero de la política (nunca `fstat`/`st_dev` a mano: en btrfs no da el `dev` del superbloque, ver Global Constraints); tid ⇒ tgid ⇒ `InfoProceso`; `bpf.pendiente(tid)`. Si no hay fichero o el proceso ya no existe ⇒ denegar. Si no ⇒ `motor.apertura(…, politica.permiso_de(id, exe), …)`, guardando el `OwnedFd` hasta responder.
 - **anillo:** `DENEGADO`/`SILENCIO` ⇒ `motor.denegacion`. `HEREDADO` ⇒ apuntar la herencia y programar una revisión a 200 ms. `MOVIDO`/`BORRADO` ⇒ programar una revisión. El evento BPF llega **antes** de que la operación termine; por eso se revisa con retraso.
 - **revisión:** herencias: si el `O_PATH` de la ruta ya es el inodo nuevo, marcarlo, `proteger(marcado=1)`, quitar la clave vieja y actualizar la política; si no, reintentar hasta 2 s y después registrar el fallo (el inodo sigue con `marcado=0`: falla cerrado). Después, para cada `O_PATH`: `nlink == 0` e inodo igual al de la política ⇒ retirar el fichero (historial Retirado); ruta distinta ⇒ actualizarla. Si hubo cambios ⇒ guardar y `Aviso::Cambio`.
 - **montajes:** reconciliar solo los NoDisponible; los que vuelven se activan.

@@ -154,4 +154,48 @@ El riesgo 4 (interbloqueos) se cubre por diseño en la Fase 2: el daemon solo ab
 
 ## Resultados
 
-_(se rellena al terminar la Task 4)_
+**2026-09-27, kernel 7.2 CachyOS.** `sudo bash pruebas/riesgos.sh` en la ejecución #3: `---- fallos:
+0` — los 15 casos en OK, incluidos los dos que solo se pudieron medir en hardware real:
+
+- Lectura denegada + **R1** (orden LSM → fanotify): `pendiente=Some((1, 0))` en lectura,
+  `pendiente=Some((2, 0))` en escritura — la petición queda pendiente ANTES de que nadie
+  responda, en los dos sentidos.
+- Borrar/mover/chmod/truncate/ln: las cinco deniegan, con `EVENTO tipo=1 op=4` (EV_DENEGADO,
+  BORRAR) en el log.
+- `ls -l`: funciona sin verse afectado (no abre el contenido).
+- **R2**: caída (`kill -9` + `--tras-parada` deja fallo cerrado), reenganche (`LISTO` reutilizando
+  el anclaje) y parada limpia (`PARADO` en el log, `cat` vuelve a funcionar,
+  `/sys/fs/bpf/gigishell-guardian` desaparece) — las tres, OK.
+- **R3** (guardado atómico): `os.replace` de python3 sobre el fichero protegido hereda la
+  protección al inodo nuevo (`EVENTO tipo=3`, `HEREDADO_MARCADO`, inodo distinto), y un `cat`
+  corriente sin la concesión de python3 sigue denegado sobre ese inodo heredado.
+- **btrfs**: un fichero protegido bajo el `$HOME` real del usuario (no bajo el `mktemp -d` de
+  tmpfs de los demás casos) se protege igual — `cat` deniega y `pendiente=Some((1, 0))`.
+- **R5** (informativo, no cuenta para el resultado): ejecución #3, `find /usr/share -name
+  '*.desktop' -exec cat {} +` **sin guardián**: 0,093 s (la mitad "con guardián" no llegó a
+  medirse en esa ejecución por el bug de `riesgos.sh` descrito abajo). En la ejecución #2, con las
+  dos mitades medidas: **con guardián** 0,093 s frente a **sin guardián** 0,095 s — sin
+  diferencia perceptible por tener el LSM enganchado sobre ficheros que no son el protegido.
+
+Dos fallos que solo aparecieron en hardware real (nunca en la revisión de código, y el propio
+diseño ya los identificaba como riesgo a verificar) obligaron a corregir código antes de que estos
+15 casos pasaran:
+
+1. **bpffs rechaza `.` en nombres de anclaje (EPERM).** Los enlaces de los nueve programas LSM se
+   anclaban como `<prog>.<pid>.<sufijo>`; bpffs no admite el punto como parte del nombre del
+   fichero anclado y `pin()` fallaba con `EPERM` sin más explicación. Corregido a
+   `<prog>_<pid>_<sufijo>`.
+2. **btrfs: `stat()`/`fstat().st_dev` no es el `dev` del superbloque.** En un filesystem con
+   subvolúmenes (btrfs), `st_dev` es un `dev` ANÓNIMO por subvolumen — no el
+   `inode->i_sb->s_dev` que lee `guardian.bpf.c`. Una `ClaveInodo` construida con `st_dev` para un
+   fichero (o para el ejecutable de una concesión `--conceder`) bajo un subvolumen NUNCA
+   coincidía con lo que ve el BPF; medido con python3.14 en esta máquina: `stat()` daba `0:36`, el
+   superbloque real era `0:35`. `R1`/`R2` habían colado porque el directorio de pruebas
+   (`mktemp -d` a secas) caía en tmpfs, donde por casualidad `st_dev` sí coincide. Corregido: el
+   `dev` de toda `ClaveInodo` sale ahora de `statx(STATX_MNT_ID)` → `stx_mnt_id` → buscar ese id de
+   montaje en `/proc/self/mountinfo` (campo 1) → campo 3 (`major:minor`) → `(major << 20) | minor`
+   — nunca de `st_dev`. El caso "btrfs" de la tabla de arriba es la prueba añadida para que esto no
+   se vuelva a colar sin que ningún caso lo note.
+
+**Regla para la Fase 2: toda `ClaveInodo` sale de `fanotify::clave_de_fd`/`clave_de_ruta`; nunca de
+`st_dev`/`metadata().dev()`.**
