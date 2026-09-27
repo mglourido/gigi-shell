@@ -1,0 +1,35 @@
+{
+  "miniaturas": [
+    "/usr/bin/ffmpegthumbnailer",
+    "/usr/bin/gdk-pixbuf-thumbnailer",
+    "/usr/bin/evince-thumbnailer",
+    "/usr/lib/tumbler-1/tumblerd",
+    "/usr/bin/totem-video-thumbnailer"
+  ],
+  "busqueda": [
+    "/usr/bin/grep",
+    "/usr/bin/rg",
+    "/usr/bin/ag",
+    "/usr/bin/ugrep",
+    "/usr/bin/fzf"
+  ],
+  "indexadores": [
+    "/usr/lib/kf6/baloo_file_extractor",
+    "/usr/lib/localsearch-3",
+    "/usr/lib/localsearch-extractor-3",
+    "/usr/lib/tracker-miner-fs-3",
+    "/usr/bin/recollindex"
+  ],
+  "antivirus": [
+    "/usr/bin/clamscan",
+    "/usr/bin/clamd",
+    "/usr/bin/clamdscan"
+  ],
+  "copias": [
+    "/usr/bin/rsync",
+    "/usr/bin/borg",
+    "/usr/bin/restic",
+    "/usr/bin/rclone",
+    "/usr/bin/kopia"
+  ]
+}
