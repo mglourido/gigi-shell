@@ -10,6 +10,7 @@ import SeccionEnergia from "../energia/SeccionEnergia"
 import SeccionFechaIdioma from "../fecha-idioma/SeccionFechaIdioma"
 import SeccionJuegos from "../juegos/SeccionJuegos"
 import SeccionPantalla from "../pantalla/SeccionPantalla"
+import SeccionProteccion from "../proteccion/SeccionProteccion"
 import SeccionComportamiento from "../personalizacion/SeccionComportamiento"
 import SeccionDiseno from "../personalizacion/SeccionDiseno"
 import SeccionFuncionesShell from "../personalizacion/SeccionFuncionesShell"
@@ -30,7 +31,7 @@ export type IdSeccion =
   | "energy" | "games" | "orion" | "clipboard"
   | "startup"
   | "storage" | "cleanup"
-  | "notifications" | "monitoring" | "scans" | "supervision" | "system"
+  | "notifications" | "monitoring" | "scans" | "proteccion" | "supervision" | "system"
   | "shortcuts"
 
 export type IdGrupo =
@@ -99,6 +100,7 @@ export const SECCIONES_POR_ID: Record<IdSeccion, SeccionNavegacion> = {
   notifications: { id: "notifications", label: textos.secciones.notificaciones, icon: "󰂚" },
   monitoring: { id: "monitoring", label: textos.secciones.vigilancia, icon: "󰒃" },
   scans: { id: "scans", label: textos.secciones.escaneos, icon: "󰇚" },
+  proteccion: { id: "proteccion", label: textos.secciones.proteccionArchivos, icon: "󰌾" },
   supervision: { id: "supervision", label: textos.secciones.supervision, icon: "󰓅" },
   system: { id: "system", label: textos.secciones.sistema, icon: "󰌢" },
   shortcuts: { id: "shortcuts", label: textos.secciones.atajos, icon: "󰘳" },
@@ -118,7 +120,7 @@ export const ITEMS_NAVEGACION: ItemNavegacion[] = [
   SECCIONES_POR_ID.startup,
   { id: "almacenamiento", label: textos.grupos.almacenamiento, icon: "󰋊", hijos: ["storage", "cleanup"] },
   SECCIONES_POR_ID.notifications,
-  { id: "seguridad", label: textos.grupos.seguridad, icon: "󰒃", hijos: ["monitoring", "scans"] },
+  { id: "seguridad", label: textos.grupos.seguridad, icon: "󰒃", hijos: ["monitoring", "scans", "proteccion"] },
   { id: "sistema", label: textos.grupos.sistema, icon: "󰌢", hijos: ["system", "supervision", "shortcuts"] },
 ]
 
@@ -145,6 +147,7 @@ const FABRICAS_SECCION: Record<IdSeccion, () => unknown> = {
   notifications: () => <SettingsTabs />,
   monitoring: () => <SeccionSeguridad vista="vigilancia" />,
   scans: () => <SeccionSeguridad vista="escaneos" />,
+  proteccion: () => <SeccionProteccion />,
   supervision: () => <SeccionSistema vista="supervision" />,
   system: () => <SeccionSistema vista="informacion" />,
   shortcuts: () => <SeccionAtajos />,

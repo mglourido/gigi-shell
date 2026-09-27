@@ -157,6 +157,12 @@ export async function refrescarEstado(conectarYa = true): Promise<void> {
   setEstadoServicio(estado)
   if (estado === "activo") {
     if (!conexion && !conectando && conectarYa) conectar()
+    // Ya conectado (p.ej. al abrir la sección de Ajustes): se refrescan los
+    // datos, que el contador de la semana avanza sin que llegue ningún `cambio`.
+    else if (conexion && conectarYa) {
+      enviar({ op: "estado" })
+      enviar({ op: "lista" })
+    }
   } else {
     cancelarReconexion()
     cerrar()
