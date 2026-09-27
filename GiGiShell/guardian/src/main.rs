@@ -13,6 +13,7 @@ mod categorias;
 mod depurar;
 mod fanotify;
 mod historial;
+mod ipc;
 mod motor;
 mod politica;
 mod proceso;
