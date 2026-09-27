@@ -39,6 +39,7 @@ import { initPlanificadorFondos } from "./servicios/fondos/planificador"
 import { initAcentoAdaptativo } from "./servicios/fondos/acento"
 import { initPresetsApps } from "./servicios/multimedia/presetsApps"
 import { initPresetsDispositivos } from "./servicios/multimedia/presetsDispositivos"
+import { initGuardian } from "./servicios/seguridad/guardian"
 import { alternarBarPorTecla, alternarMenuEnergia, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
 
 app.start({
@@ -292,6 +293,11 @@ app.start({
       // aviso que deja idle-action.sh al vetar, y los avisos que pudieran caer en estos
       // cuatro segundos son de la sesión anterior y los descarta su ventana de validez.
       initPuenteWakeUp()
+      // Cliente del daemon de protección de archivos. Siembra del ESTADO (pregunta a
+      // systemd si el servicio está activo), no de eventos: lo que el daemon deniegue
+      // en estos cuatro segundos le llega después como resumen. Con el servicio
+      // apagado —lo normal— no deja nada corriendo.
+      initGuardian()
     }, 4000)
   },
 })
