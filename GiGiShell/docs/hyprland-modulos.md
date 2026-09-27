@@ -3552,6 +3552,125 @@ de caché (`~/.cache/gigishell/download-index` **y** `download-hashes`) y relanz
 (`pkill` + `setsid nohup`), porque el índice y el conjunto de hashes se cargan en RAM al arrancar el
 script: borrarlos en caliente no sirve de nada.
 
+### Protección de archivos (`guardian/` + `system/guardian/`)
+
+**Qué es.** El usuario marca desde Ajustes > Seguridad > Protección de archivos ficheros concretos
+(un `.env`, un PDF del banco, un token) y a partir de ahí **ningún proceso** —tampoco root— puede
+leerlos, cambiarlos, borrarlos, moverlos ni tocar sus atributos sin permiso. Abrir uno deja al
+proceso esperando en su `open()` y AGS pregunta (Denegar / Permitir a este proceso / Siempre, 30 s
+y se deniega solo); borrar, mover o `chmod` se deniegan en el acto y AGS avisa en rojo con un
+«Permitir siempre» para el reintento. Metadatos (`ls`, `stat`, Dolphin listando) no se tocan.
+Diseño completo en `docs/superpowers/specs/2026-09-27-proteccion-archivos-design.md`; planes y
+resultados de las tres fases junto a él en `docs/superpowers/plans/`.
+
+Piezas: el daemon Rust `guardian/` (root, instalado a `/usr/local/bin/gigishell-guardian` por
+`guardian/instalar.sh`, que llama `install.sh`), la unidad `system/guardian/gigishell-guardian.service`
+(copiada a `/etc/systemd/system/` con el UID del usuario sustituido, **nunca symlinkeada**), y en
+AGS `servicios/seguridad/guardian.ts` (cliente del socket), `modulos/guardian/VentanaGuardian.tsx`
+(la ventana de pregunta) y `modulos/ajustes/proteccion/`.
+
+**Se instala APAGADO y apagado cuesta cero.** `instalar.sh` nunca hace `systemctl enable`; lo
+enciende el interruptor de Ajustes con `pkexec systemctl enable --now` (y lo apaga con `disable
+--now`), **con contraseña a propósito**: apagarlo sin ella sería la forma más fácil de saltárselo.
+Parado, no hay ni un gancho en el kernel.
+
+**Por qué BPF LSM + fanotify, y no uno solo.** Un hook LSM corre dentro de la syscall y **no puede
+dormir**: puede denegar un `unlink`, un `rename` o un `chmod` (que solo él ve), pero no puede
+esperar a que el usuario conteste. fanotify con `FAN_OPEN_PERM` sí deja un `open()` en espera, pero
+no ve borrar/mover/atributos ni distingue lectura de escritura. Así que el BPF decide todo lo que
+puede decidir solo y, en `file_open`, deja apuntado en el mapa `pendientes[tid]` qué se pidió y si
+ya estaba permitido; el daemon lo recoge al llegarle el evento de fanotify. **R1** de la
+verificación comprobó en este kernel que el LSM corre antes que fanotify (si fuera al revés, el
+daemon leería una pendiente vacía).
+
+**Caída frente a parada — la diferencia importa.**
+- `systemctl stop` (SIGTERM): el daemon deniega lo que esperaba respuesta, borra el socket y
+  **desengancha** el BPF (`parar_limpio`): los ficheros quedan accesibles.
+- Una **caída** deja los programas BPF enganchados (enlaces anclados en
+  `/sys/fs/bpf/gigishell-guardian`). `ExecStopPost=… --tras-parada` pone `activo = 0` en el mapa
+  `control`, y con eso **todo lo protegido se deniega** hasta que `Restart=on-failure` lo levante y
+  retome los mapas anclados. Un ERROR del daemon sale por este camino a propósito, no por la
+  parada limpia: nunca falla abierto.
+- Si alguna vez quedara un anclaje huérfano sin servicio: `sudo gigishell-guardian --tras-parada`
+  y `sudo rm -r /sys/fs/bpf/gigishell-guardian`.
+
+**La política vive en `/var/lib/gigishell-guardian/` (root, 600), NO en `~/.config/gigishell/`.**
+Es la única excepción a la convención del repo y es deliberada: en `~/.config` cualquier proceso
+del usuario podría añadirse a sí mismo como permitido. AGS no toca esos ficheros; todo pasa por el
+socket `/run/gigishell-guardian.sock` (del usuario, 600, **un solo cliente**, y solo si es
+`/usr/bin/gjs-console` con un argumento `…/ags.js`). `politica.json` corrupta ⇒ el daemon **no
+arranca** (arrancar vacío desprotegería todo sin avisar; sin arrancar, el BPF anclado sigue
+denegando). El historial va aparte (`historial.jsonl`, 500 entradas por fichero) para no reescribir
+la política en cada acceso.
+
+**Trampas medidas (todas fueron fallos silenciosos antes de corregirse):**
+
+1. **btrfs: `(dev, ino)` NO identifica un fichero con el dev del superbloque.** Todos los
+   subvolúmenes (`@`, `@home`, `@tmp`…) comparten superbloque (`0:35` aquí) y los números de inodo
+   solo son únicos DENTRO de cada subvolumen: proteger un fichero protegía también a cualquier
+   otro con el mismo ino en otro subvolumen, y un permiso concedido a un ejecutable valía para
+   binarios ajenos. La clave usa el dev que informa `stat()`: el BPF lo calcula en
+   `clave_de_inodo()` (en btrfs lee `BTRFS_I(inode)->root->anon_dev` por CO-RE, con structs propias
+   `___guardian` para compilar aunque btrfs sea módulo) y el userspace lo saca de `statx`
+   (`fanotify::clave_de_fd`). Antes se había «arreglado» al revés (dev del superbloque vía
+   `mountinfo` en los dos lados): casaban entre sí, que es justo por lo que no lo detectó ninguna
+   prueba. `riesgos.sh` crea ahora dos subvolúmenes cuyo primer fichero sale con el mismo ino y
+   comprueba que proteger uno no afecta al otro (con `chmod`, no con `cat`: `cat` pasaba igual con
+   el fallo).
+2. **El dev anónimo de un subvolumen NO es estable entre arranques**, así que tampoco sirve para
+   saber si un fichero ausente se borró o solo tiene el disco desmontado. Eso lo decide el `f_fsid`
+   de `statvfs` (en btrfs sale del UUID y del id del subvolumen), guardado en la política: la carpeta
+   existente más cercana con el mismo fsid ⇒ el disco está ⇒ se retira. fsid desconocido nunca
+   retira (se conserva como «no disponible»).
+3. **Tras una caída, los mapas anclados siguen diciendo `marcado = 1`** pero las marcas de fanotify
+   murieron con el proceso: el BPF dejaba pasar aperturas esperando una respuesta que nunca
+   llegaba. `Bpf::cargar` desmarca todo y vacía `pendientes` antes de nada; cada fichero vuelve a
+   preguntarse cuando el daemon lo re-marca.
+4. **La pendiente va por HILO, no por fichero**: una que un hilo dejó de otro fichero sin consumir
+   respondería por este. Solo vale si su id de fichero es el del fd del evento.
+5. **bpffs rechaza `.` en los nombres de anclaje** (`EPERM` sin más): los enlaces se anclan como
+   `<prog>_<pid>_<sufijo>`.
+6. **`inode_rename` de este kernel no trae `flags`** en su BTF (4 argumentos): un `ret` en la
+   posición 6 leería fuera del contexto y el verificador rechazaría el programa entero. Sin `flags`
+   no se distingue `RENAME_EXCHANGE`; se trata como un guardado atómico (sobreprotege, no desprotege).
+7. **El guardado atómico** (escribir a un temporal y `rename` encima, lo que hacen nvim, VSCode o
+   `sed -i`): el BPF hace que el inodo nuevo HEREDE la protección en el mismo `rename`, con
+   `marcado = 0` (se deniega) hasta que el daemon lo marca en fanotify; si no se asienta en 2 s, se
+   queda denegado. Es **R3** de la verificación.
+8. **Regla anti-interbloqueo: el daemon solo abre ficheros protegidos con `O_PATH`.** Un `open()`
+   de verdad le haría pedirse permiso a sí mismo por fanotify y esperar su propia respuesta. El
+   daemon además está exento en el BPF (y los hilos del kernel); root no.
+9. **La ventana de pregunta y Ajustes son capas OVERLAY**, y el diálogo de polkit y el
+   `Gtk.FileDialog` de «Proteger archivo…» son ventanas normales: saldrían DEBAJO, invisibles. Los
+   dos van dentro de `withPrivilegedPrompt` (`estado/shell.tsx`), que baja Ajustes a la capa
+   BOTTOM mientras duran.
+
+**Intérpretes nunca reciben «siempre»** (`python*`, `node`, `bash`, `sh`, `zsh`, `perl`, `lua*`,
+`gjs`, `java`…): el permiso iría al binario del intérprete y valdría para cualquier script. La
+ventana enseña el script (`script: -c …`) y ofrece solo «Permitir a este proceso», que caduca
+cuando muere el proceso (pidfd). Lo impone el daemon; AGS solo evita pintar el botón.
+
+**`kioworker` no está en la categoría Miniaturas**, aunque el diseño lo nombraba: los programas se
+identifican por su ejecutable, y el `kioworker` que genera miniaturas es el MISMO binario que hace
+todas las demás operaciones de KIO (copiar, red, papelera…). Permitirle leer para las miniaturas
+se lo permitiría a Dolphin copiando el archivo a cualquier parte. Las rutas de
+`guardian/categorias.json` son candidatas: las que no existen en la máquina se ignoran.
+
+**Limitación abierta:** el daemon guarda un `O_PATH` de cada fichero activo para seguirlo si se
+mueve, y eso **impide desmontar** (EBUSY) un disco externo que tenga ficheros protegidos mientras
+el servicio está encendido.
+
+**Verificación (2026-09-27, kernel 7.2 CachyOS):** `sudo bash guardian/pruebas/riesgos.sh` (BPF +
+fanotify con `--depurar`: R1, R2 caída/reenganche/parada, R3, btrfs y mismo ino en dos
+subvolúmenes) y `sudo bash guardian/pruebas/servicio.sh` (daemon a mano y servicio instalado:
+socket 600, rechazo de un cliente que no es AGS, reinicio tras `kill -9`, `stop` que desengancha),
+los dos con 0 fallos; y la prueba de extremo a extremo con AGS (pregunta, cuenta atrás, aviso
+rojo, intérprete sin «Siempre», editor con guardado atómico, resumen tras cerrar el shell,
+encender y apagar desde Ajustes), toda OK. Coste de tener el LSM enganchado sobre ficheros que NO
+son el protegido (`find /usr/share -name '*.desktop' -exec cat {} +`, una sola pasada, con ruido):
+0,093 s con guardián frente a 0,095 s sin él en una ejecución, y 0,115 s frente a 0,097 s en la
+última (399 ficheros: unos 45 µs por apertura en el peor caso), y solo con el servicio encendido.
+
 ### Desinstalar apps desde Orion (`desinstalar-app.sh`)
 
 El panel derecho de Orion —el que se despliega al pulsar una app— tiene una acción **Desinstalar**

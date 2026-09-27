@@ -31,15 +31,21 @@ alarma muda sin dar ningún error; ver `audio/README.md`),
 `--modulos` y, si son todos, le cede el proceso con `exec`; sin el binario corre el bash. Una
 regla de seguridad cambiada en un sitio hay que cambiarla en el otro. Plan y estado en
 [`docs/rust-migracion.md`](docs/rust-migracion.md)),
+`guardian/` (daemon Rust root `gigishell-guardian`, la **protección de archivos**: BPF LSM +
+fanotify, gobernado desde Ajustes > Seguridad > Protección de archivos. Se instala **apagado**; su
+política vive en `/var/lib/gigishell-guardian/`, no en `~/.config`, a propósito. Ver su sección en
+[`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) antes de tocarlo),
 `system/` (ficheros que van a `/etc` y `/usr/local/bin`, **no** se symlinkean: se instalan con `sudo` —
 la regla udev de escritura en USB, la carga del módulo `i2c-dev`, los perfiles TLP, el helper de
 firmas de ClamAV, el helper de limpieza de disco, el helper de bloqueo de la cámara, el helper y la
 preparación de la **hibernación**, la cesión del
-botón de encendido a Hyprland y la configuración de SDDM; ver las secciones de USB, de brillo, de TLP, de ClamAV, de almacenamiento, de
-cámara, de hibernación y del botón de encendido).
+botón de encendido a Hyprland, la configuración de SDDM y la unidad systemd de la **protección de
+archivos** (`system/guardian/`); ver las secciones de USB, de brillo, de TLP, de ClamAV, de almacenamiento, de
+cámara, de hibernación, del botón de encendido y de protección de archivos).
 
-`system/sddm/zz-gigishell.conf.in` es la única pieza de `system/` que **no se copia tal cual**: es una
-plantilla que `install.sh` (paso `sddm`) materializa en `/etc/sddm.conf.d/zz-gigishell.conf`
+`system/sddm/zz-gigishell.conf.in` es una de las dos piezas de `system/` que **no se copian tal cual**
+(la otra es `system/guardian/gigishell-guardian.service`, a la que `guardian/instalar.sh` le pone el
+UID del usuario): es una plantilla que `install.sh` (paso `sddm`) materializa en `/etc/sddm.conf.d/zz-gigishell.conf`
 sustituyendo lo que es de cada máquina — el usuario del autologin, el `.desktop` de la sesión, el
 tema (sólo si existe en el equipo) y el método de entrada. Junto a ella, `system/sddm/tema/` es el
 **tema del saludador** (la variante `jake_the_dog` de sddm-astronaut-theme, recortada a lo que esa
@@ -217,7 +223,7 @@ imprescindible para no romper la sesión:
 Para el directorio, el orden de carga de módulos y qué script se dispara desde dónde, ver
 [`docs/hypr-estructura.md`](docs/hypr-estructura.md). Para el detalle y el porqué de cada módulo
 individual (GPU/pantalla/idioma por máquina, Wake up, congelar tareas al jugar, USB, brillo DDC,
-puntero/hyprcursor, TLP, security monitor, ClamAV, desinstalar apps, almacenamiento y autolimpieza,
+puntero/hyprcursor, TLP, security monitor, ClamAV, protección de archivos, desinstalar apps, almacenamiento y autolimpieza,
 boot-healthcheck, apps al inicio, grabar pantalla, portapapeles, cámara (ajustes V4L2 y
 detector de uso), franjas horarias de fondos,
 monitores de batería/temperatura/RAM/disco/BT, y una decena más), ver
