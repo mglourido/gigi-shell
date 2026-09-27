@@ -12,8 +12,10 @@ mod categorias;
 mod depurar;
 mod fanotify;
 mod historial;
+mod motor;
 mod politica;
 mod proceso;
+mod protocolo;
 mod tipos;
 
 fn main() {
