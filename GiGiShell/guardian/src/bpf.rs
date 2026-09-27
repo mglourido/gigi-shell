@@ -172,14 +172,49 @@ impl Bpf {
             mapa.set_pin_path(Path::new(RAIZ).join(&nombre))?;
         }
 
-        let skel = skel_abierto.load()?;
+        // Un `load()` que falla (p.ej. un mapa anclado de una versión anterior
+        // de `guardian.bpf.c` con otro tamaño de clave/valor, incompatible con
+        // el que se acaba de compilar) deja los mapas VIEJOS tal cual estaban,
+        // anclados en `RAIZ`: si ya había un guardián corriendo desde una
+        // carga anterior, sus programas y reglas SIGUEN vivos en el kernel y
+        // denegando exactamente igual que antes de este intento — solo este
+        // proceso nuevo no ha conseguido arrancar. Por eso el error lo dice
+        // explícitamente en vez de limitarse a propagar el de libbpf, y por
+        // qué esta función NUNCA borra `RAIZ` por su cuenta ante un fallo de
+        // carga: hacerlo automáticamente tiraría esa guardia todavía vigente
+        // sin que nadie lo haya decidido. Recuperar de un anclaje realmente
+        // incompatible es una decisión manual: `sudo rm -r
+        // /sys/fs/bpf/gigishell-guardian` y reiniciar el daemon (recreará los
+        // mapas desde cero).
+        let skel = skel_abierto.load().map_err(|e| {
+            eprintln!(
+                "gigishell-guardian: fallo cargando el objeto BPF ({e}). Si ya había un guardián \
+                 anclado en {RAIZ}, sigue denegando con las reglas de su última carga: este \
+                 proceso nuevo simplemente no ha arrancado. Si el anclaje es de verdad \
+                 incompatible (p.ej. tras cambiar el layout de un mapa), la recuperación es \
+                 manual: `sudo rm -r {RAIZ}` y reiniciar el daemon."
+            );
+            Error::Bpf(e)
+        })?;
 
         let pid = std::process::id();
+        // Sufijo único por carga, no solo el pid: si el daemon se cae y el pid
+        // se recicla (normal en un sistema con reinicios frecuentes) antes de
+        // que se retiren los anclajes viejos, un segundo `<prog>.<pid>` con el
+        // MISMO pid colisionaría con el que dejó el proceso anterior (`pin()`
+        // sobre una ruta ya anclada falla con EEXIST) y el daemon no podría
+        // arrancar — justo el escenario que este anclaje está pensado para
+        // sobrevivir. Los nanosegundos desde epoch bastan para no repetirse
+        // entre dos arranques del mismo proceso.
+        let sufijo = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
         let mut enlaces = Vec::with_capacity(PROGRAMAS.len());
         for nombre in PROGRAMAS {
             let enlace_nuevo = enganchar_programa(&skel, nombre)?;
             let mut enlace_nuevo = enlace_nuevo;
-            enlace_nuevo.pin(dir_enlaces.join(format!("{nombre}.{pid}")))?;
+            enlace_nuevo.pin(dir_enlaces.join(format!("{nombre}.{pid}.{sufijo}")))?;
             enlaces.push(enlace_nuevo);
         }
 

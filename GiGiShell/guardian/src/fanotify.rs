@@ -139,9 +139,54 @@ impl Fanotify {
                 )
             };
 
-            // SAFETY: el kernel entrega un fd nuevo y válido por evento; es
-            // responsabilidad de quien reciba `EventoApertura` cerrarlo (o
-            // pasarlo a `responder()`, que lo consume).
+            // Cada registro se valida ANTES de tocar `metadato.fd`: un
+            // `event_len` corto o cero dejaría el bucle girando para siempre
+            // sobre el mismo `offset` (nunca avanza), y una versión de
+            // metadato distinta de la que este código entiende significaría
+            // que el resto de campos (incluido dónde empieza el siguiente
+            // registro) no se puede interpretar con esta struct.
+            if metadato.vers != libc::FANOTIFY_METADATA_VERSION {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!(
+                        "fanotify_event_metadata.vers={} (esperado {})",
+                        metadato.vers,
+                        libc::FANOTIFY_METADATA_VERSION
+                    ),
+                ));
+            }
+            if (metadato.event_len as usize) < TAM_METADATO
+                || offset + metadato.event_len as usize > leidos
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!(
+                        "fanotify_event_metadata.event_len={} fuera de rango (offset={offset}, leidos={leidos})",
+                        metadato.event_len
+                    ),
+                ));
+            }
+
+            // `fd == FAN_NOFD` (-1): no hay fd de verdad que envolver — ocurre
+            // en eventos sin permiso asociado, p.ej. `FAN_Q_OVERFLOW` cuando la
+            // cola de fanotify se desborda. Envolver -1 en `OwnedFd` sería UB
+            // (su nicho de `Option` asume que nunca vale -1), así que este
+            // evento se descarta explícitamente en vez de tratarlo como una
+            // apertura — no hay nada que responder ni ningún fichero al que
+            // atribuirlo.
+            if metadato.fd == libc::FAN_NOFD {
+                eprintln!(
+                    "gigishell-guardian: evento fanotify sin fd (mask={:#x}, posible desborde de cola FAN_Q_OVERFLOW) descartado",
+                    metadato.mask
+                );
+                offset += metadato.event_len as usize;
+                continue;
+            }
+
+            // SAFETY: el kernel entrega un fd nuevo y válido por evento (ya se
+            // descartó el caso `FAN_NOFD` arriba); es responsabilidad de quien
+            // reciba `EventoApertura` cerrarlo (o pasarlo a `responder()`, que
+            // lo consume).
             let fd = unsafe { OwnedFd::from_raw_fd(metadato.fd) };
             eventos.push(EventoApertura {
                 fd,
@@ -176,7 +221,14 @@ impl Fanotify {
         // tuvo éxito como si no: no hay nada más razonable que hacer con un fd
         // de permiso que ya se procesó (o que el kernel ya considera huérfano).
         if ret < 0 {
-            return Err(io::Error::last_os_error());
+            let err = io::Error::last_os_error();
+            // Sin este aviso, un fallo aquí es invisible: el proceso que pidió
+            // abrir el fichero se queda colgado en el `open()` (fanotify nunca
+            // recibió respuesta) sin ningún mensaje que explique por qué. No es
+            // recuperable desde aquí (el fd de permiso ya se cerró), pero al
+            // menos queda constancia en el log del daemon.
+            eprintln!("gigishell-guardian: fallo respondiendo a fanotify: {err}");
+            return Err(err);
         }
         Ok(())
     }
