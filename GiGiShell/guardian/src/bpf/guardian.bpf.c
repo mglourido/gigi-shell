@@ -189,24 +189,30 @@ static __always_inline int identidad(struct clave_inodo *id, __u32 *tgid)
 
 	mm = BPF_CORE_READ(tarea, mm);
 	if (!mm) {
+		// Hilo de kernel: no tiene ejecutable de usuario. Este es el único caso,
+		// junto con el propio daemon, que queda EXENTO (0): no hay ningún
+		// binario de usuario al que atribuirle la operación.
 		id->dev = 0;
 		id->ino = 0;
 		return 0;
 	}
+
+	// A partir de aquí el proceso SÍ tiene mm (no es exento) pero puede que no
+	// se le pueda resolver el ejecutable (exe_file/f_inode NULL, p.ej. durante
+	// exec() o si el binario se borró). Eso NO es exención: es una identidad
+	// vacía (dev=0, ino=0) que no puede casar con ningún permiso concedido, así
+	// que `derechos()` devolverá 0 y el fichero protegido queda denegado por
+	// defecto — fallar cerrado en vez de dejar pasar por no poder identificar.
+	id->dev = 0;
+	id->ino = 0;
 
 	exe = BPF_CORE_READ(mm, exe_file);
-	if (!exe) {
-		id->dev = 0;
-		id->ino = 0;
-		return 0;
-	}
+	if (!exe)
+		return 1;
 
 	inodo = BPF_CORE_READ(exe, f_inode);
-	if (!inodo) {
-		id->dev = 0;
-		id->ino = 0;
-		return 0;
-	}
+	if (!inodo)
+		return 1;
 
 	sb = BPF_CORE_READ(inodo, i_sb);
 	id->dev = sb ? BPF_CORE_READ(sb, s_dev) : 0;
@@ -383,10 +389,19 @@ int BPF_PROG(g_file_open, struct file *file, int ret)
 
 	// La decisión final de si se puede leer el contenido la toma fanotify en
 	// userspace: aquí solo se dan pistas (pendiente) y se deja pasar la apertura.
+	// Clave por HILO, no por tgid: userspace usa fanotify con FAN_REPORT_TID y
+	// busca `pendientes[tid]` con el tid real del evento de fanotify (que es el
+	// PID del hilo que hizo el open, no el del proceso/tgid). Con tgid como
+	// clave, un hilo que no es el principal nunca encontraría su entrada, y dos
+	// hilos del mismo proceso abriendo a la vez se pisarían el uno al otro.
 	pend.fichero = vp->fichero;
 	pend.pedido = (__u8)pedido;
 	pend.permitido = permitido;
-	bpf_map_update_elem(&pendientes, &tgid, &pend, BPF_ANY);
+	{
+		__u32 tid = (__u32)bpf_get_current_pid_tgid();
+
+		bpf_map_update_elem(&pendientes, &tid, &pend, BPF_ANY);
+	}
 
 	return 0;
 }
@@ -431,9 +446,19 @@ int BPF_PROG(g_link, struct dentry *old_dentry, struct inode *dir, struct dentry
 	return exigir(origen, OP_BORRAR);
 }
 
+// El hook LSM real (bpf_lsm_inode_rename, BTF id 46425) tiene 4 parámetros, SIN
+// `flags` — a diferencia del wrapper `security_inode_rename()` en C (que sí lo
+// lleva y con el que es fácil confundirse mirando el código del kernel en vez
+// del BTF). `ret` es entonces el 5º argumento de BPF_PROG, no el 6º: con un
+// parámetro de más, `ret` leería memoria fuera de contexto y el verifier
+// rechazaría el programa entero al cargarlo. Consecuencia funcional: al no
+// tener `flags`, este hook no distingue RENAME_EXCHANGE (intercambio atómico de
+// dos rutas) de un rename normal — se aplican las mismas reglas de siempre
+// (BORRAR sobre un origen protegido, MODIFICAR sobre un destino protegido, y
+// herencia cuando solo el destino estaba protegido) a los dos lados sin más.
 SEC("lsm/inode_rename")
 int BPF_PROG(g_rename, struct inode *old_dir, struct dentry *old_dentry,
-	     struct inode *new_dir, struct dentry *new_dentry, unsigned int flags, int ret)
+	     struct inode *new_dir, struct dentry *new_dentry, int ret)
 {
 	struct inode *origen;
 	struct inode *destino;
@@ -481,7 +506,16 @@ int BPF_PROG(g_rename, struct inode *old_dir, struct dentry *old_dentry,
 		nuevo.marcado = 0;
 		bpf_map_update_elem(&protegidos, &id_origen, &nuevo, BPF_ANY);
 
-		identidad(&id_origen, &tgid);
+		// El evento debe llevar la clave del inodo ORIGEN recién insertado en
+		// `protegidos` (id_origen), no la del ejecutable de quien llama: por
+		// eso `identidad()` escribe en una variable aparte (`id_llamador`),
+		// nunca sobre `id_origen`. Sobrescribirlo (como hacía antes) perdía el
+		// (dev, ino) real del fichero heredado y lo sustituía por el del
+		// llamador (o por 0/0 si estaba exento), dejando el evento inservible
+		// para correlacionarlo con la entrada del mapa que se acaba de crear.
+		struct clave_inodo id_llamador = {};
+
+		identidad(&id_llamador, &tgid);
 		emitir(EV_HEREDADO, vp_destino->fichero, tgid, 0, &id_origen);
 	}
 
