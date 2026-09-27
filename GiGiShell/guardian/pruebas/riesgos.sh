@@ -49,6 +49,7 @@ fi
 PYTHON3="$(readlink -f "$PYTHON3")"
 
 GRUPO_USUARIO="$(id -gn "$SUDO_USER")"
+HOME_USUARIO="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
 
 TMPDIR_PROP="$(mktemp -d)"
 chown "$SUDO_USER":"$GRUPO_USUARIO" "$TMPDIR_PROP"
@@ -58,6 +59,7 @@ sudo -u "$SUDO_USER" bash -c "printf 'contenido original\n' > '$ARCHIVO'"
 
 PID_DEP=""
 LOG_ACTIVO=""
+DIR_BTRFS=""
 
 # Limpieza final. IMPORTANTE: `rm -rf "$TMPDIR_PROP"` no vale por sí solo si
 # queda un depurador vivo (o recién matado con -9): el fichero protegido sigue
@@ -88,6 +90,13 @@ cleanup() {
     fi
     "$BIN" --tras-parada >/dev/null 2>&1 || true
     rm -rf /sys/fs/bpf/gigishell-guardian 2>/dev/null || true
+    # El directorio del caso btrfs vive bajo el HOME real del usuario, fuera
+    # de $TMPDIR_PROP (que es el único sitio donde `mktemp -d` a secas cae por
+    # defecto) — se borra aparte, y solo después de la parada limpia de arriba
+    # (con el BPF desanclado, el fichero ya no tiene por qué seguir denegando).
+    if [ -n "$DIR_BTRFS" ]; then
+        rm -rf "$DIR_BTRFS" 2>/dev/null || true
+    fi
     rm -rf "$TMPDIR_PROP"
 }
 trap cleanup EXIT
@@ -280,6 +289,49 @@ os.replace(tmp, '$ARCHIVO')
     r3_cat_fallo=$?
     check "R3: cat posterior sigue denegado sobre el inodo heredado" \
         $([ "$r3_cat_fallo" -ne 0 ] && echo 0 || echo 1)
+fi
+
+echo "== btrfs: fichero protegido bajo el \$HOME real del usuario (no tmpfs) =="
+# El caso que se le escapó a todo lo de arriba: $TMPDIR_PROP (de `mktemp -d`
+# a secas) suele caer en tmpfs, donde por casualidad el `dev` de `stat()`
+# coincide con el del superbloque. Bajo el HOME real del usuario (btrfs en
+# esta máquina, con subvolúmenes) NO coincide — es justo el bug que hizo
+# fallar R3 con `os.replace` (EPERM inesperado, `EVENTO tipo=1 op=2`): la
+# clave construida con `st_dev` nunca casaba con la que ve el BPF
+# (`inode->i_sb->s_dev`). Este caso repite la comprobación más básica —
+# proteger y denegar una lectura— pero sobre un fichero de verdad bajo
+# `$HOME`, no bajo un directorio de pruebas que puede estar en un filesystem
+# distinto del que usan los ficheros reales que este daemon protegerá.
+if [ -z "$HOME_USUARIO" ] || [ ! -d "$HOME_USUARIO" ]; then
+    fallo "btrfs: no se pudo resolver el HOME de $SUDO_USER (getent passwd)"
+else
+    if [ ! -d "$HOME_USUARIO/.cache" ]; then
+        sudo -u "$SUDO_USER" mkdir -p "$HOME_USUARIO/.cache"
+    fi
+    DIR_BTRFS="$(sudo -u "$SUDO_USER" mktemp -d "$HOME_USUARIO/.cache/guardian-riesgos.XXXXXX")"
+    ARCHIVO_BTRFS="$DIR_BTRFS/protegido.txt"
+    sudo -u "$SUDO_USER" bash -c "printf 'contenido bajo HOME real\n' > '$ARCHIVO_BTRFS'"
+
+    LOG4="$TMPDIR_PROP/depurador4.log"
+    iniciar_depurador "$LOG4" "$ARCHIVO_BTRFS" --auto denegar
+    if ! esperar_patron '^LISTO' "$LOG4"; then
+        fallo "btrfs: arranque del depurador sobre un fichero de \$HOME"
+        matar_depurador_atascado
+    else
+        ok "btrfs: arranque del depurador sobre un fichero de \$HOME"
+
+        como_usuario cat "$ARCHIVO_BTRFS" >/dev/null 2>&1
+        btrfs_cat_fallo=$?
+        grep -q 'pendiente=Some((1, 0))' "$LOG4"
+        btrfs_pend_ok=$?
+        check "btrfs: fichero bajo \$HOME real se protege igual que en tmpfs (cat falla, pendiente=Some((1, 0)))" \
+            $([ "$btrfs_cat_fallo" -ne 0 ] && [ "$btrfs_pend_ok" -eq 0 ] && echo 0 || echo 1)
+
+        kill -TERM "$PID_DEP" 2>/dev/null
+        esperar_fin
+        esperar_patron '^PARADO' "$LOG4" 20
+        PID_DEP=""
+    fi
 fi
 
 echo "== R5: coste (informativo) =="

@@ -19,7 +19,7 @@ use std::io;
 use std::mem::MaybeUninit;
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd};
 
-use crate::tipos::{kdev, ClaveInodo};
+use crate::tipos::ClaveInodo;
 
 /// Tamaño de un `fanotify_event_metadata` tal como lo define esta versión de
 /// libc — libc no expone `FAN_EVENT_METADATA_LEN` como constante (es una macro
@@ -257,28 +257,107 @@ pub fn abrir_opath(ruta: &std::path::Path) -> io::Result<OwnedFd> {
 }
 
 /// `(ClaveInodo, nlink)` de un fd ya abierto (típicamente un `O_PATH`, con el
-/// que `fstat` sigue funcionando aunque no se haya abierto el contenido). El
+/// que `statx` sigue funcionando aunque no se haya abierto el contenido). El
 /// número de enlaces (`nlink`) se devuelve aparte porque quien marca/protege
 /// necesita saberlo para decidir si vale la pena seguir vigilando un fichero
 /// que ya no tiene ningún nombre en el árbol (borrado con el fd todavía
 /// abierto): no es parte de la identidad del inodo, es una señal para el
 /// llamador.
+///
+/// POR QUÉ `statx` + `/proc/self/mountinfo` Y NUNCA `fstat().st_dev`: medido
+/// en esta misma máquina, en btrfs `st_dev` es el dev ANÓNIMO del subvolumen
+/// (cada subvolumen monta como si fuera un filesystem propio), no el dev del
+/// superbloque real que el kernel usa puertas adentro — `inode->i_sb->s_dev`,
+/// que es lo que lee `guardian.bpf.c` en `protegido()`/`identidad()` vía
+/// `BPF_CORE_READ(sb, s_dev)`. Un fichero protegido bajo `/home` en esta
+/// máquina (btrfs) construido con `st_dev` NUNCA habría coincidido con lo que
+/// ve el BPF: ni la clave de `protegidos` ni la de `permisos`/`categorias`
+/// (esta última con el inodo del EJECUTABLE, que también puede estar en btrfs)
+/// habrían casado jamás, en silencio — R1/R2 solo colaron en la verificación
+/// porque el directorio de pruebas caía en tmpfs, donde por casualidad
+/// `st_dev` sí coincide con el dev del superbloque. `statx(..., STATX_MNT_ID)`
+/// da el ID de MONTAJE (`stx_mnt_id`), y solo resolviendo ese id contra
+/// `/proc/self/mountinfo` (campo 1 = id de montaje, campo 3 = `major:minor`
+/// del superbloque de ESE montaje) se obtiene el mismo `dev` que ve el kernel.
+/// Si esa resolución falla, es un error — jamás se cae de vuelta a `st_dev`,
+/// que sería exactamente el fallo silencioso que esto corrige.
 pub fn clave_de_fd(fd: BorrowedFd<'_>) -> io::Result<(ClaveInodo, u64)> {
-    let mut st: MaybeUninit<libc::stat> = MaybeUninit::uninit();
-    let ret = unsafe { libc::fstat(fd.as_raw_fd(), st.as_mut_ptr()) };
+    let st = statx_por_fd(fd)?;
+    let mountinfo = fs::read_to_string("/proc/self/mountinfo")?;
+    let dev = dev_de_montaje(&mountinfo, st.stx_mnt_id).ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            format!(
+                "el id de montaje {} (statx) no aparece en /proc/self/mountinfo",
+                st.stx_mnt_id
+            ),
+        )
+    })?;
+    Ok((
+        ClaveInodo {
+            dev,
+            ino: st.stx_ino,
+        },
+        st.stx_nlink as u64,
+    ))
+}
+
+/// `statx` sobre un fd ya abierto, con `AT_EMPTY_PATH` (la ruta pasada es
+/// vacía: se refiere al fd en sí, no a algo resuelto desde él — funciona sobre
+/// un `O_PATH` exactamente igual que `fstat`) pidiendo lo básico más
+/// `STATX_MNT_ID` (el dato que `fstat` no puede dar).
+fn statx_por_fd(fd: BorrowedFd<'_>) -> io::Result<libc::statx> {
+    let vacia = CString::new("").expect("una cadena vacía no contiene NUL");
+    let mut buf: MaybeUninit<libc::statx> = MaybeUninit::zeroed();
+    let ret = unsafe {
+        libc::statx(
+            fd.as_raw_fd(),
+            vacia.as_ptr(),
+            libc::AT_EMPTY_PATH,
+            libc::STATX_BASIC_STATS | libc::STATX_MNT_ID,
+            buf.as_mut_ptr(),
+        )
+    };
     if ret != 0 {
         return Err(io::Error::last_os_error());
     }
-    // SAFETY: `fstat` devolvió éxito, así que `st` está completamente
-    // inicializada.
-    let st = unsafe { st.assume_init() };
-    Ok((
-        ClaveInodo {
-            dev: kdev(st.st_dev as u64),
-            ino: st.st_ino,
-        },
-        st.st_nlink as u64,
-    ))
+    // SAFETY: `statx` devolvió éxito, así que `buf` está completamente
+    // inicializada (los campos pedidos en la máscara, y el kernel escribe la
+    // struct entera de todos modos).
+    Ok(unsafe { buf.assume_init() })
+}
+
+/// Busca en el contenido de `/proc/self/mountinfo` (o de `/proc/<pid>/mountinfo`
+/// de cualquier proceso: el formato es el mismo) el montaje cuyo id (campo 1)
+/// es `mnt_id`, y devuelve el `dev` del superbloque de ESE montaje — campo 3,
+/// `major:minor` en decimal — ya combinado como `(major << 20) | minor`, el
+/// mismo formato "dev_t nuevo" que usa el kernel puertas adentro (ver
+/// `tipos::kdev`, que hace la misma combinación partiendo de un `dev_t`
+/// empaquetado en vez de un `major:minor` ya separado). Función pura (sin E/S)
+/// para poder probarla con líneas de ejemplo sin necesitar `/proc` de verdad.
+/// `None` si `mnt_id` no aparece — el llamador decide qué hacer con eso, nunca
+/// cae de vuelta a otra fuente de `dev`.
+fn dev_de_montaje(mountinfo: &str, mnt_id: u64) -> Option<u64> {
+    for linea in mountinfo.lines() {
+        let mut campos = linea.split_whitespace();
+        let id = campos.next()?.parse::<u64>().ok()?;
+        if id != mnt_id {
+            continue;
+        }
+        // Campo 2 (id del padre) se salta; campo 3 es `major:minor`. La
+        // posición de ambos es fija pese a que el número de "campos
+        // opcionales" entre el 6 y el separador `-` varíe de una línea a
+        // otra (ver `man 5 proc_pid_mountinfo`): están ANTES de esa parte
+        // variable, así que un `split_whitespace` normal sin buscar el `-`
+        // basta.
+        let _padre = campos.next()?;
+        let major_minor = campos.next()?;
+        let (major, minor) = major_minor.split_once(':')?;
+        let major: u64 = major.parse().ok()?;
+        let minor: u64 = minor.parse().ok()?;
+        return Some((major << 20) | minor);
+    }
+    None
 }
 
 /// `ClaveInodo` de una ruta, abriéndola de paso como `O_PATH` (ver
@@ -299,4 +378,66 @@ pub fn clave_de_ruta(ruta: &std::path::Path) -> io::Result<ClaveInodo> {
 /// verdad para el llamador.
 pub fn ruta_de_fd(fd: BorrowedFd<'_>) -> io::Result<std::path::PathBuf> {
     fs::read_link(format!("/proc/self/fd/{}", fd.as_raw_fd()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Dos líneas realistas de `/proc/self/mountinfo` (formato de `man 5
+    // proc_pid_mountinfo`): un `tmpfs` (sin campos opcionales extra más allá
+    // de `shared:11`) y un `btrfs` con subvolumen (`subvolid=256,subvol=/@`),
+    // que es justo el caso que causó el bug de R3 — el dev de ESTE montaje
+    // (0:35) es el que tiene que salir, nunca el dev anónimo que `stat()`
+    // reporta para el subvolumen.
+    const MOUNTINFO_EJEMPLO: &str = "\
+25 30 0:23 / /run rw,nosuid,nodev,noexec,relatime shared:11 - tmpfs tmpfs rw,size=3272672k,nr_inodes=819200,mode=755,inode64
+36 25 0:35 / / rw,relatime shared:1 - btrfs /dev/mapper/luks-abcdef rw,ssd,discard=async,space_cache=v2,subvolid=256,subvol=/@
+";
+
+    #[test]
+    fn dev_de_montaje_encuentra_el_id_que_existe() {
+        // major=0, minor=35 -> (0 << 20) | 35 == 35.
+        assert_eq!(dev_de_montaje(MOUNTINFO_EJEMPLO, 36), Some(35));
+        // El otro montaje de la muestra, para no probar solo el último campo.
+        assert_eq!(dev_de_montaje(MOUNTINFO_EJEMPLO, 25), Some(23));
+    }
+
+    #[test]
+    fn dev_de_montaje_ausente_es_none() {
+        assert_eq!(dev_de_montaje(MOUNTINFO_EJEMPLO, 999), None);
+    }
+
+    /// Integra `clave_de_ruta` con un fichero y un `/proc/self/mountinfo`
+    /// REALES (no las líneas de muestra de arriba): comprueba que la tubería
+    /// completa (statx del fd -> mnt_id -> `dev_de_montaje` sobre el
+    /// mountinfo real de este proceso) da el mismo `dev` que recalcularla a
+    /// mano con las mismas dos piezas — es decir, que `clave_de_fd` no se
+    /// desvía de esa vía hacia `st_dev` en ningún punto intermedio.
+    ///
+    /// NO afirma que ese `dev` sea distinto del de `fstat().st_dev`: en esta
+    /// máquina $HOME es btrfs y, medido, SÍ lo es (el bug de R3 que motivó
+    /// este cambio era justo eso), pero en un filesystem sin subvolúmenes
+    /// (ext4, tmpfs…) `st_dev` y el dev de mountinfo suelen coincidir, y
+    /// afirmar la diferencia rompería el test ahí. Lo único que se garantiza
+    /// en cualquier filesystem es que la vía usada es mountinfo, no `st_dev`.
+    #[test]
+    fn clave_de_ruta_usa_el_dev_del_superbloque_via_mountinfo() {
+        let home = std::env::var("HOME").expect("HOME debe estar definido para este test");
+        let archivo = tempfile::Builder::new()
+            .prefix("guardian-mountinfo-")
+            .tempfile_in(&home)
+            .expect("crear un fichero temporal dentro de HOME");
+
+        let clave = clave_de_ruta(archivo.path()).expect("clave_de_ruta sobre un fichero real");
+
+        let fd = abrir_opath(archivo.path()).expect("O_PATH del mismo fichero");
+        let st = statx_por_fd(fd.as_fd()).expect("statx del mismo fichero");
+        let mountinfo =
+            fs::read_to_string("/proc/self/mountinfo").expect("leer /proc/self/mountinfo");
+        let dev_esperado = dev_de_montaje(&mountinfo, st.stx_mnt_id)
+            .expect("el mount id del propio fichero tiene que aparecer en su mountinfo");
+
+        assert_eq!(clave.dev, dev_esperado);
+    }
 }
