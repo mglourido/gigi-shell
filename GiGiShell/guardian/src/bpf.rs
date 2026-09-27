@@ -36,7 +36,7 @@ mod skel {
 use skel::{GuardianSkel, GuardianSkelBuilder};
 
 /// Raíz de bpffs donde se anclan mapas y enlaces de guardian. Un mapa vive en
-/// `RAIZ/<nombre-del-mapa>`, un enlace en `RAIZ/enlaces/<programa>.<pid>`.
+/// `RAIZ/<nombre-del-mapa>`, un enlace en `RAIZ/enlaces/<programa>_<pid>_<nanos>`.
 pub const RAIZ: &str = "/sys/fs/bpf/gigishell-guardian";
 
 /// Nombres de los nueve programas LSM, en el mismo orden en que
@@ -214,7 +214,8 @@ impl Bpf {
         for nombre in PROGRAMAS {
             let enlace_nuevo = enganchar_programa(&skel, nombre)?;
             let mut enlace_nuevo = enlace_nuevo;
-            enlace_nuevo.pin(dir_enlaces.join(format!("{nombre}.{pid}.{sufijo}")))?;
+            // Separado por `_`: bpffs rechaza con EPERM cualquier nombre con `.`.
+            enlace_nuevo.pin(dir_enlaces.join(format!("{nombre}_{pid}_{sufijo}")))?;
             enlaces.push(enlace_nuevo);
         }
 

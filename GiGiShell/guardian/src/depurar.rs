@@ -43,6 +43,12 @@ pub fn ejecutar(args: &[String]) -> Result<(), String> {
     let mascara_senales = bloquear_senales()?;
     let fd_senales = crear_signalfd(&mascara_senales)?;
 
+    // GUARDIAN_LIBBPF_DEBUG=1: volcar el log completo de libbpf (y del
+    // verificador) a stderr; sin él, un fallo de carga solo dice el errno.
+    if std::env::var_os("GUARDIAN_LIBBPF_DEBUG").is_some() {
+        libbpf_rs::set_print(Some((libbpf_rs::PrintLevel::Debug, |_, msg| eprint!("{msg}"))));
+    }
+
     let bpf = bpf::Bpf::cargar().map_err(|e| format!("cargando BPF: {e}"))?;
     let fan = fanotify::Fanotify::nuevo().map_err(|e| format!("fanotify: {e}"))?;
 
