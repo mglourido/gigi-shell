@@ -822,7 +822,7 @@ EOF
       for otro in /etc/sddm.conf.d/*; do
         [[ -f "$otro" ]] || continue
         [[ "$(basename "$otro")" > "zz-gigishell.conf" ]] || continue
-        if grep -qE '^[[:space:]]*(Current|User|Session|InputMethod)[[:space:]]*=' "$otro"; then
+        if grep -qE '^[[:space:]]*(Current|User|Session|InputMethod|Numlock)[[:space:]]*=' "$otro"; then
           warn "$otro se lee DESPUÉS de zz-gigishell.conf y fija claves nuestras: manda él (revísalo o bórralo)"
         fi
       done
@@ -832,13 +832,13 @@ EOF
           {
             campo = $1
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", campo)
-            if (campo == "Current" || campo == "User" || campo == "Session" || campo == "InputMethod")
+            if (campo == "Current" || campo == "User" || campo == "Session" || campo == "InputMethod" || campo == "Numlock")
               encontradas[campo] = 1
           }
           END {
             separador = ""
-            for (i = 1; i <= 4; i++) {
-              clave = (i == 1 ? "Current" : i == 2 ? "User" : i == 3 ? "Session" : "InputMethod")
+            for (i = 1; i <= 5; i++) {
+              clave = (i == 1 ? "Current" : i == 2 ? "User" : i == 3 ? "Session" : i == 4 ? "InputMethod" : "Numlock")
               if (encontradas[clave]) {
                 printf "%s%s", separador, clave
                 separador = ", "

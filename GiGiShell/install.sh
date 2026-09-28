@@ -1486,13 +1486,14 @@ configure_default_shell() {
         # escribir no se aplica y no hay forma de notarlo mirando el fichero correcto.
         # No se toca: es de la distribución, y borrarlo a espaldas del usuario podría
         # llevarse ajustes que no son nuestros.
-        for _clave in User Session Current InputMethod; do
+        for _clave in User Session Current InputMethod Numlock; do
           _suyo="$(sddm_valor /etc/sddm.conf "$_clave")"
           case "$_clave" in
             User)        _nuestro="$SDDM_USUARIO" ;;
             Session)     _nuestro="$SDDM_SESION" ;;
             Current)     _nuestro="$SDDM_TEMA" ;;
             InputMethod) _nuestro="$SDDM_INPUTMETHOD" ;;
+            Numlock)     _nuestro="on" ;;
           esac
           if [ -n "$_suyo" ] && [ "$_suyo" != "$_nuestro" ] && [ "$_suyo" != "${_nuestro%.desktop}" ]; then
             warn "/etc/sddm.conf fija $_clave=$_suyo y tiene más precedencia que $SDDM_DESTINO (donde vale '${_nuestro:-vacío}'): prevalece ese valor. Revísalo o quita esa línea."

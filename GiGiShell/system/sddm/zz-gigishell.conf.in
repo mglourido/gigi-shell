@@ -47,6 +47,10 @@ User=__GIGISHELL_USER__
 [General]
 HaltCommand=/usr/bin/systemctl poweroff
 RebootCommand=/usr/bin/systemctl reboot
+# Bloq Num encendido en el saludador (para teclear un PIN o contraseña con números
+# desde el teclado numérico). Solo afecta a SDDM: dentro de la sesión lo decide
+# Hyprland (input.numlock_by_default).
+Numlock=on
 InputMethod=__GIGISHELL_INPUTMETHOD__
 
 [Theme]
