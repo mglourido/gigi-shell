@@ -9,6 +9,9 @@ import { tituloBarra } from "../../componentes/tituloBarra"
 
 const GLIFO_ETHERNET = "󰈀"
 const INDICES_BARRAS = [0, 1, 2, 3]
+// NM puede entregar el dispositivo activado antes de completar su primer chequeo.
+// Una sola consulta compartida adelanta el veredicto sin bloquear ni duplicarlo por monitor.
+let comprobacionInicialLanzada = false
 
 export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBarra }) {
   const cicloVida = crearCicloVida()
@@ -55,29 +58,49 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
     establecerCantidadBarras(dato.tipo === "wifi" ? barrasActivas(red.wifi?.strength ?? 0) : 0)
   }
   const actualizarVisible = () => { if (visibilidad.visible.get()) sincronizar() }
+  const comprobarConectividadInicial = () => {
+    if (comprobacionInicialLanzada || calcularTipo() === "none") return
+    if (red.connectivity !== C.UNKNOWN && red.connectivity !== C.NONE) return
+    comprobacionInicialLanzada = true
+    try {
+      red.client.check_connectivity_async(null, (_cliente, resultado) => {
+        try { red.client.check_connectivity_finish(resultado) }
+        catch (error) { console.warn("No se pudo comprobar la conectividad inicial:", error) }
+      })
+    } catch (error) {
+      console.warn("No se pudo iniciar la comprobación de conectividad:", error)
+    }
+  }
 
   let desconectarWifi: (() => void) | null = null
   let desconectarCable: (() => void) | null = null
   const enlazarWifi = () => {
     desconectarWifi?.()
     desconectarWifi = red.wifi
-      ? cicloVida.conectarSenales(red.wifi, ["notify::strength", "notify::ssid", "notify::internet", "notify::enabled", "notify::state"], actualizarVisible)
+      ? cicloVida.conectarSenales(red.wifi, ["notify::strength", "notify::ssid", "notify::internet", "notify::enabled", "notify::state"], () => {
+          actualizarVisible()
+          comprobarConectividadInicial()
+        })
       : null
   }
   const enlazarCable = () => {
     desconectarCable?.()
     desconectarCable = red.wired
-      ? cicloVida.conectarSenales(red.wired, ["notify::state", "notify::internet"], actualizarVisible)
+      ? cicloVida.conectarSenales(red.wired, ["notify::state", "notify::internet"], () => {
+          actualizarVisible()
+          comprobarConectividadInicial()
+        })
       : null
   }
   enlazarWifi()
   enlazarCable()
   cicloVida.conectarSenales(red, ["notify::connectivity", "notify::primary"], actualizarVisible)
-  cicloVida.conectarSenales(red, ["notify::wifi"], () => { enlazarWifi(); actualizarVisible() })
-  cicloVida.conectarSenales(red, ["notify::wired"], () => { enlazarCable(); actualizarVisible() })
+  cicloVida.conectarSenales(red, ["notify::wifi"], () => { enlazarWifi(); actualizarVisible(); comprobarConectividadInicial() })
+  cicloVida.conectarSenales(red, ["notify::wired"], () => { enlazarCable(); actualizarVisible(); comprobarConectividadInicial() })
   cicloVida.suscribir(visibilidad.refrescar, () => {
     if (visibilidad.refrescar.get()) sincronizar()
   })
+  comprobarConectividadInicial()
 
   return (
     <box
