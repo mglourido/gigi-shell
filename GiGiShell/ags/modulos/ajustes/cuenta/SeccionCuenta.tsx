@@ -113,11 +113,21 @@ export default function SeccionCuenta() {
   const [newPassword, setNewPassword] = createState("")
   const [confirmPassword, setConfirmPassword] = createState("")
   const [avatarInput, setAvatarInput] = createState("")
+  const [avatarNotice, setAvatarNotice] = createState<Notice>({ kind: "idle", text: "" })
   const [passwordExpanded, setPasswordExpanded] = createState(false)
   const [newRootPassword, setNewRootPassword] = createState("")
   const [confirmRootPassword, setConfirmRootPassword] = createState("")
   const [rootPasswordExpanded, setRootPasswordExpanded] = createState(false)
   const [notice, setNotice] = createState<Notice>({ kind: "idle", text: "" })
+  const [hayCambios, setHayCambios] = createState(false)
+  let usuarioGuardado = currentUser
+  let nombreCompletoGuardado = ""
+  const actualizarCambios = () => setHayCambios(
+    loginName.get().trim() !== usuarioGuardado
+      || (fullName.get().trim() !== "" && fullName.get().trim() !== nombreCompletoGuardado)
+      || newPassword.get() !== ""
+      || newRootPassword.get() !== "",
+  )
   // El autologin no es una preferencia de GiGiShell: se lee de la configuración de
   // SDDM cada vez que se pinta la sección, porque puede haberla cambiado el
   // instalador o un fichero ajeno desde fuera (ver autologin.ts).
@@ -125,7 +135,7 @@ export default function SeccionCuenta() {
 
   const applyAvatar = () => {
     const raw = avatarInput.get().trim()
-    if (!raw) return setNotice({ kind: "error", text: textos.avisos.rutaVacia })
+    if (!raw) return setAvatarNotice({ kind: "error", text: textos.avisos.rutaVacia })
     const path = raw === "~" ? GLib.get_home_dir()
       : raw.startsWith("~/") ? `${GLib.get_home_dir()}/${raw.slice(2)}`
       : raw
@@ -136,9 +146,9 @@ export default function SeccionCuenta() {
       importarFotoPerfil(path)
       refreshAvatar()
       setAvatarInput("")
-      setNotice({ kind: "ok", text: textos.avisos.fotoActualizada })
+      setAvatarNotice({ kind: "ok", text: textos.avisos.fotoActualizada })
     } catch (error) {
-      setNotice({ kind: "error", text: error instanceof Error ? error.message : String(error) })
+      setAvatarNotice({ kind: "error", text: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -170,6 +180,9 @@ export default function SeccionCuenta() {
       setConfirmPassword("")
       setNewRootPassword("")
       setConfirmRootPassword("")
+      usuarioGuardado = nextLogin
+      nombreCompletoGuardado = realName
+      setHayCambios(false)
       setAutologin(leerAutologin())
       if (salida.includes("AUTOLOGIN_NO_ACTUALIZADO")) {
         return setNotice({ kind: "error", text: textos.avisos.autologinDesfasado })
@@ -201,7 +214,7 @@ export default function SeccionCuenta() {
 
   const passwordEntry = (placeholder: string, setter: (v: string) => void) => (
     <EntradaTextoAjustes placeholderText={placeholder} visibility={false}
-      onChanged={(entry) => setter(entry.get_text())} hexpand />
+      onChanged={(entry) => { setter(entry.get_text()); actualizarCambios() }} hexpand />
   )
 
   return (
@@ -224,48 +237,60 @@ export default function SeccionCuenta() {
         </box>
         <FilaAjuste titulo={textos.perfil.foto.titulo} informacion={textos.perfil.foto.descripcion}
           cssClasses={["account-row"]} maxCaracteresInformacion={38}>
-          <box cssClasses={["account-controls"]} spacing={8} valign={Gtk.Align.CENTER}>
-            <EntradaTextoAjustes placeholderText={textos.perfil.foto.placeholder}
-              onChanged={(entry) => setAvatarInput(entry.get_text())}
-              onActivate={applyAvatar} hexpand />
-            <BotonAjustes label={textos.perfil.foto.boton} onClicked={applyAvatar} />
+          <box cssClasses={["account-controls"]} orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
+            <box spacing={8} valign={Gtk.Align.CENTER} hexpand>
+              <EntradaTextoAjustes cssClasses={["account-entry-compact"]} placeholderText={textos.perfil.foto.placeholder}
+                onChanged={(entry) => {
+                  setAvatarInput(entry.get_text())
+                  setAvatarNotice({ kind: "idle", text: "" })
+                }}
+                onActivate={applyAvatar} expandir />
+              <BotonAjustes label={textos.perfil.foto.boton} onClicked={applyAvatar} />
+            </box>
+            <With value={avatarNotice}>{(state: Notice) => state.text
+              ? <label cssClasses={["account-notice", state.kind]} label={formatearTexto(textos.avisos.formato, { mensaje: state.text })} halign={Gtk.Align.START} wrap xalign={0} hexpand />
+              : <box />}</With>
           </box>
         </FilaAjuste>
       </TarjetaAjustes>
 
       <TarjetaAjustes titulo={textos.datosPersonales.titulo} icono="󰓝" cssClasses={["account-card"]}>
         <FilaAjuste titulo={textos.datosPersonales.usuario.titulo} informacion={textos.datosPersonales.usuario.descripcion}
-          cssClasses={["account-row"]} maxCaracteresInformacion={38}>
-          <box cssClasses={["account-controls"]}>
-            <EntradaTextoAjustes text={currentUser}
-              onChanged={(entry) => setLoginName(entry.get_text())} hexpand />
+          cssClasses={["account-row"]} maxCaracteresInformacion={52}>
+          <box cssClasses={["account-controls"]} hexpand>
+            <EntradaTextoAjustes cssClasses={["account-entry-compact"]} text={currentUser}
+              onChanged={(entry) => { setLoginName(entry.get_text()); actualizarCambios() }} expandir />
           </box>
         </FilaAjuste>
         <FilaAjuste titulo={textos.datosPersonales.nombreCompleto.titulo} informacion={textos.datosPersonales.nombreCompleto.descripcion}
-          cssClasses={["account-row"]} maxCaracteresInformacion={38}>
-          <box cssClasses={["account-controls"]}>
-            <EntradaTextoAjustes placeholderText={textos.datosPersonales.nombreCompleto.placeholder}
-              onChanged={(entry) => setFullName(entry.get_text())} hexpand />
+          cssClasses={["account-row"]} maxCaracteresInformacion={52}>
+          <box cssClasses={["account-controls"]} hexpand>
+            <EntradaTextoAjustes cssClasses={["account-entry-compact"]} placeholderText={textos.datosPersonales.nombreCompleto.placeholder}
+              onChanged={(entry) => { setFullName(entry.get_text()); actualizarCambios() }} expandir />
           </box>
         </FilaAjuste>
       </TarjetaAjustes>
 
       <TarjetaAjustes titulo={textos.seguridad.titulo} icono="󰌾" cssClasses={["account-card"]}>
         <FilaAjuste titulo={textos.seguridad.contrasena.titulo} informacion={textos.seguridad.contrasena.descripcion}
-          cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+          cssClasses={["account-row"]} maxCaracteresInformacion={52}>
           <BotonAjustes
             activo={passwordExpanded}
             onClicked={() => {
               const open = !passwordExpanded.get()
               setPasswordExpanded(open)
-              if (!open) { setNewPassword(""); setConfirmPassword("") }
+              if (!open) {
+                setNewPassword("")
+                setConfirmPassword("")
+                actualizarCambios()
+              }
             }}
             label={passwordExpanded((open: boolean) => open ? textos.seguridad.contrasena.ocultar : textos.seguridad.contrasena.mostrar)}
           />
         </FilaAjuste>
         <box visible={passwordExpanded} cssClasses={["account-password-fields"]} orientation={Gtk.Orientation.VERTICAL}>
           <FilaAjuste titulo={textos.seguridad.nuevaContrasena.titulo} informacion={textos.seguridad.nuevaContrasena.descripcion}
-            cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+            cssClasses={["account-row"]} maxCaracteresInformacion={52}>
             <box cssClasses={["account-controls"]}>{passwordEntry(textos.seguridad.nuevaContrasena.placeholder, setNewPassword)}</box>
           </FilaAjuste>
           <FilaAjuste titulo={textos.seguridad.confirmarContrasena.titulo} cssClasses={["account-row"]}>
@@ -274,20 +299,24 @@ export default function SeccionCuenta() {
         </box>
 
         <FilaAjuste titulo={textos.seguridad.contrasenaAdmin.titulo} informacion={textos.seguridad.contrasenaAdmin.descripcion}
-          cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+          cssClasses={["account-row"]} maxCaracteresInformacion={52}>
           <BotonAjustes
             activo={rootPasswordExpanded}
             onClicked={() => {
               const open = !rootPasswordExpanded.get()
               setRootPasswordExpanded(open)
-              if (!open) { setNewRootPassword(""); setConfirmRootPassword("") }
+              if (!open) {
+                setNewRootPassword("")
+                setConfirmRootPassword("")
+                actualizarCambios()
+              }
             }}
             label={rootPasswordExpanded((open: boolean) => open ? textos.seguridad.contrasenaAdmin.ocultar : textos.seguridad.contrasenaAdmin.mostrar)}
           />
         </FilaAjuste>
         <box visible={rootPasswordExpanded} cssClasses={["account-password-fields"]} orientation={Gtk.Orientation.VERTICAL}>
           <FilaAjuste titulo={textos.seguridad.nuevaContrasenaAdmin.titulo} informacion={textos.seguridad.nuevaContrasenaAdmin.descripcion}
-            cssClasses={["account-row"]} maxCaracteresInformacion={38}>
+            cssClasses={["account-row"]} maxCaracteresInformacion={52}>
             <box cssClasses={["account-controls"]}>{passwordEntry(textos.seguridad.nuevaContrasenaAdmin.placeholder, setNewRootPassword)}</box>
           </FilaAjuste>
           <FilaAjuste titulo={textos.seguridad.confirmarContrasenaAdmin.titulo} cssClasses={["account-row"]}>
@@ -304,6 +333,8 @@ export default function SeccionCuenta() {
           activo={autologin((estado) => estado.activo)}
           sensible={autologin((estado) => estado.disponible)}
           alAlternar={alternarAutologin}
+          maxCaracteresInformacion={72}
+          expandirInformacion
         />
       </TarjetaAjustes>
 
@@ -311,7 +342,8 @@ export default function SeccionCuenta() {
         <With value={notice}>{(state: Notice) => state.text
           ? <label cssClasses={["account-notice", state.kind]} label={formatearTexto(textos.avisos.formato, { mensaje: state.text })} halign={Gtk.Align.START} wrap xalign={0} hexpand />
           : <box hexpand />}</With>
-        <BotonAjustes variante="principal" label={textos.acciones.guardar} onClicked={applyChanges} />
+        <BotonAjustes variante="principal" cssClasses={["account-save-pending"]}
+          sensitive={hayCambios} label={textos.acciones.guardar} onClicked={applyChanges} />
       </box>
     </box>
   )

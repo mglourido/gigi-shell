@@ -1005,7 +1005,7 @@ function QsHeader() {
         <label cssClasses={["qs-clock"]} label={time} halign={Gtk.Align.START} />
         <label cssClasses={["qs-date"]} label={date} halign={Gtk.Align.START} />
       </box>
-      <box spacing={6} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} cssClasses={["qs-header-actions"]}>
+      <box spacing={0} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} cssClasses={["qs-header-actions"]}>
         {/* Modo ahorro: fuerza el ahorro de energía (forcePowerSave), el mismo
             interruptor de Ajustes > Energía. A la izquierda del modo juego. */}
         <button

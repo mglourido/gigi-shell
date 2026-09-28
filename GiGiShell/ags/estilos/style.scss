@@ -3202,6 +3202,10 @@ button.qs-user-settings-btn {
   }
 }
 
+.qs-header-actions .bar-pill.nb-pill .nb-icon {
+  margin-left: -1px;
+}
+
 // Cierre de la cadena contra quick settings (ver
 // `modulos/barra/componentes/cadenaEstado.tsx`). Hay UNA sola, al final: entre dos
 // eslabones no hace falta —se tocan y el de la derecha va sin esquinas mientras está
@@ -3311,11 +3315,13 @@ button.qs-user-settings-btn {
   background-color: transparent;
   border: 1px solid transparent;
   box-shadow: none;
-  padding: 0 4px 0 2px;
+  padding: 0;
+  min-width: 28px;
+  transition: background-color 140ms ease, color 140ms ease;
 
   .upd-icon {
     font-family: $font-icon;
-    font-size: 15px;
+    font-size: 16px;
     color: acento-azul();
   }
 
@@ -3332,59 +3338,69 @@ popover.upd-popover-container {
   }
 
   > arrow {
-    background: #0e0e1a;
-    border: none;
+    background: var(--bg-shell, #{$bg-bar});
+    border: 1px solid $borde-menu;
   }
 }
 
 .upd-popover {
-  background: #0e0e1a;
-  border: 1px solid acento-azul(0.18);
-  border-radius: 10px;
-  padding: 10px 12px;
-  min-width: 240px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  // Mismo marco y fondo que los menús flotantes del bar. El ancho mínimo solo
+  // evita que el título largo se parta en varias líneas; el contenido puede crecer.
+  background: var(--bg-shell, #{$bg-bar});
+  border: 1px solid $borde-menu;
+  border-radius: 4px;
+  padding: 6px 8px;
+  min-width: 210px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
   transform-origin: top center;
-  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+  animation: pop-liquid-in 200ms cubic-bezier(0.22, 1.2, 0.36, 1);
 }
 
 .upd-popover-header {
+  font-family: 'Inter', sans-serif, $font-icon;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.6px;
-  color: rgba($text, 0.56);
-  margin-bottom: 6px;
+  color: rgba($text, 0.68);
+  margin-bottom: 3px;
 }
 
 .upd-row {
-  font-family: $font-icon;
-  font-size: 12px;
-  padding: 2px 0;
+  font-family: 'Inter', sans-serif, $font-icon;
+  font-size: 11px;
+  padding: 1px 0;
 
-  &.kernel { color: $orange; font-weight: 700; }
+  &.kernel { color: $orange; font-weight: 600; }
   &.gpu    { color: #a6e3a1; }
-  &.watched { color: #f9e2af; font-weight: 700; }
+  &.watched { color: #f9e2af; font-weight: 600; }
   &.system { color: rgba($text, 0.6); }
 }
 
 .upd-sample {
+  font-family: 'Inter', sans-serif, $font-icon;
   font-size: 10px;
   color: rgba($text, 0.45);
-  padding-bottom: 4px;
+  padding: 1px 0 3px;
 }
 
 .upd-update-btn {
-  margin-top: 8px;
-  padding: 4px 12px;
+  margin-top: 4px;
+  padding: 3px 6px;
   font-size: 11px;
-  font-weight: 600;
-  color: $text;
-  background: acento-azul(0.16);
-  border: 1px solid acento-azul(0.28);
-  border-radius: 8px;
+  font-weight: 500;
+  color: #e2e2e2;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  box-shadow: none;
+  transition: background-color 120ms ease;
 
   &:hover {
-    background: acento-azul(0.26);
+    background: rgba(255, 255, 255, 0.07);
+    color: $white;
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.13);
   }
 }
 
@@ -5818,6 +5834,7 @@ button.dl-city-result {
   color: $text; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08);
   &:focus { border-color: acento(.6); }
 }
+.account-entry.account-entry-compact { font-size: 12px; }
 .account-secondary-btn, .account-save-btn {
   min-height: 0; padding: 0 12px; border-radius: 7px; font-size: 11px; font-weight: 600;
 }
@@ -5828,6 +5845,17 @@ button.dl-city-result {
   border-color: acento(.34);
 }
 .account-save-btn { color: #0b0910; background: acento(); border: none; }
+button.account-save-pending {
+  &:not(:disabled) { color: #0b0910; background: acento-azul(); }
+  transition: background-color 120ms ease;
+  &:hover:not(:disabled) { background: acento-azul(.82); }
+  &:active:not(:disabled) { background: acento-azul(.68); }
+  &:disabled {
+    color: rgba($text, .42);
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .075);
+  }
+}
 .account-password-fields { border-bottom: 1px solid rgba(255, 255, 255, 0.045); }
 .account-actions { min-height: 34px; }
 .account-notice {

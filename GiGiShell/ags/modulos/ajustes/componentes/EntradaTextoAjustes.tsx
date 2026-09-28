@@ -1,6 +1,7 @@
 import { Gtk } from "ags/gtk4"
 
 type PropiedadesEntradaTextoAjustes = {
+  expandir?: boolean
   cssClasses?: string[]
   children?: any
   [propiedad: string]: any
@@ -8,6 +9,7 @@ type PropiedadesEntradaTextoAjustes = {
 
 /** Entrada de texto compacta que no se estira con la altura de su fila. */
 export default function EntradaTextoAjustes({
+  expandir = false,
   cssClasses = [],
   children,
   ...propiedades
@@ -18,7 +20,7 @@ export default function EntradaTextoAjustes({
       cssClasses={["account-entry", ...cssClasses]}
       widthRequest={180}
       heightRequest={30}
-      hexpand={false}
+      hexpand={expandir}
       valign={Gtk.Align.START}
     >
       {children}

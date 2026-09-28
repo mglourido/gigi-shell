@@ -6,6 +6,8 @@ type PropiedadesAjusteInterruptor = {
   informacion?: any
   activo: any
   alAlternar: () => void
+  maxCaracteresInformacion?: number
+  expandirInformacion?: boolean
   visible?: any
   sensible?: any
 }
@@ -16,11 +18,15 @@ export default function AjusteInterruptor({
   informacion,
   activo,
   alAlternar,
+  maxCaracteresInformacion,
+  expandirInformacion,
   visible,
   sensible,
 }: PropiedadesAjusteInterruptor) {
   return (
-    <FilaAjuste titulo={titulo} informacion={informacion} visible={visible}>
+    <FilaAjuste titulo={titulo} informacion={informacion} visible={visible}
+      maxCaracteresInformacion={maxCaracteresInformacion}
+      expandirInformacion={expandirInformacion}>
       <Interruptor activo={activo} alAlternar={alAlternar} sensible={sensible ?? true} />
     </FilaAjuste>
   )

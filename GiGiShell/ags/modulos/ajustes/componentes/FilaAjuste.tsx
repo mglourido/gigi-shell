@@ -8,6 +8,7 @@ type PropiedadesFilaAjuste = {
   cssClasses?: string[]
   spacing?: number
   maxCaracteresInformacion?: number
+  expandirInformacion?: boolean
   visible?: any
 }
 
@@ -19,6 +20,7 @@ export default function FilaAjuste({
   cssClasses = [],
   spacing = 14,
   maxCaracteresInformacion = 52,
+  expandirInformacion = false,
   visible,
 }: PropiedadesFilaAjuste) {
   const propiedadVisibilidad = visible === undefined ? {} : { visible }
@@ -32,7 +34,7 @@ export default function FilaAjuste({
       <EncabezadoAjuste
         titulo={titulo}
         informacion={informacion}
-        propiedadesInformacion={{ wrap: true, xalign: 0, maxWidthChars: maxCaracteresInformacion }}
+        propiedadesInformacion={{ wrap: true, xalign: 0, maxWidthChars: maxCaracteresInformacion, hexpand: expandirInformacion }}
       />
       {children}
     </box>
