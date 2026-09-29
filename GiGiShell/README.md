@@ -174,11 +174,11 @@ bin/link.sh --check  # report-only, exit 0 if everything's fine
 bin/link.sh --force  # back up whatever's in the way, then link
 ```
 
-Both `link.sh` and the session autostart run `hypr/scripts/reparar-kdeglobals.sh`, which repairs
-`[UiSettings] ColorScheme=BreezeDark` in `kdeglobals`: any KDE app that saves global settings
-(Dolphin's preferences dialog) rewrites that file through KConfig and drops the group, which
-silently sends Qt apps back to the **light** theme. It is fixed at the next login on its own;
-run `bin/link.sh` if you don't want to wait.
+`kdeglobals` and `mimeapps.list` are **not** symlinked: they are base files installed to
+`/etc/xdg/` by `install.sh` (sudo), so whatever apps save lands in the user's own
+`~/.config/kdeglobals` / `~/.config/mimeapps.list`, outside the repo, while the base still applies
+through the XDG cascade. After editing either one in the repo, reinstall it with
+`sudo install -Dm644 ~/GiGiShell/<file> /etc/xdg/<file>`; `link.sh` warns when they differ.
 
 ### Reloading / restarting Hyprland
 

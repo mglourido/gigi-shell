@@ -3,6 +3,11 @@ import { execAsync } from "ags/process"
 /**
  * Rearma los listeners después de cambiar su configuración o liberar un veto.
  *
+ * Va por `hypr/scripts/hypridle.sh` y no por `hypridle` a pelo: el script traduce
+ * `~/.config/gigishell/inactividad.json` a las variables que lee hypridle.conf, mata la
+ * instancia anterior y espera a que suelte el bus. Un `hypridle` directo arrancaría con los
+ * tiempos POR DEFECTO del .conf, no con los del usuario.
+ *
  * `setsid -f` + stdio a /dev/null NO es opcional. Un `hypridle &` a secas hereda
  * el stdout de AGS (un pipe de Gio.Subprocess): cuando AGS descarta ese subproceso
  * el extremo de lectura se cierra, y el siguiente log de hypridle recibe SIGPIPE y
@@ -14,5 +19,5 @@ import { execAsync } from "ags/process"
  * que `clipboard-history.sh start`.
  */
 export function reiniciarHypridle(): Promise<string> {
-  return execAsync(["bash", "-c", "pkill hypridle; setsid -f hypridle </dev/null >/dev/null 2>&1"])
+  return execAsync(["bash", "-c", "setsid -f ~/.config/hypr/scripts/hypridle.sh </dev/null >/dev/null 2>&1"])
 }

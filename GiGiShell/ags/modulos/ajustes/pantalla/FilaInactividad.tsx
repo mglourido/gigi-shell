@@ -1,6 +1,6 @@
 // modulos/ajustes/pantalla/FilaInactividad.tsx
 // Fila de un tiempo de inactividad: etiqueta, selector de minutos e interruptor. La
-// comparten la tarjeta general (`Inactividad.tsx`, que escribe en hypridle.conf) y la del
+// comparten la tarjeta general (`Inactividad.tsx`, que escribe en inactividad.json) y la del
 // modo ahorro (`modulos/ajustes/energia/InactividadAhorro.tsx`, que escribe en
 // power-save/config.json). Solo es presentación: quién guarda y dónde lo decide el llamador.
 import { type Accessor } from "ags"

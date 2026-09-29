@@ -55,10 +55,9 @@ required=(
   hypr/hyprland.lua hypr/gigishell/util.lua hypr/gigishell/json.lua hypr/gigishell/variables.lua
   hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
   hypr/gigishell/gpu.lua hypr/gigishell/gpu/laptop-hibrida.lua hypr/gigishell/gpu/sobremesa-nvidia.lua hypr/gigishell/gpu/integrada.lua
-  hypr/scripts/bloquear.sh
+  hypr/scripts/bloquear.sh hypr/scripts/hypridle.sh
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/emoji-picker.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
-  hypr/scripts/reparar-kdeglobals.sh
   hypr/scripts/gestos.sh hypr/scripts/gestos/gestos.py hypr/scripts/gestos/deteccion.py hypr/scripts/gestos/hypr.py
   hypr/scripts/gestos/manos_sinteticas.py hypr/scripts/gestos/barrido.py
   ags/servicios/gestos/estado.ts ags/servicios/gestos/control.ts
@@ -294,16 +293,37 @@ if [[ "$mode" == "--installed" ]]; then
     fi
   fi
 
+  # mimeapps.list y kdeglobals del repo son BASES instaladas en /etc/xdg; ~/.config tiene
+  # los ficheros LOCALES del usuario, que las pisan entrada a entrada. Ver "Bases de
+  # escritorio" en bin/link.sh. Sin la base instalada no hay tema oscuro en las apps KDE
+  # ni asociaciones, sin ningún error: por eso es ERROR y no aviso.
+  for base_xdg in kdeglobals mimeapps.list; do
+    if [[ ! -r "/etc/xdg/$base_xdg" ]]; then
+      fail "falta /etc/xdg/$base_xdg (sudo install -Dm644 $GIGISHELL/$base_xdg /etc/xdg/$base_xdg)"
+    elif ! cmp -s "$GIGISHELL/$base_xdg" "/etc/xdg/$base_xdg"; then
+      warn "/etc/xdg/$base_xdg está desactualizado respecto al repo (sudo install -Dm644 $GIGISHELL/$base_xdg /etc/xdg/$base_xdg)"
+    fi
+    if [[ -L "$HOME/.config/$base_xdg" ]]; then
+      warn "~/.config/$base_xdg sigue siendo un symlink: las apps escribirán en él; ejecuta bin/link.sh"
+    fi
+  done
+
   # La comparación es de LÍNEA EXACTA a propósito: lo que se valida no es "esta app
   # aparece en algún sitio" sino el ORDEN, y el orden es lo que decide qué app abre el
-  # archivo. Contrapartida conocida: cambiar un predeterminado desde Dolphin («Abrir con >
-  # Establecer como predeterminada») reescribe mimeapps.list y hace fallar este bloque —
-  # es lo buscado. Si el cambio era a propósito, se actualiza la tabla de aquí abajo en el
-  # mismo commit que el mimeapps.list; si no, el fallo avisa de que una app te ha robado
-  # una asociación por la espalda, que era invisible hasta que abrías el archivo.
+  # archivo. Se valida la BASE del repo. Lo que una app o el usuario cambie («Abrir con >
+  # Establecer como predeterminada», `xdg-mime default`) va a ~/.config/mimeapps.list, que
+  # es legítimo y no rompe nada: solo se avisa, para que una asociación robada por la
+  # espalda no siga siendo invisible hasta que abres el archivo.
+  mimeapps_local="$HOME/.config/mimeapps.list"
+  [[ -L "$mimeapps_local" ]] && mimeapps_local=
   while IFS='|' read -r mime application; do
     grep -Fqx "$mime=$application;" "$GIGISHELL/mimeapps.list" \
       || fail "asociación MIME ausente: $mime -> $application (actual: $(grep -m1 "^$mime=" "$GIGISHELL/mimeapps.list" || echo 'sin entrada'))"
+    if [[ -n "$mimeapps_local" && -r "$mimeapps_local" ]] \
+       && local_mime="$(grep -m1 "^$mime=" "$mimeapps_local")" \
+       && [[ "$local_mime" != "$mime=$application;" ]]; then
+      warn "asociación anulada en ~/.config/mimeapps.list: $local_mime (base: $application)"
+    fi
   done <<'EOF'
 inode/directory|org.kde.dolphin.desktop
 application/pdf|firefox.desktop
@@ -337,8 +357,6 @@ EOF
     || fail "kdeglobals no contiene la paleta materializada de Breeze Dark"
   grep -Fqx 'hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")' "$GIGISHELL/hypr/gigishell/env.lua" \
     || fail "Hyprland no activa qt6ct como tema de plataforma Qt"
-  grep -Fq 'reparar-kdeglobals.sh' "$GIGISHELL/hypr/gigishell/autostart.lua" \
-    || fail "el autostart no repone [UiSettings] en kdeglobals (lo borra cualquier app KDE al guardar ajustes)"
   grep -Fqx 'hl.env("QT_SCALE_FACTOR", "0.9")' "$GIGISHELL/hypr/gigishell/env.lua" \
     || fail "Hyprland no configura la densidad compacta de las aplicaciones Qt"
   grep -Fqx 'color_scheme_path=/usr/share/qt6ct/colors/darker.conf' "$GIGISHELL/qt6ct/qt6ct.conf" \

@@ -28,7 +28,7 @@ hypr/                       (symlink: ~/.config/hypr)
 │       └── integrada.lua
 │   ├── pantalla.lua         lee display.json (Ajustes > Pantalla)
 │   ├── dispositivos.lua     lee devices.json (Ajustes > Dispositivos)
-├── hypridle.conf            otro binario; lo lanza el autostart
+├── hypridle.conf            otro binario; estático, tiempos vía scripts/hypridle.sh
 ├── hyprlock.conf            pantalla de bloqueo, base sin meteorología
 ├── hyprlock-tiempo.conf     añade meteorología si hay ubicación permitida
 ├── hyprpaper.conf           vacío, sin uso (el wallpaper va por awww)
@@ -105,7 +105,9 @@ No lo lanza nadie. El wallpaper lo gestiona `awww` (`awww-daemon` +
 
 Son binarios `hypr*` **separados del compositor** y siguen en hyprlang a
 propósito (así lo dice el anuncio oficial de Hyprland 0.55: no necesitan un
-lenguaje Turing-completo). `hypridle` lo lanza `gigishell/autostart.lua`, y sus
+lenguaje Turing-completo). `hypridle` lo lanza `gigishell/autostart.lua` a través de `scripts/hypridle.sh`
+(que traduce `~/.config/gigishell/inactividad.json` a las variables `$IDLE_*` del
+`.conf`, estático: AGS ya no lo reescribe), y sus
 `on-timeout` no ejecutan la acción directamente sino que pasan por
 `scripts/idle-action.sh` (la puerta del "Wake up" — ver `CLAUDE.md`).
 `hyprlock.conf` no se lanza nunca por sí solo: `hypridle` (`lock_cmd`,

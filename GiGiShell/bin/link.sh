@@ -29,9 +29,9 @@ LINKS=(
   "inicializador::$HOME/.config/inicializador"
   "rofi/config.rasi::$HOME/.config/rofi/config.rasi"
   "rofi/emoji-grid.rasi::$HOME/.config/rofi/emoji-grid.rasi"
-  "mimeapps.list::$HOME/.config/mimeapps.list"
+  # mimeapps.list y kdeglobals NO van aquí: son bases en /etc/xdg (sección "Bases de
+  # escritorio", más abajo).
   "menus/applications.menu::$HOME/.config/menus/applications.menu"
-  "kdeglobals::$HOME/.config/kdeglobals"
   "qt6ct/qt6ct.conf::$HOME/.config/qt6ct/qt6ct.conf"
   "hyprpolkitagent/hyprpolkitagent.conf::$HOME/.config/hyprpolkitagent/hyprpolkitagent.conf"
   "mime/packages/text-x-xresources.xml::$HOME/.local/share/mime/packages/text-x-xresources.xml"
@@ -359,32 +359,56 @@ if [[ -d "$old_cfg" ]]; then
   fi
 fi
 
-# ── Reparación: [UiSettings] ColorScheme en kdeglobals ───────────────────────
-# Cualquier app KDE que guarde ajustes globales (Dolphin > Preferencias)
-# reescribe kdeglobals entero con KConfig y borra [UiSettings], el grupo que lee
-# KColorSchemeManager: sin él las apps Qt se abren en CLARO sin dar ningún error.
-# El porqué completo, y por qué basta con mirarlo de vez en cuando en vez de
-# vigilar el fichero, están en la cabecera del script. Lo llama también
-# gigishell/autostart.lua una vez por sesión, que es lo que hace que se repare solo
-# sin tener que acordarse de correr link.sh.
-#
-# Se le pasa la ruta del REPO, no la canónica: en una instalación nueva link.sh
-# corre antes de que exista el symlink, y dejar ahí un fichero real le estorbaría
-# el enlazado de más abajo.
-reparador="$GIGISHELL/hypr/scripts/reparar-kdeglobals.sh"
-if [[ -x "$reparador" ]]; then
-  if [[ "$mode" == check ]]; then
-    if "$reparador" --check "$GIGISHELL/kdeglobals"; then
-      echo "OK    kdeglobals [UiSettings] ColorScheme=BreezeDark"
-    else
-      status=1
-    fi
-  else
-    salida="$("$reparador" "$GIGISHELL/kdeglobals")"
-    if [[ -n "$salida" ]]; then echo "$salida"
-    else echo "OK    kdeglobals [UiSettings] ColorScheme=BreezeDark"; fi
+# ── Bases de escritorio: el repo pone los valores, el usuario los pisa en local ──
+# mimeapps.list y kdeglobals estaban enlazados a ~/.config, y cualquier app que guardara
+# un ajuste (Dolphin > Preferencias, «Abrir con > Recordar», Firefox como navegador
+# predeterminado, `xdg-mime default`) escribía a través del symlink DENTRO DEL REPO:
+# cambios sin commitear en `dotfiles status` que no tocaba subir. Las dos
+# especificaciones tienen cascada por XDG_CONFIG_DIRS, así que el fichero del repo se
+# instala como BASE en /etc/xdg (copia con sudo, paso de ficheros de sistema de
+# install.sh) y ~/.config queda como fichero REAL del usuario, fuera de git, con prioridad
+# sobre la base entrada a entrada (medido con `gio mime`, `xdg-mime query default` y
+# `kreadconfig6`).
+#   • /etc/xdg y no una ruta de $HOME: XDG_CONFIG_DIRS no llega a lo que arranca D-Bus
+#     (Dolphin es activable por D-Bus), y ~/.local/share/applications/mimeapps.list —la
+#     otra ruta de menor prioridad— la escribe alguna app (apareció creada vacía), así
+#     que enlazarla al repo reabriría el mismo agujero.
+#   • Efecto secundario buscado: una app KDE que reescribe ~/.config/kdeglobals ya no
+#     puede llevarse [UiSettings] ColorScheme=BreezeDark por delante (KColorSchemeManager
+#     lo sigue leyendo de la base), que era lo único que hacía reparar-kdeglobals.sh.
+#   • Contrapartida: editar la base en el repo no surte efecto hasta reinstalarla. Por eso
+#     aquí se compara con `cmp` y se avisa.
+# Aquí solo se retiran los symlinks del esquema viejo, y solo cuando la base ya está
+# instalada: quitarlos antes dejaría las apps KDE en tema claro y sin asociaciones.
+# Nunca se toca un fichero real.
+BASES_XDG=(kdeglobals mimeapps.list)
+for nombre in "${BASES_XDG[@]}"; do
+  base="$GIGISHELL/$nombre"
+  instalada="/etc/xdg/$nombre"
+  viejo="$HOME/.config/$nombre"
+  if [[ ! -e "$instalada" ]]; then
+    echo "AVISO falta $instalada (base de $nombre). Instálala con:"
+    echo "      sudo install -Dm644 $base $instalada && $GIGISHELL/bin/link.sh"
+    status=1; continue
   fi
-fi
+  if cmp -s "$base" "$instalada"; then
+    echo "OK    $instalada"
+  else
+    echo "AVISO $instalada difiere de $base; reinstálala con:"
+    echo "      sudo install -Dm644 $base $instalada"
+    status=1
+  fi
+  [[ -L "$viejo" ]] || continue
+  # `-m`: también un enlace roto que apuntara al repo es del esquema viejo.
+  phys="$(readlink -m "$viejo")"
+  [[ "$phys" == "$gigishell_phys" || "$phys" == "$gigishell_phys"/* ]] || continue
+  if [[ "$mode" == check ]]; then
+    echo "RETIRAR $viejo (symlink viejo al repo; las apps escribirían dentro de GiGiShell)"
+    status=1; continue
+  fi
+  rm -f "$viejo"
+  echo "RETIRO $viejo (symlink viejo al repo; ahora es un fichero local del usuario)"
+done
 
 # ── Ficheros locales de las shells ──────────────────────────────────────────
 # ~/.bashrc, $ZDOTDIR/.zshrc|.zshenv y fish/config.fish no se versionan: son de

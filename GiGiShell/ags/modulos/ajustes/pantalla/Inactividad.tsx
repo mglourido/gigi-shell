@@ -15,7 +15,7 @@ import {
 import textos from "../../../textos/ajustes/pantalla.json" with { type: "json" }
 
 /**
- * Tiempos de inactividad GENERALES. No escribe en hypridle.conf directamente: pasa por
+ * Tiempos de inactividad GENERALES. No escribe en inactividad.json directamente: pasa por
  * `guardarInactividadGeneral`, que desvía la escritura al apunte mientras el modo ahorro
  * tiene sus propios tiempos puestos — si no, la restauración del final del ahorro borraría
  * lo que se acabara de editar aquí. Por lo mismo lee con `leerInactividadGeneral`, que con
@@ -23,14 +23,8 @@ import textos from "../../../textos/ajustes/pantalla.json" with { type: "json" }
  * Ver `servicios/pantalla/inactividadAhorro.ts`.
  */
 export default function Inactividad() {
-  const configuracion = leerInactividadGeneral() || {
-    dpms: { timeout: 600, enabled: true },
-    lock: { timeout: 630, enabled: true },
-    suspend: { timeout: 660, enabled: true },
-    hibernate: { timeout: 3000, enabled: false },
-    bloqueoAlSuspender: true,
-  }
-  // El tiempo de hibernación NO sale de hypridle.conf aunque allí haya un listener: el número
+  const configuracion = leerInactividadGeneral()
+  // El tiempo de hibernación NO sale de inactividad.json aunque allí haya un listener: el número
   // que ve el usuario es la inactividad TOTAL, y quién la cuenta (systemd durante la suspensión
   // o el listener) lo decide `planificar()`. Ver servicios/energia/hibernacion.ts.
   const hibernacion = leerHibernacion()

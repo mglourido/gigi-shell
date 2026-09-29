@@ -320,15 +320,17 @@ update-mime-database ~/.local/share/mime
 kbuildsycoca6 --noincremental
 ```
 
-Las asociaciones predeterminadas viven en `~/GiGiShell/mimeapps.list`: Firefox
+Las asociaciones predeterminadas viven en `~/GiGiShell/mimeapps.list` (instalado como base en
+`/etc/xdg/mimeapps.list`; lo que cambies desde las apps va a `~/.config/mimeapps.list` y pisa la
+base solo en esa entrada): Firefox
 abre los PDF; Okular, el resto de documentos de lectura; Gwenview y KolourPaint,
 las imágenes; Haruna y Elisa, vídeo y audio; Kate, texto normal; Obsidian,
 Markdown con Kate como alternativa si no está instalado; Visual Studio Code,
 código y configuración de proyectos; Ark, archivos
 comprimidos; y LibreOffice, los formatos ofimáticos. Filelight, KFind, KDE
 Partition Manager y Simple Scan quedan como utilidades, no como manejadores
-predeterminados. `~/GiGiShell/kdeglobals` hace que las acciones de terminal de KDE
-usen Kitty.
+predeterminados. `~/GiGiShell/kdeglobals` (instalado como base en `/etc/xdg/kdeglobals`) hace que
+las acciones de terminal de KDE usen Kitty.
 
 `bin/configurar-dolphin.sh` limita los miniaturizadores a imágenes comunes y SVG,
 vídeo mediante `ffmpegthumbs`, PDF/PostScript mediante `gsthumbnail` y documentos

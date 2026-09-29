@@ -592,10 +592,10 @@ en horas.
    `'off'`, invierte el estado y responde `ok` — rc 0, stdout `ok`, acción invertida. Ver la
    sección «Salir de suspensión» de [`hyprland-modulos.md`](hyprland-modulos.md). **Usar
    `idle-action.sh`, que ya lo tiene bien**, en vez de escribir el dispatcher otra vez.
-2. **No meter llaves `{}` en `hypr/hypridle.conf`.** El parser de Ajustes > Pantalla trocea los
-   listeners con `listener\s*\{[^}]*\}` y una llave de tabla Lua corta el bloque antes de tiempo:
-   el listener deja de ser editable desde la UI **en silencio**. Es el motivo de que
-   `idle-action.sh` exista.
+2. **Los comandos con llaves `{}` van en `idle-action.sh`, no en `hypr/hypridle.conf`.** Nació
+   de un parser de Ajustes que troceaba los listeners por `listener\s*\{[^}]*\}` (ya retirado:
+   los tiempos van en `~/.config/gigishell/inactividad.json`), pero la regla sigue valiendo:
+   el dispatcher correcto ya está escrito y probado en el script.
 3. **hyprlock no tiene guarda de instancia única.** Lanzarlo con uno ya puesto arranca un segundo
    proceso de verdad. Siempre se comprueba antes de lanzarlo.
 
@@ -673,8 +673,8 @@ lo lee bash), `idle-suspend-vetado` (el epoch del último veto, lo lee el puente
 
 ### Cómo probar cada pieza
 
-- Que el veto funciona: entrar en suspensión falsa, bajar el timeout de suspensión de
-  `hypridle.conf` a 60 s, esperar. Debe **no** suspenderse. Repetir matando AGS a mano: debe
+- Que el veto funciona: entrar en suspensión falsa, bajar el timeout de suspensión a 60 s
+  (`suspend.timeout` en `~/.config/gigishell/inactividad.json` + `hypr/scripts/hypridle.sh`), esperar. Debe **no** suspenderse. Repetir matando AGS a mano: debe
   suspenderse (fail-open).
 - Que la salida funciona con la pantalla apagada por nuestra mano y **sin** que ningún listener de
   hypridle haya vencido. Es el caso que rompe el diseño ingenuo.

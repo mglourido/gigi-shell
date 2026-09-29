@@ -1115,6 +1115,21 @@ configure_default_shell() {
     else
       warn "No pude instalar i2c-dev.conf; el brillo por DDC/CI no funcionará hasta hacerlo."
     fi
+    # Bases de kdeglobals (tema Breeze Dark, Kitty como terminal, iconos) y mimeapps.list
+    # (apps predeterminadas). Van a /etc/xdg y no se enlazan a ~/.config: así lo que guarden
+    # las apps (Dolphin > Preferencias, «Abrir con», `xdg-mime default`) cae en el fichero
+    # LOCAL del usuario y no dentro del repo, y la base se sigue leyendo por cascada. Ver la
+    # sección "Bases de escritorio" de bin/link.sh.
+    bases_xdg_ok=1
+    for base_xdg in kdeglobals mimeapps.list; do
+      sudo install -Dm644 "$GIGISHELL/$base_xdg" "/etc/xdg/$base_xdg" || {
+        bases_xdg_ok=0
+        warn "No pude instalar /etc/xdg/$base_xdg. Reintento: sudo install -Dm644 $GIGISHELL/$base_xdg /etc/xdg/$base_xdg"
+      }
+    done
+    # link.sh ya corrió (paso 3) y, sin las bases, conservó los symlinks viejos de ~/.config;
+    # ahora que existen, otra pasada los retira. Es idempotente.
+    (( bases_xdg_ok )) && { bash "$GIGISHELL/bin/link.sh" >/dev/null 2>&1 || true; }
     # Botón de encendido: se lo cedemos a Hyprland. Sin esto logind lo maneja él
     # (HandlePowerKey=poweroff de fábrica), a nivel de asiento y sin pasar por el
     # compositor, así que el bind se ejecuta pero el apagado de logind lo tapa y la

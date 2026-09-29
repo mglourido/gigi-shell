@@ -13,7 +13,9 @@ real. `git` los conserva si hiciera falta consultarlos.
 
 Los `.conf` que **siguen** en `hypr/` son de **otros programas** —`hypridle`, `hyprlock`,
 `hyprpaper`—, binarios `hypr*` aparte que mantienen hyprlang a propósito. Toda la lógica de
-`idle-action.sh`, la puerta del Wake Up y el truco `# GIGISHELL-OFF` sigue exactamente igual.
+`idle-action.sh` y la puerta del Wake Up sigue exactamente igual. (El truco `# GIGISHELL-OFF` ya no
+existe: desde el 2026-09-29 los tiempos de hypridle van en `~/.config/gigishell/inactividad.json` y
+`hypridle.conf` los lee como variables — ver la sección de hypridle en `hyprland-modulos.md`.)
 
 **Si un arranque sale mal** (desde una TTY con Ctrl+Alt+F2 si no hay escritorio): **un error de Lua
 deja la sesión SIN ATAJOS** salvo el de emergencia (`SUPER + Q`, que aquí abre kitty), así que desde

@@ -26,7 +26,8 @@
 //   ~/.config/gigishell/hibernacion.json   ← LA AUTORIDAD (enabled + totalSeconds + modo).
 //                                          Lo lee idle-action.sh para saber si suspende con
 //                                          alarma o sin ella.
-//   hypridle.conf, listener `hibernate` ← espejo del total; solo está ENCENDIDO en modo listener.
+//   inactividad.json, listener `hibernate` ← espejo del total; solo está ENCENDIDO en modo listener
+//                                          (hypridle.conf lo lee vía hypr/scripts/hypridle.sh).
 //   /etc/systemd/sleep.conf.d/99-gigishell-hibernacion.conf ← HibernateDelaySec (lo escribe el
 //                                          helper root, ver system/hibernacion/).
 import GLib from "gi://GLib"
@@ -125,7 +126,7 @@ function escribirEstado(ajuste: AjusteHibernacion, modo: ModoHibernacion): void 
 
 /**
  * Aplica el plan: escribe el estado que lee idle-action.sh y empuja el retardo a systemd.
- * Devuelve la línea del listener para que el llamador la meta en hypridle.conf en la MISMA
+ * Devuelve el listener para que el llamador lo meta en inactividad.json en la MISMA
  * escritura que los demás tiempos (una sola pasada, un solo reinicio de hypridle).
  *
  * El retardo se manda SIEMPRE, incluso 0 (que borra el drop-in). Dejar un HibernateDelaySec

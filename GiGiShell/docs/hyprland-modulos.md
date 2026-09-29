@@ -52,7 +52,7 @@ su módulo equivalente. `hypr/hyprland.lua` is a thin entry point that loads the
 - Colour management (`render.cm_enabled`) is deliberately **off** because `hyprsunset` owns the
   KMS CTM for night light; enabling Hyprland's CM too washes out the image.
 
-`hypr/gigishell/autostart.lua` launches the shell (`ags run ~/.config/ags/`), `hypridle`, `init.sh`,
+`hypr/gigishell/autostart.lua` launches the shell (`ags run ~/.config/ags/`), `hypridle` (via `scripts/hypridle.sh`), `init.sh`,
 `wallpaper.sh`, and a set of `hypr/scripts/*-monitor.sh` background daemons (battery, temp,
 ram, disk, oom, wifi, usb, bt, screencast, updates). Todo ello cuelga de un
 `hl.on("hyprland.start", …)`, que es el equivalente EXACTO de `exec-once`: se dispara una vez por
@@ -121,8 +121,8 @@ Hizo falta una puerta porque hypridle **no tiene API en caliente**: no se le pue
 listener suelto ni recargarle el config. Las dos alternativas se descartaron con motivo.
 `systemd-inhibit --what=idle` (que hypridle sí respeta) apaga **todos** los listeners a la vez, y
 entonces "que no se suspenda **pero la pantalla sí se apague**" —el modo por defecto— es
-inexpresable. Y reutilizar el `# GIGISHELL-OFF` que ya sabe comentar listeners (Ajustes > Pantalla)
-significaría **escribir en el config del usuario** para un estado temporal: si AGS muere a mitad,
+inexpresable. Y reutilizar el apagado de listeners de Ajustes > Pantalla (`enabled: false` en
+`inactividad.json`) significaría **escribir en el config del usuario** para un estado temporal: si AGS muere a mitad,
 sus tiempos quedan desactivados para siempre y la UI de Ajustes los enseña apagados, confundiendo
 "lo apagué yo" con "lo apagó el Wake up".
 
@@ -149,33 +149,40 @@ los pid **se reciclan** —tras un reinicio el del AGS anterior puede estar ocup
 vivo y la puerta lo daría por bueno—, así que además `initWakeUp()` **limpia el JSON al arrancar**
 el shell. El Wake up es por sesión, como el resto del menú de funciones.
 
-**Al caducar se reinicia hypridle** (`pkill hypridle; hypridle &`, el mismo gesto que ya hace
+**Al caducar se reinicia hypridle** (`hypr/scripts/hypridle.sh`, el mismo gesto que ya hace
 `ags/modulos/ajustes/pantalla/Inactividad.tsx` al guardar los tiempos). No es opcional: hypridle **no repite un `on-timeout`
 ya disparado** en esa tanda de inactividad, así que un Wake up de 30 min que veta la suspensión en
 el minuto 11 y caduca en el 30 dejaría el PC despierto **para siempre** — nadie volvería a
 intentarlo hasta que tocaras el teclado. Reiniciarlo rearma los contadores desde cero: se suspende
 ~11 min después de caducar, y nunca estando tú delante. El peaje aceptado es ese margen extra.
 
-**Si tocas los `on-timeout`, mira `kindOf()`** en `ags/servicios/pantalla/hypridle.ts`: Ajustes >
-Pantalla reconoce los tres listeners **por su comando**, y ahora los tres nombran el mismo script
-—los distingue el argumento—. Si dejara de reconocerlos, sus tiempos se volverían ineditables **en
-silencio** (`parseHypridle` degrada a "no encontrado", no a un error). Sigue leyendo también el
-formato directo (`hyprctl dispatch dpms off` / `hyprlock` / `systemctl suspend`) para un config
-traído de otra máquina. Cubierto por `hypridle.test.ts`.
+**Los tiempos NO viven en `hypridle.conf`.** Ese fichero es estático y versionado: sus `timeout =`
+y su `before_sleep_cmd` son variables `$IDLE_*`, con un valor por defecto en el propio fichero y un
+`source = ~/.cache/gigishell/hypridle.conf` que las pisa. Ese derivado lo genera
+`hypr/scripts/hypridle.sh` (con `jq`) a partir de **`~/.config/gigishell/inactividad.json`** —la
+autoridad, que escribe `ags/servicios/pantalla/inactividadAhorro.ts`— cada vez que arranca hypridle.
+Antes AGS reescribía el `.conf` con regex y cada ajuste salía en `dotfiles status` como un cambio sin
+commitear. Consecuencias:
 
-**Desactivar un tiempo se hace comentando la línea, NUNCA con `timeout = 0`.** Cada fila de Ajustes
-> Pantalla lleva un interruptor que apaga *ese* listener (`FilaInactividad` en
-> `ags/modulos/ajustes/pantalla/Inactividad.tsx` →
-`writeHypridle(…, {enabled:false})` → `# timeout = N   # GIGISHELL-OFF`). El 0 no es una forma pobre de
+- **hypridle se lanza SIEMPRE con `hypridle.sh`** (autostart y `reinicioHypridle.ts`). Un
+  `hypridle` a pelo arranca con los valores por defecto del `.conf`, no con los del usuario.
+- Si el derivado falta, hyprlang avisa (`source= globbing error`) **y sigue** con los por defecto
+  (medido en hypridle 0.1.8). Un JSON roto produce un derivado vacío: mismo resultado.
+- Los valores por defecto están en dos sitios que deben coincidir: los `$IDLE_*` del `.conf` e
+  `INACTIVIDAD_POR_DEFECTO` en `ags/servicios/pantalla/hypridle.ts`. El criterio de «clave inválida →
+  por defecto» también está duplicado (`jq` del script y `normalizarInactividad()`), para que Ajustes
+  enseñe lo mismo que usa hypridle.
+- Como AGS ya no parsea el `.conf`, los `on-timeout` y los comandos se pueden tocar libremente.
+
+**Desactivar un tiempo es `timeout = -1`, NUNCA `timeout = 0`.** Cada fila de Ajustes > Pantalla
+lleva un interruptor que apaga *ese* listener (`{enabled: false}` en el JSON, que el script traduce a
+`-1`, conservando el número en el JSON para cuando se reencienda). El 0 no es una forma pobre de
 decir "nunca": es lo contrario. Medido en hypridle 0.1.7 — con `timeout = 0` el listener **se
 registra y se dispara al instante** (`Registered timeout rule for 0s`, y la acción ejecutada ya), o
-sea que ponerlo en la fila "Suspender" apagaría el PC nada más guardar. Comentado, hypridle saca un
-`Category has a missing timeout setting`, **ignora ese listener y sigue con los demás** (también
-medido) — y el valor sobrevive dentro del comentario, así que al reencender vuelve el número del
-usuario. De ahí el suelo de 1 min al leer el fichero: un listener ausente parsea a `{timeout: 0}`, y
-ese 0 llegaría al `.conf` al encender la fila. **El estado del interruptor sale de `parseHypridle`,
-no de un `true` fijo**: cuando la UI escribía `enabled: true` a pelo, mover cualquier stepper
-reescribía los tres listeners como activos y resucitaba en silencio un GIGISHELL-OFF ya puesto.
+sea que ponerlo en la fila "Suspender" apagaría el PC nada más guardar. Con `-1` hypridle saca un
+`Category has a missing timeout setting`, **ignora ese listener y sigue con los demás** (medido en
+0.1.8) — el mismo comportamiento que tenía la línea comentada con el antiguo sentinel GIGISHELL-OFF.
+Por eso el script solo acepta `timeout >= 1` del JSON.
 
 **"Bloquear" (el listener) y "Bloquear al suspender" (`before_sleep_cmd`) son ajustes distintos, y
 confundirlos costó un bug.** Con el listener de bloqueo apagado, al despertar de una suspensión
@@ -183,10 +190,9 @@ seguía apareciendo hyprlock: quien lo pone ahí es `before_sleep_cmd = loginctl
 bloque `general`, que **no** cuenta inactividad — lo dispara logind ante *cualquier* suspensión
 (el listener de suspender, el menú de energía, el botón físico, cerrar la tapa, un `systemctl
 suspend` a mano). No tenía interruptor, así que no había forma de suspender sin bloquear. Ahora lo
-gobierna el último interruptor de la tarjeta (`writeBloqueoAlSuspender` en
-`ags/servicios/pantalla/hypridle.ts`), que comenta la línea con el mismo sentinel GIGISHELL-OFF para
-conservar el comando escrito. Ojo al tocar ese regex: `after_sleep_cmd` comparte sufijo con
-`before_sleep_cmd` y es lo único que vuelve a encender la pantalla al despertar.
+gobierna el último interruptor de la tarjeta (`bloqueoAlSuspender` en `inactividad.json`), que
+`hypridle.sh` traduce a `$IDLE_ANTES_DE_DORMIR`: `loginctl lock-session` o vacío (vacío = sin
+comando, igual que no tener la línea; medido).
 
 ### Bloquear la pantalla: un solo camino (`bloquear.sh`) y la cola de fondos
 
@@ -243,11 +249,6 @@ bash y `pidof hyprlock` no vería nada: la guarda dejaría de proteger de la sig
   se intentaría ejecutar un fichero llamado literalmente `~/.config/hypr/scripts/bloquear.sh` y el
   botón no bloquearía nada. `hypridle.conf` sí pasa por shell, así que allí la `~` va pelada, igual
   que en el resto de sus comandos.
-- **El nombre del script no contiene «hyprlock»**, y `ags/servicios/pantalla/hypridle.ts` clasifica
-  los listeners con un patrón `/hyprlock/` entre sus reglas. No afecta: el listener de bloqueo va
-  por `idle-action.sh lock`, que casa antes con la regla de la puerta (`GATE_ACTIONS`), y `lock_cmd`
-  no lo lee esa función. Pero si algún día un listener llamara a `bloquear.sh` directamente, Ajustes
-  > Pantalla dejaría de reconocer la fila **sin dar ningún error**: habría que añadir el patrón.
 
 ### Salir de suspensión: la pantalla en negro y el toggle disfrazado de `on`
 
@@ -278,9 +279,9 @@ funcionara **cambiar de workspace** y nada más. La intermitencia era el número
 llegaban a caer en cada despertar: par → encendida, impar → negra.
 
 **El arreglo, y por qué la tabla NO va en `hypridle.conf`.** Meter `{ action = 'on' }` en un
-listener rompería el parser de Ajustes (`listener\s*\{[^}]*\}` se corta en la primera `}`), que es
-exactamente el motivo por el que alguien escribió el string en su día: **el workaround del parser
-introdujo el bug**. Por eso el comando con llaves vive en `idle-action.sh`, y el `.conf` solo nombra
+listener rompía el parser que tenía entonces Ajustes (`listener\s*\{[^}]*\}` se cortaba en la primera
+`}`; hoy ya no existe, los tiempos van por JSON), que es exactamente el motivo por el que alguien
+escribió el string en su día: **el workaround del parser introdujo el bug**. Por eso el comando con llaves vive en `idle-action.sh`, y el `.conf` solo nombra
 acciones del script:
 
 - `after_sleep_cmd` y el `on-resume` del listener de dpms → `idle-action.sh dpms-on`.
@@ -323,7 +324,7 @@ Regalo del modo `retardo`: cubre también las suspensiones que **no** vienen de 
 
 - `~/.config/gigishell/hibernacion.json` — **la autoridad**: `enabled`, `totalSeconds`, `modo`. Lo
   escribe AGS y lo lee `idle-action.sh` para decidir si suspende con alarma o sin ella.
-- el listener `hibernate` de `hypridle.conf` — **espejo** del total; solo está *encendido* en modo
+- el listener `hibernate` de `inactividad.json` (→ `$IDLE_HIBERNATE` de `hypridle.conf`) — **espejo** del total; solo está *encendido* en modo
   listener. Su `enabled` NO significa "¿hiberna el equipo?".
 - `/etc/systemd/sleep.conf.d/99-gigishell-hibernacion.conf` — `HibernateDelaySec`, escrito por
   `/usr/local/bin/gigishell-hibernacion` (root, vía sudoers acotado). Se reescribe **siempre**,
@@ -334,10 +335,6 @@ Regalo del modo `retardo`: cubre también las suspensiones que **no** vienen de 
 de suspensión, y el **modo ahorro lo cambia sin que el usuario toque nada**. Por eso
 `conHibernacion()` va acoplado dentro de `inactividadAhorro.ts` — entrar y salir del ahorro
 replanifica, y todo cae en una sola escritura del fichero y un solo reinicio de hypridle.
-
-**`kindOf()` mira `hibernate` ANTES que `suspend`.** `systemctl suspend-then-hibernate` casa con
-los dos patrones; al revés, ese listener se leería como suspensión y su tiempo saldría en la fila
-equivocada de Ajustes, sin ningún error.
 
 #### Habilitarla desde el instalador o Ajustes
 
@@ -4349,40 +4346,35 @@ Borra primero la selección activa de Wayland (`wl-copy --clear`) y solo despué
 persistente (`cliphist wipe`) — en ese orden: si el watcher llegara a capturar el clear como una
 entrada nueva, el wipe posterior se la lleva también.
 
-### Tema oscuro de las apps KDE (`reparar-kdeglobals.sh`)
+### Tema oscuro de las apps KDE (base en `/etc/xdg/kdeglobals`)
 
-Repone `[UiSettings] ColorScheme=BreezeDark` en `kdeglobals`. Lo llaman `gigishell/autostart.lua`
-(t=0, junto a los dos `gsettings` del tema GTK) y `bin/link.sh` (en cada pasada). Es one-shot:
-mira y, o corrige, o se muere — no deja nada en `ps`.
+**El fallo silencioso que había.** `kdeglobals` estaba versionado y symlinkeado a
+`~/.config/kdeglobals`. Cualquier app KDE que guarde ajustes globales —Dolphin > Preferencias es la
+habitual— reescribe el fichero **entero** con KConfig y se deja por el camino los grupos que ningún
+proceso vivo vuelve a declarar. El que se pierde es `[UiSettings]`, que es justo el que lee
+`KColorSchemeManager`: a partir de ahí Dolphin se abre en tema **CLARO** aunque `[General]
+ColorScheme=BreezeDark`, los grupos `[Colors:*]` y `QT_QPA_PLATFORMTHEME=qt6ct` sigan intactos. Y de
+paso esa escritura caía dentro del repo. Lo parcheaba `hypr/scripts/reparar-kdeglobals.sh` en cada
+inicio de sesión.
 
-**El fallo silencioso.** `kdeglobals` está versionado y symlinkeado a `~/.config/kdeglobals`.
-Cualquier app KDE que guarde ajustes globales —Dolphin > Preferencias es la habitual— reescribe el
-fichero **entero** con KConfig y se deja por el camino los grupos que ningún proceso vivo vuelve a
-declarar. El que se pierde es `[UiSettings]`, que es justo el que lee `KColorSchemeManager`: a
-partir de ahí Dolphin se abre en tema **CLARO** aunque `[General] ColorScheme=BreezeDark`, los
-grupos `[Colors:*]` materializados y `QT_QPA_PLATFORMTHEME=qt6ct` sigan intactos. No hay ningún
-error por ningún lado; solo se nota al abrir el gestor de archivos. Bajo Plasma lo repondría el
-propio escritorio, pero aquí no hay nadie que lo haga.
+**Hoy la base vive en `/etc/xdg/kdeglobals`** (la instala `install.sh` con sudo) y
+`~/.config/kdeglobals` es un fichero local del usuario, sin symlink. KConfig lee los dos en cascada
+(medido con `kreadconfig6`/`kwriteconfig6`): el del usuario solo contiene lo que las apps escriben, y
+todo lo demás —`[UiSettings]` incluido— sale de la base aunque el del usuario lo pierda. El
+reparador ya no se llama. Dos trampas:
 
-**Una comprobación por sesión basta, y está medido.** Se vigiló el fichero con `inotifywait` mientras
-se abría Dolphin, se esperaba y se cerraba con SIGTERM: **cero escrituras**, clave intacta. El uso
-normal no rompe nada — lo que lo borra es guardar desde un diálogo de preferencias, cosa de una vez
-cada muchos días. Por eso no hay watcher permanente: un `awk` sobre 4 KB al entrar, y cuando la
-clave está (lo normal) no se escribe nada.
+- **No vale `XDG_CONFIG_DIRS` apuntando a `$HOME`**: esa variable no llega a los procesos que
+  arranca D-Bus, y Dolphin es activable por D-Bus (`org.kde.dolphin.FileManager1`, el «mostrar en
+  carpeta» de Firefox). Se abriría en claro solo cuando lo lanza otra app. `/etc/xdg` es el valor
+  por defecto de la variable y vale para todos.
+- **Editar `~/GiGiShell/kdeglobals` no surte efecto hasta reinstalarlo** (`sudo install -Dm644
+  ~/GiGiShell/kdeglobals /etc/xdg/kdeglobals`). `bin/link.sh` y `bin/preflight.sh --installed` lo
+  comparan con `cmp` y avisan. Si `~/.config/kdeglobals` define la misma clave, gana la del usuario.
 
-**Trampa al tocarlo: hay que resolver el symlink antes de escribir.** El script genera el resultado
-en un temporal y lo mueve encima. Si el `mv` cae sobre la ruta canónica `~/.config/kdeglobals`
-—que es un symlink— **reemplaza el symlink por un fichero regular**, y a partir de ahí el repo y lo
-que leen las apps son dos ficheros distintos. Lo peor es que todo parece ir bien (el tema sale
-oscuro) hasta que un `dotfiles checkout` deja de tener efecto. Comprobado al escribir el script; de
-ahí el `readlink -f` antes del `mv`. Por la misma razón `link.sh` le pasa la ruta **del repo** y no
-la canónica: él corre también en instalaciones donde el symlink aún no existe, y crear ahí un
-fichero real le estorbaría su propio enlazado.
-
-Solo se reescribe ese grupo: si `[UiSettings]` existe con otro valor se corrige conservando sus
-demás claves, y si no existe se crea antes de `[WM]` (el orden alfabético de KConfig). Los ajustes
-que cambies desde los diálogos de las apps se conservan. `bin/preflight.sh --installed` comprueba
-las dos mitades: que la clave esté en `kdeglobals` y que el autostart llame al script.
+`mimeapps.list` sigue exactamente el mismo esquema (`/etc/xdg/mimeapps.list`; medido con `gio mime`
+y `xdg-mime query default`). No se usa `~/.local/share/applications/mimeapps.list`, la otra ruta de
+menos prioridad, porque alguna app la escribe (apareció creada vacía): enlazarla al repo reabriría el
+agujero.
 
 ### Utilidades cortas de un solo uso
 

@@ -19,7 +19,7 @@ export interface PlanHibernacion {
   modo: ModoHibernacion
   /** `HibernateDelaySec`: cuánto espera systemd DENTRO de la suspensión. 0 en modo listener. */
   retardo: number
-  /** Cómo debe quedar el listener `hibernate` de hypridle.conf. */
+  /** Cómo debe quedar el listener `hibernate` (inactividad.json → hypridle.conf). */
   listener: { timeout: number; enabled: boolean }
 }
 
@@ -36,7 +36,7 @@ export interface PlanHibernacion {
  * `HibernateDelaySec` sería el error fácil aquí: hibernaría a los 70 min en vez de a los 50.
  *
  * El listener conserva su `timeout` incluso apagado, igual que el resto de tiempos de
- * hypridle.conf: el sentinel GIGISHELL-OFF existe justo para no perder el número al desactivar.
+ * inactividad.json: `enabled` y `timeout` van por separado justo para no perder el número al desactivar.
  */
 export function planificar(
   ajuste: AjusteHibernacion,

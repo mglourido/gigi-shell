@@ -1,6 +1,10 @@
-// Lógica pura de edición de hypridle.conf — SIN imports GTK/GLib (corre bajo
-// node --test). El efecto (leer/escribir/reiniciar) vive en
-// modulos/ajustes/pantalla/Inactividad.tsx.
+// Modelo de los tiempos de hypridle — SIN imports GTK/GLib (corre bajo node --test). El efecto
+// (leer/escribir el JSON, reiniciar hypridle) vive en servicios/pantalla/inactividadAhorro.ts.
+//
+// La autoridad es `~/.config/gigishell/inactividad.json`, NO hypr/hypridle.conf: ese fichero está
+// versionado y es estático (usa variables `$IDLE_*`). `hypr/scripts/hypridle.sh` traduce el JSON a
+// esas variables cada vez que arranca hypridle. Antes se reescribían los `timeout =` del .conf con
+// regex, y cada ajuste acababa en `dotfiles status` como un cambio sin commitear.
 
 export type ListenerKind = "dpms" | "lock" | "suspend" | "hibernate"
 
@@ -17,118 +21,44 @@ export interface HypridleConfig {
    * `~/.config/gigishell/hibernacion.json`; esto es su espejo. Ver `servicios/energia/hibernacion.ts`.
    */
   hibernate: ListenerState
-  /** ¿Bloquea la pantalla al suspender? (before_sleep_cmd del bloque general) */
+  /**
+   * ¿Bloquea la pantalla al suspender? (`before_sleep_cmd` del bloque general). Es un ajuste APARTE
+   * del listener "lock": aquel cuenta inactividad, este se dispara en CUALQUIER suspensión (menú de
+   * energía, botón, tapa, `systemctl suspend`), porque quien avisa a hypridle es logind.
+   */
   bloqueoAlSuspender: boolean
 }
 
-// on-timeout → tipo de listener.
-//
-// Conviven DOS formatos a propósito:
-//   1. La puerta `idle-action.sh <acción>`, por donde van hoy los listeners para
-//      que la función "Wake up" pueda vetarlos (ver hypr/scripts/idle-action.sh).
-//   2. El comando directo (`hyprctl dispatch dpms off` / `hyprlock` /
-//      `systemctl suspend`), que es lo que documenta hypridle y lo que traería un
-//      hypridle.conf de otra máquina o una copia de seguridad anterior al Wake up.
-//
-// La puerta va PRIMERO: su ruta contiene ".../hypr/scripts/...", y un `hyprlock`
-// dentro de la ruta engañaría al patrón directo. Comprobar el argumento es además
-// lo único que distingue las tres invocaciones entre sí — todas nombran el mismo
-// script.
-const GATE_ACTIONS: Record<string, ListenerKind> = {
-  "dpms-off": "dpms",
-  "lock": "lock",
-  "suspend": "suspend",
-  "hibernate": "hibernate",
+/** Deben coincidir con los `$IDLE_*` por defecto de hypr/hypridle.conf. */
+export const INACTIVIDAD_POR_DEFECTO: HypridleConfig = {
+  dpms: { timeout: 600, enabled: true },
+  lock: { timeout: 660, enabled: true },
+  suspend: { timeout: 2400, enabled: true },
+  hibernate: { timeout: 3000, enabled: false },
+  bloqueoAlSuspender: false,
 }
 
-function kindOf(onTimeout: string): ListenerKind | null {
-  const gated = onTimeout.match(/idle-action\.sh\s+(\S+)/)
-  if (gated) return GATE_ACTIONS[gated[1]] ?? null
-  if (/dpms\s+off/.test(onTimeout)) return "dpms"
-  if (/hyprlock/.test(onTimeout)) return "lock"
-  // `hibernate` ANTES que `suspend`: `systemctl suspend-then-hibernate` casa con los dos patrones
-  // y es, de las dos, la que hiberna. Al revés se leería como un listener de suspensión y la UI
-  // enseñaría el tiempo en la fila equivocada.
-  if (/systemctl\s+(hibernate|suspend-then-hibernate)/.test(onTimeout)) return "hibernate"
-  if (/systemctl\s+suspend/.test(onTimeout)) return "suspend"
-  return null
-}
+const LISTENERS: ListenerKind[] = ["dpms", "lock", "suspend", "hibernate"]
 
-const DEFAULT: ListenerState = { timeout: 0, enabled: false }
-
-// ── Bloqueo al suspender (before_sleep_cmd) ─────────────────────────────────
-// El listener "lock" y este ajuste son cosas DISTINTAS: el listener bloquea tras N
-// minutos de inactividad; before_sleep_cmd bloquea al entrar en suspensión, venga
-// de donde venga (el listener de suspensión, el menú de energía, el botón físico,
-// cerrar la tapa, `systemctl suspend` a mano) — logind avisa a hypridle en todos
-// los casos. Por eso apagar el listener de bloqueo NO evitaba encontrarse el
-// bloqueo al despertar: era este comando, que no tenía interruptor.
-//
-// Se desactiva comentando la línea con el mismo sentinel GIGISHELL-OFF que los
-// listeners, para no perder el comando escrito (con su envoltura, sea `loginctl
-// lock-session` o cualquier otro) y poder reactivarlo tal cual.
-const RE_BEFORE_SLEEP = /^([ \t]*)(#[ \t]*)?before_sleep_cmd[ \t]*=[ \t]*(.*)$/m
-const SENTINEL = /[ \t]*#[ \t]*GIGISHELL-OFF[ \t]*$/
-
-function parseBloqueoAlSuspender(text: string): boolean {
-  const m = text.match(RE_BEFORE_SLEEP)
-  // Sin línea no hay bloqueo al suspender: ausente y comentada son el mismo
-  // comportamiento, así que el interruptor debe enseñarse apagado en ambos casos.
-  if (!m) return false
-  return !m[2]
+function listener(v: unknown, porDefecto: ListenerState): ListenerState {
+  const l = v as Partial<ListenerState> | null
+  if (!l || typeof l.timeout !== "number" || !(l.timeout >= 1) || typeof l.enabled !== "boolean") {
+    return { ...porDefecto }
+  }
+  return { timeout: Math.floor(l.timeout), enabled: l.enabled }
 }
 
 /**
- * Activa o desactiva `before_sleep_cmd`. Si la línea no existe (config traída de
- * otra máquina, o borrada a mano) y se pide activarla, se inserta en el bloque
- * `general` con el comando por defecto — de lo contrario el interruptor quedaría
- * encendido en la UI sin efecto ninguno.
+ * Lo que haya en el JSON (o nada) → configuración completa. Cada clave ausente o mal formada cae
+ * a su valor por defecto por separado, con el mismo criterio que aplica `hypridle.sh` al
+ * traducirlo: la UI nunca debe enseñar algo distinto de lo que hypridle está usando.
  */
-export function writeBloqueoAlSuspender(text: string, enabled: boolean): string {
-  if (RE_BEFORE_SLEEP.test(text)) {
-    return text.replace(RE_BEFORE_SLEEP, (_todo, sangria: string, _comentada: string | undefined, resto: string) => {
-      const cmd = resto.replace(SENTINEL, "").trim()
-      return enabled
-        ? `${sangria}before_sleep_cmd = ${cmd}`
-        : `${sangria}# before_sleep_cmd = ${cmd}   # GIGISHELL-OFF`
-    })
-  }
-  if (!enabled) return text
-  return text.replace(/^([ \t]*)general[ \t]*\{[ \t]*$/m, `$1general {\n$1    before_sleep_cmd = loginctl lock-session`)
-}
-
-export function parseHypridle(text: string): HypridleConfig {
-  const cfg: HypridleConfig = {
-    dpms: { ...DEFAULT }, lock: { ...DEFAULT }, suspend: { ...DEFAULT }, hibernate: { ...DEFAULT },
-    bloqueoAlSuspender: parseBloqueoAlSuspender(text),
-  }
-  // Partir en bloques listener { ... }
-  const blocks = text.match(/listener\s*\{[^}]*\}/g) || []
-  for (const block of blocks) {
-    const on = block.match(/on-timeout\s*=\s*(.+)/)
-    if (!on) continue
-    const kind = kindOf(on[1])
-    if (!kind) continue
-    // timeout, incluso si está comentado con el sentinel
-    const active = block.match(/^\s*timeout\s*=\s*(\d+)/m)
-    const disabled = block.match(/^\s*#\s*timeout\s*=\s*(\d+)\s*#\s*GIGISHELL-OFF/m)
-    if (active) cfg[kind] = { timeout: Number(active[1]), enabled: true }
-    else if (disabled) cfg[kind] = { timeout: Number(disabled[1]), enabled: false }
-  }
+export function normalizarInactividad(datos: unknown): HypridleConfig {
+  const d = (datos && typeof datos === "object" ? datos : {}) as Record<string, unknown>
+  const cfg = { ...INACTIVIDAD_POR_DEFECTO } as HypridleConfig
+  for (const clave of LISTENERS) cfg[clave] = listener(d[clave], INACTIVIDAD_POR_DEFECTO[clave])
+  cfg.bloqueoAlSuspender = typeof d.bloqueoAlSuspender === "boolean"
+    ? d.bloqueoAlSuspender
+    : INACTIVIDAD_POR_DEFECTO.bloqueoAlSuspender
   return cfg
-}
-
-export function writeHypridle(text: string, values: Partial<Record<ListenerKind, ListenerState>>): string {
-  return text.replace(/listener\s*\{[^}]*\}/g, (block) => {
-    const on = block.match(/on-timeout\s*=\s*(.+)/)
-    if (!on) return block
-    const kind = on[1] ? kindOf(on[1]) : null
-    if (!kind || !values[kind]) return block
-    const v = values[kind]!
-    const line = v.enabled
-      ? `timeout = ${v.timeout}`
-      : `# timeout = ${v.timeout}   # GIGISHELL-OFF`
-    // Reemplaza la línea timeout activa o la comentada, preservando indentación.
-    return block.replace(/^(\s*)(#\s*)?timeout\s*=\s*\d+(\s*#\s*GIGISHELL-OFF)?/m, `$1${line}`)
-  })
 }

@@ -6,18 +6,19 @@
 // — más consumo, con diferencia, que todo el sondeo de fondo que congela `freezeBackground`.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────
-// ⚠️ ESTO ESCRIBE EN UN FICHERO DEL USUARIO, Y DE AHÍ TODO EL DISEÑO
-// ------------------------------------------------------------------
-// hypridle no tiene "perfiles": lee `hypridle.conf` y punto, así que un tiempo distinto
-// durante el ahorro obliga a reescribir ESE fichero. El riesgo obvio —AGS muere en ahorro y
-// los tiempos cortos se quedan puestos para siempre, sin UI donde notarlo— se cubre con la
-// misma forma que `wakeup.json` y el apunte del brillo: los valores generales se apartan a
+// ⚠️ ESTO ESCRIBE LOS TIEMPOS VIGENTES, Y DE AHÍ TODO EL DISEÑO
+// -------------------------------------------------------------
+// hypridle no tiene "perfiles": usa los tiempos de `~/.config/gigishell/inactividad.json`
+// (que `hypr/scripts/hypridle.sh` le traduce a variables al arrancar; ver `./hypridle.ts`),
+// así que un tiempo distinto durante el ahorro obliga a reescribir ESE fichero. El riesgo
+// obvio —AGS muere en ahorro y los tiempos cortos se quedan puestos para siempre, sin UI
+// donde notarlo— se cubre con la misma forma que `wakeup.json` y el apunte del brillo: los valores generales se apartan a
 // `~/.config/gigishell/inactividad-normal.json` ANTES de pisarlos, y ese fichero es a la vez
 // el apunte y la señal de "hay un override puesto". Si existe al arrancar y el ahorro no
 // está activo, se restaura y se borra. Un override huérfano dura, como mucho, hasta el
 // siguiente arranque del shell.
 //
-// Consecuencia obligatoria: mientras el override está puesto, el fichero de hypridle NO
+// Consecuencia obligatoria: mientras el override está puesto, inactividad.json NO
 // contiene los valores generales, así que la tarjeta de Ajustes no puede escribir ahí sin
 // que la restauración los borre al salir del ahorro. Por eso `guardarInactividadGeneral()`
 // es el ÚNICO camino de guardado de esa tarjeta y desvía la escritura al apunte cuando toca.
@@ -25,9 +26,9 @@
 // salir de él.
 //
 // `bloqueoAlSuspender` NO se aparta: no es un tiempo, el ahorro no lo toca y siempre va
-// directo al fichero de hypridle.
+// directo a inactividad.json.
 import GLib from "gi://GLib"
-import { parseHypridle, writeHypridle, writeBloqueoAlSuspender, type HypridleConfig, type ListenerKind } from "./hypridle"
+import { normalizarInactividad, type HypridleConfig, type ListenerKind } from "./hypridle"
 import { reiniciarHypridle } from "./reinicioHypridle"
 import { aplicarHibernacion, leerHibernacion, type AjusteHibernacion } from "../energia/hibernacion"
 import {
@@ -39,7 +40,7 @@ import {
   type TiempoAhorro,
 } from "../energia/powerState"
 
-const ARCHIVO_HYPRIDLE = `${GLib.get_user_config_dir()}/hypr/hypridle.conf`
+const ARCHIVO_INACTIVIDAD = `${GLib.get_user_config_dir()}/gigishell/inactividad.json`
 const ARCHIVO_APUNTE = `${GLib.get_user_config_dir()}/gigishell/inactividad-normal.json`
 
 export type ValoresListener = Partial<Record<ListenerKind, { timeout: number; enabled: boolean }>>
@@ -61,7 +62,7 @@ function leerApunte(): ValoresListener | null {
       }
     }
     // Un apunte sin ningún listener utilizable no sirve para restaurar nada: se trata como
-    // ausente para que la recuperación no deje el fichero de hypridle a medias.
+    // ausente para que la recuperación no deje inactividad.json a medias.
     return Object.keys(salida).length > 0 ? salida : null
   } catch (_) {
     return null
@@ -87,24 +88,26 @@ export function overrideInactividadActivo(): boolean {
   return leerApunte() !== null
 }
 
-// ── Fichero de hypridle ──────────────────────────────────────────────────────
+// ── Tiempos vigentes (inactividad.json) ──────────────────────────────────────
 
-function leerConfig(): HypridleConfig | null {
+/** Nunca falla: un JSON ausente o roto es la configuración por defecto de hypridle.conf, que
+ *  es exactamente lo que hypridle está usando en ese caso. */
+function leerConfig(): HypridleConfig {
   try {
-    const [ok, contenido] = GLib.file_get_contents(ARCHIVO_HYPRIDLE)
-    if (ok) return parseHypridle(new TextDecoder().decode(contenido))
-  } catch (_) { /* el llamador conserva valores seguros si no puede leerse */ }
-  return null
+    const [ok, contenido] = GLib.file_get_contents(ARCHIVO_INACTIVIDAD)
+    if (ok) return normalizarInactividad(JSON.parse(new TextDecoder().decode(contenido)))
+  } catch (_) { /* ausente o corrupto: valores por defecto */ }
+  return normalizarInactividad(null)
 }
 
-/** Escribe los tres tiempos (y opcionalmente el bloqueo al suspender) y rearma hypridle. */
+/** Escribe los tiempos (y opcionalmente el bloqueo al suspender) y rearma hypridle. */
 function escribirConfig(valores: ValoresListener, bloqueoAlSuspender?: boolean): boolean {
   try {
-    const [ok, contenido] = GLib.file_get_contents(ARCHIVO_HYPRIDLE)
-    if (!ok) return false
-    let texto = writeHypridle(new TextDecoder().decode(contenido), valores)
-    if (bloqueoAlSuspender !== undefined) texto = writeBloqueoAlSuspender(texto, bloqueoAlSuspender)
-    GLib.file_set_contents(ARCHIVO_HYPRIDLE, texto)
+    const config: HypridleConfig = { ...leerConfig(), ...valores }
+    if (bloqueoAlSuspender !== undefined) config.bloqueoAlSuspender = bloqueoAlSuspender
+    const dir = GLib.path_get_dirname(ARCHIVO_INACTIVIDAD)
+    if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) GLib.mkdir_with_parents(dir, 0o755)
+    GLib.file_set_contents(ARCHIVO_INACTIVIDAD, JSON.stringify(config, null, 2))
     reiniciarHypridle().catch(() => {})
     return true
   } catch (_) {
@@ -116,14 +119,13 @@ function escribirConfig(valores: ValoresListener, bloqueoAlSuspender?: boolean):
 // ── API para la tarjeta de Ajustes ───────────────────────────────────────────
 
 /**
- * Los tiempos GENERALES tal como debe enseñarlos Ajustes. Con el override puesto, el
- * fichero de hypridle contiene los del ahorro: leerlo a pelo pintaría esos como si fueran
+ * Los tiempos GENERALES tal como debe enseñarlos Ajustes. Con el override puesto,
+ * inactividad.json contiene los del ahorro: leerlo a pelo pintaría esos como si fueran
  * los de siempre, y el primer guardado los habría convertido en tales de verdad. El
  * `bloqueoAlSuspender` sale siempre del fichero, que es su única fuente.
  */
-export function leerInactividadGeneral(): HypridleConfig | null {
+export function leerInactividadGeneral(): HypridleConfig {
   const config = leerConfig()
-  if (!config) return null
   const apunte = leerApunte()
   if (!apunte) return config
   return {
@@ -152,7 +154,7 @@ export function guardarInactividadGeneral(
     escribirApunte(valores)
     // El bloqueo al suspender no forma parte del override: se aplica en el acto. La hibernación
     // TAMPOCO se aparta, pero su reparto sí depende de la suspensión vigente (la del ahorro),
-    // así que `conHibernacion` la recalcula contra el fichero, no contra `valores`.
+    // así que `conHibernacion` la recalcula contra inactividad.json, no contra `valores`.
     escribirConfig(conHibernacion({}, hibernacion), bloqueoAlSuspender)
     return
   }
@@ -168,19 +170,15 @@ export function guardarInactividadGeneral(
  *     depende del tiempo de suspensión, así que CUALQUIER cambio de ese tiempo —incluido entrar
  *     y salir del modo ahorro, que lo cambia sin que el usuario toque nada— obliga a rehacerlo;
  *   • así todo entra en UNA escritura del fichero y UN reinicio de hypridle, en vez de dos.
- *
- * Sin poder leer el fichero no se toca la hibernación: mejor dejarla como estaba que planificarla
- * contra una suspensión inventada.
  */
 function conHibernacion(valores: ValoresListener, ajuste?: AjusteHibernacion): ValoresListener {
-  const suspension = valores.suspend ?? leerConfig()?.suspend
-  if (!suspension) return valores
+  const suspension = valores.suspend ?? leerConfig().suspend
   return { ...valores, hibernate: aplicarHibernacion(ajuste ?? leerHibernacion(), suspension) }
 }
 
 // ── Transiciones ─────────────────────────────────────────────────────────────
 
-/** Traduce un `TiempoAhorro` (minutos) al par que entiende `writeHypridle` (segundos). */
+/** Traduce un `TiempoAhorro` (minutos) al par de inactividad.json (segundos). */
 const aListener = (t: TiempoAhorro) => ({ timeout: Math.max(1, Math.round(t.min)) * 60, enabled: t.on })
 
 function valoresDelAhorro(): ValoresListener {
@@ -195,7 +193,6 @@ function aplicarOverride(): void {
   const yaPuesto = overrideInactividadActivo()
   if (!yaPuesto) {
     const actual = leerConfig()
-    if (!actual) return   // sin poder leer el fichero no se aparta nada: mejor no tocarlo
     // El apunte se escribe ANTES de pisar el fichero. Al revés, morir en esa ventana
     // dejaría los tiempos cortos puestos y sin nada que recordara los buenos.
     escribirApunte({ dpms: actual.dpms, lock: actual.lock, suspend: actual.suspend })

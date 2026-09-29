@@ -1,8 +1,8 @@
 // modulos/ajustes/energia/InactividadAhorro.tsx
 // Tiempos de inactividad propios del modo ahorro. Misma fila que la tarjeta general
 // (`modulos/ajustes/pantalla/FilaInactividad.tsx`), pero guardando en
-// `power-save/config.json` en vez de en hypridle.conf: quien traduce estos minutos al
-// fichero de hypridle —y quien devuelve los de siempre al salir del ahorro— es
+// `power-save/config.json` en vez de en inactividad.json: quien traduce estos minutos a
+// los tiempos vigentes de hypridle —y quien devuelve los de siempre al salir del ahorro— es
 // `servicios/pantalla/inactividadAhorro.ts`.
 import { createState } from "ags"
 import { Gtk } from "ags/gtk4"

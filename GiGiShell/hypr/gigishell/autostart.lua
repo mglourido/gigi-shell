@@ -54,21 +54,10 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'")
   hl.exec_cmd("gsettings set org.gnome.desktop.interface icon-theme 'Tela-circle-grey'")
 
-  -- La mitad KDE del tema oscuro. Cualquier app KDE que guarde ajustes globales
-  -- (Dolphin > Preferencias) reescribe ~/.config/kdeglobals ENTERO con KConfig y
-  -- se deja por el camino [UiSettings], que es el grupo que lee
-  -- KColorSchemeManager: a partir de ahí Dolphin se abre en CLARO aunque
-  -- [General] ColorScheme, los [Colors:*] y QT_QPA_PLATFORMTHEME=qt6ct sigan
-  -- intactos. Bajo Plasma lo repondría el escritorio; aquí no hay nadie, así que
-  -- se repone al entrar. Falla en silencio y no se nota hasta que abres el
-  -- gestor de archivos, que es justo por lo que conviene mirarlo cada sesión.
-  --
-  -- Va a t=0 y no molesta: es un `awk` sobre un fichero de 4 KB, y cuando la
-  -- clave está (lo normal) no escribe nada. Medido con inotifywait: abrir y
-  -- cerrar Dolphin NO toca el fichero, así que una comprobación por sesión basta
-  -- y no hace falta ningún watcher permanente. Lo mismo hace bin/link.sh en cada
-  -- pasada, llamando a este mismo script.
-  hl.exec_cmd("~/.config/hypr/scripts/reparar-kdeglobals.sh")
+  -- La mitad KDE del tema oscuro NO se repone aquí: vive en /etc/xdg/kdeglobals (la
+  -- instala install.sh), que KConfig lee por cascada debajo de ~/.config/kdeglobals.
+  -- Una app KDE que reescriba el fichero del usuario ya no puede llevarse
+  -- [UiSettings] ColorScheme por delante. Ver "Bases de escritorio" en bin/link.sh.
 
   -- El fondo va DELANTE del shell, y es una decisión de gusto, no de coste:
   -- preferimos ver el escritorio vestido y que la barra entre encima, antes que
@@ -129,7 +118,10 @@ hl.on("hyprland.start", function()
   -- recompila solo si falta o algún .scss es más nuevo (si no, es un `find`).
   hl.exec_cmd([[~/.config/ags/scripts/compilar-css.sh; timeout 2 ags quit 2>/dev/null; pkill -f "ags\.js$" 2>/dev/null && sleep 0.3; ags run ~/.config/ags/]])
 
-  hl.exec_cmd("hypridle")
+  -- hypridle entra por su script, nunca a pelo: el script traduce los tiempos de
+  -- ~/.config/gigishell/inactividad.json a las variables de hypridle.conf (que es
+  -- estático y versionado). A pelo arrancaría con los valores por defecto.
+  hl.exec_cmd("~/.config/hypr/scripts/hypridle.sh")
   -- Le quita a systemd-logind el interruptor de la TAPA mientras esta sesión
   -- viva, para que la acción de cerrarla la decida Ajustes > Energía. Va a t=0 y
   -- sin retardo: hasta que el inhibidor no está puesto, cerrar la tapa suspende

@@ -92,6 +92,17 @@ XDG, tipos MIME) sin relación funcional entre sí. Cada uno vive en la raíz po
 ruta relativa a `~/.config` (o `~/.local/share/mime`) de su destino**, tal como se ve en el mapeo
 de `bin/link.sh` — agruparlos en una carpeta temática rompería esa correspondencia 1:1.
 
+**`kdeglobals` y `mimeapps.list` ya NO se enlazan a `~/.config`**: son **bases** que se instalan
+(copia con sudo, paso de ficheros de sistema de `install.sh`) en `/etc/xdg/`, y `~/.config/kdeglobals`
+y `~/.config/mimeapps.list` quedan como ficheros **locales** del usuario, fuera de git. Enlazados,
+cualquier app que guardara un ajuste (Dolphin > Preferencias, «Abrir con», Firefox como
+predeterminado, `xdg-mime default`) escribía **dentro del repo**. KConfig y la especificación de
+mimeapps hacen cascada sobre `XDG_CONFIG_DIRS`, así que la base sigue valiendo para todo lo que el
+usuario no haya cambiado. Consecuencia: **editar esos dos ficheros en el repo no surte efecto hasta
+reinstalarlos** (`sudo install -Dm644 ~/GiGiShell/<f> /etc/xdg/<f>`); `link.sh` y `preflight.sh`
+avisan cuando difieren. Por qué `/etc/xdg` y no una ruta de `$HOME`: en la sección "Bases de
+escritorio" de `bin/link.sh`.
+
 `power-save/config.json` y `orion/favorites.json` **ya no viven dentro del repo**: antes
 `GiGiShell/cache/power-save/` y `GiGiShell/state/orion/` guardaban el dato real y un symlink XDG
 apuntaba hacia dentro (mismo esquema que `ags/`/`hypr/`), pero eso dejaba datos de usuario
@@ -128,16 +139,12 @@ Ajustes no copia el original: lo endereza por EXIF, lo recorta cuadrado y lo red
 It lives in `XDG_DATA_HOME`, **not** the cache, because nothing regenerates it: there is no master
 in the repo, so a cache cleaner would delete it for good. It also
 migrates leftover AGS JSON from the old `~/.config/ags/config/` into `~/.config/gigishell/`;
-re-applies `core.hooksPath`; y **repone `[UiSettings] ColorScheme=BreezeDark` en `kdeglobals`**
-llamando a `hypr/scripts/reparar-kdeglobals.sh` — el mismo script que `gigishell/autostart.lua`
-ejecuta a t=0, que es lo que hace que el tema oscuro de las apps KDE se repare solo sin tener
-que acordarse de correr `link.sh`. Cualquier app KDE que guarde ajustes globales (Dolphin >
-Preferencias) reescribe el fichero entero con KConfig y borra ese grupo, que es el que lee
-`KColorSchemeManager`: sin él Dolphin se abre en CLARO aunque `[General] ColorScheme`, la
-paleta materializada y `QT_QPA_PLATFORMTHEME=qt6ct` sigan bien, y sin un solo error. Fuera de
-Plasma nadie lo repone. **Antes de tocar ese script lee su sección en
-[`docs/hyprland-modulos.md`](docs/hyprland-modulos.md)**: escribir sobre la ruta canónica en vez
-de sobre el symlink resuelto se carga el enlace y el fallo es invisible. `install.sh` is the fresh-machine path: it clones the bare
+re-applies `core.hooksPath`; comprueba que las bases de `/etc/xdg/` (`kdeglobals`,
+`mimeapps.list`) estén instaladas y al día, y **retira los symlinks viejos** de `~/.config` hacia
+ellas — solo cuando la base ya existe, para no dejar las apps KDE en tema claro. Antes existía
+`hypr/scripts/reparar-kdeglobals.sh` para reponer `[UiSettings] ColorScheme=BreezeDark` cada vez que
+una app KDE reescribía `kdeglobals` y borraba el grupo; con la base en `/etc/xdg`, KColorSchemeManager
+lo sigue leyendo de ahí aunque el fichero del usuario lo pierda, y el script ya no se llama. `install.sh` is the fresh-machine path: it clones the bare
 dotfiles repo, checks out into `$HOME` (backing up conflicts), then runs `link.sh --force`.
 
 ## Per-machine application profiles
@@ -159,8 +166,11 @@ autolimpieza de disco, que además leen `hypr/scripts/limpiar-almacenamiento.sh`
 `limpieza-arranque.sh` con `jq`—, `apps-inicio.json` —las apps que se abren al iniciar sesión, que
 lee `inicializador/apps-inicio.sh`—, `camara.json` —los controles V4L2 guardados por aparato, que
 se reponen solos porque el kernel los pierde al desenchufar o reiniciar— y `camara-uso.json` —lo
-que escribe `hypr/scripts/camara-monitor.sh` cuando una app abre la cámara—, `gestos.json` y
-`gestos-estado.json` —el modo gestos por cámara: el primero lo escribe Ajustes y lo lee el demonio
+que escribe `hypr/scripts/camara-monitor.sh` cuando una app abre la cámara—,
+`inactividad.json` —los tiempos vigentes de hypridle (apagar pantalla, bloquear, suspender,
+hibernar, bloquear al suspender): `hypr/hypridle.conf` es estático y los recibe como variables
+`$IDLE_*` a través de `hypr/scripts/hypridle.sh`, por eso hypridle nunca se lanza a pelo—,
+`gestos.json` y `gestos-estado.json` —el modo gestos por cámara: el primero lo escribe Ajustes y lo lee el demonio
 al arrancar, el segundo al revés; dos ficheros con un dueño cada uno, no uno con dos escritores— y `hibernacion.json`
 —el tiempo total de inactividad hasta hibernar y **cuál de los dos mecanismos** lo cumple; lo lee
 `idle-action.sh` para decidir si suspende con alarma RTC o sin ella—, …), plus `~/.config/jarvis/`
