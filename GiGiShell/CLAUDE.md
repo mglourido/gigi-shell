@@ -173,7 +173,10 @@ User/runtime state is **not** versioned. It lives in `~/.config/gigishell/` (`di
 `system_state.json`, `notifications.json`, `preferences.json`, `almacenamiento.json` —la
 autolimpieza de disco, que además leen `hypr/scripts/limpiar-almacenamiento.sh` y
 `limpieza-arranque.sh` con `jq`—, `apps-inicio.json` —las apps que se abren al iniciar sesión, que
-lee `inicializador/apps-inicio.sh`—, `camara.json` —los controles V4L2 guardados por aparato, que
+lee `inicializador/apps-inicio.sh`—, `apps-predeterminadas.json` —el terminal elegido en Ajustes >
+Apps predeterminadas, que lee `hypr/scripts/abrir-terminal.sh` en cada SUPER+Q; el resto de esa
+sección (navegador, PDF, carpetas…) no va aquí sino a `~/.config/mimeapps.list`, el fichero local
+que pisa la base de `/etc/xdg`—, `camara.json` —los controles V4L2 guardados por aparato, que
 se reponen solos porque el kernel los pierde al desenchufar o reiniciar— y `camara-uso.json` —lo
 que escribe `hypr/scripts/camara-monitor.sh` cuando una app abre la cámara—,
 `inactividad.json` —los tiempos vigentes de hypridle (apagar pantalla, bloquear, suspender,

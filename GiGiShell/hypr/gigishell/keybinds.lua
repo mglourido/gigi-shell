@@ -132,7 +132,10 @@ bind(mod .. " + SHIFT + P", hl.dsp.exec_cmd('wf-recorder -g "$(slurp)" -f '
   .. vars.ruta_grabacion_pantalla .. "/$(date +%Y%m%d_%H%M%S).mp4"))
 
 -- otros
-bind(mod .. " + Q", hl.dsp.exec_cmd(vars.terminal))
+-- El terminal y el gestor de archivos siguen Ajustes > Apps predeterminadas y se
+-- resuelven al PULSAR, no al cargar el config (cambiarlos no pide un reload).
+-- `vars.*` queda detrás de `||` por si el script o gio fallan.
+bind(mod .. " + Q", hl.dsp.exec_cmd("~/.config/hypr/scripts/abrir-terminal.sh || " .. vars.terminal))
 bind(mod .. " + SHIFT + C", hl.dsp.window.close()) -- killactive
 -- Cierra una instantánea de las ventanas del workspace activo. Cada cierre se
 -- dirige a su ventana original para que el cambio de foco entre cierres no
@@ -151,7 +154,9 @@ bind(mod .. " + CTRL + SHIFT + C", function()
   end
 end)
 bind(mod .. " + M", hl.dsp.exec_cmd("ags request toggle-quicksettings"))
-bind(mod .. " + E", hl.dsp.exec_cmd(vars.fileManager))
+-- `gio open ~` abre la carpeta personal con la app de `inode/directory` en
+-- mimeapps.list (Dolphin mientras no se cambie).
+bind(mod .. " + E", hl.dsp.exec_cmd("gio open ~ || " .. vars.fileManager))
 bind(mod .. " + SHIFT + Q", hl.dsp.window.float({ action = "toggle" }))
 
 -- mover ventanas con teclado / mover el foco

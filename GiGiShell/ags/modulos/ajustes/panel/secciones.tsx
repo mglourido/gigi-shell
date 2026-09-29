@@ -5,6 +5,7 @@ import SeccionCamara from "../camara/SeccionCamara"
 import SeccionCuenta from "../cuenta/SeccionCuenta"
 import SeccionAlmacenamiento from "../disco/SeccionAlmacenamiento"
 import SeccionAppsInicio from "../inicio/SeccionAppsInicio"
+import SeccionAppsPredeterminadas from "../predeterminadas/SeccionAppsPredeterminadas"
 import SeccionDispositivos from "../dispositivos/SeccionDispositivos"
 import SeccionEnergia from "../energia/SeccionEnergia"
 import SeccionFechaIdioma from "../fecha-idioma/SeccionFechaIdioma"
@@ -29,7 +30,7 @@ export type IdSeccion =
   | "display" | "diseno" | "comportamiento"
   | "mouse" | "touchpad" | "keyboard" | "printers" | "camera"
   | "energy" | "games" | "orion" | "clipboard"
-  | "startup"
+  | "startup" | "defaultApps"
   | "storage" | "cleanup"
   | "notifications" | "monitoring" | "scans" | "proteccion" | "supervision" | "system"
   | "shortcuts"
@@ -95,6 +96,7 @@ export const SECCIONES_POR_ID: Record<IdSeccion, SeccionNavegacion> = {
   orion: { id: "orion", label: textos.secciones.orion, icon: "󰆍" },
   clipboard: { id: "clipboard", label: textos.secciones.portapapeles, icon: "󰅇" },
   startup: { id: "startup", label: textos.secciones.appsInicio, icon: "󰐊" },
+  defaultApps: { id: "defaultApps", label: textos.secciones.appsPredeterminadas, icon: "󰀻" },
   storage: { id: "storage", label: textos.secciones.almacenamiento, icon: "󰋊" },
   cleanup: { id: "cleanup", label: textos.secciones.liberarEspacio, icon: "󰃢" },
   notifications: { id: "notifications", label: textos.secciones.notificaciones, icon: "󰂚" },
@@ -118,6 +120,7 @@ export const ITEMS_NAVEGACION: ItemNavegacion[] = [
   SECCIONES_POR_ID.orion,
   SECCIONES_POR_ID.clipboard,
   SECCIONES_POR_ID.startup,
+  SECCIONES_POR_ID.defaultApps,
   { id: "almacenamiento", label: textos.grupos.almacenamiento, icon: "󰋊", hijos: ["storage", "cleanup"] },
   SECCIONES_POR_ID.notifications,
   { id: "seguridad", label: textos.grupos.seguridad, icon: "󰒃", hijos: ["monitoring", "scans", "proteccion"] },
@@ -142,6 +145,7 @@ const FABRICAS_SECCION: Record<IdSeccion, () => unknown> = {
   orion: () => <SeccionFuncionesShell vista="orion" />,
   clipboard: () => <SeccionFuncionesShell vista="portapapeles" />,
   startup: () => <SeccionAppsInicio />,
+  defaultApps: () => <SeccionAppsPredeterminadas />,
   storage: () => <SeccionAlmacenamiento vista="uso" />,
   cleanup: () => <SeccionAlmacenamiento vista="limpieza" />,
   notifications: () => <SettingsTabs />,

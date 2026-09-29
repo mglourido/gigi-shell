@@ -325,9 +325,9 @@ if [[ "$mode" == "--installed" ]]; then
   # La comparación es de LÍNEA EXACTA a propósito: lo que se valida no es "esta app
   # aparece en algún sitio" sino el ORDEN, y el orden es lo que decide qué app abre el
   # archivo. Se valida la BASE del repo. Lo que una app o el usuario cambie («Abrir con >
-  # Establecer como predeterminada», `xdg-mime default`) va a ~/.config/mimeapps.list, que
-  # es legítimo y no rompe nada: solo se avisa, para que una asociación robada por la
-  # espalda no siga siendo invisible hasta que abres el archivo.
+  # Establecer como predeterminada», `xdg-mime default`, Ajustes > Apps predeterminadas) va
+  # a ~/.config/mimeapps.list, que es legítimo y no rompe nada: solo se avisa, para que una
+  # asociación robada por la espalda no siga siendo invisible hasta que abres el archivo.
   mimeapps_local="$HOME/.config/mimeapps.list"
   [[ -L "$mimeapps_local" ]] && mimeapps_local=
   while IFS='|' read -r mime application; do
@@ -336,7 +336,7 @@ if [[ "$mode" == "--installed" ]]; then
     if [[ -n "$mimeapps_local" && -r "$mimeapps_local" ]] \
        && local_mime="$(grep -m1 "^$mime=" "$mimeapps_local")" \
        && [[ "$local_mime" != "$mime=$application;" ]]; then
-      warn "asociación anulada en ~/.config/mimeapps.list: $local_mime (base: $application)"
+      warn "asociación anulada en ~/.config/mimeapps.list: $local_mime (base: $application; si la elegiste en Ajustes > Apps predeterminadas, es lo esperado)"
     fi
   done <<'EOF'
 inode/directory|org.kde.dolphin.desktop

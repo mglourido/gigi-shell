@@ -311,6 +311,23 @@ button.dl-city-result {
   &:hover { color: $text; background: acento(0.1); border-color: acento(0.2); }
 }
 
+// ── Apps predeterminadas ────────────────────────────────────────────────────
+// La lista de apps que se abre bajo cada fila; misma familia que .dl-city-result.
+.pred-opciones { padding-left: 28px; }
+button.pred-opcion {
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  color: rgba($text, 0.82);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  &:hover { color: $text; background: acento(0.1); border-color: acento(0.2); }
+  &.active { color: $text; background: acento(0.15); border-color: acento(0.3); }
+}
+.pred-marca { color: acento(); font-family: $font-icon; }
+.pred-error { color: $red; }
+
 // ── Cuenta ──────────────────────────────────────────────────────────────────
 .account-section { padding-bottom: 10px; }
 .account-card { border-radius: 11px; }

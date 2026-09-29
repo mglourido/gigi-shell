@@ -112,11 +112,16 @@ if [[ -z "$ruta" || ! -d "$ruta" ]]; then
 fi
 
 # ── Abrir el gestor de archivos ───────────────────────────────────────────────
-# Dolphin es el gestor de esta máquina; xdg-open es el plan B si no está (respeta
-# lo que diga mimeapps.list). Se lanza DESACOPLADO: este script se ejecuta desde un
-# subshell de usb-monitor.sh, y sin setsid + redirecciones el gestor de archivos
-# quedaría colgando del monitor durante toda la sesión.
-if command -v dolphin >/dev/null 2>&1; then
+# El gestor es el que diga mimeapps.list para `inode/directory` (Ajustes > Apps
+# predeterminadas > Carpetas), vía `gio open`; Dolphin a pelo queda de plan B si
+# no hay ninguno asignado. `gio open` se consulta en primer plano porque es
+# instantáneo (lanza y sale) y es su código de salida lo que dice si había app.
+# Se lanza DESACOPLADO: este script se ejecuta desde un subshell de
+# usb-monitor.sh, y sin setsid + redirecciones el gestor de archivos quedaría
+# colgando del monitor durante toda la sesión.
+if command -v gio >/dev/null 2>&1 && setsid -w gio open "$ruta" >/dev/null 2>&1 </dev/null; then
+    :
+elif command -v dolphin >/dev/null 2>&1; then
     setsid dolphin "$ruta" >/dev/null 2>&1 </dev/null &
 elif command -v xdg-open >/dev/null 2>&1; then
     setsid xdg-open "$ruta" >/dev/null 2>&1 </dev/null &
