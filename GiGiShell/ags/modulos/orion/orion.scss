@@ -6,12 +6,12 @@
 // ═══════════════════════════════════════════════════════════
 
 // ── Tokens ──────────────────────────────────────────────────
-// Los tokens de color/texto que coinciden con la paleta global de style.scss
+// Los tokens de color/texto que coinciden con la paleta global de `estilos/_colores.scss`
 // se derivan de _colores.scss para que no puedan divergir; $j-accent-pink no
 // tiene equivalente ahí (es un tono propio de Orion) y se queda literal.
 //
 // Los acentos NO son uno de ellos y por eso no aparecen abajo: se escriben
-// `c.acento-azul()` / `c.acento-azul()` en el sitio de uso, igual que en style.scss,
+// `c.acento-azul()` en el sitio de uso, igual que en los parciales del shell,
 // porque cambian EN CALIENTE con el fondo de escritorio (ver la nota de `acento()`
 // en _colores.scss). Un `c.acento(): c.$violet` aquí los habría congelado al
 // valor de compilación y Orion se habría quedado morado mientras el resto del

@@ -1,0 +1,1276 @@
+@use 'sass:color';
+@use 'colores' as *;
+@use 'base' as *;
+
+// ── Reset botones GTK4 dentro de la bar ───────────────────────────────────────
+.Bar button,
+.Bar menubutton {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  transition: all 150ms ease;
+}
+
+.Bar button:hover,
+.Bar menubutton:hover {
+  transition: all 150ms ease;
+}
+
+// ── Ventana ───────────────────────────────────────────────────────────────────
+.Bar {
+  background-color: $bg-bar;
+  color: $text;
+  font-family: $font-icon, monospace;
+  font-size: 17px;
+  font-weight: 600;
+  // Solo `opacity` cambia al ocultarse (el desplazamiento lo hace `marginTop`, que
+  // es propiedad de la ventana, no CSS). Con `all`, GTK vigila todas las animables.
+  transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 38px;
+
+  label {
+    margin-top: 0px;
+    margin-left: 0px;
+  }
+
+  image {
+    -gtk-icon-size: 18px;
+  }
+}
+
+.bar-hidden {
+  opacity: 0;
+
+  // El bar oculto SIGUE MAPEADO (baja con un `marginTop` negativo, no se desmapea),
+  // así que una `animation: … infinite` de dentro mantiene vivo su reloj de frames
+  // y repinta a la tasa del monitor —240 Hz aquí— con el bar fuera de pantalla. Es
+  // el mismo problema que OndaSpotify resuelve gateando su `add_tick_callback`
+  // con la visibilidad local, pero las animaciones CSS se saltan ese control: son del
+  // stylesheet, no de JS. Se paran aquí, que es el único sitio que las alcanza.
+  // Cubre micro en uso / captura de pantalla (`.recording`) y batería cargando o
+  // baja (`battery-seg-blink`) — las tres condiciones pueden durar horas.
+  .recording,
+  .battery-seg.charging-blink,
+  .battery-seg.low-blink {
+    animation: none;
+  }
+}
+
+.bar-visible {
+  opacity: 1;
+}
+
+// ── Spotify — centro de la barra ─────────────────────────────────────────────
+.bar-spotify {
+  min-height: 34px;
+  padding: 0 7px 0 0;
+  border-radius: 8px;
+  background: transparent;
+  color: $text;
+  transition: background-color 180ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.035);
+  }
+}
+
+.bar-spotify-art {
+  min-width: 40px;
+  min-height: 30px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.bar-spotify-placeholder {
+  min-width: 40px;
+  min-height: 30px;
+  font-family: $font-icon;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.bar-spotify-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.bar-spotify-artist {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.Bar>centerbox {
+  padding: 0 15px;
+  margin-left: 9px;
+  margin-right: 10px;
+}
+
+// ── Reloj ─────────────────────────────────────────────────────────────────────
+.clock {
+  margin: 4px 4px;
+  background-color: rgba(255, 255, 255, 0.03);
+  font-size: 16px;
+  color: acento();
+  font-family: $font-icon;
+  font-weight: 700;
+  padding: 0 8px;
+  border-radius: 6px;
+  min-height: 30px;
+
+  &:hover {
+    background-color: $bg-pill-hover;
+  }
+}
+
+
+.icon-bare {
+  color: $text-dim;
+  padding: 0 5px;
+
+  &:hover {
+    color: $text;
+  }
+}
+
+.own-functions {
+  & label {
+    font-family: $font-icon;
+    font-size: 17px;
+    color: acento-azul();
+    border: none;
+    padding: 0;
+    margin: 0 0 0 -2px;
+  }
+}
+
+.Workspaces {
+  .ws-btn {
+    padding: 4px 7px;
+    border-radius: 8px;
+    margin: 4px 2px;
+    min-height: 22px;
+    background-color: rgba(255, 255, 255, 0.03);
+    transition: background 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 180ms ease;
+    color: rgba($text, 0.4);
+    font-family: $font-icon;
+
+    &.focused {
+      background: linear-gradient(135deg, acento-azul(), acento());
+      color: #11111b;
+      box-shadow: 0 1px 4px acento-azul(0.3);
+    }
+
+    &.ws-hold-ready {
+      box-shadow: 0 0 0 1.5px acento(0.45);
+      transform: scale(1.04);
+    }
+
+    &.ws-renumber-pending {
+      box-shadow: 0 0 0 1.5px rgba(250, 179, 135, 0.7);
+      transform: scale(1.04);
+    }
+
+    &.ws-dragging {
+      opacity: 0.82;
+      // Transform transition intentionally omitted: the CSS provider sets
+      // transform: translateX every mouse-move, so a transition here would
+      // cause the button to lag behind the cursor instead of following it.
+      transition: background 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                  box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                  color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 180ms ease;
+    }
+
+    button {
+      all: unset;
+      padding: 0 5px;
+      min-height: 18px;
+      font-family: $font-icon;
+    }
+
+    .ws-num-btn,
+    .ws-icon-btn,
+    .ws-icon-wrap {
+      min-height: 18px;
+    }
+
+    .ws-primer-icono {
+      margin-left: -3px;
+    }
+
+    .ws-image-btn {
+      min-width: 24px;
+      padding: 0;
+    }
+
+    .ws-glyph-btn,
+    .ws-glyph-wrap {
+      min-width: 16px;
+      padding: 0 1px;
+    }
+
+    .ws-image-wrap {
+      min-width: 20px;
+    }
+
+    .ws-icon-separator {
+      min-width: 1px;
+      min-height: 5px;
+      margin: 6px 1px;
+      background-color: currentColor;
+      opacity: 0.35;
+    }
+
+    .ws-id {
+      font-size: 12px;
+      font-weight: 700;
+      margin: 1px 0 0 -3px;
+      min-height: 16px;
+      transition: transform 180ms ease;
+    }
+
+    .ws-num-btn.sin-apps .ws-id {
+      // El glifo queda visualmente a la izquierda dentro de la pastilla vacía.
+      transform: translateX(1.5px);
+    }
+
+    .ws-icons {
+      font-size: 13px;
+      margin-top: 1px;
+      min-height: 16px;
+    }
+
+    .ws-glyph-icon {
+      font-size: 16px;
+      min-width: 0;
+      min-height: 18px;
+      margin-left: 1px;
+      margin-top: 0;
+    }
+
+    .ws-app-icon {
+      margin: 0;
+      min-height: 20px;
+    }
+
+    .ws-icon-wrap.active-client {
+      .ws-icons {
+        color: $white;
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+      }
+
+      .ws-app-icon {
+        // Un halo de 6px emborronaba los bordes de un icono de solo 16px.
+        // Esta sombra corta mantiene el contraste sin perder definición.
+        -gtk-icon-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+      }
+    }
+  }
+}
+
+// Vista previa de workspace: superficie propia para que nunca se solape con el bar.
+window.ws-preview-window,
+window.ws-preview-window.background {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+@keyframes ws-preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ws-preview-bg {
+  background: #0e0e1a;
+  border: 1px solid acento-azul(0.22);
+  padding: 0;
+  border-radius: 0;
+  transform-origin: top center;
+  animation: ws-preview-in 140ms ease-out;
+
+  picture {
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+  }
+}
+
+.ws-preview-empty {
+  color: rgba($text, 0.35);
+  font-size: 10px;
+}
+
+// Ghost lives in the Overlay (outside .Workspaces), so selector must be top-level
+.ws-ghost {
+  background: acento(0.18);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+/* Games tray — purple container to the right of the workspaces. Muestra un icono
+   POR JUEGO: el icono real de la app (entrada .desktop / tema / steam_icon_<appid>),
+   con el glifo de mando solo como último recurso. Se oculta entera (via `visible`)
+   cuando no hay ningún juego. */
+.game-tray {
+  background: linear-gradient(135deg, acento(0.22), acento-azul(0.18));
+  border: 1px solid acento(0.40);
+  border-radius: 8px;
+  padding: 2px 8px;
+  margin: 4px 2px;
+  min-height: 26px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+
+  .game-tray-icon {
+    @extend %chrome-reset;
+    min-width: 24px;
+    min-height: 24px;
+    padding: 0 2px;
+    border-radius: 8px;
+    transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Icono real de la app: se deja a su color, solo se le da un poco de sombra. */
+    image.game-tray-img {
+      -gtk-icon-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+      transform: translateX(-2px);
+    }
+
+    /* Último recurso: la app no tiene icono resoluble. */
+    label.game-tray-glyph {
+      font-family: $font-icon;
+      font-size: 16px;
+      color: acento();
+      text-shadow: 0 0 6px acento(0.5);
+      transform: translateX(-2px);
+    }
+
+    &:hover {
+      background: acento(0.25);
+      transform: scale(1.08);
+    }
+  }
+}
+
+.battery {
+  font-family: $font-icon;
+  margin: 0;
+  padding: 0 4px;
+  min-width: 24px;
+
+  .battery-body {
+    min-width: 19px;
+    min-height: 10px;
+    padding: 2px 2px;
+    border: 1px solid rgba(205, 214, 244, 0.65);
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .battery-seg {
+    min-width: 3px;
+    min-height: 8px;
+    border-radius: 1px;
+    background-color: rgba(205, 214, 244, 0.16);
+
+    &.filled {
+      background-color: acento();
+    }
+
+    &.charging-blink {
+      background-color: acento-turquesa();
+      animation: battery-seg-blink 900ms ease-in-out infinite;
+    }
+
+    &.low-blink {
+      background-color: rgb(245, 50, 105);
+      animation: battery-seg-blink 1400ms ease-in-out infinite;
+    }
+
+    &.warn {
+      background-color: $orange;
+    }
+  }
+
+  .battery-cap {
+    min-width: 2px;
+    min-height: 5px;
+    margin-left: -3px;
+    margin-right: 1px;
+    background-color: rgba(205, 214, 244, 0.65);
+    border-radius: 0 2px 2px 0;
+  }
+
+  .battery-body.charging {
+    border-color: acento-turquesa(0.75);
+
+    .battery-seg.filled {
+      background-color: acento-turquesa();
+    }
+  }
+
+  .battery-body.low {
+    border-color: rgb(245, 50, 105);
+
+    .battery-seg.filled {
+      background-color: rgb(245, 50, 105);
+    }
+  }
+
+  &:hover .battery-cap {
+    background-color: rgba(205, 214, 244, 0.85);
+  }
+}
+
+@keyframes battery-seg-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.cpuram {
+  label {
+    color: $text;
+    font-family: $font-icon;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .icon {
+    color: acento-turquesa();
+    font-family: $font-icon;
+    font-size: 15px;
+    margin: 0 1px;
+  }
+
+  .icon-sep {
+    margin-left: 5px;
+  }
+}
+
+// ── Popover CPU/RAM (procesos top) ─────────────────────────────────────────
+popover.cpuram-popover {
+  > contents {
+    padding: 0;
+    @extend %chrome-reset;
+  }
+
+  > arrow {
+    background: #0e0e1a;
+    border: none;
+  }
+}
+
+// Entrada rápida y "líquida": fade + scale con leve rebote elástico.
+@keyframes pop-liquid-in {
+  from {
+    opacity: 0;
+    transform: translateY(-7px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cpuram-popup {
+  background: #0e0e1a;
+  border: 1px solid acento-azul(0.18);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 170px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.cpuram-popup-header {
+  font-family: $font-icon;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: rgba($text, 0.56);
+  margin-bottom: 6px;
+}
+
+.cpuram-popup-row {
+  padding: 2px 0;
+}
+
+.cpuram-popup-ic {
+  font-family: $font-icon;
+  font-size: 14px;
+  min-width: 18px;
+
+  &.cpu { color: acento-turquesa(); }
+  &.ram { color: acento-azul(); }
+}
+
+.cpuram-popup-val {
+  font-family: $font-icon;
+  font-size: 12px;
+  font-weight: 500;
+  color: #cdd6f4;
+}
+
+// ── Menú de funciones (panel propio del logo Arch) ─────────────────────────
+.fn-menu-window {
+  background: transparent;
+}
+
+// Mismo lenguaje visual que los menús del tray. El fondo SIGUE la selección de
+// "Color de fondo global" por `--bg-shell` (igual que la barra); sin nada que la
+// defina —tema "negro"— cae en $bg-bar.
+.fn-menu {
+  background: var(--bg-shell, #{$bg-bar});
+  border: 1px solid $borde-menu;
+  border-radius: 4px;
+  padding: 4px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  transform-origin: top center;
+  animation: pop-liquid-in 220ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.fn-menu-button {
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+
+  // Mismo realce que los iconos de Quick Settings (`.qs-icon-btn:hover`): un
+  // blanco al 7% que, sobre el fondo del menú —ya OPACO ($bg-menu / --bg-shell)—,
+  // compone un color sólido y además sigue el tema como el resto del shell.
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.13);
+  }
+
+  &.active {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.fn-menu-row {
+  padding: 3px 5px;
+  min-height: 22px;
+}
+
+.fn-menu-label {
+  font-family: 'Inter', sans-serif, $font-icon;
+  font-size: 11px;
+  font-weight: 500;
+  color: #e2e2e2;
+}
+
+.fn-menu-state {
+  min-width: 16px;
+  padding: 0;
+  background: transparent;
+
+  label {
+    font-family: $font-icon;
+    font-size: 7px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.38);
+  }
+}
+
+.fn-menu-button.active .fn-menu-state {
+  background: transparent;
+
+  label {
+    color: rgba(255, 255, 255, 0.7);
+  }
+}
+
+// ── Desplegable de una función (hoy: Wake up) ──────────────────────────────
+// Sangrado y filete a la izquierda para que se lea como "opciones DE la fila de
+// arriba" y no como dos funciones más del menú.
+.fn-menu-expand {
+  margin: 1px 5px 3px 9px;
+  padding-left: 7px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.fn-menu-subrow {
+  padding: 1px 0;
+  min-height: 18px;
+}
+
+.fn-menu-sublabel {
+  font-family: 'Inter', sans-serif, $font-icon;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba($text, 0.62);
+}
+
+.fn-menu-subbutton {
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  box-shadow: none;
+  margin: 0;
+  padding: 0 2px;
+  outline: none;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+// El chip de una subopción se colorea por su propia clase .on: el de las filas
+// normales cuelga de `.fn-menu-button.active`, y aquí el botón padre no es el que
+// está encendido.
+.fn-menu-state.on label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+// Campo de minutos. Vacío = sin límite, y el placeholder (∞) lo dice.
+//
+// Va con el prefijo `entry.` y matando outline/box-shadow a mano por el mismo
+// motivo que .qs-inline-number-input: sin el elemento, el selector pierde en
+// especificidad contra las reglas `entry` del tema GTK y este pinta su propio
+// marco — un aro blanco y grueso que no pega con el menú. `border: none` a secas
+// tampoco basta: el aro es `outline`, no `border`.
+entry.fn-menu-minutes {
+  font-family: $font-icon;
+  font-size: 10px;
+  color: #e2e2e2;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  outline: none;
+  box-shadow: none;
+  border-radius: 3px;
+  padding: 0 4px;
+  margin: 0;
+  min-width: 0;
+  min-height: 16px;
+  caret-color: rgba(255, 255, 255, 0.8);
+
+  &:focus, &:focus-visible {
+    outline: none;
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  // GTK4 pinta el placeholder en un nodo `text > placeholder`.
+  > text > placeholder {
+    color: rgba($text, 0.3);
+  }
+
+  selection {
+    background: rgba(255, 255, 255, 0.22);
+    color: #e2e2e2;
+  }
+}
+
+// ── Tray: botón de icono + menú propio tipo funciones ──────────────────────
+.Bar .tray-item {
+  border-radius: 7px;
+  padding: 0;
+  margin: 4px 0;
+  min-height: 30px;
+
+  // Menú nativo de GTK: el Gtk.MenuButton envuelve el icono en un <button>
+  // interno con estilo de tema; lo aplanamos para que solo se vea el icono.
+  > button {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    outline: none;
+    border-radius: 7px;
+    min-height: 30px;
+    padding: 0 4px;
+    transition: background-color 140ms ease;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.07);
+    }
+
+    &:active,
+    &:checked {
+      background-color: rgba(255, 255, 255, 0.07);
+    }
+  }
+}
+
+// ── Menú del tray: Gtk.PopoverMenu nativo, estilado como los .fn-menu ─────────
+popover.tray-popover {
+  // Nodo popover externo: quitar todo el marco/sombra/padding del tema.
+  // Solo debe verse el contenedor > contents estilado abajo.
+  @extend %chrome-reset;
+  padding: 0;
+  margin: 0;
+
+  > arrow {
+    @extend %chrome-reset;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  // Contenedor del menú: mismo lenguaje visual que el tooltip nuevo — gris plano
+  // neutro, filo de 1px blanco tenue y radio corto, en vez del marco azulado.
+  // Sombra un punto más marcada que la del tooltip: el menú flota sobre ventanas,
+  // no sobre la barra, y necesita algo más de separación.
+  > contents {
+    // SIN `min-width`: forzarlo (antes 190px) dejaba el contenedor más ancho que
+    // la caja interna de acciones, que se ajusta a su contenido — de ahí los
+    // botones "estrechos" con aire a los lados. Sin suelo, `contents` envuelve
+    // exactamente las filas y el realce llega de borde a borde. El ancho lo pone
+    // la opción más larga; para menús muy escuetos hay un mínimo pequeño abajo.
+    padding: 4px;
+    // El fondo sigue "Color de fondo global" por `--bg-shell`, igual que la barra
+    // (fallback $bg-bar = tema "negro").
+    background: var(--bg-shell, #{$bg-bar});
+    border: 1px solid $borde-menu;
+    border-radius: 4px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform-origin: top center;
+    animation: pop-liquid-in 200ms cubic-bezier(0.22, 1.2, 0.36, 1);
+  }
+
+  // GTK4 pinta las acciones de Gtk.PopoverMenu como button.model. Conservamos
+  // modelbutton como fallback para versiones/temas que aún expongan ese nodo.
+  button.model,
+  modelbutton {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 3px;
+    padding: 3px 6px;
+    // Mínimo modesto: solo para que un menú de una palabra ("Salir") no salga
+    // diminuto. No es lo que fija el ancho del menú — eso lo hace su opción más
+    // larga —, así que subirlo ensancharía todos los menús otra vez.
+    min-width: 120px;
+    min-height: 22px;
+    margin: 0;
+    // Mismo texto que el tooltip: Inter primero (el glifo del principio de cada
+    // acción cae al nerd font por fallback), peso 500, gris claro neutro.
+    color: #e2e2e2;
+    font-family: 'Inter', sans-serif, $font-icon;
+    font-size: 11px;
+    font-weight: 500;
+    transition: background-color 120ms ease;
+
+    // Mismo realce que los iconos de Quick Settings (`.qs-icon-btn:hover`): un
+    // blanco al 7% sobre el fondo del menú, que ya es OPACO ($bg-menu /
+    // --bg-shell), así que compone un color sólido y sigue el tema.
+    &:hover,
+    &:focus {
+      background: rgba(255, 255, 255, 0.07);
+      color: $white;
+    }
+
+    &:active {
+      background: rgba(255, 255, 255, 0.13);
+    }
+
+    &:disabled {
+      color: rgba(226, 226, 226, 0.35);
+    }
+
+    // marcas de check/radio y flecha de submenú
+    check,
+    radio,
+    arrow {
+      color: rgba(255, 255, 255, 0.55);
+      min-width: 14px;
+      min-height: 14px;
+    }
+  }
+
+  // Encabezados de sección que algunas apps usan para repetir su propio nombre.
+  label.title {
+    font-size: 0;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+  }
+
+  // Separadores entre secciones
+  separator {
+    margin: 3px 2px;
+    min-height: 1px;
+    background: $borde-menu;
+  }
+}
+
+// ── Overflow del tray: botón flecha + popover en rejilla (estilo Windows) ─────
+.tray-overflow {
+  min-width: 20px;
+
+  .tray-overflow-chevron {
+    font-family: $font-icon;
+    color: acento-azul();
+    font-size: 14px;
+    margin: 2px 3px -2px;
+    transform: rotate(90deg);
+  }
+}
+
+// Popover del overflow: reusa el marco de .tray-popover pero como rejilla de
+// iconos en vez de lista, así que se ajusta al contenido sin ancho mínimo.
+popover.tray-overflow-popover > contents {
+  min-width: unset;
+  padding: 5px;
+}
+
+@keyframes tray-overflow-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+}
+
+popover.tray-overflow-popover.closing > contents {
+  animation: tray-overflow-out 160ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.tray-overflow-grid {
+  // Los .tray-item hijos ya traen su propio hover/estilo; aquí solo el hueco.
+  > box {
+    margin: 0;
+  }
+}
+
+.bar-pill {
+  font-size: 16px;
+  color: $text;
+  border-radius: 7px;
+  margin: 4px 2px;
+  padding: 0 5px;
+  min-height: 30px;
+  background-color: rgba(255, 255, 255, 0.024);
+  border: 1px solid rgba(255, 255, 255, 0.018);
+  transition: background-color 140ms ease, border-color 140ms ease;
+
+  & button,
+  & box:not(.battery):not(.battery-body):not(.battery-cap):not(.battery-seg):not(.network-bars):not(.network-bar) {
+    margin: 0;
+    background-color: transparent;
+    padding: 0 3px;
+    min-width: 16px;
+    border-radius: 0px;
+    border: none;
+  }
+
+  .recording {
+    margin: 0;
+  }
+}
+
+// ── Hitbox vertical uniforme en la pastilla del sistema ──────────────────────
+// El tooltip nativo de GTK ancla al borde inferior de los bounds REALES del
+// widget (ver el nodo `tooltip`). Todos estos indicadores van en un
+// `<box valign=CENTER>` salvo el volumen, que es un `<button>` y por defecto
+// llena el alto: así el `<button>` anclaba ~6px más abajo que el resto y su
+// título quedaba bien debajo de la barra mientras el de los demás la pisaba.
+// Estirándolos al alto de la pastilla (30px) todos anclan a la misma altura.
+// Solo cambia la hitbox: el icono sigue centrado por su cuenta, los huecos son
+// transparentes y las cajas internas (barras de red, cuerpo de batería) llevan
+// su propio `valign` centrado, así que no se descuelgan.
+.qs-system-pill {
+  .wakeup-indicator,
+  .bluetooth-ind,
+  .mic-indicator,
+  .recording,
+  .gestos-indicador,
+  .network,
+  .volume,
+  .battery {
+    min-height: 30px;
+  }
+}
+
+.bar-end-box {
+  margin-left: 20px;
+}
+
+// Cadena de indicadores de estado (actualizaciones, captura de pantalla,
+// notificaciones) + la pastilla de quick settings al final. Los eslabones se TOCAN:
+// el hueco entre dos pastillas lo cierra la junta del de la izquierda, que se solapa
+// con las esquinas redondeadas del de la derecha (ver `.cadena-junta`). Con márgenes
+// de por medio el realce encadenado se vería como una fila de islas.
+.bar-status-pair {
+  .bar-pill {
+    margin-left: 0;
+    margin-right: 0;
+    border: none;
+    box-shadow: none;
+    // El lado que da al eslabón siguiente lo cierra su junta, no una esquina propia.
+    border-radius: 7px 0 0 7px;
+  }
+
+  // Quick settings cierra la cadena: conserva sus cuatro esquinas y el margen
+  // derecho que la separa del resto de la barra.
+  .bar-pill.qs-system-pill {
+    border-radius: 7px;
+    margin-right: 2px;
+  }
+}
+
+.bar-pill.cpuram {
+  border: none;
+  box-shadow: none;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.07);
+  }
+}
+
+.bar-pill.own-functions {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  min-width: 30px;
+  padding: 0;
+}
+
+.bar-pill.clock-pill {
+  border: none;
+  box-shadow: none;
+  margin-left: 8px;
+  padding: 0 8px;
+  min-width: 44px;
+
+  label {
+    margin: 0;
+    margin-top: 2px;
+  }
+}
+
+// El reloj enseñando el cronómetro en vez de la hora. Sin una marca, la pastilla pasa a dar un
+// número que no es la hora sin nada que lo explique — que es lo que hacía irreconocible a la
+// versión original del clic derecho.
+// Aviso de alarma próxima, dentro de la pastilla y antes de la hora. Blanco mientras solo es un
+// recordatorio (hereda el `$text` del reloj) y NARANJA cuando la más próxima entra en los últimos
+// 15 minutos. El salto de color es el aviso: el icono lleva en pantalla desde una hora antes, así
+// que aparecer no avisa de nada — solo cambiar.
+.bar-pill.clock-pill label.clock-alarma {
+  font-size: 14px;
+  // Se mete 3 px en el padding izquierdo de la pastilla en vez de empujar la hora con un
+  // `margin-right`: así se abre hueco entre el icono y la hora sin desplazar a la derecha todo lo
+  // que viene detrás, que movería la hora de sitio cada vez que aparece o desaparece una alarma.
+  margin-left: -3px;
+
+  &.alarma-inminente {
+    color: $orange;
+  }
+}
+
+// El temporizador va en AZUL y el cronómetro en violeta. El color no es adorno: los dos sustituyen
+// la hora por un número que no es la hora, y cuando salen LOS DOS a la vez —`05:00 │ 01:23`— es lo
+// único que dice cuál es cuál, porque una cuenta atrás y una que sube de valor parecido son
+// indistinguibles de un vistazo, que es como se mira la barra.
+//
+// El color va POR ETIQUETA y no por la pastilla entera (como estaba, con `.clock-crono` sobre el
+// contenedor tiñendo todos sus `label`): con dos cifras dentro, teñir el contenedor las pinta a las
+// dos del mismo color, que es justo lo que hay que evitar.
+.bar-pill.clock-pill label.clock-temporizador {
+  color: $blue;
+}
+
+.bar-pill.clock-pill label.clock-crono {
+  color: $violet;
+}
+
+// El separador no es de ninguno de los dos: apagado, para que las cifras manden.
+.bar-pill.clock-pill label.clock-sep {
+  color: rgba($text, 0.3);
+  font-weight: 400;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.recording {
+  color: $red;
+  padding: 0 5px;
+  margin: 4px 0;
+  animation: pulse 1s infinite;
+}
+
+// Wake up activo: el PC no se va a suspender. Estático y en teal — no comparte el
+// `.recording` pulsante de captura/micro a propósito: eso significa "algo te está
+// grabando ahora mismo" y merece llamar la atención; esto es un estado de fondo que
+// solo tiene que ser visible, no urgente. Vive dentro de `.qs-system-pill`, así que sigue
+// la misma métrica que `.bluetooth-ind` / `.mic-indicator` (padding lateral 4 px, icono de
+// 16 px y sin margen vertical propio): la pastilla ya centra a sus hijos, y el `margin: 4px 0`
+// que tenía cuando iba suelto lo dejaba descuadrado respecto al resto de iconos.
+.wakeup-indicator {
+  padding: 0 4px;
+
+  .wakeup-icon {
+    font-family: $font-icon;
+    font-size: 16px;
+    color: acento-teal();
+  }
+}
+
+// Micro en uso pero silenciado: se sigue mostrando, pero sin el rojo
+// pulsante (que implica "captando"). Gris atenuado y estático.
+.mic-indicator.muted {
+  color: $text-dim;
+  animation: none;
+}
+
+.mic-indicator .icon {
+  font-family: $font-icon;
+  font-size: 16px;
+}
+
+.network {
+  color: acento-turquesa();
+  font-family: $font-icon;
+  font-size: 16px;
+
+  .network-bars {
+    min-width: 17px;
+    min-height: 14px;
+  }
+
+  .network-bar {
+    min-width: 3px;
+    border-radius: 1px;
+    background-color: rgba($text, 0.18);
+
+    &.active {
+      background-color: acento-turquesa();
+    }
+
+    &.bar-1 { min-height: 4px; }
+    &.bar-2 { min-height: 7px; }
+    &.bar-3 { min-height: 10px; }
+    &.bar-4 { min-height: 13px; }
+  }
+
+  .network-bars.offline .network-bar {
+    background-color: rgba($text, 0.18);
+  }
+
+  // Portal cautivo: asociado al AP pero requiere iniciar sesión.
+  &.portal .network-bar.active {
+    background-color: $orange;
+  }
+  // Asociado pero sin internet real (LIMITED/NONE).
+  &.limited .network-bar.active {
+    background-color: #f9e2af;
+  }
+
+  // Glyph de ethernet (reemplaza las barras cuando el medio activo es cable).
+  .network-wired-glyph {
+    font-size: 15px;
+  }
+
+  .network-status-glyph {
+    font-size: 11px;
+    margin-left: 2px;
+  }
+  &.portal .network-status-glyph  { color: $orange; }
+  &.limited .network-status-glyph { color: #f9e2af; }
+}
+
+.volume {
+  color: $text;
+  font-family: $font-icon;
+  font-size: 17px;
+
+  &.muted {
+    color: $text-dim;
+  }
+
+  &.bt-muted {
+    color: rgba($text, 0.45);
+  }
+
+  // Sin ningún sink disponible: el rojo lo diferencia de un mute voluntario.
+  &.no-output {
+    color: $red;
+  }
+
+  &.icon-muted {
+    color: rgba($text, 0.45);
+  }
+}
+
+.bluetooth {
+  color: acento-azul();
+  margin: 4px 0;
+}
+
+.bluetooth-ind {
+  padding: 0 4px;
+
+  .bluetooth-icon {
+    font-family: $font-icon;
+    font-size: 16px;
+    color: #6c7086;              // gris: activo pero sin dispositivo conectado
+  }
+
+  &.connected .bluetooth-icon {
+    color: acento();              // morado: hay un dispositivo conectado
+  }
+}
+
+.bt-power {
+  padding: 0;
+  margin: 0;
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: 4px;
+  border: none;
+  font-family: $font-icon;
+  font-size: 17px;
+  color: rgb(245, 50, 105);
+
+  label {
+    margin-right: 1px;
+  }
+
+  &:hover {
+    background: linear-gradient(135deg, acento-azul(), acento());
+    color: #1a1a1a;
+  }
+}
+
+// ── Power Menu (Design as per reference image) ───────────────────────────────
+.power-window {
+  background: transparent;
+}
+
+.power-menu-overlay {
+  background-color: rgba(20, 20, 20, 0.3);
+  backdrop-filter: blur(14px);
+}
+
+.power-menu-strip {
+  background: rgb(30, 30, 46);
+  border-radius: 16px;
+  padding: 0;
+  border: none;
+  min-height: 148px;
+  box-shadow: none;
+}
+
+.power-button {
+  all: unset;
+  padding: 34px 30px;
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  color: rgba($text, 0.4);
+  min-width: 128px;
+  min-height: 148px;
+  border-radius: 10px;
+  border: none;
+  background: rgb(30, 30, 46);
+  box-shadow: none;
+  margin: 0 2px;
+
+  .power-button-content {
+    min-height: 148px;
+  }
+
+  .power-icon-frame {
+    margin: 0;
+  }
+
+  .power-icon {
+    font-family: $font-icon, monospace;
+    font-size: 44px;
+    min-width: 56px;
+    min-height: 56px;
+    color: $white;
+    transition:
+      transform 120ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 120ms ease-out;
+    opacity: 0.62;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.32);
+    margin: 0;
+  }
+
+  .power-label {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 12px 0 0 0;
+    opacity: 0.62; // Visible by default
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.32);
+    transition: opacity 120ms ease-out;
+  }
+
+  &:hover {
+    background: linear-gradient(135deg, acento-azul(), acento());
+    color: $white;
+    // El hueco existente entre hermanos es de 4 px; limitar la escala evita que
+    // el siguiente botón tape el borde ampliado al pintarse encima en GTK.
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: none;
+
+    .power-icon {
+      opacity: 1;
+      transform: translateY(-1px) scale(1.16);
+      margin: 0;
+    }
+
+    .power-label {
+      opacity: 1;
+    }
+  }
+
+  &:active {
+    transform: translateY(1px) scale(1.02);
+    box-shadow: none;
+  }
+}
+
+.power-button:first-child,
+.power-button.lock {
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
+}
+
+.power-button:last-child,
+.power-button.reboot {
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
+}

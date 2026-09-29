@@ -1,0 +1,152 @@
+@use 'sass:color';
+@use 'colores' as *;
+@use 'base' as *;
+
+// ── OSD (On Screen Display) ──────────────────────────────────────────────────
+$osd-bg-opaco: rgb(8, 8, 12);
+// Las tarjetas OSD solo miden unos 40 px de alto. Con el 94 % usado por los
+// paneles grandes, el compositor sí aplicaba blur, pero el 6 % visible no daba
+// superficie suficiente para percibirlo. Los controles internos siguen usando
+// la base opaca de arriba para que la mayor transparencia no reste legibilidad.
+$osd-bg: lamina("--lamina-osd", rgba(8, 8, 12, 0.82));
+
+@keyframes osd-enter {
+  from { opacity: 0; transform: translateY(-5px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+window.osd-window,
+window.osd-window.background,
+window.osd-window.csd {
+  background: none;
+  background-color: transparent;
+}
+
+window.osd-window decoration,
+window.osd-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+}
+
+window.osd-window > box {
+  background: none;
+  background-color: transparent;
+}
+
+window.lagarto-window,
+window.lagarto-window.background,
+window.lagarto-window.csd {
+  background: none;
+  background-color: transparent;
+}
+
+window.lagarto-window decoration,
+window.lagarto-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+}
+
+window.lagarto-window > box {
+  background: none;
+  background-color: transparent;
+}
+
+.osd-container {
+  min-width: 210px;
+  min-height: 30px;
+  padding: 4px 10px;
+  background-color: $osd-bg;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 9px;
+  box-shadow: none;
+  animation: osd-enter 180ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  &.osd-volume {
+    border-color: acento-azul(0.28);
+  }
+
+  &.osd-brightness {
+    border-color: rgba($orange, 0.30);
+
+    .osd-icon {
+      color: $orange;
+    }
+
+    progressbar.osd-progress progress {
+      background: linear-gradient(90deg, $orange, $pink);
+      box-shadow: none;
+    }
+  }
+
+  &.osd-muted {
+    border-color: rgba($red, 0.30);
+
+    .osd-icon {
+      color: $pink;
+    }
+
+    .osd-percentage { color: color.mix($pink, $osd-bg-opaco, 86%); }
+
+    progressbar.osd-progress progress {
+      background: $red;
+      box-shadow: none;
+    }
+  }
+
+  &.osd-microphone.osd-active {
+    border-color: acento(0.30);
+
+    .osd-icon {
+      color: acento();
+    }
+
+    progressbar.osd-progress progress {
+      background: linear-gradient(90deg, acento(), acento-azul());
+      box-shadow: none;
+    }
+  }
+}
+
+.osd-icon {
+  min-width: 20px;
+  font-family: $font-icon;
+  font-size: 15px;
+  color: acento-azul();
+}
+
+.osd-progress-container {
+  min-width: 100px;
+}
+
+progressbar.osd-progress {
+  min-height: 5px;
+
+  trough {
+    min-height: 5px;
+    border-radius: $radius-pill;
+    background-color: color.mix(white, $osd-bg-opaco, 9%);
+  }
+
+  progress {
+    min-height: 5px;
+    border-radius: $radius-pill;
+    background: linear-gradient(90deg, acento-azul(), acento());
+    box-shadow: none;
+  }
+}
+
+.osd-percentage {
+  min-width: 38px;
+  font-family: $font-icon;
+  font-size: 11px;
+  font-weight: 700;
+  color: $text;
+}

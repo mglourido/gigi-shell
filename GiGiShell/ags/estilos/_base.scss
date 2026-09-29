@@ -1,0 +1,63 @@
+// Quita el fondo/borde/sombra por defecto del tema GTK de un nodo (botón,
+// popover, scrollbar...) para que solo se vea lo que defina la regla concreta.
+%chrome-reset {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+// ── Suelo de tamaño de los `slider` ───────────────────────────────────────────
+// El mínimo que GTK calcula para un nodo es `max(contenido, min-width/height) + borde +
+// relleno + MARGEN`, y los temas centran el tirador sobre su carril con MÁRGENES
+// NEGATIVOS: el Default de GTK usa `-1px` en el de las barras de desplazamiento y `-9px`
+// en el de los deslizadores; Graphite —el tema de esta máquina— `-8px`, y `-7px` mientras
+// se arrastra despacio (GTK añade la clase `fine-tune` sola). Nuestros `slider` van con el
+// mínimo y el borde a CERO (se ocultan o se pintan a mano), así que en cuanto gana un
+// margen negativo del tema el mínimo sale NEGATIVO y GTK avisa en cada medición:
+// «GtkGizmo (slider) reported min width -2, but sizes must be >= 0». No es cosmético: el
+// nodo que mide en negativo se coloca mal y el arrastre da tirones.
+//
+// `scale.qs-slider slider` ya fija `margin: 0`, pero empata en especificidad con el
+// `scale.fine-tune slider` del tema y el desempate lo decide el orden de los proveedores
+// —o sea, algo que no controlamos desde aquí—. Estas reglas ganan por especificidad, que
+// es lo único que no depende de en qué orden se cargue el CSS.
+scale.qs-slider.fine-tune slider,
+scale.qs-slider.fine-tune > trough > slider,
+scrollbar > range > trough > slider,
+scrollbar > range.fine-tune > trough > slider {
+  margin: 0;
+}
+
+// GTK dibuja un degradado/sombra al alcanzar cada extremo de un
+// GtkScrolledWindow. Se desactiva en los tres paneles principales, incluidos
+// sus scrolls anidados; la rueda y el touchpad siguen funcionando igual.
+window.qs-window scrolledwindow > undershoot,
+window.qs-window scrolledwindow > overshoot,
+window.cal-window scrolledwindow > undershoot,
+window.cal-window scrolledwindow > overshoot,
+.Orion scrolledwindow > undershoot,
+.Orion scrolledwindow > overshoot,
+.sp-window scrolledwindow > undershoot,
+.sp-window scrolledwindow > overshoot {
+  background: none;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  opacity: 0;
+}
+
+// Patrón "icono + texto" de los paneles con lista vacía (notificaciones,
+// reglas, agenda...): mismo layout, cada uno con su propio tamaño/color.
+@mixin empty-icon($size, $color: null, $font: null) {
+  @if $font { font-family: $font; }
+  font-size: $size;
+  @if $color { color: $color; }
+  margin: 0;
+}
+
+@mixin empty-text($size, $color, $weight: null) {
+  font-size: $size;
+  @if $weight { font-weight: $weight; }
+  color: $color;
+  margin: 0;
+}

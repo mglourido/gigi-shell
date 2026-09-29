@@ -5,9 +5,9 @@
 // fichero. Se consume desde `style.scss` con `@use`, que lo emite una sola vez.
 @use 'colores' as *;
 
-// ⚠️ Esto es un MÓDULO aparte (`@use 'camara-qs'` en la primera línea de
-// `style.scss`), así que aquí NO existen `$qs-bg-opaco`, `$qs-text`,
-// `$qs-accent` ni `fondo-qs-opaco()`: se declaran dentro de `style.scss` y un
+// ⚠️ Esto es un MÓDULO aparte (`@use 'camara-qs'` en `style.scss`), así que
+// aquí NO existen `$qs-bg-opaco`, `$qs-text`, `$qs-accent` ni `fondo-qs-opaco()`:
+// se declaran dentro de `_ajustes-rapidos.scss` y un
 // módulo de Sass no ve las variables de quien lo usa. Lo único compartido es
 // `_colores.scss`. Los tonos de abajo se escriben, por eso, con la paleta y con
 // las funciones de acento, no con aquellas variables.

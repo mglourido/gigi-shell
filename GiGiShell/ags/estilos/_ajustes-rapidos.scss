@@ -1,0 +1,1920 @@
+@use 'sass:color';
+@use 'colores' as *;
+@use 'base' as *;
+
+// Realce compartido por la cadena de indicadores y el hover normal de una pastilla.
+$cadena-realce: rgba(255, 255, 255, 0.07);
+$cadena-realce-activo: rgba(255, 255, 255, 0.055);
+
+// ── bar-pill-btn (wrapper del bar-pill clickeable) ────────────────────────────
+.Bar .bar-pill-btn {
+  @extend %chrome-reset;
+  padding: 0;
+  margin: 0;
+  outline: none;
+
+  &:hover .bar-pill {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.075);
+  }
+
+  &:active .bar-pill {
+    background-color: rgba(255, 255, 255, 0.055);
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+// ── Quick Settings Panel ──────────────────────────────────────────────────────
+$qs-bg-opaco: rgb(8, 8, 12);
+
+// Conserva el aspecto que tenía cada tinte sobre el antiguo fondo sólido, pero
+// devuelve un color RGB final. Así los controles tapan el blur de la lámina.
+@function fondo-qs-opaco($tinte) {
+  $tinte-opaco: color.change($tinte, $alpha: 1);
+  @return color.mix(
+    $tinte-opaco,
+    $qs-bg-opaco,
+    $weight: color.alpha($tinte) * 100%,
+  );
+}
+
+$qs-bg: lamina("--lamina-qs", rgba(8, 8, 12, 0.94));
+$qs-accent: acento-cian();
+$qs-accent2: #7000ff;
+$qs-text: $white;
+$qs-text-dim: rgba(255, 255, 255, 0.5);
+$qs-tile-act: acento-cian-sobre($qs-bg-opaco, 0.1);
+$qs-tile-brd: acento-cian(0.3);
+
+window.qs-window,
+window.qs-window.background,
+window.qs-window.csd {
+  background: none;
+  background-color: transparent;
+}
+
+window.qs-window decoration,
+window.qs-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+}
+
+window.qs-window > box,
+.qs-wrapper {
+  background: none;
+  background-color: transparent;
+}
+
+.qs-bar-connector {
+  background-color: transparent;
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, $qs-bg 18.5px);
+  min-width: 18px;
+  min-height: 18px;
+  transform: translateX(1px);
+}
+
+.qs-panel {
+  background-color: $qs-bg;
+  border: none;
+  border-top-right-radius: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding: 10px;
+  box-shadow: none;
+  min-width: 330px;
+  color: $qs-text;
+  font-family: $font-icon, sans-serif;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.qs-wrapper.qs-entering {
+  animation:
+    qs-panel-slide-in 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    qs-panel-fade-in 45ms linear;
+}
+
+.qs-wrapper.qs-preparing {
+  opacity: 0;
+  transform: translateY(-220px);
+}
+
+@keyframes qs-panel-slide-in {
+  from { transform: translateY(-220px); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes qs-panel-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.qs-header {
+  padding-bottom: 4px;
+}
+
+.qs-header-actions {
+  margin-left: 8px;
+}
+
+.qs-clock {
+  font-size: 22px;
+  font-weight: 700;
+  color: $qs-text;
+  font-family: $font-icon;
+  margin: 0;
+}
+
+.qs-date {
+  font-size: 11px;
+  font-weight: 400;
+  color: $qs-text-dim;
+  margin: 0;
+}
+
+// ── Tiles 2×2 ─────────────────────────────────────────────────────────────────
+.qs-tile {
+  background: $qs-bg-opaco;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 4px 6px;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+  color: $qs-text;
+  margin: 1px;
+
+  &:hover {
+    background-color: fondo-qs-opaco(rgba(255, 255, 255, 0.035));
+    border-color: rgba(255, 255, 255, 0.045);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.008);
+  }
+
+  &.active {
+    background: acento-cian-sobre($qs-bg-opaco, 0.12);
+    border-color: acento-cian(0.45);
+    box-shadow: inset 0 1px 0 acento-cian(0.12), 0 0 12px acento-cian(0.08);
+
+    .qs-tile-label { color: $white; }
+
+    .qs-tile-icon {
+      color: $qs-accent;
+      text-shadow: 0 0 8px acento-cian(0.5);
+    }
+
+    &:hover {
+      background-color: acento-cian-sobre($qs-bg-opaco, 0.16);
+      border-color: acento-cian(0.58);
+      box-shadow: inset 0 1px 0 acento-cian(0.16), 0 0 14px acento-cian(0.11);
+    }
+  }
+
+  .qs-tile-icon {
+    font-family: $font-icon;
+    font-size: 16px;
+    margin: 0 2px 0 0;
+    min-width: 20px;
+  }
+
+  .qs-tile-net-icon {
+    min-width: 20px;
+  }
+
+  .qs-tile-wifi-signal {
+    min-width: 17px;
+    min-height: 14px;
+  }
+
+  .qs-wifi-signal-bar {
+    min-width: 3px;
+    border-radius: 1px;
+    background-color: rgba($text, 0.18);
+
+    &.active {
+      background-color: rgba(255, 255, 255, 0.82);
+    }
+
+    &.bar-1 { min-height: 4px; }
+    &.bar-2 { min-height: 7px; }
+    &.bar-3 { min-height: 10px; }
+    &.bar-4 { min-height: 13px; }
+  }
+
+  &.active .qs-wifi-signal-bar.active {
+    background-color: $qs-accent;
+  }
+
+  .qs-tile-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: $qs-text;
+    margin: 0;
+  }
+
+  .qs-tile-sub {
+    font-size: 9px;
+    color: $qs-text-dim;
+    margin: 1px 0 0;
+  }
+
+  &:not(.active) .qs-tile-icon {
+    color: rgba(255, 255, 255, 0.28);
+    text-shadow: none;
+  }
+}
+
+// ── Media Player ──────────────────────────────────────────────────────────────
+.qs-media {
+  // background-color (NO el shorthand `background`): el shorthand incluye
+  // `background-image: none` y pisaba la carátula que se pone inline con css=.
+  background-color: acento-azul-sobre($qs-bg-opaco, 0.04);
+  border: none;
+  border-radius: 20px;
+  // padding 0: la carátula (Gtk.Picture de fondo) va a sangre; el padding real lo
+  // pone el contenido interno. overflow hidden en el box recorta la imagen al radio.
+  padding: 0;
+  margin-top: 10px;
+  // A la par que `CARD_H` en QuickSettings.tsx, ver el comentario de allí.
+  min-height: 108px;
+
+  .qs-media-art {
+    font-family: $font-icon;
+    font-size: 24px;
+    min-width: 40px;
+    min-height: 40px;
+    color: acento-azul();
+    margin: 0;
+  }
+
+  .qs-media-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: $white;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
+    margin: 0;
+  }
+
+  .qs-media-artist {
+    font-size: 9px;
+    color: $white;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
+    margin: -1px 0 0;
+  }
+
+  .qs-media-btn {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    outline: none;
+    color: $white;
+    font-family: $font-icon;
+    font-size: 16px;
+    padding: 0 1px;
+    // 3 px abajo para despegarlos de la barra de progreso. El margen inferior negativo
+    // compensa al superior: la tarjeta va a `min-height: 108px` justos y crecer aquí
+    // la desbordaría.
+    margin-top: 3px;
+    margin-bottom: -3px;
+    border-radius: 7px;
+    transition: opacity 200ms ease, background-color 200ms ease;
+    transform: none;
+    opacity: 0.8;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
+
+    &:hover {
+      opacity: 1;
+      background-color: rgba(255, 255, 255, 0.12);
+      box-shadow: none;
+      outline: none;
+      transform: none;
+    }
+
+    &:active {
+      background-color: rgba(255, 255, 255, 0.18);
+      box-shadow: none;
+      outline: none;
+    }
+
+    &:focus,
+    &:focus-visible,
+    &:checked {
+      background-image: none;
+      box-shadow: none;
+      outline: none;
+    }
+
+    &:focus:not(:hover):not(:active),
+    &:checked:not(:hover):not(:active) {
+      background-color: transparent;
+    }
+
+    label {
+      margin: 0;
+    }
+  }
+
+  // El corazón de "Me gusta" hereda TODO el diseño de `.qs-media-btn` (tamaño, color,
+  // hover, focus): esta clase solo lo recoloca en horizontal — verticalmente ya
+  // queda centrado como el resto con el 3/-3 heredado de `.qs-media-btn`, el
+  // desplazamiento de -5/+5 que llevaba antes lo bajaba 2px de más (medido con un
+  // A/B de píxeles: con 5/-5 el glifo quedaba con el centro 3px por debajo del de
+  // prev/play/next; con el 3/-3 heredado coincide exacto). Izquierda/derecha se
+  // anulan por pares para no mover al vecino. Tiene que ir aquí y no en un `css=`
+  // inline: el proveedor inline de AGS usa una sola clase y pierde por
+  // especificidad contra `.qs-media .qs-media-btn`.
+  .qs-media-like {
+    margin-left: -1px;
+    margin-right: 1px;
+  }
+
+  .qs-media-time {
+    font-size: 8px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.72);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.9);
+    margin-top: -3px;
+  }
+
+  // Título + artista van en una caja con `valign: center` dentro del hueco que deja
+  // `vexpand`, así que un margen inferior los sube LA MITAD de su valor: estos 10 px
+  // son los 5 que se apartan de las ondas. Subirlos con un margen negativo en el
+  // título no serviría — encoge la caja y el centrado devuelve el bloque a su sitio.
+  .qs-media-meta {
+    margin-bottom: 10px;
+  }
+
+  // Barra, ondas, botones y tiempos bajan juntos: son un solo bloque y lo que se
+  // busca es aire entre ellos y el texto, no separarlos entre sí.
+  .qs-media-footer {
+    margin-top: 3px;
+  }
+
+  // El DrawingArea del progreso pinta la barra (4 px, abajo) MÁS las dos ondas que
+  // salen de ella hacia arriba, así que pide 20 px de alto. El margen superior
+  // negativo devuelve 16 de esos px al layout: la tarjeta mide 94 px justos y
+  // crecer aquí la desbordaría. Las ondas quedan por encima del hueco que ya hay
+  // entre el artista y la barra; el `overflow: hidden` de `.qs-media` recorta si
+  // algún día se pasan. Mismo truco (y mismo salto del clamp ≥0 de la propiedad
+  // margin de GtkWidget) que `.qs-media-bleed`, ver QuickSettings.tsx.
+  .qs-media-progress-ondas {
+    margin-top: -16px;
+    // El lienzo pide 5 px de más por abajo para la mitad inferior del tirador de
+    // arrastre (`PROGRESO_HOLGURA` en QuickSettings.tsx); se devuelven aquí para que
+    // el pie de la tarjeta no se desplace, igual que el margen negativo de arriba.
+    margin-bottom: -5px;
+  }
+
+  progressbar.qs-media-progress {
+    min-height: 5px;
+    margin: 0 4px;
+
+    trough {
+      min-height: 5px;
+      border-radius: $radius-pill;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+    }
+
+    progress {
+      min-height: 5px;
+      border-radius: $radius-pill;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
+    }
+  }
+
+  .qs-media-source {
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $white;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
+    margin-bottom: 4px;
+  }
+
+  .qs-media-app-icon {
+    color: $white;
+    -gtk-icon-size: 14px;
+    -gtk-icon-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
+  }
+
+  .qs-media-app-glyph {
+    min-width: 14px;
+    color: $white;
+    font-family: $font-icon;
+    font-size: 14px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
+  }
+
+  // Ver comentario en QuickSettings.tsx: sobresale a propósito por debajo del
+  // fondo real (colorFilter/coverScrim) para que dos redondeos de altura
+  // independientes a escala fraccional no dejen una fila sin cubrir;
+  // `.qs-media` recorta el sobrante con overflow: hidden.
+  .qs-media-bleed {
+    margin-bottom: -1px;
+  }
+
+  .qs-media-content {
+    background-color: transparent;
+    padding: 5px 14px 5px;
+    transition: opacity 110ms ease-out, transform 110ms ease-out;
+
+    &.switch-out-next {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+
+    &.switch-out-prev {
+      opacity: 0;
+      transform: translateX(10px);
+    }
+
+    &.switch-enter-next {
+      opacity: 0;
+      transform: translateX(10px);
+      transition: none;
+    }
+
+    &.switch-enter-prev {
+      opacity: 0;
+      transform: translateX(-10px);
+      transition: none;
+    }
+  }
+
+  .qs-media-switcher-row {
+    margin-bottom: 2px;
+  }
+
+  .qs-media-switch {
+    background: transparent;
+    border: none;
+    color: $white;
+    font-family: $font-icon;
+    font-size: 12px;
+    min-width: 17px;
+    padding: 0 3px;
+    border-radius: 4px;
+    transition: all 200ms ease;
+    text-shadow: none;
+    box-shadow: none;
+
+    &:hover {
+      color: $white;
+      background: acento-azul(0.1);
+    }
+  }
+
+  .qs-media-count {
+    font-size: 9px;
+    font-weight: 700;
+    color: $white;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.65);
+    min-width: 24px;
+  }
+}
+
+// ── Section containers (Volume / Brightness) ──────────────────────────────────
+
+.qs-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-size: 13px;
+  margin-top: 10px;
+  padding: 0 4px;
+
+  button.qs-icon-btn {
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    min-width: 22px;
+    min-height: 22px;
+
+    &.active {
+      background: $qs-tile-act;
+      border-color: $qs-tile-brd;
+      label { color: $qs-accent; }
+    }
+  }
+
+  &.qs-display-panel {
+    padding: 10px;
+    margin-top: 4px;
+  }
+}
+
+.qs-night-light-block {
+  padding-top: 5px;
+}
+
+button.qs-inline-value-btn {
+  @extend %chrome-reset;
+  background: $qs-bg-opaco;
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+
+  &:focus, &:focus-visible {
+    outline: none;
+    box-shadow: none;
+    border: none;
+  }
+}
+
+entry.qs-inline-number-input {
+  background: $qs-bg-opaco;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  border-radius: 3px;
+  color: $qs-text;
+  font-size: 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 2px;
+
+  &.compact {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  &:focus, &:focus-visible {
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+.qs-section-icon {
+  font-family: $font-icon;
+  font-size: 12px;
+  color: $qs-accent;
+  margin: 0;
+
+  &.bright {
+    color: acento-azul();
+  }
+
+  &.night {
+    color: acento();
+  }
+
+  &.muted {
+    color: $qs-text-dim;
+    opacity: 0.5;
+  }
+}
+
+.qs-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: $qs-text;
+  margin: 0;
+}
+
+.qs-section-pct {
+  font-size: 10px;
+  color: $qs-text-dim;
+  margin: 0;
+
+  &.is-silent {
+    opacity: 0.5;
+  }
+}
+
+.qs-stream-icon {
+  font-size: 1em;
+  min-width: 18px;
+}
+
+// Juego sin icono instalado: el mismo glifo que la pastilla de juegos de la barra, en el
+// hueco de la imagen. Ver `servicios/multimedia/presentacionApps.ts`.
+.qs-stream-glifo {
+  color: $violet;
+}
+
+.qs-audio-silent-icon {
+  opacity: 0.3;
+  font-size: 0.75em;
+}
+
+.qs-dropdown-header {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.22);
+  font-weight: 700;
+  margin: 4px 0 2px;
+}
+
+button.qs-dropdown-header {
+  background: $qs-bg-opaco;
+  border: none;
+  padding: 0;
+}
+
+// ── Display management ────────────────────────────────────────────────────────
+.qs-display-monitor-tabs {
+  margin-bottom: 0;
+}
+
+.qs-display-detected-title {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.qs-display-menu .qs-display-panel {
+  margin-top: 0;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+button.qs-display-monitor-pill {
+  @extend %chrome-reset;
+  background: fondo-qs-opaco(rgba(255, 255, 255, 0.05));
+  border: 1px solid transparent;
+  border-radius: 8px;
+  min-height: 0;
+  padding: 3px 10px;
+  color: $qs-text-dim;
+  font-size: 12px;
+  transition: all 120ms ease;
+
+  &:hover { background: fondo-qs-opaco(rgba(255, 255, 255, 0.08)); }
+
+  &.active {
+    background: acento-sobre($qs-bg-opaco, 0.18);
+    border-color: acento(0.4);
+    color: acento();
+  }
+
+  .qs-display-monitor-dot {
+    font-size: 7px;
+    color: $qs-accent;
+  }
+}
+
+// Select integrado — la lista es un overlay del mismo árbol GTK, no un popup.
+.qs-display-select-wrap {
+  margin: 1px 0 2px;
+
+  &.compact {
+    margin: 1px 0 2px;
+    padding: 0;
+    min-height: 0;
+  }
+}
+
+.qs-display-compact-field {
+  margin: 0;
+  padding: 0;
+
+  .qs-dropdown-header {
+    margin: 1px 0 0;
+    padding: 0;
+    min-height: 0;
+  }
+}
+
+button.qs-display-select {
+  @extend %chrome-reset;
+  background-color: rgb(30, 30, 40);
+  border: 1px solid rgb(30, 30, 40);
+  border-radius: 8px;
+  padding: 6px 10px;
+  opacity: 1;
+  transition: all 120ms ease;
+
+  &.compact {
+    min-height: 0;
+    padding: 2px 10px;
+  }
+
+  &:hover { background-color: rgb(39, 39, 50); }
+
+  &.open {
+    background-color: rgb(39, 39, 50);
+    border-color: rgb(104, 87, 126);
+  }
+
+  .qs-display-select-value {
+    color: #dfe1f0;
+    font-size: 12px;
+  }
+
+  .qs-display-select-chevron {
+    color: rgb(150, 150, 165);
+    font-size: 11px;
+  }
+}
+
+scrolledwindow.qs-display-select-list {
+  background-color: rgb(20, 20, 28);
+  border: 1px solid rgb(45, 45, 55);
+  border-radius: 8px;
+  box-shadow: none;
+  opacity: 1;
+
+  > viewport {
+    background-color: rgb(20, 20, 28);
+    border-radius: 7px;
+    opacity: 1;
+  }
+
+  scrollbar.vertical {
+    min-width: 0;
+    background: transparent;
+    opacity: 0;
+
+    slider {
+      min-width: 0;
+      background: transparent;
+      opacity: 0;
+    }
+  }
+}
+
+// La talla BASE es la de Ajustes y la variante `.compact` la de Quick Settings —
+// al revés de como estaba, cuando el único tamaño era el compacto y un select
+// grande abría una lista con letra de 11 px e interlineado de 2 px. Las dos clases
+// las pone `DisplaySelect` según su prop `compact`.
+.qs-display-select-options {
+  padding: 4px;
+  background-color: rgb(20, 20, 28);
+  border-radius: 7px;
+  opacity: 1;
+
+  &.compact { padding: 3px; }
+}
+
+button.qs-display-select-opt {
+  @extend %chrome-reset;
+  background-color: rgb(20, 20, 28);
+  opacity: 1;
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: rgb(190, 190, 205);
+  font-size: 12px;
+  transition: all 100ms ease;
+
+  &.compact {
+    padding: 2px 8px;
+    color: rgb(150, 150, 165);
+    font-size: 11px;
+  }
+
+  &:hover { background-color: rgb(34, 34, 43); }
+
+  &.active {
+    background-color: rgb(53, 47, 68);
+    color: acento();
+  }
+}
+
+// Stepper de minutos (sección Pantalla de Ajustes)
+button.sp-step-btn {
+  @extend %chrome-reset;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 7px;
+  padding: 2px 10px;
+  color: #dfe1f0;
+  font-size: 15px;
+  transition: all 120ms ease;
+
+  &:hover { background: rgba(255, 255, 255, 0.10); }
+}
+
+.sp-step-val {
+  color: #dfe1f0;
+  font-size: 12px;
+  min-width: 56px;
+
+  // Ocupa el hueco del stepper cuando la fila está apagada ("Nunca"), atenuado
+  // para que se lea como ausencia de tiempo y no como un valor más.
+  &.off {
+    color: rgba(223, 225, 240, 0.45);
+    font-style: italic;
+  }
+}
+
+// Input numérico escrito a mano (reglas de luz nocturna)
+entry.sp-num-input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 7px;
+  padding: 4px 6px;
+  min-height: 0;
+  color: #dfe1f0;
+  font-size: 13px;
+  caret-color: acento();
+
+  &:focus-within {
+    border-color: acento(0.5);
+    background: rgba(255, 255, 255, 0.09);
+  }
+}
+
+// Franjas horarias (lista): una tarjeta por franja, con sus canales (luz nocturna, brillo)
+.sp-rule-row { padding: 2px 0; }
+
+.sp-rule-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 6px 8px;
+
+  // La franja que rige ahora mismo: sin esto, "por qué está encendida" no se ve en ningún sitio
+  &.active {
+    background: acento(0.07);
+    border-color: acento(0.35);
+  }
+}
+
+.sp-rule-active-chip {
+  background: acento(0.18);
+  border-radius: 6px;
+  padding: 1px 7px;
+  margin-left: 4px;
+  color: acento();
+  font-size: 10px;
+}
+
+.sp-schedule-now {
+  color: acento();
+  font-size: 11px;
+  font-family: $font-icon;
+}
+
+.sp-rule-chan {
+  color: $qs-text-dim;
+  font-size: 12px;
+  min-width: 92px;
+
+  &.narrow { min-width: 0; }
+}
+
+.sp-rule-select { min-width: 130px; }
+
+button.sp-rule-del {
+  @extend %chrome-reset;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 7px;
+  padding: 4px 8px;
+  color: $qs-text-dim;
+  transition: all 120ms ease;
+
+  &:hover { background: rgba(243, 139, 168, 0.18); color: #f38ba8; }
+}
+
+button.sp-add-rule {
+  @extend %chrome-reset;
+  background: acento(0.12);
+  border: 1px solid acento(0.30);
+  border-radius: 8px;
+  padding: 5px 12px;
+  color: acento();
+  font-size: 12px;
+  transition: all 120ms ease;
+
+  &:hover { background: acento(0.20); }
+}
+
+// Estos controles también se reutilizan en la vista de pantalla de Quick
+// Settings. Solo allí se solidifican; la ventana general conserva su estilo.
+.qs-panel {
+  button.sp-step-btn {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
+
+    &:hover { background: fondo-qs-opaco(rgba(255, 255, 255, 0.10)); }
+  }
+
+  entry.sp-num-input {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
+
+    &:focus-within {
+      background: fondo-qs-opaco(rgba(255, 255, 255, 0.09));
+    }
+  }
+
+  .sp-rule-card {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.03));
+
+    &.active { background: acento-sobre($qs-bg-opaco, 0.07); }
+  }
+
+  .sp-rule-active-chip {
+    background: acento-sobre($qs-bg-opaco, 0.18);
+  }
+
+  button.sp-rule-del {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.05));
+
+    &:hover { background: fondo-qs-opaco(rgba(243, 139, 168, 0.18)); }
+  }
+
+  button.sp-add-rule {
+    background: acento-sobre($qs-bg-opaco, 0.12);
+
+    &:hover { background: acento-sobre($qs-bg-opaco, 0.20); }
+  }
+}
+
+// Lista editable de clases de ventana (componentes/ListaClasesVentana): la del No
+// molestar automático y la de la pausa de la luz nocturna al jugar. El nombre `adnd-`
+// se conserva porque `AjusteDuracionPopups` reutiliza el de la etiqueta.
+.sp-clases { margin-top: 2px; }
+.adnd-app-name,
+.sp-clase-nombre {
+  font-size: 12px;
+  color: $text;
+  font-family: $font-icon;
+}
+entry.sp-clase-entrada {
+  font-size: 12px;
+  font-family: $font-icon;
+}
+
+// ── Sliders ───────────────────────────────────────────────────────────────────
+scale.qs-slider {
+  min-height: 0;
+  margin: -6px 0 4px 0;
+
+  trough {
+    min-height: 4px;
+    border-radius: $radius-pill;
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
+  }
+
+  progress {
+    min-height: 4px;
+    border-radius: $radius-pill;
+    background: $qs-accent;
+    box-shadow: 0 0 10px acento-cian(0.3);
+  }
+
+  slider {
+    min-width: 0;
+    min-height: 0;
+    opacity: 0;
+    @extend %chrome-reset;
+    margin: 0;
+    padding: 0;
+    -gtk-icon-size: 0;
+  }
+
+  &.mic {
+    progress {
+      background: rgba(139, 120, 255, 0.5);
+    }
+  }
+
+  &.app {
+    progress {
+      background: rgba(139, 120, 255, 0.5);
+    }
+  }
+
+  &.media {
+    progress {
+      background: acento-azul(0.6);
+    }
+  }
+
+  &.brightness {
+    progress {
+      background: acento-azul(0.75);
+      box-shadow: 0 0 10px acento-azul(0.25);
+    }
+
+    slider {
+      background: acento-azul();
+      margin: 0;
+      padding: 0;
+    }
+  }
+
+  // ── La marca del 100 % ─────────────────────────────────────────────────────
+  // Los cuatro deslizadores de volumen llegan al 200 %, así que el 100 % cae en
+  // la MITAD EXACTA del recorrido. Es la contraparte visible del imán de
+  // `servicios/multimedia/volumenAmplificado.ts`: sin una raya ahí, el punto al
+  // que el deslizador se pega no se ve por ninguna parte y parece un tirón raro.
+  // Va en `background-image` para no pisar el `background` del trough (que
+  // resuelve opacidad contra el fondo del panel), y con paradas duras en
+  // porcentaje —nada de `calc()`— porque el CSS de GTK no es el del navegador.
+  &.speaker, &.mic, &.app, &.media {
+    trough {
+      background-image: linear-gradient(
+        to right,
+        transparent 0%, transparent 49.6%,
+        rgba(255, 255, 255, 0.30) 49.6%, rgba(255, 255, 255, 0.30) 50.4%,
+        transparent 50.4%, transparent 100%
+      );
+    }
+
+    // Por encima del 100 % es amplificación por software: puede saturar y
+    // multiplica el ruido de fondo. El naranja es el único aviso de que estás
+    // ahí — el número solo lo ves si miras la cifra.
+    &.amplificado progress {
+      background: $orange;
+      box-shadow: 0 0 10px rgba(250, 179, 135, 0.35);
+    }
+  }
+
+  &.temperature {
+    trough {
+      background: linear-gradient(to right, acento-azul(0.45), acento(0.55));
+    }
+
+    progress {
+      background: transparent;
+    }
+
+    slider {
+      background: acento();
+      margin: 0;
+      padding: 0;
+    }
+  }
+}
+
+// ── Interruptor compartido ─────────────────────────────────────────────────────
+button.qs-toggle {
+  @extend %chrome-reset;
+  background: $qs-bg-opaco;
+  padding: 0;
+  min-width: 28px;
+  min-height: 16px;
+  border-radius: 4px;
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.05));
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  .qs-toggle-track {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    min-width: 26px;
+    min-height: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    transition: background-color 160ms ease, border-color 160ms ease;
+  }
+
+  .qs-toggle-dot {
+    background: rgba(255, 255, 255, 0.55);
+    border-radius: 2px;
+    min-width: 8px;
+    min-height: 8px;
+    margin: 2px 3px;
+    transition: margin-left 160ms ease, background-color 160ms ease;
+
+    &.on {
+      background: $white;
+      margin-left: 15px;
+    }
+  }
+
+  &.on .qs-toggle-track {
+    background: acento-cian(0.42);
+    border-color: acento-cian(0.9);
+  }
+
+  &:disabled {
+    // El estado deshabilitado sigue sin responder, pero no vuelve translúcido
+    // todo el widget ni deja reaparecer el blur a través de él.
+    opacity: 1;
+  }
+}
+
+// ── Footer ────────────────────────────────────────────────────────────────────
+.qs-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+
+.qs-user-block {
+  margin: 0;
+  padding: 0;
+}
+
+// Iniciales de respaldo cuando no hay foto de perfil (ver AvatarPerfil.tsx).
+// `min-width`/`min-height` de GTK CSS son del CONTENIDO: el borde se SUMA. Con 30
+// aquí el label medía 32 dentro del hueco de 30 que le pide el widget, así que las
+// iniciales quedaban descentradas respecto al círculo. 28 + 1 px de borde por lado
+// = los 30 que pide `ProfileAvatar size={30}`.
+.qs-avatar {
+  background: fondo-qs-opaco(rgba(139, 120, 255, 0.2));
+  border: 1px solid rgba(139, 120, 255, 0.3);
+  border-radius: 999px;
+  min-width: 28px;
+  min-height: 28px;
+  color: $qs-accent2;
+  font-size: 10px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.qs-username {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+  color: $qs-text;
+  margin: 0;
+}
+
+.qs-hostname {
+  font-size: 10px;
+  line-height: 1;
+  color: $qs-text-dim;
+  margin: 0;
+}
+
+// ── Tooltip Global ────────────────────────────────────────────────────────────
+// El "title" cuelga de la barra y usa SU mismo fondo: sigue "Color de fondo
+// global" por la variable `--bg-shell` (la publica servicios/apariencia/
+// fondoShellVar.ts). Sin nada que la defina —tema "negro"— cae en $bg-bar.
+// Lo comparten el `tooltip` nativo (Ajustes, paneles) y los títulos de la barra
+// (`popover.titulo-barra`, ver modulos/barra/componentes/tituloBarra.ts).
+%titulo-flotante {
+  background-color: var(--bg-shell, #{$bg-bar});
+  border: 1px solid $borde-menu;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  padding: 4px 8px;
+
+  label {
+    font-family: 'Inter', sans-serif, $font-icon;
+    font-size: 11px;
+    font-weight: 500;
+    color: $text;
+    margin: 0;
+    line-height: 1.2;
+  }
+}
+
+tooltip {
+  @extend %titulo-flotante;
+  // El tooltip nativo de GTK4 se ancla al BORDE INFERIOR del widget (sus bounds
+  // reales + ~4px). Un margen vertical en el propio nodo `tooltip` desplaza la
+  // caja visible respecto al ancla (GtkNative:get_surface_transform resta el
+  // margin-rect) para despegarlo del widget; el margin-bottom cubre el simétrico
+  // cuando GTK voltea el tooltip hacia arriba (FLIP_Y). En la BARRA no sirve: sus
+  // iconos miden de 14 a 30 px centrados en 38, así que cada título salía a una
+  // altura distinta — por eso ahí no hay tooltips nativos sino `titulo-barra`.
+  margin: 4px 0;
+}
+
+// Título de la barra: un popover sin flecha. Solo se ve `contents`; la sombra la
+// declara GTK como `shadow_width` y queda fuera de la geometría, así que no mueve
+// la separación con la barra.
+popover.titulo-barra {
+  @extend %chrome-reset;
+  padding: 0;
+  margin: 0;
+
+  > arrow {
+    @extend %chrome-reset;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  > contents {
+    @extend %titulo-flotante;
+    min-width: 0;
+    min-height: 0;
+  }
+}
+
+// ── Panel header icon buttons ──────────────────────────────────────────────
+.qs-icon-btn {
+  background: $qs-bg-opaco;
+  border: none;
+  border-radius: 6px;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 3px;
+  transition: all 120ms ease-out;
+
+  label {
+    font-family: $font-icon;
+    font-size: 13px;
+    color: rgba($text, 0.45);
+    margin: 0;
+  }
+
+  &:hover {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.07));
+    label { color: rgba($text, 0.9); }
+  }
+
+  &.active {
+    background: acento-sobre($qs-bg-opaco, 0.14);
+    label { color: acento(); }
+  }
+
+  &.scanning label { color: #a78bfa; }
+}
+
+button.qs-user-settings-btn {
+  min-width: 26px;
+  min-height: 26px;
+  border: none;
+  box-shadow: none;
+  outline: none;
+
+  label {
+    font-size: 15px;
+    margin: 0 2px 0 0;
+  }
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.07);
+  }
+
+  &:hover,
+  &:focus,
+  &:active {
+    border: none;
+    box-shadow: none;
+    outline: none;
+  }
+}
+
+// ── Wi-Fi Menu ────────────────────────────────────────────────────────────────
+.qs-wifi-menu {
+  background: transparent;
+  border-radius: 12px;
+  padding: 2px;
+}
+
+.qs-wifi-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding-bottom: 3px;
+  min-height: 22px;
+
+  button.qs-icon-btn {
+    min-width: 20px;
+    min-height: 20px;
+    padding: 1px;
+    border-radius: 5px;
+
+    label {
+      font-size: 13px;
+    }
+  }
+
+  .qs-section-label {
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .qs-wifi-search {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.012));
+    border: 1px solid rgba(255, 255, 255, 0.025);
+    border-radius: 7px;
+    padding: 0 9px;
+    min-height: 24px;
+    transition: border-color 120ms ease, background 120ms ease;
+
+    &:hover {
+      background: fondo-qs-opaco(rgba(255, 255, 255, 0.022));
+    }
+
+    &:focus-within {
+      background: fondo-qs-opaco(rgba(255, 255, 255, 0.03));
+      border-color: acento(0.11);
+    }
+
+    .qs-wifi-search-entry {
+      background: none;
+      border: none;
+      box-shadow: none;
+      outline: none;
+      padding: 0;
+      min-height: 22px;
+      caret-color: acento-azul();
+      font-size: 11px;
+      color: rgba($text, 0.78);
+
+      selection {
+        background: rgba(255, 255, 255, 0.16);
+      }
+    }
+
+  }
+}
+
+.qs-wifi-list-scroll {
+  min-height: 180px;
+
+  scrollbar,
+  scrollbar slider,
+  scrollbar button {
+    opacity: 0;
+    @extend %chrome-reset;
+    outline: none;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    -gtk-icon-size: 0;
+  }
+}
+
+.qs-wifi-item {
+  background: $qs-bg-opaco;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 10px;
+  transition: all 100ms ease;
+
+  &:hover:not(.active) {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.06));
+  }
+
+  &.active {
+    background: acento-cian-sobre($qs-bg-opaco, 0.12);
+    border-color: acento-cian(0.35);
+
+    .qs-wifi-signal-bar.active {
+      background-color: acento-cian();
+    }
+  }
+
+  &.portal {
+    background: fondo-qs-opaco(rgba(255, 123, 0, 0.15));
+    border-color: rgba(255, 123, 0, 0.4);
+    box-shadow: 0 0 15px rgba(255, 123, 0, 0.1);
+
+    .qs-wifi-signal-bar.active {
+      background-color: $orange;
+    }
+
+    .qs-wifi-name {
+      color: #ffca99;
+    }
+
+    .qs-wifi-sec {
+      color: #ffca99;
+      font-weight: 700;
+    }
+  }
+
+  &.known {
+    background: fondo-qs-opaco(rgba(245, 50, 105, 0.03));
+    border-color: rgba(245, 50, 105, 0.1);
+
+    .qs-wifi-signal-bar.active {
+      background-color: rgba(245, 50, 105, 0.62);
+    }
+
+    .qs-wifi-name {
+      color: rgba(255, 255, 255, 0.85);
+    }
+  }
+
+  .qs-wifi-icon {
+    min-width: 17px;
+    min-height: 14px;
+  }
+
+  .qs-wifi-signal-bar {
+    min-width: 3px;
+    border-radius: 1px;
+    background-color: rgba($text, 0.18);
+
+    &.active {
+      background-color: rgba(255, 255, 255, 0.82);
+    }
+
+    &.bar-1 { min-height: 4px; }
+    &.bar-2 { min-height: 7px; }
+    &.bar-3 { min-height: 10px; }
+    &.bar-4 { min-height: 13px; }
+  }
+
+  .qs-wifi-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(230, 225, 255, 0.92);
+    margin: 0;
+  }
+
+  .qs-wifi-sec {
+    font-size: 9px;
+    color: rgba(200, 190, 255, 0.55);
+    margin: 0;
+  }
+
+  .qs-wifi-lock,
+  .qs-wifi-portal-icon {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: $font-icon;
+  }
+
+
+
+  .qs-wifi-portal-icon {
+    color: #ff7b00;
+    font-size: 14px;
+  }
+
+  &.qs-audio-app-item {
+    padding: 4px 6px;
+  }
+
+  &.password-prompt {
+    padding: 10px;
+  }
+}
+
+.qs-wifi-password-label {
+  font-size: 0.9em;
+
+  &.error {
+    color: #ff6b6b;
+  }
+}
+
+.qs-wifi-info-section {
+  background: fondo-qs-opaco(rgba(20, 20, 30, 0.45));
+  margin: 0 10px 10px 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+
+  .qs-wifi-info-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: rgba(180, 170, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .qs-wifi-info-value {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(230, 225, 255, 0.95);
+  }
+
+  .qs-wifi-info-sep {
+    color: rgba(255, 255, 255, 0.1);
+    font-size: 10px;
+    margin: 0 4px;
+  }
+}
+
+.qs-tile-arrow {
+  color: acento(0.5);
+  font-family: $font-icon;
+  font-size: 14px;
+  min-width: 22px;
+  padding: 0;
+  margin: 0;
+}
+
+.qs-tile.active .qs-tile-arrow {
+  color: acento-cian(0.62);
+}
+
+// ── Bluetooth Menu ────────────────────────────────────────────────────────────
+.qs-bluetooth-menu {
+  background: transparent;
+  border-radius: 12px;
+  padding: 2px;
+}
+
+.qs-bt-unnamed-label {
+  font-size: 0.8em;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.qs-bt-unnamed-chevron {
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.qs-bt-empty-label {
+  opacity: 0.5;
+  margin-top: 20px;
+}
+
+.qs-bt-unsupported {
+  min-height: 180px;
+  padding: 18px;
+
+  .qs-bt-unsupported-icon {
+    font-family: $font-icon;
+    font-size: 28px;
+    color: rgba($text, 0.38);
+  }
+
+  .qs-bt-unsupported-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba($text, 0.82);
+  }
+
+  .qs-bt-unsupported-description {
+    font-size: 12px;
+    color: rgba($text, 0.5);
+  }
+}
+
+// ── Audio: cajón de dispositivos apartados ────────────────────────────────────
+// Deliberadamente más apagado que una tarjeta: es un cajón de descarte, no una
+// sección más. Sin fondo propio en la cabecera para que no compita con las
+// tarjetas de arriba, que son lo que se viene a usar.
+.qs-audio-ocultos-cab {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 2px 2px;
+  margin-top: 2px;
+  border-radius: 6px;
+
+  &:hover { background: rgba(255, 255, 255, 0.04); }
+
+  .qs-audio-ocultos-flecha {
+    font-family: $font-icon;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.3);
+    margin: 0;
+  }
+}
+
+.qs-audio-oculto {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 4px 7px;
+  transition: background 150ms ease;
+
+  &:hover { background: rgba(255, 255, 255, 0.05); }
+
+  .qs-audio-name { font-size: 10px; color: rgba(255, 255, 255, 0.45); margin: 0; }
+  .qs-audio-sub { font-size: 8px; color: rgba(255, 255, 255, 0.22); margin: 0; }
+
+  .qs-audio-icon {
+    font-family: $font-icon;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    min-width: 14px;
+    margin: 0;
+  }
+
+  .qs-audio-card-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+      .qs-audio-icon { color: rgba(255, 255, 255, 0.75); }
+    }
+  }
+}
+
+// ── Audio/Mic Items ───────────────────────────────────────────────────────────
+.qs-audio-item {
+  background: fondo-qs-opaco(rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  margin-bottom: 3px;
+  padding: 5px 7px;
+  transition: background 150ms ease, border-color 150ms ease;
+
+  &:hover:not(.active) {
+    background: fondo-qs-opaco(rgba(255, 255, 255, 0.07));
+  }
+
+  &.active {
+    background: fondo-qs-opaco(rgba(89, 180, 250, 0.13));
+    border-color: rgba(89, 180, 250, 0.38);
+
+    .qs-audio-name {
+      color: acento-azul();
+      font-weight: 700;
+    }
+
+    .qs-audio-sub { color: acento-azul(0.55); }
+
+    .qs-audio-icon { color: acento-azul(); }
+
+    scale.qs-slider progress { background: acento-azul(); }
+  }
+
+  .qs-audio-icon {
+    font-family: $font-icon;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.35);
+    min-width: 14px;
+    margin: 0;
+  }
+
+  .qs-audio-name {
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.75);
+    margin: 0;
+  }
+
+  // Segunda línea: el perfil ("Estéreo analógico", "Estéreo digital (HDMI)").
+  // Va apagada para que el nombre del aparato siga siendo lo que se lee primero.
+  .qs-audio-sub {
+    font-size: 8px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.35);
+    margin: 0;
+  }
+
+  .qs-audio-vol-pct {
+    font-size: 9px;
+    font-family: $font-icon;
+    color: rgba(255, 255, 255, 0.28);
+    min-width: 22px;
+    margin: 0;
+  }
+
+  .qs-audio-card-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 4px;
+
+    &:hover { background: rgba(255, 255, 255, 0.05); }
+  }
+
+  scale.qs-slider {
+    margin: 0;
+
+    // `background-color`, no `background`: el shorthand pisa el
+    // `background-image` de la marca del 100 % que pone la regla general
+    // (`&.speaker, &.mic, &.app, &.media`), y con la misma especificidad
+    // gana esta por ir después en el fichero — apagaba la marca en el
+    // micrófono y los dispositivos sin dar ningún error.
+    trough {
+      min-height: 3px;
+      background-color: rgba(255, 255, 255, 0.07);
+    }
+
+    progress { min-height: 3px; }
+  }
+}
+
+// ── Notification Button ───────────────────────────────────────────────────────
+.bar-pill.nb-pill {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 0;
+  min-width: 28px;
+  transition: background-color 140ms ease, color 140ms ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.07);
+  }
+
+  .nb-icon {
+    font-family: $font-icon;
+    font-size: 16px;
+    color: rgba($text, 0.48);
+    margin: 0;
+
+    &.has-notifs { color: acento(); }
+    &.dnd        { color: rgb(245, 50, 105); }
+
+    // Modo juego (Feral GameMode): gris apagado, violeta encendido — mismo
+    // contraste que .has-notifs, que es el "encendido" del resto del encabezado.
+    &.gm-icon.active { color: acento(); }
+
+    // Modo ahorro de energía: gris apagado, verde encendido.
+    &.ps-icon.active { color: #a6e3a1; }
+  }
+
+  &.panel-open {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.075);
+  }
+}
+
+.qs-header-actions .bar-pill.nb-pill .nb-icon {
+  margin-left: -1px;
+}
+
+// Cierre de la cadena contra quick settings (ver
+// `modulos/barra/componentes/cadenaEstado.tsx`). Hay UNA sola, al final: entre dos
+// eslabones no hace falta —se tocan y el de la derecha va sin esquinas mientras está
+// encendido—, y ponerla ahí solo pintaba su relleno DEBAJO de la pastilla, dos capas
+// del mismo blanco translúcido que sumaban una hebra más clara siguiendo el arco.
+//
+// Quick settings sí conserva sus cuatro esquinas, así que entre la banda y ella
+// quedaba un pellizco con el fondo de la barra a la vista. La junta mide 7 px y los
+// recupera con `margin-right: -7px`: se SOLAPA con las esquinas izquierdas de la
+// pastilla sin desplazarla ni ensanchar nada.
+//
+// El fondo no puede ser un color plano: taparía también el arco que ocupa la propia
+// pastilla y se notaría como una banda clara de 7 px dentro de ella. Se pinta con dos
+// radial-gradient de 7x7 —arriba y abajo— centrados justo en el centro de curvatura de
+// cada esquina (borde derecho de la junta, a 7 px del canto): dentro del radio
+// transparente —ahí manda quick settings, que además se dibuja encima por ser hermano
+// posterior— y fuera el mismo realce que la banda. Sale la curva hacia fuera que encaja
+// en la esquina redondeada, en vez de un pellizco.
+.cadena-junta {
+  min-width: 7px;
+  min-height: 30px;
+  margin: 4px -7px 4px 0;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-size: 7px 7px, 7px 7px;
+  background-position: left top, left bottom;
+  background-image:
+    radial-gradient(circle at 100% 100%, transparent 6.4px, transparent 7.1px),
+    radial-gradient(circle at 100% 0%, transparent 6.4px, transparent 7.1px);
+  transition: background-image 140ms ease;
+}
+
+// El arco arranca 0,6 px DENTRO del radio nominal (6,4 en vez de 7): el borde
+// redondeado del eslabón siguiente se dibuja suavizado sobre ~1 px, así que un relleno
+// que empiece justo en 7 px deja media cobertura en la costura y se ve una hebra más
+// oscura. Solaparse un poco es gratis —el eslabón se pinta encima y el color es el
+// mismo— y la costura desaparece.
+@mixin cadena-junta-relleno($color) {
+  background-image:
+    radial-gradient(circle at 100% 100%, transparent 6.4px, $color 7.1px),
+    radial-gradient(circle at 100% 0%, transparent 6.4px, $color 7.1px);
+}
+
+.cadena-junta.cadena-resaltada {
+  @include cadena-junta-relleno($cadena-realce);
+}
+
+// El realce lo pone el ESTADO de la cadena, no `:hover`: pasar el ratón por un
+// eslabón enciende también a los de su derecha, y GTK CSS no tiene forma de expresar
+// eso. Tres clases de especificidad para ganarle a los `background-color: transparent`
+// de cada pastilla (`.nb-pill`, `.upd-pill`, `.sc-pill`), que van más abajo.
+.bar-status-pair .bar-pill.cadena-resaltada {
+  background-color: $cadena-realce;
+}
+
+// Ver `cadena-continua` en cadenaEstado.tsx: el eslabón encendido que tiene otro
+// encendido a su izquierda va sin esquinas, así que la banda es un rectángulo liso
+// hasta la cabecera —que sí conserva las suyas— y no queda ninguna curva contra la
+// que la junta tenga que encajar.
+.bar-status-pair .bar-pill.cadena-continua {
+  border-radius: 0;
+}
+
+.Bar .bar-pill-btn:active .bar-pill.cadena-resaltada {
+  background-color: $cadena-realce-activo;
+}
+
+// Dentro de la cadena el realce lo pone SOLO el estado. `:hover` sigue activo en el
+// resto de la barra, pero aquí sería una segunda fuente de verdad que además no puede
+// pintar la junta (ningún selector llega desde un botón al hijo del hermano
+// anterior), así que al desincronizarse —GTK conserva el `:hover` en casos como un
+// grab o un salto del puntero— dejaba una pastilla encendida con su junta apagada.
+// `.sc-pill` no aparece porque no es un botón y nunca tuvo hover.
+.bar-status-pair {
+  .bar-pill-btn:hover .bar-pill.nb-pill:not(.cadena-resaltada),
+  .bar-pill-btn:hover .bar-pill.upd-pill:not(.cadena-resaltada),
+  .bar-pill.nb-pill:hover:not(.cadena-resaltada),
+  .bar-pill.upd-pill:hover:not(.cadena-resaltada) {
+    background-color: transparent;
+  }
+
+  // Y NINGÚN eslabón pinta borde. Cada pastilla trae el suyo de 1 px transparente y
+  // el hover (o `.panel-open`) le pone color: suelta, eso era el contorno de la
+  // pastilla; dentro de una banda continua es un RECUADRO CLARO alrededor de una sola
+  // de ellas. Se quita el borde entero, no solo su color, para que tampoco cuente en
+  // la anchura y todos los eslabones midan igual — quick settings, que cierra la
+  // cadena, tampoco tiene borde.
+  .bar-pill.nb-pill,
+  .bar-pill.upd-pill,
+  .bar-pill.sc-pill {
+    border: none;
+  }
+}
+
+// Indicador de captura de pantalla: pastilla sin fondo propio, como las otras dos de
+// la cadena. El pulso rojo vive en el icono (`.recording`), no aquí.
+.bar-pill.sc-pill {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 0 2px;
+  min-width: 26px;
+}
+
+// ── Updates Button (actualizaciones SO + drivers GPU) ─────────────────────────
+.bar-pill.upd-pill {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 0;
+  min-width: 28px;
+  transition: background-color 140ms ease, color 140ms ease;
+
+  .upd-icon {
+    font-family: $font-icon;
+    font-size: 16px;
+    color: acento-azul();
+  }
+
+  // Iconos separados: kernel (naranja) y drivers de GPU (verde).
+  &.kernel .upd-icon { color: $orange; }
+  &.gpu    .upd-icon { color: #a6e3a1; }
+  &.watched .upd-icon { color: #f9e2af; }
+}
+
+popover.upd-popover-container {
+  > contents {
+    padding: 0;
+    @extend %chrome-reset;
+  }
+
+  > arrow {
+    background: var(--bg-shell, #{$bg-bar});
+    border: 1px solid $borde-menu;
+  }
+}
+
+.upd-popover {
+  // Mismo marco y fondo que los menús flotantes del bar. El ancho mínimo solo
+  // evita que el título largo se parta en varias líneas; el contenido puede crecer.
+  background: var(--bg-shell, #{$bg-bar});
+  border: 1px solid $borde-menu;
+  border-radius: 4px;
+  padding: 6px 8px;
+  min-width: 210px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  transform-origin: top center;
+  animation: pop-liquid-in 200ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.upd-popover-header {
+  font-family: 'Inter', sans-serif, $font-icon;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba($text, 0.68);
+  margin-bottom: 3px;
+}
+
+.upd-row {
+  font-family: 'Inter', sans-serif, $font-icon;
+  font-size: 11px;
+  padding: 1px 0;
+
+  &.kernel { color: $orange; font-weight: 600; }
+  &.gpu    { color: #a6e3a1; }
+  &.watched { color: #f9e2af; font-weight: 600; }
+  &.system { color: rgba($text, 0.6); }
+}
+
+.upd-sample {
+  font-family: 'Inter', sans-serif, $font-icon;
+  font-size: 10px;
+  color: rgba($text, 0.45);
+  padding: 1px 0 3px;
+}
+
+.upd-update-btn {
+  margin-top: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #e2e2e2;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  box-shadow: none;
+  transition: background-color 120ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: $white;
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.13);
+  }
+}

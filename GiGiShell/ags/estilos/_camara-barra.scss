@@ -7,7 +7,7 @@
 
 // Indicador de "cámara en uso" (`modulos/barra/indicadores/sistema/Camara.tsx`).
 //
-// Casi todo lo hereda de `.recording`, que ya define en `style.scss` el rojo y el
+// Casi todo lo hereda de `.recording`, que ya define en `_barra.scss` el rojo y el
 // `animation: pulse 1s infinite` que comparten el micro y la captura de pantalla:
 // las tres cosas significan lo mismo —algo te está captando ahora— y deben verse
 // iguales. Duplicar aquí el color sería crear una segunda verdad sobre ese rojo,

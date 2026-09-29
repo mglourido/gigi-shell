@@ -1,0 +1,1083 @@
+@use 'sass:color';
+@use 'colores' as *;
+@use 'base' as *;
+
+// ── Calendar Panel ────────────────────────────────────────────────────────────
+
+// La misma opacidad de Notificaciones y Ajustes rápidos deja ver el desenfoque del compositor sin
+// perder contraste. Con 0.96, incluso una regla de blur correcta parecía un fondo sólido.
+$cal-bg:          lamina("--lamina-cal", rgba(8, 8, 12, 0.94));
+$cal-bg-surface:  rgba(255, 255, 255, 0.025);
+$cal-bg-surface2: rgba(255, 255, 255, 0.055);
+$cal-border:      rgba(255, 255, 255, 0.07);
+$cal-text:        $text;
+$cal-text-dim:    rgba($text, 0.56);
+$cal-text-hint:   rgba($text, 0.32);
+$cal-violet:      acento();
+$cal-accent-bg:   acento(0.13);
+$cal-danger:      $pink;
+$cal-danger-bg:   rgba($pink, 0.1);
+$cal-font:        $font-icon, monospace;
+
+window.cal-window,
+window.cal-window.background,
+window.cal-window.csd {
+  background-color: transparent;
+}
+
+window.cal-window decoration,
+window.cal-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background-color: transparent;
+  border-width: 0;
+}
+
+.cal-wrapper {
+  background-color: transparent;
+}
+
+.cal-wrapper.cal-entering {
+  animation:
+    cal-panel-slide-in 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    cal-panel-fade-in 45ms linear;
+}
+
+.cal-wrapper.cal-preparing {
+  opacity: 0;
+  transform: translateX(-220px);
+}
+
+.cal-wrapper.cal-leaving {
+  animation: cal-panel-slide-out 280ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes cal-panel-slide-in {
+  from { transform: translateX(-220px); }
+  to { transform: translateX(0); }
+}
+
+@keyframes cal-panel-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cal-panel-slide-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(-428px); }
+}
+
+.cal-bar-connector {
+  background-color: transparent;
+  background-image: radial-gradient(circle at 100% 100%, transparent 18px, $cal-bg 18.5px);
+  min-width: 18px;
+  min-height: 18px;
+  transform: translateX(-1px);
+}
+
+.cal-superficie {
+  background-color: $cal-bg;
+  border-right: 1px solid $cal-border;
+}
+
+.cal-panel {
+  background-color: $cal-bg;
+  font-family: $cal-font;
+  font-size: 12px;
+  color: $cal-text;
+  box-shadow: none;
+
+  * { color: $cal-text; }
+
+  button {
+    background-color: transparent;
+    border-width: 0;
+    box-shadow: none;
+    margin: 0;
+    padding: 0;
+    transition: all 120ms ease;
+  }
+}
+
+.cal-panel scrollbar {
+  background: transparent;
+  border: 0;
+  min-width: 4px;
+  margin: 2px;
+
+  slider {
+    background: rgba($text, 0.14);
+    border: 0;
+    border-radius: $radius-pill;
+    min-width: 3px;
+    min-height: 24px;
+  }
+}
+
+// ── Panel titlebar ────────────────────────────────────────────────────────────
+.cal-titlebar {
+  padding: 3px 8px;
+  border-bottom: 1px solid $cal-border;
+  background-color: rgba(255, 255, 255, 0.015);
+  min-height: 32px;
+
+  > .cal-icon-btn {
+    min-width: 24px;
+    min-height: 24px;
+    padding: 2px 6px;
+  }
+}
+
+// ── View tabs ─────────────────────────────────────────────────────────────────
+.cal-view-tabs {
+  background-color: transparent;
+  border-radius: 8px;
+  padding: 1px;
+  border: 1px solid rgba($text, 0.055);
+  margin: 0;
+}
+
+.cal-panel .cal-view-tab {
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  min-height: 24px;
+  background-color: transparent;
+  transition: background 150ms, border-color 150ms;
+
+  &:hover {
+    background-color: $cal-bg-surface2;
+
+    .cal-view-tab-icono,
+    .cal-view-tab-texto { color: $cal-text; }
+  }
+
+  &.active {
+    background-color: $cal-accent-bg;
+    border-color: acento(0.22);
+    box-shadow: inset 0 1px 0 acento(0.07);
+
+    .cal-view-tab-icono,
+    .cal-view-tab-texto { color: $cal-violet; }
+  }
+}
+
+.cal-view-tab-icono {
+  min-width: 12px;
+  color: $cal-text-hint;
+  font-family: $font-icon;
+  font-size: 11px;
+  margin: 0;
+}
+
+.cal-view-tab-texto {
+  color: $cal-text-dim;
+  font-size: 10px;
+  font-weight: 600;
+  margin: 0;
+}
+
+// ── Month nav ─────────────────────────────────────────────────────────────────
+.cal-month-nav {
+  padding: 11px 12px 7px;
+  min-height: 42px;
+  background-color: rgba(255, 255, 255, 0.012);
+}
+
+.cal-month-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: $cal-text;
+  margin: 0;
+}
+
+.cal-today-label {
+  font-size: 10px;
+  color: $cal-text-dim;
+  padding: 0;
+}
+
+.cal-btn.cal-hoy {
+  padding: 4px 9px;
+  min-height: 26px;
+  border-radius: 7px;
+}
+
+.cal-month-stepper {
+  padding: 1px;
+  border: 0;
+  border-radius: 6px;
+  background-color: transparent;
+}
+
+.cal-panel .cal-month-arrow {
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 5px;
+  background-color: transparent;
+
+  &:hover {
+    background-color: $cal-bg-surface2;
+
+    .cal-month-arrow-icono { color: $cal-text; }
+  }
+}
+
+.cal-month-arrow-icono {
+  color: $cal-text-dim;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+
+// ── Weekday headers ───────────────────────────────────────────────────────────
+.cal-weekday-headers {
+  padding: 0 10px 3px;
+}
+
+.cal-wd-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: $cal-text-hint;
+  min-width: 40px;
+  padding: 3px 2px;
+  margin: 0;
+}
+
+// ── Days grid ─────────────────────────────────────────────────────────────────
+.cal-days-grid {
+  padding: 0 10px 10px;
+}
+
+.cal-month-grid {
+  padding: 0;
+}
+
+.cal-day-cell {
+  min-width: 40px;
+  min-height: 43px;
+  border-radius: 9px;
+  padding: 3px 2px 2px;
+  background-color: transparent;
+  border-width: 0;
+  &:hover {
+    background-color: $cal-bg-surface2;
+  }
+
+  &.other-month .cal-day-num {
+    color: $cal-text-hint;
+  }
+
+  &.today {
+    background-color: acento(0.07);
+
+    .cal-day-num {
+      color: $cal-violet;
+      font-weight: 700;
+    }
+  }
+
+  &.selected {
+    background-color: $cal-accent-bg;
+    border: 1px solid acento(0.28);
+
+    .cal-day-num {
+      color: $cal-violet;
+      font-weight: 700;
+    }
+
+    &:hover {
+      background-color: acento(0.2);
+    }
+  }
+}
+
+.cal-day-num {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: $cal-text;
+  margin: 0;
+}
+
+.cal-event-dots {
+  padding-top: 2px;
+}
+
+.cal-event-dot {
+  border-radius: 50%;
+  min-width: 5px;
+  min-height: 5px;
+}
+
+// Color de un evento. Una clase por color en vez de `css=` inline: cada `css=` de gnim
+// construye un `Gtk.CssProvider`, lo parsea y lo cuelga del `get_style_context()` (deprecado en
+// GTK4) de ESE widget. En la rejilla del mes eso eran hasta 168 providers por reconstrucción y
+// por monitor, tirados y rehechos en cada cambio de mes. Los nombres salen de `COLORES_EVENTO`
+// (`modulos/calendario/dominio/tipos.ts`); ver la nota del par en `_colores.scss`.
+@each $nombre, $hex in $colores-evento {
+  .cal-ev-#{$nombre} {
+    background-color: $hex;
+  }
+}
+
+// ── Agenda view ───────────────────────────────────────────────────────────────
+.cal-agenda-view {
+  padding: 0;
+  border-left: 0;
+  border-top: 1px solid $cal-border;
+  min-width: 300px;
+  min-height: 0;
+
+  > scrolledwindow {
+    // La agenda comparte la misma lámina translúcida que el mes. El viewport de GTK se limpia
+    // explícitamente para que el tema no coloque un fondo opaco que oculte el blur del compositor.
+    background-color: rgba(255, 255, 255, 0.008);
+
+    > viewport { background-color: transparent; }
+  }
+}
+
+.cal-agenda-header {
+  padding: 6px 10px;
+  border-bottom: 1px solid $cal-border;
+  min-height: 0;
+  background-color: acento(0.025);
+  box-shadow: inset 0 1px 0 acento(0.025);
+
+  > .cal-icon-btn {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 5px 8px;
+    font-size: 16px;
+  }
+}
+
+.cal-agenda-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: $cal-text;
+  margin: 0;
+}
+
+.cal-agenda-day-events {
+  padding: 8px 10px 6px;
+}
+
+.cal-agenda-event-row {
+  background-color: $cal-bg-surface;
+  border-radius: 10px;
+  padding: 8px 9px;
+  border: 1px solid $cal-border;
+  margin-bottom: 5px;
+
+  &:hover .cal-event-actions {
+    opacity: 1;
+  }
+}
+
+.cal-event-color-stripe {
+  border-radius: 2px;
+  min-height: 28px;
+  min-width: 3px;
+}
+
+.cal-event-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: $cal-text;
+  margin: 0;
+}
+
+.cal-event-time {
+  font-size: 10px;
+  color: $cal-text-dim;
+  margin-top: 2px;
+}
+
+.cal-event-desc {
+  font-size: 10px;
+  color: $cal-text-hint;
+  margin-top: 2px;
+}
+
+.cal-event-actions {
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+.cal-agenda-empty {
+  padding: 28px 16px;
+}
+
+.cal-empty-icon {
+  @include empty-icon(32px);
+}
+
+.cal-empty-title {
+  @include empty-text(14px, $cal-text-dim, 600);
+}
+
+.cal-empty-sub {
+  @include empty-text(11px, $cal-text-hint);
+}
+
+// ── Icon buttons ──────────────────────────────────────────────────────────────
+.cal-icon-btn {
+  padding: 4px 7px;
+  border: 1px solid $cal-border;
+  border-radius: 7px;
+  background-color: transparent;
+  color: $cal-text-dim;
+  font-size: 14px;
+  transition: background 120ms, color 120ms;
+  min-width: 27px;
+  min-height: 27px;
+
+  label { margin: 0; color: $cal-text-dim; }
+
+  &:hover {
+    background-color: $cal-bg-surface2;
+    label { color: $cal-text; }
+  }
+
+  &.small {
+    padding: 3px 6px;
+    font-size: 12px;
+    min-width: 22px;
+    min-height: 22px;
+  }
+
+  &.danger:hover {
+    background-color: $cal-danger-bg;
+    label { color: $cal-danger; }
+    border-color: rgba($pink, 0.35);
+  }
+}
+
+// ── General buttons ───────────────────────────────────────────────────────────
+.cal-btn {
+  padding: 5px 11px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  transition: background 120ms, color 120ms;
+  border: 1px solid $cal-border;
+  color: $cal-text-dim;
+  background-color: transparent;
+  font-family: $cal-font;
+
+  label { margin: 0; }
+
+  &:hover {
+    background-color: $cal-bg-surface2;
+    color: $cal-text;
+  }
+
+  &.small {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+}
+
+// ── Dialog ────────────────────────────────────────────────────────────────────
+.cal-dialog-backdrop {
+  background-color: rgba(0, 0, 0, 0.62);
+  padding: 16px;
+}
+
+.cal-dialog-card {
+  background-color: rgba(14, 14, 22, 0.98);
+  border: 1px solid $cal-border;
+  border-radius: 14px;
+  padding: 16px;
+  min-width: 300px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+// El panel lateral mide 410 px. Los formularios compactos ocupan el ancho disponible y reducen sus
+// spinbuttons para no superar el overlay, sin renunciar a la validación numérica estructurada.
+.cal-dialog-card.cal-dialog-evento,
+.cal-dialog-card.cal-dialog-alarma {
+  min-width: 0;
+  padding: 10px;
+  background-color: rgba(8, 8, 12, 0.99);
+  border-color: rgba($text, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+
+  .cal-form-label { min-width: 0; }
+
+  .cal-form-entry {
+    min-height: 24px;
+    padding: 3px 7px;
+    border-radius: 6px;
+    font-size: 10px;
+  }
+
+  .cal-title-entry { font-size: 11px; }
+
+  .cal-form-error { font-size: 11px; }
+
+  .cal-spin {
+    padding: 0 1px;
+    border-radius: 5px;
+    font-size: 10px;
+    min-height: 19px;
+  }
+
+  spinbutton.cal-spin.sin-botones {
+    min-width: 0;
+    padding: 0;
+
+    text {
+      min-width: 0;
+      padding: 0 2px;
+      margin: 0;
+    }
+
+    &.dos-digitos text { min-width: 28px; }
+    &.cuatro-digitos text { min-width: 54px; }
+  }
+
+  .cal-campo-sep {
+    font-size: 11px;
+  }
+
+  .cal-color-swatch {
+    min-width: 22px;
+    min-height: 22px;
+  }
+}
+
+.cal-dialog-evento-backdrop,
+.cal-dialog-alarma-backdrop {
+  padding: 6px;
+}
+
+.cal-dialog-card.cal-dialog-alarma {
+  min-width: 330px;
+}
+
+.cal-dialog-scroll {
+  background-color: transparent;
+}
+
+.cal-dialog-centro {
+  background-color: transparent;
+  padding: 0;
+}
+
+.cal-dialog-evento-actions,
+.cal-dialog-alarma-actions {
+  padding-top: 2px;
+
+  .cal-btn {
+    min-width: 64px;
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+}
+
+.cal-dialog-actions {
+  margin-top: 4px;
+}
+
+// ── Form elements ─────────────────────────────────────────────────────────────
+.cal-form-entry {
+  background-color: rgba(255, 255, 255, 0.035);
+  border: 1px solid $cal-border;
+  border-radius: 8px;
+  padding: 6px 9px;
+  color: $cal-text;
+  font-size: 12px;
+  font-family: $cal-font;
+  transition: border-color 120ms;
+
+  &:focus { border-color: $cal-violet; }
+}
+
+.cal-dialog-evento .cal-form-entry:focus,
+.cal-dialog-evento .cal-spin:focus,
+.cal-dialog-alarma .cal-form-entry:focus,
+.cal-dialog-alarma .cal-spin:focus {
+  border-width: 1px;
+  border-color: acento(0.45);
+  outline: none;
+  box-shadow: none;
+}
+
+.cal-dialog-evento .cal-spin text:focus,
+.cal-dialog-alarma .cal-spin text:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.cal-title-entry {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cal-form-row {
+  /* align children via valign on widgets */
+}
+
+.cal-form-seccion {
+  padding: 6px 0 0;
+  background-color: transparent;
+  border: 0;
+  border-top: 1px solid rgba($text, 0.055);
+  border-radius: 0;
+}
+
+.cal-form-seccion-titulo {
+  color: acento(0.72);
+  font-family: $cal-font;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.cal-form-campo + .cal-form-campo {
+  padding-top: 1px;
+}
+
+.cal-form-opcion {
+  padding: 4px 0 1px;
+  border-top: 1px solid rgba($text, 0.045);
+}
+
+.cal-form-label {
+  font-size: 10px;
+  color: $cal-text-dim;
+  min-width: 80px;
+  margin: 0;
+}
+
+// GTK4 switch inside calendar
+.cal-panel switch {
+  background-color: $cal-bg-surface;
+  border: 1px solid $cal-border;
+  border-radius: 12px;
+  min-width: 40px;
+  min-height: 22px;
+
+  &:checked {
+    background-color: $cal-violet;
+    border-color: $cal-violet;
+  }
+
+  slider {
+    background-color: $white;
+    border-radius: 50%;
+    min-width: 16px;
+    min-height: 16px;
+    margin: 2px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+// ── Color picker ──────────────────────────────────────────────────────────────
+.cal-color-row {
+  padding: 2px 0 0;
+}
+
+.cal-color-swatch {
+  min-width: 22px;
+  min-height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba($text, 0.12);
+  padding: 1px;
+  transition: border-color 120ms, box-shadow 120ms, opacity 120ms;
+  opacity: 0.9;
+
+  &:hover {
+    border-color: rgba($text, 0.38);
+    box-shadow: 0 0 0 1px rgba($text, 0.08);
+    opacity: 1;
+  }
+
+  &.active {
+    border-color: rgba($white, 0.9);
+    box-shadow: 0 0 0 2px acento(0.62), 0 0 8px acento(0.2);
+    opacity: 1;
+
+    .cal-color-check { opacity: 1; }
+  }
+}
+
+.cal-color-check {
+  color: $white;
+  font-family: $cal-font;
+  font-size: 10px;
+  font-weight: 800;
+  margin: 0;
+  opacity: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+// ── Month view container ──────────────────────────────────────────────────────
+.cal-month-view {
+  min-width: 350px;
+  background-color: rgba(255, 255, 255, 0.008);
+}
+
+// ═══ Panel reconstruido: mes + agenda simultáneos, y sección Reloj ═══════════
+// Convive con las clases de arriba, que se reutilizan tal cual (`.cal-day-cell`,
+// `.cal-dialog-card`, `.cal-form-entry`…). Lo de aquí es lo que no existía cuando el panel tenía
+// una sola columna y ninguna pestaña de reloj.
+
+.cal-cuerpo {
+  padding: 0;
+}
+
+.cal-agenda-subtitulo {
+  font-size: 11px;
+  color: $cal-text-dim;
+  font-family: $cal-font;
+}
+
+// Contador «+N» que sustituye al último punto cuando un día tiene más eventos de los que caben.
+.cal-day-mas {
+  font-size: 8px;
+  color: $cal-text-dim;
+  font-family: $cal-font;
+}
+
+.cal-day-cell.con-eventos .cal-day-num {
+  font-weight: 600;
+}
+
+.cal-event-origen,
+.cal-event-solo-lectura {
+  font-size: 9px;
+  color: $cal-text-hint;
+  font-family: $cal-font;
+  background-color: $cal-bg-surface;
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
+.cal-form-error {
+  font-size: 10px;
+  color: $cal-danger;
+  font-family: $cal-font;
+}
+
+// ── Campos estructurados de fecha y hora ────────────────────────────────────
+.cal-campo-sep {
+  color: $cal-text-hint;
+  font-size: 12px;
+}
+
+.cal-spin {
+  background-color: $cal-bg-surface;
+  border: 1px solid $cal-border;
+  border-radius: 6px;
+  color: $cal-text;
+  font-size: 12px;
+  font-family: $cal-font;
+  padding: 2px 4px;
+
+  &:focus { border-color: $cal-violet; }
+
+  button {
+    background-color: transparent;
+    color: $cal-text-dim;
+    min-width: 16px;
+    &:hover { color: $cal-text; }
+  }
+}
+
+.cal-color-muestra {
+  border-radius: 50%;
+}
+
+.cal-btn.primario,
+.cal-icon-btn.primario {
+  background-color: $cal-accent-bg;
+  color: $cal-violet;
+  border-color: acento(0.24);
+  label { color: $cal-violet; }
+  &:hover { background-color: acento(0.21); }
+}
+
+.cal-icon-btn.peligro {
+  color: $cal-danger;
+  label { color: $cal-danger; }
+  &:hover { background-color: $cal-danger-bg; }
+}
+
+.cal-icon-btn.aviso label { color: $orange; }
+
+.cal-google-chip {
+  font-size: 10px;
+  color: $cal-text-dim;
+  font-family: $cal-font;
+}
+
+// ── Sección Reloj ───────────────────────────────────────────────────────────
+.reloj-vista {
+  min-height: 0;
+  padding: 8px 10px 10px;
+}
+
+.reloj-cabecera {
+  min-height: 32px;
+  padding: 0 3px 6px;
+  border-bottom: 1px solid rgba($text, 0.055);
+}
+
+.reloj-hora-grande {
+  font-size: 25px;
+  font-weight: 700;
+  color: $cal-text;
+  font-family: $cal-font;
+  font-variant-numeric: tabular-nums;
+}
+
+.reloj-fecha {
+  font-size: 11px;
+  color: $cal-text-dim;
+  font-family: $cal-font;
+}
+
+.reloj-herramientas {
+  min-height: 0;
+}
+
+.reloj-tarjeta {
+  background-color: rgba($text, 0.022);
+  border: 1px solid rgba($text, 0.065);
+  border-radius: 11px;
+  box-shadow: inset 0 1px 0 rgba($text, 0.018);
+}
+
+.reloj-herramienta {
+  padding: 8px;
+
+  .cal-btn {
+    min-height: 24px;
+    padding: 3px 5px;
+    font-size: 10px;
+  }
+}
+
+.reloj-tarjeta-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  color: $cal-text;
+  font-family: $cal-font;
+}
+
+.reloj-tarjeta-icono {
+  min-width: 15px;
+  color: $cal-violet;
+  font-family: $cal-font;
+  font-size: 13px;
+}
+
+// Las dos cifras grandes van en la misma fuente y tamaño: son la misma clase de dato y saltar de
+// tamaño entre temporizador y cronómetro hacía que la sección pareciera dos pantallas distintas.
+.reloj-temporizador-display,
+.reloj-crono-display {
+  font-size: 21px;
+  font-weight: 700;
+  color: $cal-text;
+  font-family: $cal-font;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 0;
+}
+
+// El campo editable ocupa el sitio de `.reloj-temporizador-display` cuando el temporizador está
+// parado, así que copia su tipografía y su tamaño: si no, la tarjeta pega un salto de altura y de
+// peso visual al pulsar «Iniciar». Los spinbuttons van sin caja propia —fondo y borde a cero— para
+// que las tres cifras se lean como un único número y no como tres formularios seguidos.
+.reloj-temporizador-campo {
+  padding: 2px 0;
+
+  spinbutton.cal-spin {
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    background-color: transparent;
+    border-color: transparent;
+    border-radius: 5px;
+    font-size: 21px;
+    font-weight: 700;
+    color: $cal-text;
+    font-family: $cal-font;
+    font-variant-numeric: tabular-nums;
+
+    text {
+      min-width: 34px;
+      padding: 0;
+      margin: 0;
+      caret-color: $cal-violet;
+    }
+
+    &:hover { background-color: rgba($text, 0.05); }
+    &:focus,
+    &:focus-within {
+      background-color: acento(0.12);
+      border-color: transparent;
+    }
+
+    text:focus {
+      outline: none;
+      box-shadow: none;
+    }
+  }
+
+  .cal-campo-sep {
+    font-size: 19px;
+    font-weight: 700;
+    color: $cal-text-hint;
+  }
+}
+
+.reloj-tarjeta-alarmas {
+  min-height: 0;
+  padding: 0;
+}
+
+.reloj-alarmas-cabecera {
+  min-height: 31px;
+  padding: 6px 9px;
+  background-color: acento(0.035);
+  border-bottom: 1px solid rgba($text, 0.055);
+}
+
+.reloj-nueva-alarma {
+  min-height: 24px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+
+  .reloj-nueva-alarma-icono {
+    font-size: 13px;
+    font-weight: 500;
+  }
+}
+
+.reloj-alarmas-scroll {
+  min-height: 0;
+  background-color: transparent;
+
+  > viewport { background-color: transparent; }
+}
+
+.reloj-lista-alarmas {
+  padding: 7px;
+}
+
+.reloj-alarma {
+  background-color: rgba($text, 0.018);
+  border: 1px solid rgba($text, 0.05);
+  border-radius: 8px;
+  padding: 6px 7px;
+  opacity: 0.55; // por defecto atenuada: la lista distingue activas de inactivas a simple vista
+
+  &.activa {
+    opacity: 1;
+    background-color: acento(0.045);
+    border-color: acento(0.13);
+  }
+
+  .cal-icon-btn {
+    border-color: transparent;
+    background-color: transparent;
+  }
+}
+
+.reloj-alarma-hora {
+  font-size: 17px;
+  font-weight: 700;
+  color: $cal-text;
+  font-family: $cal-font;
+  font-variant-numeric: tabular-nums;
+}
+
+.reloj-alarma-etiqueta {
+  font-size: 11px;
+  color: $cal-text-dim;
+  font-family: $cal-font;
+}
+
+.reloj-alarma-chip,
+.reloj-alarma-proxima {
+  font-size: 9px;
+  color: $cal-text-hint;
+  font-family: $cal-font;
+  background-color: rgba($text, 0.035);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.reloj-separador {
+  font-size: 10px;
+  color: $cal-text-hint;
+  font-family: $cal-font;
+  margin-top: 6px;
+}
+
+.reloj-alarma-datos {
+  min-height: 0;
+
+  .cal-form-entry {
+    min-width: 0;
+  }
+}
+
+.reloj-alarma-campo-hora {
+  padding: 2px 6px;
+  background-color: rgba($text, 0.025);
+  border: 1px solid rgba($text, 0.06);
+  border-radius: 7px;
+}
+
+.reloj-alarma-repeticion,
+.reloj-alarma-fila-fecha {
+  padding-top: 7px;
+  border-top: 1px solid rgba($text, 0.05);
+}
+
+.reloj-dias {
+  padding: 2px;
+  background-color: rgba($text, 0.035);
+  border: 1px solid rgba($text, 0.065);
+  border-radius: 8px;
+}
+
+.reloj-dia {
+  min-width: 27px;
+  min-height: 24px;
+  border-radius: 6px;
+  border: 0;
+  background-color: transparent;
+  color: $cal-text-dim;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: $cal-font;
+
+  &:hover {
+    background-color: rgba($text, 0.05);
+    color: $cal-text;
+  }
+
+  &:checked {
+    background-color: acento(0.16);
+    color: $cal-violet;
+    label { color: $cal-violet; }
+  }
+}
+
+.reloj-ayuda {
+  font-size: 10px;
+  color: $cal-text-hint;
+  font-family: $cal-font;
+}

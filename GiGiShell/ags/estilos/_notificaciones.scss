@@ -1,0 +1,881 @@
+@use 'sass:color';
+@use 'colores' as *;
+@use 'base' as *;
+
+// ── Notification Popups ───────────────────────────────────────────────────────
+.notif-popup-window {
+  background: transparent;
+}
+
+.notif-popup-item {
+  background: lamina("--lamina-popup", rgba(16, 16, 24, 0.97));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 8px 10px;
+  // GTK suma padding y bordes al min-width: 336 + 20 + (3 izq. inline + 1 der.) = 360.
+  min-width: 336px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  animation: notif-slide-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  .notif-popup-app-icon {
+    font-family: $font-icon;
+    font-size: 11px;
+    margin: 0;
+    margin-right: 4px;
+  }
+
+  .notif-popup-app-name {
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba($text, 0.55);
+    font-family: $font-icon;
+    margin: 0;
+  }
+
+  .notif-popup-dot {
+    font-size: 10px;
+    color: rgba($text, 0.35);
+    font-family: $font-icon;
+    margin: 0;
+  }
+
+  .notif-popup-summary {
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba($text, 0.9);
+    font-family: $font-icon;
+    margin: 0;
+  }
+
+  .notif-popup-body {
+    font-size: 10px;
+    font-weight: 400;
+    color: rgba($text, 0.62);
+    font-family: $font-icon;
+    margin: 0;
+  }
+
+  // Pista de la acción (notify-send -A). Solo visible cuando la notificación trae UNA
+  // sola; es entonces lo único que delata que el clic derecho hace algo. Con dos o más
+  // el popup pinta botones y la pista se apaga: repetiría la etiqueta del principal.
+  .notif-popup-action-hint {
+    font-size: 9px;
+    font-weight: 600;
+    color: acento();
+    font-family: $font-icon;
+    margin: 2px 0 0 0;
+  }
+
+  // Botones de acción (dos o más). Deliberadamente más apretados que los del panel
+  // (`.notif-dbus-btn`): el popup es transitorio y su fila compite por los mismos
+  // 336 px que el cuerpo, así que se prioriza no robarle alto a lo que se lee.
+  .notif-popup-actions {
+    margin: 2px 0 0 0;
+  }
+
+  .notif-popup-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 6px;
+    padding: 1px 8px;
+    font-size: 9px;
+    font-weight: 500;
+    color: rgba($text, 0.7);
+    font-family: $font-icon;
+    transition: background 100ms ease, color 100ms ease;
+
+    label { margin: 0; }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.11);
+      color: $text;
+    }
+
+    // El principal lleva el "▸" en su etiqueta y se tiñe con el acento: es la misma
+    // acción que dispara el clic derecho, y así se ve cuál sin gastar otra fila.
+    &.principal {
+      color: acento();
+      border-color: acento(0.4);
+
+      &:hover { background: acento(0.14); }
+    }
+  }
+
+}
+
+@keyframes notif-slide-in {
+  from {
+    transform: translateX(32px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes notif-slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(32px);
+    opacity: 0;
+  }
+}
+
+.notif-popup-item.leaving {
+  animation: notif-slide-out 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+// ── Skin dunst (notificaciones de hypr/scripts) ───────────────────────────────
+// Valores calcados del /etc/dunst/dunstrc POR DEFECTO (no de memoria): frame_width = 3,
+// frame_color #aaaaaa, corner_radius = 0, padding = 8, font = Monospace, y fondo sólido por
+// urgencia. La forma cuadrada y el color plano son justo lo que se echaba de menos, así que
+// aquí se ANULA a propósito lo del popup nativo: border-radius, sombra y fondo translúcido.
+// El nombre de app y el icono los oculta el TSX (dunst por defecto no los pinta).
+.notif-popup-item.dunst {
+  border-radius: 0;
+  border: 3px solid #aaaaaa;
+  box-shadow: none;
+  padding: 8px;
+  min-width: 300px;
+  font-family: monospace;
+
+  .notif-popup-summary {
+    font-family: monospace;
+    font-weight: bold;   // el `<b>%s</b>` del format por defecto
+    font-size: 11px;
+  }
+
+  .notif-popup-body {
+    font-family: monospace;
+    font-size: 11px;
+  }
+
+  // El fondo del skin es sólido y de color (azul/rojo/gris según urgencia), así que el
+  // violeta del tema aquí sería ilegible: la pista va en blanco translúcido, que contrasta
+  // sobre las tres urgencias.
+  .notif-popup-action-hint {
+    font-family: monospace;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  // Los botones heredan el mismo problema que la pista: el acento violeta del tema
+  // sobre el fondo sólido del skin no se lee. Van en blanco translúcido, sin radio y
+  // en monoespaciada, para que sigan pareciendo parte del recuadro de dunst.
+  .notif-popup-btn {
+    font-family: monospace;
+    font-size: 10px;
+    border-radius: 0;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.9);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+    }
+
+    &.principal {
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.7);
+
+      &:hover { background: rgba(255, 255, 255, 0.25); }
+    }
+  }
+
+  // urgency_low
+  &.u-low {
+    background: #222222;
+    .notif-popup-summary, .notif-popup-body { color: #888888; }
+    .notif-popup-action-hint { color: #aaaaaa; }
+    // El fondo gris oscuro sí admite el blanco puro; se baja para no gritar más que
+    // el propio texto de la notificación, que aquí va en #888888.
+    .notif-popup-btn {
+      color: #aaaaaa;
+      border-color: rgba(255, 255, 255, 0.25);
+      &.principal { color: #dddddd; }
+    }
+  }
+
+  // urgency_normal
+  &.u-normal {
+    background: #285577;
+    .notif-popup-summary, .notif-popup-body { color: #ffffff; }
+  }
+
+  // urgency_critical: es el único que además cambia el marco
+  &.u-critical {
+    background: #900000;
+    border-color: #ff0000;
+    .notif-popup-summary, .notif-popup-body { color: #ffffff; }
+  }
+}
+
+
+// ── Notification Panel ────────────────────────────────────────────────────────
+$np-bg-opaco: rgb(8, 8, 12);
+
+@function fondo-np-opaco($tinte) {
+  $tinte-opaco: color.change($tinte, $alpha: 1);
+  @return color.mix(
+    $tinte-opaco,
+    $np-bg-opaco,
+    $weight: color.alpha($tinte) * 100%,
+  );
+}
+
+$np-bg: lamina("--lamina-np", rgba(8, 8, 12, 0.94));
+
+window.np-window,
+window.np-window.background,
+window.np-window.csd {
+  background: none;
+  background-color: transparent;
+}
+
+window.np-window decoration,
+window.np-window.csd decoration {
+  box-shadow: none;
+  margin: 0;
+  border-radius: 0;
+  background: none;
+  background-color: transparent;
+  border: none;
+}
+
+.np-wrapper {
+  background: none;
+  background-color: transparent;
+}
+
+.np-bar-connector {
+  background-color: transparent;
+  background-image: radial-gradient(circle at 0% 100%, transparent 18px, $np-bg 18.5px);
+  min-width: 18px;
+  min-height: 18px;
+  transform: translateX(1px);
+}
+
+.np-panel {
+  background: $np-bg;
+  border: none;
+  border-radius: 14px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  min-width: 389px;
+  box-shadow: none;
+  font-family: $font-icon;
+  color: $text;
+
+  button {
+    @extend %chrome-reset;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    transition: all 120ms ease;
+  }
+}
+
+.np-wrapper.np-entering {
+  animation:
+    np-panel-slide-in 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    np-panel-fade-in 45ms linear;
+}
+
+.np-wrapper.np-preparing {
+  opacity: 0;
+  transform: translateX(220px);
+}
+
+.np-wrapper.np-leaving {
+  animation: np-panel-slide-out 280ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+// Panel header
+.np-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.np-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba($text, 0.68);
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.np-unread-badge-btn {
+  background: acento-sobre($np-bg-opaco, 0.12);
+  border: none;
+  border-radius: $radius-pill;
+  padding: 1px 7px;
+  min-height: 18px;
+  transition: all 120ms ease;
+
+  &:hover { background: acento-sobre($np-bg-opaco, 0.22); }
+
+  label { margin: 0; }
+}
+
+.np-unread-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: acento();
+  margin: 0;
+}
+
+.np-icon-btn {
+  background: $np-bg-opaco;
+  border: none;
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+  transition: all 120ms ease-out;
+
+  &:hover {
+    background: fondo-np-opaco(rgba(255, 255, 255, 0.07));
+  }
+
+  &.active {
+    background: acento-sobre($np-bg-opaco, 0.12);
+    .np-btn-icon { color: acento(); }
+  }
+
+  &.dnd-active {
+    background: fondo-np-opaco(rgba($pink, 0.12));
+    .np-btn-icon { color: $pink; }
+  }
+
+  &.danger {
+    .np-btn-icon { color: rgba($pink, 0.45); }
+
+    &:hover {
+      background: fondo-np-opaco(rgba($pink, 0.1));
+      .np-btn-icon { color: $pink; }
+    }
+
+    &.confirm {
+      background: fondo-np-opaco(rgba($pink, 0.15));
+      .np-btn-icon { color: $pink; }
+    }
+  }
+
+  .np-btn-icon {
+    font-family: $font-icon;
+    font-size: 12px;
+    color: rgba($text, 0.5);
+    margin: 0;
+  }
+}
+
+.np-footer-count {
+  font-size: 9px;
+  font-weight: 700;
+  color: $pink;
+  font-family: $font-icon;
+  margin: 0;
+}
+
+@keyframes np-panel-slide-in {
+  from {
+    transform: translateX(220px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes np-panel-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes np-panel-slide-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(410px);
+  }
+}
+
+// Filter chips
+// Sin reglas de scrollbar: la barra no se renderiza (policy EXTERNAL en AppFilterBar.tsx),
+// así no queda una barra invisible pero pulsable encima de los chips.
+.np-filter-scroll {
+  margin-top: 6px;
+}
+
+.np-filter-row {
+  padding: 0;
+}
+
+.np-filter-chip {
+  background: $np-bg-opaco;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 10px;
+  transition: background 100ms ease;
+
+  &.active {
+    background: acento-sobre($np-bg-opaco, 0.12);
+    .np-filter-chip-label { color: acento(); }
+  }
+
+  &:hover:not(.active) {
+    background: fondo-np-opaco(rgba(255, 255, 255, 0.06));
+  }
+
+  .np-filter-chip-label {
+    font-size: 10px;
+    font-weight: 400;
+    color: rgba($text, 0.58);
+    margin: 0;
+  }
+}
+
+// Sobreescribe el reset general de .np-panel button para los chips
+.np-panel .np-filter-chip {
+  padding: 3px 10px;
+}
+
+// Notification list
+.np-list-scroll {
+  min-height: 210px;
+
+  scrollbar, scrollbar slider {
+    opacity: 0;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.np-empty-state {
+  padding: 40px 0;
+}
+
+.np-empty-icon {
+  @include empty-icon(28px, rgba($text, 0.12), $font-icon);
+}
+
+.np-empty-title {
+  @include empty-text(12px, rgba($text, 0.25), 600);
+}
+
+.np-empty-sub {
+  @include empty-text(10px, rgba($text, 0.15));
+}
+
+// App group
+.np-app-group {
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.04);
+}
+
+.np-group-header {
+  background: $np-bg-opaco;
+  border: none;
+  padding: 6px 14px;
+  transition: background 100ms ease;
+
+  &:hover {
+    background: fondo-np-opaco(rgba(255, 255, 255, 0.04));
+  }
+}
+
+.np-group-chevron {
+  font-family: $font-icon;
+  font-size: 11px;
+  color: rgba($text, 0.48);
+  margin: 0;
+}
+
+.np-group-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba($text, 0.68);
+  margin: 0;
+}
+
+.np-group-badge {
+  background: acento-sobre($np-bg-opaco, 0.2);
+  border-radius: $radius-pill;
+  padding: 0 5px;
+}
+
+.np-group-count {
+  font-size: 9px;
+  font-weight: 800;
+  color: acento();
+  margin: 0;
+}
+
+.np-group-total {
+  font-size: 10px;
+  color: rgba($text, 0.4);
+  margin: 0;
+}
+
+.np-footer {
+  padding: 6px 10px 8px;
+  background: linear-gradient(to bottom, transparent 0%, rgba(12, 12, 18, 0.92) 40%);
+}
+
+
+// ── Notification Item ─────────────────────────────────────────────────────────
+.notif-item-wrapper {
+  margin-bottom: 5px;
+}
+
+.notif-item {
+  background: $np-bg-opaco;
+  transition: background 150ms ease-out;
+}
+
+.notif-unread-bar {
+  min-width: 3px;
+  border-radius: 0;
+}
+
+.notif-checkbox-wrap {
+  margin: 0 6px;
+}
+
+.notif-checkbox {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+
+  &.checked {
+    border-color: rgba(166, 227, 161, 0.6);
+  }
+
+  .notif-checkbox-icon {
+    font-family: $font-icon;
+    font-size: 12px;
+    color: rgba($text, 0.4);
+    margin: 0;
+  }
+}
+
+.notif-item-btn {
+  border-radius: 0;
+  transition: background 100ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.np-panel .notif-item-btn {
+  padding: 7px 10px;
+
+  &.expanded {
+    background: acento(0.025);
+  }
+}
+
+.notif-app-img {
+  margin: 0;
+  padding: 0;
+  opacity: 0.7;
+}
+
+.notif-app-name {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba($text, 0.55);
+  font-family: $font-icon;
+  margin: 0;
+}
+
+.notif-dot {
+  font-size: 10px;
+  color: rgba($text, 0.35);
+  font-family: $font-icon;
+  margin: 0;
+}
+
+.notif-timestamp {
+  font-size: 9px;
+  color: rgba($text, 0.4);
+  font-family: $font-icon;
+  margin: 0;
+}
+
+.notif-summary {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba($text, 0.9);
+  font-family: $font-icon;
+  margin: 0;
+}
+
+.notif-body {
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba($text, 0.62);
+  font-family: $font-icon;
+  margin: 0;
+}
+
+.notif-expand-indicator {
+  min-width: 10px;
+  font-family: $font-icon;
+  font-size: 10px;
+  color: acento(0.65);
+  margin: 1px 0 0;
+  transform: rotate(0deg);
+  transition: color 160ms ease, transform 160ms ease;
+
+  &.expanded {
+    color: acento();
+    transform: rotate(180deg);
+  }
+}
+
+.notif-hover-actions {
+  padding: 0 4px;
+}
+
+.notif-action-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: $font-icon;
+  font-size: 12px;
+  color: rgba($text, 0.4);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: $text;
+  }
+
+  &.active {
+    background: rgba($pink, 0.15);
+    border-color: rgba($pink, 0.3);
+    color: $pink;
+  }
+
+  &.dismiss:hover {
+    background: rgba($pink, 0.15);
+    border-color: rgba($pink, 0.3);
+    color: $pink;
+  }
+
+  &.reply:hover {
+    background: acento-azul(0.15);
+    border-color: acento-azul(0.3);
+    color: acento-azul();
+  }
+
+  label { margin: 0; }
+}
+
+// D-Bus action buttons
+.notif-dbus-actions {
+  border-top: 0.5px solid rgba(255, 255, 255, 0.04);
+  padding: 4px 8px 4px 16px;
+}
+
+.notif-dbus-btn {
+  background: fondo-np-opaco(rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 2px 10px;
+  font-size: 11px;
+  color: rgba($text, 0.7);
+  transition: all 100ms ease;
+
+  &:hover {
+    background: fondo-np-opaco(rgba(255, 255, 255, 0.1));
+    color: $text;
+  }
+
+  label { margin: 0; }
+}
+
+// Reply box
+.notif-reply-box {
+  border-top: 0.5px solid rgba(255, 255, 255, 0.06);
+  background: fondo-np-opaco(rgba(255, 255, 255, 0.02));
+  padding: 6px 8px;
+}
+
+.notif-reply-entry {
+  background: fondo-np-opaco(rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: $text;
+  font-family: $font-icon;
+}
+
+.notif-reply-send {
+  background: acento-azul-sobre($np-bg-opaco, 0.1);
+  border: 1px solid acento-azul(0.2);
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+
+  &:hover {
+    background: acento-azul-sobre($np-bg-opaco, 0.2);
+  }
+
+  label { margin: 0; }
+}
+
+.notif-reply-cancel {
+  background: $np-bg-opaco;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: $font-icon;
+  font-size: 12px;
+  color: rgba($text, 0.4);
+
+  &:hover {
+    color: $pink;
+    background: fondo-np-opaco(rgba($pink, 0.1));
+  }
+
+  label { margin: 0; }
+}
+
+// ── Notification Settings Subpanel ────────────────────────────────────────────
+.ns-header {
+  padding: 14px 14px 8px;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.07);
+}
+
+.ns-back-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  font-family: $font-icon;
+  font-size: 14px;
+  color: rgba($text, 0.55);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  label { margin: 0; }
+}
+
+.ns-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: $text;
+  margin: 0;
+}
+
+.ns-app-row {
+  background: rgba(255, 255, 255, 0.02);
+  border: 0.5px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0 8px;
+  transition: background 100ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.ns-app-icon-wrap {
+  border-radius: 8px;
+  min-width: 30px;
+  min-height: 30px;
+
+  .ns-app-icon {
+    font-family: $font-icon;
+    font-size: 15px;
+    margin: 0;
+  }
+}
+
+.ns-app-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: $text;
+  margin: 0;
+}
+
+.ns-mute-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &.muted {
+    background: rgba($pink, 0.1);
+    border-color: rgba($pink, 0.3);
+
+    .ns-mute-icon { color: $pink; }
+  }
+
+  .ns-mute-icon {
+    font-family: $font-icon;
+    font-size: 13px;
+    color: rgba($text, 0.5);
+    margin: 0;
+  }
+}
+
+.ns-empty-state {
+  padding: 32px 0;
+}
+
+.ns-empty-icon {
+  @include empty-icon(32px, rgba($text, 0.15), $font-icon);
+}
+
+.ns-empty-label {
+  @include empty-text(12px, rgba($text, 0.3));
+}
+
+// Solo lo usa el banner de conflicto de daemon (daemon/comprobacion.ts): el historial vacío "normal"
+// no lleva subtítulo. Monoespaciada porque el cuerpo son los comandos del arreglo.
+.ns-empty-sub {
+  @include empty-text(11px, rgba($text, 0.45));
+  font-family: $font-icon, monospace;
+}

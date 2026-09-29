@@ -11,7 +11,7 @@ export function CampoEditor({
   children?: unknown
 }) {
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]} visible={visible}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={visible}>
       <label cssClasses={["re-field-label"]} label={titulo} halign={Gtk.Align.START} />
       {children as any}
     </box>

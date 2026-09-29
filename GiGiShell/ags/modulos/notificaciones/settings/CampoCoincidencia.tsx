@@ -38,7 +38,7 @@ export default function CampoCoincidencia({
   }
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
       <label cssClasses={["re-field-label"]} label={titulo} halign={Gtk.Align.START} />
       <box spacing={4}>
         {OPERADORES.map((operador) => (

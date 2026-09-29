@@ -1,0 +1,127 @@
+@use 'sass:color';
+@use 'colores' as *;
+@use 'base' as *;
+
+// ── Tema de fondo global ────────────────────────────────────────────────────
+// Cada variante se compila una vez. La preferencia (Ajustes > Personalización >
+// "Color de fondo global") solo cambia la CLASE de las ventanas, así que la
+// selección se ve al instante y no lanza procesos ni reescribe hojas durante la
+// sesión. "Negro" no tiene bloque: es el estado por defecto del tema.
+//
+// Los tooltips y los menús emergentes NO están dentro de estas ventanas —son
+// superficies GTK aparte y la clase no les llega—: siguen la selección por la
+// variable CSS `--bg-shell`, que publica `servicios/apariencia/fondoShellVar.ts`
+// en `:root` (mismo truco que el acento adaptativo). Sin nada que la defina —tema
+// "negro"— cada `var(--bg-shell, $bg-bar)` cae en el negro de siempre.
+
+// Aplana un tinte translúcido contra un fondo opaco EN SASS (a diferencia de
+// `acento-*-sobre()`, que lo hace en GTK): aquí el fondo es un color de Sass, no
+// un `var()`. Antes era `sobre-fondo-grafito()`, atada a un solo tema.
+@function sobre-fondo($tinte, $fondo) {
+  @return color.mix(
+    color.change($tinte, $alpha: 1),
+    $fondo,
+    $weight: color.alpha($tinte) * 100%,
+  );
+}
+
+@mixin tema-fondo-shell($clase, $bg) {
+  $translucido: lamina("--lamina-#{$clase}", rgba($bg, 0.94));
+
+  .Bar.fondo-shell-#{$clase} {
+    background-color: $bg;
+  }
+
+  window.qs-window.fondo-shell-#{$clase} {
+    .qs-bar-connector {
+      background-image: radial-gradient(circle at 0% 100%, transparent 18px, #{$translucido} 18.5px);
+    }
+
+    .qs-panel { background-color: $translucido; }
+
+    .qs-tile {
+      background: $bg;
+      &:hover { background-color: sobre-fondo(rgba(255, 255, 255, 0.035), $bg); }
+      &.active {
+        background: acento-cian-sobre($bg, 0.12);
+        &:hover { background-color: acento-cian-sobre($bg, 0.16); }
+      }
+    }
+
+    .qs-media { background-color: acento-azul-sobre($bg, 0.04); }
+    button.qs-inline-value-btn,
+    entry.qs-inline-number-input,
+    button.qs-dropdown-header,
+    button.qs-toggle {
+      background: $bg;
+    }
+
+    .qs-icon-btn {
+      background: $bg;
+
+      &:hover { background-color: rgba(255, 255, 255, 0.07); }
+    }
+
+    .qs-wifi-item {
+      background: $bg;
+      &:hover:not(.active) { background: sobre-fondo(rgba(255, 255, 255, 0.06), $bg); }
+    }
+    .qs-wifi-item.active { background: acento-cian-sobre($bg, 0.12); }
+    .qs-wifi-item.portal { background: sobre-fondo(rgba(255, 123, 0, 0.15), $bg); }
+    .qs-wifi-item.known { background: sobre-fondo(rgba(245, 50, 105, 0.03), $bg); }
+
+    .qs-audio-item {
+      background: sobre-fondo(rgba(255, 255, 255, 0.03), $bg);
+      &:hover:not(.active) { background: sobre-fondo(rgba(255, 255, 255, 0.07), $bg); }
+      &.active { background: sobre-fondo(rgba(89, 180, 250, 0.13), $bg); }
+    }
+  }
+
+  window.np-window.fondo-shell-#{$clase} {
+    .np-bar-connector {
+      background-image: radial-gradient(circle at 0% 100%, transparent 18px, #{$translucido} 18.5px);
+    }
+    .np-panel { background: $translucido; }
+  }
+
+  window.cal-window.fondo-shell-#{$clase} {
+    .cal-bar-connector {
+      background-image: radial-gradient(circle at 100% 100%, transparent 18px, #{$translucido} 18.5px);
+    }
+    .cal-superficie,
+    .cal-panel { background-color: $translucido; }
+  }
+
+  .sp-window.fondo-shell-#{$clase} .sp-panel,
+  .nsw-window.fondo-shell-#{$clase} .nsw-panel {
+    background: $bg;
+  }
+
+  .notif-popup-window.fondo-shell-#{$clase} .notif-popup-item:not(.dunst) {
+    background: lamina("--lamina-popup-#{$clase}", rgba($bg, 0.97));
+  }
+}
+
+@include tema-fondo-shell("grafito", $bg-shell-grafito);
+@include tema-fondo-shell("gris", $bg-shell-gris);
+
+.sp-fondo-muestra {
+  min-width: 12px;
+  min-height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+
+  &.negro { background: $bg-bar; }
+  &.grafito { background: $bg-shell-grafito; }
+  &.gris { background: $bg-shell-gris; }
+}
+
+.re-error {
+  font-size: 10px;
+  color: $pink;
+  font-family: $font-icon;
+  background: rgba($pink, 0.1);
+  border: 1px solid rgba($pink, 0.3);
+  border-radius: 6px;
+  padding: 6px 8px;
+}

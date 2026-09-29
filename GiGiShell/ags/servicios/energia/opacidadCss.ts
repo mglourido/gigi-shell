@@ -14,7 +14,8 @@ const SELECTOR = ":root"
  * Cada lámina del shell y el color OPACO que la sustituye durante el ahorro.
  *
  * ⚠️ ESTA TABLA ES LA MITAD DE UN PAR. La otra mitad son los `lamina("--…", <color
- * translúcido>)` de `estilos/style.scss` y `modulos/orion/orion.scss`, que declaran
+ * translúcido>)` de los parciales compilados por `estilos/style.scss` y de
+ * `modulos/orion/orion.scss`, que declaran
  * el mismo nombre de variable con el color de siempre como reserva. Aquí solo puede
  * estar el color **sin alfa**: es el mismo RGB de la lámina, no un color nuevo, así
  * que el panel se ve exactamente igual salvo por dejar de transparentar. Añadir una

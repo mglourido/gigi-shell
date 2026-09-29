@@ -13,7 +13,7 @@ import textos from "../../../textos/ajustes/general.json" with { type: "json" }
 // que de verdad le queda.
 const MARCO_NAV = 76
 
-// Alto de una fila de nav: `.sp-nav-item` fija `min-height: 32px` en `estilos/style.scss`
+// Alto de una fila de nav: `.sp-nav-item` fija `min-height: 32px` en `estilos/_ajustes.scss`
 // y las filas se apilan en cajas con `spacing={2}`, así que cada una ocupa 34px de verdad.
 const ALTO_FILA_NAV = 34
 

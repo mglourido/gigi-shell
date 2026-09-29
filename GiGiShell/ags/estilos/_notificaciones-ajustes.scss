@@ -1,0 +1,139 @@
+@use 'sass:color';
+@use 'colores' as *;
+@use 'base' as *;
+
+/* ── Notification settings tabs (Phase 3) ───────────────────────────── */
+.st-tabbar { padding: 2px; }
+.st-tab {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: rgba($text, 0.5);
+  font-family: $font-icon;
+  font-size: 12px;
+  transition: all 120ms ease;
+  &:hover { background: rgba(255, 255, 255, 0.05); color: $text; }
+  &.active { background: acento(0.15); color: acento(); }
+}
+.st-tab-hint { font-size: 10px; color: rgba($text, 0.4); font-family: $font-icon; }
+.st-add-btn {
+  background: rgba(166, 227, 161, 0.12);
+  border: 1px solid rgba(166, 227, 161, 0.3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: #a6e3a1;
+  font-family: $font-icon;
+  font-size: 11px;
+  &:hover { background: rgba(166, 227, 161, 0.2); }
+}
+
+/* ── Rule rows + editor (Phase 3) ───────────────────────────────────── */
+.re-row {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.re-row-name { font-size: 12px; color: $text; font-family: $font-icon; font-weight: 500; }
+.re-row-summary { font-size: 10px; color: rgba($text, 0.45); font-family: $font-icon; }
+.re-row-body { font-size: 9px; color: rgba($text, 0.3); font-family: $font-icon; }
+.re-row-time { font-size: 9px; color: rgba($text, 0.35); font-family: $font-icon; }
+.re-badge {
+  font-size: 9px; color: rgba($text, 0.5);
+  background: rgba(255, 255, 255, 0.06); border-radius: 4px; padding: 1px 5px;
+  font-family: $font-icon;
+}
+.re-edit-btn, .re-delete, .re-save, .re-advanced-toggle, .re-seg, .re-toggle {
+  font-family: $font-icon; transition: all 100ms ease; border-radius: 6px;
+}
+.re-edit-btn {
+  background: transparent; border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 30px; min-height: 30px; color: rgba($text, 0.6);
+  &:hover { background: rgba(255, 255, 255, 0.08); color: $text; }
+}
+.re-panel { padding: 4px 2px; }
+.re-section { font-size: 11px; color: acento(); font-family: $font-icon; font-weight: 600; margin-top: 4px; }
+.re-field-label { font-size: 10px; color: rgba($text, 0.5); font-family: $font-icon; }
+.re-entry {
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px; padding: 4px 8px; font-size: 11px; color: $text; font-family: $font-icon;
+}
+.re-seg, .re-toggle {
+  background: transparent; border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 3px 8px; font-size: 10px; color: rgba($text, 0.55);
+  &:hover { background: rgba(255, 255, 255, 0.06); color: $text; }
+  &.active { background: acento-azul(0.18); border-color: acento-azul(0.4); color: acento-azul(); }
+}
+.re-toggle {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+.re-advanced-toggle { background: transparent; border: none; color: rgba($text, 0.5); font-size: 11px; padding: 2px 0; }
+.re-save {
+  background: acento-azul(0.15); border: 1px solid acento-azul(0.3);
+  padding: 6px; color: acento-azul(); font-size: 12px;
+  &:hover { background: acento-azul(0.25); }
+}
+.re-delete {
+  background: rgba($pink, 0.12); border: 1px solid rgba($pink, 0.3);
+  padding: 6px 12px; color: $pink; font-size: 12px;
+  &:hover { background: rgba($pink, 0.22); }
+  /* Segundo clic pendiente en «Borrar historial»: el botón se pinta lleno para que se vea
+     que la siguiente pulsación ya borra, no que no ha pasado nada. */
+  &.confirm { background: rgba($pink, 0.32); border-color: rgba($pink, 0.6); color: $text; }
+}
+.re-hint { font-size: 9px; color: rgba($text, 0.4); font-family: $font-icon; }
+/* Aviso de ruta de audio inexistente: no bloquea el guardado, solo advierte. */
+.re-hint.aviso { color: rgba($orange, 0.85); }
+
+/* ── Color picker (rules + apps) ─────────────────────────────────────── */
+.cp-auto {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10px;
+  color: rgba($text, 0.6);
+  font-family: $font-icon;
+  transition: all 100ms ease;
+  &:hover { background: rgba(255, 255, 255, 0.06); color: $text; }
+  &.active { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.35); color: $text; }
+}
+.cp-swatch {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  transition: all 100ms ease;
+  &:hover { border-color: rgba(255, 255, 255, 0.5); }
+  &.active { border: 2px solid $white; }
+  .cp-swatch-check {
+    font-family: $font-icon;
+    font-size: 12px;
+    color: rgba(8, 8, 12, 0.85);
+  }
+}
+
+/* Per-app color button in the Apps tab (shows the effective accent). */
+.ns-color-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  transition: all 100ms ease;
+  &:hover { border-color: rgba(255, 255, 255, 0.5); }
+  &.open { border: 2px solid $white; }
+  .ns-color-check {
+    font-family: $font-icon;
+    font-size: 12px;
+    color: rgba(8, 8, 12, 0.85);
+  }
+}
+.ns-color-editor {
+  padding: 8px 12px 4px;
+  margin: 0 8px;
+}

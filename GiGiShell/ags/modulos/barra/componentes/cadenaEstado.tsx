@@ -14,7 +14,7 @@
 //    cabecera —que conserva las suyas— hasta quick settings. Lo único que queda por
 //    coser es el final: `JuntaCadena`, UNA sola, entre el último eslabón y quick
 //    settings, que sí conserva sus cuatro esquinas; ver `.cadena-junta` en
-//    `estilos/style.scss`.
+//    `estilos/_ajustes-rapidos.scss`.
 //
 // El estado es POR BARRA (una instancia por monitor, creada en `Barra.tsx` y pasada
 // como prop): compartirlo en el módulo encendería también la cadena de la barra del

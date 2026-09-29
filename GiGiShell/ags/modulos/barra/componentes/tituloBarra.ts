@@ -12,7 +12,7 @@ import { colgarDeBarra } from "./anclaBarra"
  * distinta de la barra y ningún margen CSS en el nodo `tooltip` —que es uno para todos—
  * lo puede corregir. Este es un popover sin flecha colgado con `colgarDeBarra`, así que
  * sale a `SEPARACION_BARRA` como todos los menús. El aspecto es el del `tooltip` nativo
- * (`%titulo-flotante` en style.scss) y los tiempos, los de GTK: 500 ms la primera vez y
+ * (`%titulo-flotante` en `estilos/_ajustes-rapidos.scss`) y los tiempos, los de GTK: 500 ms la primera vez y
  * casi inmediato al pasar de un icono a otro con un título recién abierto.
  *
  * `fuente` puede ser un texto fijo, un `Accessor` (se sigue en vivo mientras el título

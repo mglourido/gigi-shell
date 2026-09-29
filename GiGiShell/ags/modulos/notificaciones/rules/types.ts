@@ -3,7 +3,7 @@
 
 export type Lifetime = "flash" | "timed" | "clear-on-boot" | "persistent"
 
-/** Aspecto del popup. "dunst" = skin que replica el dunstrc por defecto (ver style.scss);
+/** Aspecto del popup. "dunst" = skin que replica el dunstrc por defecto (ver `_notificaciones.scss`);
  *  "default" = el diseño propio del shell. Una regla que lo fija GANA al hint
  *  `x-gigishell-source:system` de los scripts, así que `"default"` sirve para sacar del skin a una
  *  notificación del sistema, y `"dunst"` para metérselo a una app cualquiera. */

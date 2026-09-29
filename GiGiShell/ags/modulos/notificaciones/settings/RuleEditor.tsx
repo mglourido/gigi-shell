@@ -207,7 +207,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
           </CampoEditor>
 
           {/* clear on reboot — independent flag; combinable with any lifetime (flash, timed, …) */}
-          <box spacing={4} cssClasses={["re-field"]}>
+          <box spacing={4}>
             <AlternadorEditor
               label={textos.editor.acciones.limpiarReinicio}
               estado={draft}
@@ -247,7 +247,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
           </CampoEditor>
 
           {/* effect toggles */}
-          <box spacing={4} cssClasses={["re-field"]}>
+          <box spacing={4}>
             <AlternadorEditor label={textos.editor.acciones.descartar} estado={draft} activo={() => !!draft.get().effects.suppress} onChange={(v) => patchEffects({ suppress: v })} />
             <AlternadorEditor label={textos.editor.acciones.sinPopup} estado={draft} activo={() => !!draft.get().effects.dontShow} onChange={(v) => patchEffects({ dontShow: v })} />
             <AlternadorEditor label={textos.editor.acciones.sinAudio} estado={draft} activo={() => !!draft.get().effects.muteAudio} onChange={(v) => patchEffects({ muteAudio: v })} />
@@ -330,7 +330,7 @@ export default function RuleEditor({ rule, onClose }: { rule: NotifRule; onClose
           </CampoEditor>
 
           <label cssClasses={["re-section"]} label={textos.editor.titulos.reescritura} halign={Gtk.Align.START} />
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["re-field"]}>
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
             <CamposReescritura
               reglaInicial={rule}
               borrador={draft}

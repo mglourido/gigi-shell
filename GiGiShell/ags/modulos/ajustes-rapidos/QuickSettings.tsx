@@ -2017,7 +2017,7 @@ function QsMedia() {
   // 94 hasta que las ondas pidieron aire: el bloque de metadatos subió 5 px y el pie
   // (barra, ondas, botones y tiempos) bajó 3, y la tarjeta NO tenía holgura — medido
   // con `grim`, el contenido ocupaba los 94 justos, así que crece con ellos. Tiene
-  // que ir a la par que el `min-height` de `.qs-media` en style.scss: aquí es el
+  // que ir a la par que el `min-height` de `.qs-media` en `_ajustes-rapidos.scss`: aquí es el
   // alto que se pide al contenido y a los DrawingArea del fondo (filtro y scrim).
   const CARD_H = 108
   // 70% del ancho útil: (panel 330 - padding panel 20 - padding media 28) × 0.7.
@@ -2058,7 +2058,7 @@ function QsMedia() {
   // pueden acabar 1px más cortas que el fondo que deben cubrir. cr.paint() ya
   // cubre TODO el clip del DrawingArea, pero no puede pintar fuera de él — así
   // que se les añade un margen inferior negativo (`.qs-media-bleed` en
-  // estilos/style.scss, fuera del clamp ≥0 de la propiedad margin-bottom de
+  // estilos/_ajustes-rapidos.scss, fuera del clamp ≥0 de la propiedad margin-bottom de
   // GtkWidget) para que sobresalgan por abajo; el `overflow: HIDDEN` de
   // `.qs-media` recorta ese sobrante.
   const colorFilter = new Gtk.DrawingArea()
@@ -2119,7 +2119,7 @@ function QsMedia() {
   // La barra de progreso ocupa los 4 px de abajo; el resto del área lo llenan dos
   // ondas viajeras que salen de ella hacia arriba, dentro del tramo ya reproducido.
   // El alto pedido (20) NO lo paga el layout: `.qs-media-progress-ondas` lo devuelve
-  // con un margen superior negativo (ver style.scss).
+  // con un margen superior negativo (ver `_ajustes-rapidos.scss`).
   const PROGRESO_ALTO = 20
   const PROGRESO_BARRA = 4
   // El tirador de arrastre es un círculo CENTRADO en la barra: su mitad inferior

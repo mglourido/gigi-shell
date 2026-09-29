@@ -1,0 +1,538 @@
+@use 'sass:color';
+@use 'colores' as *;
+@use 'base' as *;
+
+/* ── General settings window (QuickSettings gear) — left vertical nav ── */
+.sp-window { background: transparent; }
+.sp-backdrop { background: rgba(0, 0, 0, 0.5); }
+.sp-panel {
+  /* Sin min-width/min-height: el tamaño lo pide SettingsPanel.tsx recortado a la
+     pantalla del monitor. Un mínimo en CSS es un suelo que GTK nunca baja, así que
+     aquí reintroducirlo vuelve a sacar el panel de una pantalla pequeña. */
+  background: #08080c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+.sp-nav {
+  /* Los hijos del acordeón van sangrados, así que su etiqueta necesita más sitio que
+     una de primer nivel para no salir recortada. El tope de ancho NO se pone aquí:
+     GTK4 no implementa `max-width` y lo ignora en silencio — lo acota
+     `MAX_CARACTERES_ETIQUETA` en `panel/NavegacionAjustes.tsx`. */
+  min-width: 252px;
+  padding: 16px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+.sp-panel.compacto .sp-nav {
+  /* Al apilar la nav sobre el contenido deja de necesitar el ancho reservado lateral. */
+  min-width: 0;
+  padding: 8px 10px;
+  border-right: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.sp-panel.compacto .sp-nav-title {
+  margin: 2px 8px 4px;
+}
+.sp-nav-scroll {
+  /* Sin min-height: la lista se desplaza (policy EXTERNAL) dentro del alto que le
+     deje el panel; fijar un mínimo aquí lo empujaría desde dentro. */
+}
+.sp-nav-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba($text, 0.45);
+  font-family: $font-icon;
+  margin: 2px 8px 10px;
+}
+.sp-nav-item {
+  min-height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 2px 10px;
+  color: rgba($text, 0.6);
+  font-family: $font-icon;
+  font-size: 12px;
+  transition: all 120ms ease;
+  &:hover { background: rgba(255, 255, 255, 0.05); color: $text; }
+  &.active { background: acento(0.15); color: acento(); }
+  .sp-nav-content {
+    min-height: 24px;
+    padding: 2px 0;
+  }
+  .sp-nav-label {
+    line-height: 1.3;
+    min-height: 22px;
+    padding: 2px 0;
+  }
+  .sp-nav-icon {
+    min-width: 18px;
+    min-height: 22px;
+    padding: 2px 0;
+    font-family: $font-icon;
+    font-size: 14px;
+  }
+}
+
+.sp-nav-item-grupo {
+  font-weight: 600;
+}
+.sp-nav-chevron {
+  font-size: 10px;
+  color: rgba($text, 0.35);
+}
+/* La guía vertical del acordeón abierto. Va en la CAJA de los hijos, no en cada fila:
+   así es una sola línea continua de arriba abajo del grupo, y no un trocito por fila
+   con huecos en el `spacing={2}` que las separa. */
+.sp-nav-grupo-hijos {
+  margin-left: 15px;
+  border-left: 1px solid rgba($text, 0.14);
+}
+.sp-nav-item-hijo {
+  /* 15 de margen + 1 de línea + estos 8 = la sangría total del hijo. */
+  .sp-nav-content { padding-left: 8px; }
+}
+
+.sp-content {
+  /* Sin min-width: este ScrolledWindow ocupa lo que sobra del ancho del panel. */
+  padding: 18px 20px;
+
+  scrollbar,
+  scrollbar slider,
+  scrollbar button {
+    opacity: 0;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+}
+
+.sp-section {
+  /* Suelo de legibilidad, no el ancho de diseño: el ancho real lo da el panel
+     (hexpand). Por debajo de esto la sección se desplaza en horizontal en vez de
+     ensanchar el panel. Era 590 —más que los ~555 que deja el panel de 820— y por
+     eso el panel salía más ancho de lo que decía su propio min-width. */
+  min-width: 420px;
+}
+.sp-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: $text;
+  font-family: $font-icon;
+}
+
+.sp-energy-summary {
+  font-size: 11px;
+  font-weight: 600;
+  color: acento(0.82);
+  font-family: $font-icon;
+  letter-spacing: 0.01em;
+
+  &.active { color: acento(); }
+}
+
+.sp-energy-mode {
+  font-size: 10px;
+  font-weight: 500;
+  color: acento-azul();
+  font-family: $font-icon;
+
+  &.active { color: #b9d5ff; }
+}
+
+.sp-energy-separator {
+  font-size: 11px;
+  color: rgba($text, 0.35);
+}
+
+.sp-field {
+  // Suelo de ancho para las columnas de campos, NO su ancho de diseño (lo da el
+  // panel). Era 560, y con el relleno de `.dev-row` (14+14) más el borde de la
+  // tarjeta sumaba 590 sobre los ~592 de hueco: cualquier anidamiento extra sacaba
+  // ya la barra horizontal. 520 deja margen y no se nota, porque estas cajas se
+  // estiran con el panel.
+  min-width: 520px;
+}
+.sp-field-label { font-size: 12px; color: $text; font-family: $font-icon; }
+.sp-field-value { font-size: 12px; font-weight: 700; color: acento(); font-family: $font-icon; }
+.sp-field-hint { font-size: 10px; color: rgba($text, 0.4); font-family: $font-icon; }
+// Aviso de configuración: una pista que el usuario TIENE que leer (p. ej. que
+// logind se queda el botón de encendido), no una descripción más.
+.sp-field-hint-warn { color: $orange; }
+.sp-field-hint-command {
+  color: rgba($text, 0.75);
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.sp-subsection-title {
+  color: acento();
+  font-family: $font-icon;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.sp-display-detected-title {
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  margin-bottom: -4px;
+}
+
+// ── Dispositivos ────────────────────────────────────────────────────────────
+.dev-section { padding-bottom: 12px; }
+.dev-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 11px;
+}
+.dev-card-header {
+  padding: 11px 14px 9px;
+  background: acento(0.045);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.dev-card-icon { color: acento(); font-family: $font-icon; font-size: 15px; }
+.dev-row {
+  min-height: 45px;
+  padding: 9px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  &:last-child { border-bottom: none; }
+}
+.dev-value { min-width: 64px; }
+.dev-status-dot {
+  min-width: 9px;
+  min-height: 9px;
+  border-radius: 999px;
+  background: rgba($text, 0.35);            // por defecto: no instalado
+  &.on { background: #a6e3a1; }             // activo
+  &.off { background: $red; }               // inactivo pero instalado
+}
+.dev-select { min-width: 190px; }
+
+// ── Ajustes > Atajos de teclado ───────────────────────────────────────────────
+// Misma lista que la sección "Atajos" de Orion, pero con la tipografía de Ajustes:
+// las clases `.kb-*` de `modulos/orion/orion.scss` viven en la paleta del launcher
+// (fuentes y opacidades propias), así que aquí van clases aparte en vez de reusarlas.
+.kb-totales {
+  font-size: 11px;
+  font-weight: 600;
+  color: acento(0.82);
+  font-family: $font-icon;
+}
+.kb-buscador { min-height: 30px; }
+.kb-lista { padding: 2px 0 4px; }
+.kb-ajustes-grupo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: acento(0.78);
+  font-family: $font-icon;
+  padding: 12px 14px 5px;
+}
+.kb-ajustes-fila {
+  min-height: 28px;
+  padding: 4px 14px;
+  border-radius: 7px;
+  &:hover { background: rgba(255, 255, 255, 0.035); }
+}
+.kb-ajustes-tecla {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: monospace;
+  color: rgba($text, 0.92);
+  min-width: 150px;
+}
+.kb-ajustes-desc {
+  font-size: 11px;
+  color: rgba($text, 0.62);
+  font-family: $font-icon;
+}
+.kb-ajustes-vacia {
+  font-size: 11px;
+  color: rgba($text, 0.45);
+  font-family: $font-icon;
+  padding: 18px 14px;
+}
+scale.dev-slider { margin: 0 2px 2px; }
+.dev-reset-row {
+  padding: 12px 14px;
+  border: 1px solid rgba(245, 50, 105, 0.14);
+  border-radius: 10px;
+  background: rgba(245, 50, 105, 0.025);
+}
+button.dev-reset {
+  min-height: 30px;
+  padding: 4px 12px;
+  border-radius: 7px;
+  color: rgba($text, 0.72);
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  &:hover { color: $text; background: rgba(255, 255, 255, 0.09); }
+  &.confirm { color: #ff8fa7; background: rgba(245, 50, 105, 0.12); border-color: rgba(245, 50, 105, 0.28); }
+}
+
+// ── Fecha, idioma y ubicación ───────────────────────────────────────────────
+// Control segmentado (formato de hora, origen de ubicación). Mismo lenguaje
+// visual que las pestañas .st-tab: contenedor sutil, botón activo violeta suave.
+.dl-seg {
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 3px;
+}
+button.dl-seg-btn {
+  min-height: 24px;
+  min-width: 50px;
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba($text, 0.5);
+  background: transparent;
+  border: none;
+  transition: all 120ms ease;
+  &:hover { color: $text; background: rgba(255, 255, 255, 0.05); }
+  &.active { color: acento(); background: acento(0.15); }
+}
+button.dl-city-result {
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  color: rgba($text, 0.82);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  &:hover { color: $text; background: acento(0.1); border-color: acento(0.2); }
+}
+
+// ── Cuenta ──────────────────────────────────────────────────────────────────
+.account-section { padding-bottom: 10px; }
+.account-card { border-radius: 11px; }
+.account-card .dev-card-header { padding: 8px 12px 6px; }
+.account-card .dev-row {
+  min-height: 38px;
+  padding: 6px 12px;
+}
+.account-profile-summary { padding-top: 8px; padding-bottom: 8px; }
+// Mismo cálculo que `.qs-avatar`: 42 de contenido + 2 px de borde por lado = los
+// 46 que pide `ProfileAvatar size={46}`. Con 46 aquí el label medía 50 y las
+// iniciales salían descentradas.
+.account-avatar {
+  min-width: 42px; min-height: 42px;
+  border-radius: 999px;
+  border: 2px solid acento(0.45);
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+  &.fallback { background: acento(0.18); color: acento(); font-size: 15px; font-weight: 700; }
+}
+.account-current-user { color: $text; font-size: 14px; font-weight: 700; }
+.account-controls { min-width: 0; }
+.account-entry {
+  min-height: 0; padding: 0 9px; border-radius: 7px;
+  color: $text; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08);
+  &:focus { border-color: acento(.6); }
+}
+.account-entry.account-entry-compact { font-size: 12px; }
+.account-secondary-btn, .account-save-btn {
+  min-height: 0; padding: 0 12px; border-radius: 7px; font-size: 11px; font-weight: 600;
+}
+.account-secondary-btn { color: acento(); background: acento(.12); border: 1px solid acento(.22); }
+.account-secondary-btn:hover, .account-secondary-btn.open {
+  color: $text;
+  background: acento(.2);
+  border-color: acento(.34);
+}
+.account-save-btn { color: #0b0910; background: acento(); border: none; }
+button.account-save-pending {
+  &:not(:disabled) { color: #0b0910; background: acento-azul(); }
+  transition: background-color 120ms ease;
+  &:hover:not(:disabled) { background: acento-azul(.82); }
+  &:active:not(:disabled) { background: acento-azul(.68); }
+  &:disabled {
+    color: rgba($text, .42);
+    background: rgba(255, 255, 255, .055);
+    border: 1px solid rgba(255, 255, 255, .075);
+  }
+}
+.account-password-fields { border-bottom: 1px solid rgba(255, 255, 255, 0.045); }
+.account-actions { min-height: 34px; }
+.account-notice {
+  color: acento-azul();
+  font-size: 10.5px;
+  font-weight: 600;
+  &.ok { color: #a6e3a1; }
+  &.error { color: #ff8fa7; }
+}
+
+// ── Información del sistema ──────────────────────────────────────────────────
+.sys-section { padding-bottom: 8px; }
+.sys-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.sys-card-header {
+  padding: 3px 0 5px;
+  background: transparent;
+  border: none;
+}
+.sys-card-icon { color: acento(); font-family: $font-icon; font-size: 14px; }
+.sys-card-title {
+  margin: 0;
+}
+.sys-row {
+  min-height: 20px;
+  padding: 8px 0;
+}
+.sys-row.bordered { border-top: 1px solid rgba(255, 255, 255, 0.045); }
+.sys-label {
+  min-width: 150px;
+  color: #aaa7b4;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+}
+.sys-value {
+  color: #f0edf5;
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.sys-loading { min-height: 220px; color: #aaa7b4; font-family: 'Inter', sans-serif; font-size: 11px; }
+.sys-loading spinner { margin-right: 9px; color: acento(); }
+
+/* ── Ajustes > Almacenamiento ────────────────────────────────────────────────
+   Prefijo `alm-`. Reutiliza las tarjetas y filas de `dev-*` (el mismo chasis que
+   Dispositivos y Seguridad) y solo añade lo propio de esta sección: la barra de
+   uso por disco, la columna de tamaños y las etiquetas del catálogo de apps. */
+.alm-section { padding-bottom: 12px; }
+.alm-icono {
+  color: acento();
+  font-family: $font-icon;
+  font-size: 15px;
+  min-width: 20px;
+}
+/* Ancho fijo para que la columna de tamaños quede alineada entre filas: sin él,
+   "17,2 GiB" y "0 B" empujan el botón de limpieza a posiciones distintas y la
+   tarjeta parece dentada. */
+.alm-tamano {
+  min-width: 78px;
+  color: #f0edf5;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+/* Segunda línea de esa columna: lo que se LIBERARÍA, cuando no coincide con lo que
+   ocupa (el journal recortado a su retención, ~/.cache respetando las cachés de GPU,
+   Descargas sin días configurados). Deliberadamente más pequeña y en el verde de
+   "espacio recuperable", no en el color del dato principal: es una aclaración de la
+   cifra de arriba, no otra cifra que compita con ella. Mismo `min-width` para que la
+   columna siga alineada entre filas con y sin ella. */
+.alm-liberable {
+  min-width: 78px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5px;
+  /* Verde solo cuando hay algo que ganar. Un «No libera nada ahora mismo» en el
+     verde de "espacio recuperable" se lee de refilón como si SÍ liberara — es
+     justo la fila en la que el color tiene que decir lo contrario. */
+  &.algo { color: $green; }
+  &.nada { color: #8b8799; }
+}
+/* Filas de «carpetas que quieras vaciar». Sin fondo propio: son una lista dentro
+   de una fila, no filas de la tarjeta, y darles el mismo relieve que a `dev-row`
+   las haría competir con los ajustes de arriba. */
+.alm-ruta { padding: 2px 0; }
+.alm-ruta-texto {
+  color: $text;
+  font-family: $font-icon;
+  font-size: 11.5px;
+}
+/* El aviso de que estas carpetas se vacían sin preguntar. Naranja y no rojo: es
+   una advertencia sobre lo que va a pasar, no el informe de un fallo — el rojo
+   está reservado a `.alm-resultado.error`. */
+.alm-aviso { color: $orange; }
+// El aviso de la lista de rutas PROTEGIDAS no es una advertencia: ahí no se borra nada, se salva.
+// En naranja se leía como un peligro más y era justo lo contrario de lo que dice.
+.alm-nota { color: $green; }
+.alm-disco { padding-top: 12px; padding-bottom: 12px; }
+.alm-disco-punto { color: $text; font-family: $font-icon; font-size: 12.5px; font-weight: 600; }
+.alm-disco-fs { color: #8b8799; font-family: 'Inter', sans-serif; font-size: 10.5px; }
+.alm-disco-libre { color: #aaa7b4; font-family: 'Inter', sans-serif; font-size: 11px; }
+.alm-disco-uso {
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: $green;
+  &.aviso { color: $orange; }
+  &.critico { color: $red; }
+}
+/* Los tres estados salen de `severidadUso` (75/90 % de uso). No son los umbrales
+   de `disk-monitor.sh`, que avisa por espacio libre ABSOLUTO (<5 GB) — ver la
+   nota en `servicios/disco/formato.ts` sobre por qué no deben alinearse. */
+progressbar.alm-barra {
+  min-height: 6px;
+
+  trough {
+    min-height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+  }
+  progress {
+    min-height: 6px;
+    border-radius: 999px;
+    background: $green;
+  }
+  &.aviso progress { background: $orange; }
+  &.critico progress { background: $red; }
+}
+.alm-resultado {
+  font-size: 11px;
+  &.ok { color: $green; }
+  &.omitida, &.cancelado { color: #aaa7b4; }
+  &.error, &.sin-permisos { color: $red; }
+}
+.alm-cargando { min-height: 220px; color: #aaa7b4; font-family: 'Inter', sans-serif; font-size: 11px; }
+.alm-cargando spinner { color: acento(); }
+.alm-totales { color: acento(); font-family: $font-icon; font-size: 11.5px; font-weight: 600; }
+.alm-buscador { min-width: 240px; }
+.alm-app { min-height: 40px; }
+/* Distintivos del catálogo: origen (repos/AUR) y motivo de instalación. Son la
+   diferencia entre "una lista de paquetes" y algo accionable — lo que entró como
+   dependencia no se desinstala a mano, se limpia con los huérfanos. */
+.alm-etiqueta {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-family: 'Inter', sans-serif;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #cdd0e0;
+  background: rgba(255, 255, 255, 0.07);
+
+  &.aur { color: acento-azul(); background: acento-azul(0.13); }
+  &.explicita { color: $green; background: rgba($green, 0.13); }
+  &.dependencia { color: #8b8799; }
+}
+
+/* ── Centered notification-settings window (Phase 5) ────────────────── */
+.nsw-window {
+  background: transparent;
+}
+.nsw-backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+.nsw-panel {
+  /* Sin min-width/min-height: el tamaño lo pide SettingsWindow.tsx recortado a la
+     pantalla del monitor (`utilidades/tamanoLamina.ts`). Un mínimo en CSS es un suelo
+     que GTK nunca baja, así que reintroducirlo vuelve a sacar la ventana de una
+     pantalla pequeña. */
+  background: #08080c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
