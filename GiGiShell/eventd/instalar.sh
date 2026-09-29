@@ -24,8 +24,10 @@ fi
 export PATH="$HOME/.cargo/bin:$PATH"
 command -v cargo >/dev/null || { echo "Falta cargo (sudo pacman -S rustup && rustup default stable)" >&2; exit 1; }
 
+# Fuera del repo; la misma ruta que fija eventd/.cargo/config.toml.
+export CARGO_TARGET_DIR="$HOME/.cache/gigishell/cargo/eventd"
 cargo test --release --quiet
 cargo build --release --quiet
 # `install` escribe a un temporal y renombra: sustituye el binario aunque esté corriendo.
-install -Dm755 target/release/gigishell-eventd "$DEST"
+install -Dm755 "$CARGO_TARGET_DIR/release/gigishell-eventd" "$DEST"
 echo "Instalado $DEST"

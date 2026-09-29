@@ -50,11 +50,13 @@ if ! grep -qw bpf /sys/kernel/security/lsm 2>/dev/null; then
 fi
 
 cd "$GUARDIAN"
+# Fuera del repo; la misma ruta que fija guardian/.cargo/config.toml.
+export CARGO_TARGET_DIR="$HOME/.cache/gigishell/cargo/guardian"
 cargo test --release --quiet
 cargo build --release --quiet
 
 # `install` escribe a un temporal y renombra: sustituye el binario aunque esté corriendo.
-sudo install -Dm755 target/release/gigishell-guardian "$BIN"
+sudo install -Dm755 "$CARGO_TARGET_DIR/release/gigishell-guardian" "$BIN"
 sudo install -Dm644 categorias.json "$CATEGORIAS"
 sed "s/__UID__/$(id -u)/" "$GIGISHELL/system/guardian/gigishell-guardian.service" \
     | sudo install -Dm644 /dev/stdin "$UNIDAD"

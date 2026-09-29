@@ -39,6 +39,34 @@ lenguaje correcto para orquestar programas.
 - **Una sola instancia, y la nueva gana** (`flock` en `$XDG_RUNTIME_DIR/gigishell-eventd.pid`):
   relanzar es volver a ejecutar el script.
 
+## Dónde se compila: `~/.cache/gigishell/cargo/<crate>`, nunca dentro del repo
+
+Vale para los dos crates, `eventd/` y `guardian/`, y para cualquiera que se añada. `target/`
+dentro del árbol llegó a pesar **~1,1 GB** solo en `guardian/` (707 MB de `debug/`, 298 MB de
+`release/` con LTO, más `doc/`): espacio muerto en la carpeta del repo, que además es la que se
+respalda. Todo lo que hay en `target/` se regenera, así que su sitio es la caché.
+
+- **`<crate>/.cargo/config.toml`** fija `[build] target-dir = "../../.cache/gigishell/cargo/<crate>"`.
+  Es relativo a la carpeta del crate (así lo resuelve cargo), no admite `~` ni variables, y da
+  la ruta buena solo con el repo en `~/GiGiShell` — la misma suposición que el resto del sistema.
+  Con él, un `cargo build`/`test`/`doc` lanzado a mano cae también en la caché.
+- **`instalar.sh`** no se fía del config: exporta `CARGO_TARGET_DIR="$HOME/.cache/gigishell/cargo/<crate>"`
+  (la variable gana al config) y copia el binario desde `$CARGO_TARGET_DIR/release/`.
+- **`guardian/pruebas/*.sh` corren con `sudo`**: ahí `$HOME` es el de root, así que el binario se
+  busca en la caché del usuario que lanzó sudo (`getent passwd "$SUDO_USER"`).
+- **La misma ruta está escrita a mano en varios sitios**: en guardian, `.cargo/config.toml`,
+  `instalar.sh` y las dos pruebas; en eventd, `.cargo/config.toml` e `instalar.sh`. Si cambia en uno, cambiarla en todos; buscar con
+  `grep -rn 'gigishell/cargo' ~/GiGiShell`. Un crate nuevo necesita su propio `.cargo/config.toml`:
+  si falta, `cargo` vuelve a crear `target/` dentro del repo sin ningún aviso (git no lo ve porque
+  `.gitignore` sigue ignorando `*/target/`, justamente por eso no se nota).
+- **`[profile.dev] debug = "line-tables-only"`** en los `Cargo.toml`: los backtraces conservan
+  fichero y línea, pero sin la información de variables y tipos de cada dependencia, que era casi
+  todo `target/debug`. Si alguna vez hace falta depurar con gdb/lldb viendo variables, quitarlo
+  en local, no en el repo.
+- Borrar la caché (`rm -rf ~/.cache/gigishell/cargo`) es seguro: los binarios instalados
+  (`~/.local/bin/gigishell-eventd`, `/usr/local/bin/gigishell-guardian`) son copias. El precio es
+  una compilación desde cero (~15 s guardian, menos eventd) en el siguiente `instalar.sh`.
+
 ## Fases
 
 | fase | qué | estado |

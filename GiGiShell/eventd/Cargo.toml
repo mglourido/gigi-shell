@@ -15,3 +15,8 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+# `cargo build` sin --release: backtraces con fichero y línea, sin la info de
+# variables y tipos de cada dependencia, que era la mayor parte de target/debug.
+[profile.dev]
+debug = "line-tables-only"

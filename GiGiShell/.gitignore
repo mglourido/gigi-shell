@@ -48,7 +48,9 @@ ags/.vscode/
 __pycache__/
 # boot-healthcheck y demás registros de sesión
 hypr/logs/
-# compilación de cargo del daemon Rust (el binario se instala en ~/.local/bin)
+# compilación de cargo de los daemons Rust: va a ~/.cache/gigishell/cargo/<crate>
+# (lo fija <crate>/.cargo/config.toml); estas reglas quedan por si alguien compila
+# con --target-dir o CARGO_TARGET_DIR apuntando al sitio de antes
 eventd/target/
 # ídem para guardian: incluye además vmlinux.h y el .skel.rs generados en OUT_DIR,
 # que son de esta máquina/kernel — build.rs los regenera desde BTF en cada checkout

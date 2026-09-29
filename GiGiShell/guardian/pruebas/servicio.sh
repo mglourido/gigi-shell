@@ -4,7 +4,7 @@
 #   bash ~/GiGiShell/guardian/instalar.sh          # antes, como tu usuario
 #   sudo bash ~/GiGiShell/guardian/pruebas/servicio.sh
 #
-# A. El binario de target/release a mano: arranca, el socket es tuyo y 600,
+# A. El binario de la caché de compilación a mano: arranca, el socket es tuyo y 600,
 #    rechaza a un cliente que no es AGS, y SIGTERM lo para limpio (sin BPF
 #    anclado ni socket).
 # B. El servicio instalado: viene desactivado y parado; arranca; tras un
@@ -20,7 +20,9 @@ if [ "$(id -u)" -ne 0 ] || [ -z "${SUDO_USER:-}" ]; then
 fi
 
 GUARDIAN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="$GUARDIAN_DIR/target/release/gigishell-guardian"
+# Bajo sudo, $HOME es el de root: la caché de compilación es la del usuario
+# (misma ruta que guardian/.cargo/config.toml).
+BIN="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.cache/gigishell/cargo/guardian/release/gigishell-guardian"
 UID_USUARIO="$(id -u "$SUDO_USER")"
 SOCK=/run/gigishell-guardian.sock
 RAIZ=/sys/fs/bpf/gigishell-guardian

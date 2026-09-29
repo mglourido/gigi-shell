@@ -1,0 +1,7 @@
+# La compilación va a la caché del usuario, no dentro del repo: target/ de guardian
+# llegó a pesar ~1 GB en ~/GiGiShell (debug + release con LTO + test).
+# Relativo a guardian/ — da ~/.cache/gigishell/cargo/guardian con el repo en ~/GiGiShell,
+# que es donde lo espera todo el sistema. instalar.sh y pruebas/ usan la misma
+# ruta a mano (CARGO_TARGET_DIR): si cambia aquí, cambiarla allí.
+[build]
+target-dir = "../../.cache/gigishell/cargo/guardian"

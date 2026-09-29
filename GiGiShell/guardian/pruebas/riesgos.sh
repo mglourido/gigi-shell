@@ -35,7 +35,9 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GUARDIAN_DIR="$(dirname "$SCRIPT_DIR")"
-BIN="$GUARDIAN_DIR/target/release/gigishell-guardian"
+# Bajo sudo, $HOME es el de root: la caché de compilación es la del usuario
+# (misma ruta que guardian/.cargo/config.toml).
+BIN="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.cache/gigishell/cargo/guardian/release/gigishell-guardian"
 
 if [ ! -x "$BIN" ]; then
     echo "gigishell-guardian: no existe $BIN — compilar antes con 'cargo build --release'." >&2

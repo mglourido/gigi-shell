@@ -1,0 +1,7 @@
+# La compilación va a la caché del usuario, no dentro del repo: target/ de eventd
+# llegó a pesar ~1 GB en ~/GiGiShell (debug + release con LTO + test).
+# Relativo a eventd/ — da ~/.cache/gigishell/cargo/eventd con el repo en ~/GiGiShell,
+# que es donde lo espera todo el sistema. instalar.sh y pruebas/ usan la misma
+# ruta a mano (CARGO_TARGET_DIR): si cambia aquí, cambiarla allí.
+[build]
+target-dir = "../../.cache/gigishell/cargo/eventd"
