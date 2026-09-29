@@ -70,8 +70,8 @@ ags/scratch/
 hypr/hyprlock_avatar.png
 assets/face.png
 
-# --- CSS compilado de AGS: es una caché ---
+# --- CSS compilado de AGS: antiguo sitio ---
 #
-# Lo regenera ags/scripts/compilar-css.sh antes de cada `ags run` si algún .scss es
-# más nuevo. Nunca se edita a mano.
+# Hoy vive en ~/.cache/gigishell/out.css, fuera del repo. Se sigue ignorando por si
+# queda un resto en un checkout que aún no ha pasado por compilar-css.sh (que lo borra).
 ags/estilos/out.css

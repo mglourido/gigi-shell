@@ -21,7 +21,7 @@ Aplica esto también a los archivos de pruebas cuando formen parte del cambio. N
 
 ## Estilo de código y convenciones de nombres
 
-Sigue el estilo existente de TypeScript/TSX en `ags/`: widgets funcionales, imports explícitos de `ags/gtk4` y `gi://...`, y módulos locales por funcionalidad. Mantén `ags/estilos/out.css` fuera de ediciones manuales; cambia `ags/estilos/style.scss` en su lugar (su `.map` ya no vive en el repo, se genera en `~/.cache/gigishell/`). Los archivos de Hyprland usan nombres descriptivos en minúsculas terminados en `.conf`; los scripts usan nombres en kebab-case y minúsculas terminados en `.sh`.
+Sigue el estilo existente de TypeScript/TSX en `ags/`: widgets funcionales, imports explícitos de `ags/gtk4` y `gi://...`, y módulos locales por funcionalidad. No edites el CSS compilado (`~/.cache/gigishell/out.css`, fuera del repo junto a su `.map`); cambia `ags/estilos/style.scss` y recompila con `ags/scripts/compilar-css.sh`. Los archivos de Hyprland usan nombres descriptivos en minúsculas terminados en `.conf`; los scripts usan nombres en kebab-case y minúsculas terminados en `.sh`.
 
 Usa español de forma consistente en los nombres y la documentación orientados al código en este repositorio: variables, funciones, comentarios y documentación deben mantener el mismo idioma y estilo de nombres, salvo que una API, dependencia o interfaz externa exija otro idioma. Esto mejora la coherencia y la mantenibilidad.
 

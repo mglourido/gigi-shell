@@ -179,7 +179,7 @@ if command -v python3 >/dev/null 2>&1; then
   fi
 fi
 
-[[ -s "$GIGISHELL/ags/estilos/out.css" ]] || warn "ags/estilos/out.css aún no está compilado (lo genera ags/scripts/compilar-css.sh al arrancar AGS)"
+[[ -s "${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/out.css" ]] || warn "~/.cache/gigishell/out.css aún no está compilado (lo genera ags/scripts/compilar-css.sh al arrancar AGS)"
 app_icons="$GIGISHELL/ags/config/app_icons.json"
 if [[ ! -s "$app_icons" ]]; then
   warn "sin ags/config/app_icons.json (los workspaces usarán iconos gráficos)"

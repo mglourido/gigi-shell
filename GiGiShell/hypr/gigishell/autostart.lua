@@ -114,8 +114,9 @@ hl.on("hyprland.start", function()
   -- La ruta es `~/.config/ags/` (el symlink), no `~/GiGiShell/ags/`: la ruta
   -- canónica XDG es el contrato de este repo, y es la que usan las demás líneas.
   --
-  -- `compilar-css.sh` va delante porque out.css es una caché sin versionar: lo
-  -- recompila solo si falta o algún .scss es más nuevo (si no, es un `find`).
+  -- `compilar-css.sh` va delante porque out.css es una caché fuera del repo
+  -- (~/.cache/gigishell/out.css, que app.ts carga por ruta): lo recompila solo si
+  -- falta o algún .scss es más nuevo (si no, es un `find`).
   hl.exec_cmd([[~/.config/ags/scripts/compilar-css.sh; timeout 2 ags quit 2>/dev/null; pkill -f "ags\.js$" 2>/dev/null && sleep 0.3; ags run ~/.config/ags/]])
 
   -- hypridle entra por su script, nunca a pelo: el script traduce los tiempos de

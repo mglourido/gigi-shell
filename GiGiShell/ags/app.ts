@@ -1,5 +1,5 @@
 import app from "ags/gtk4/app"
-import style from "./estilos/out.css"
+import GLib from "gi://GLib"
 import Barra from "./modulos/barra/Barra"
 import Lagarto from "./modulos/mascotas/Lagarto"
 import MenuEnergia from "./modulos/menu-energia/MenuEnergia"
@@ -43,8 +43,16 @@ import { initPresetsDispositivos } from "./servicios/multimedia/presetsDispositi
 import { initGuardian } from "./servicios/seguridad/guardian"
 import { alternarBarPorTecla, alternarMenuEnergia, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
 
+// La hoja compilada vive en la caché, no en el repo: la genera
+// scripts/compilar-css.sh antes de cada `ags run`. Se pasa la RUTA, no un
+// import (que la metería en el bundle y exigiría tenerla junto a las fuentes);
+// apply_css de Astal la carga con load_from_path si el fichero existe.
+const CSS = `${GLib.get_user_cache_dir()}/gigishell/out.css`
+if (!GLib.file_test(CSS, GLib.FileTest.EXISTS))
+  console.error(`Falta ${CSS}: ejecuta ~/.config/ags/scripts/compilar-css.sh`)
+
 app.start({
-  css: style,
+  css: CSS,
   requestHandler(argv, response) {
     if (argv.includes("volume-osd")) {
       showOSD()

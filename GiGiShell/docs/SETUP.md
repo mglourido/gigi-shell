@@ -17,7 +17,7 @@ El instalador se encarga de:
 - respaldar los archivos locales que entren en conflicto;
 - crear los enlaces de `~/.config/ags`, `~/.config/hypr` y demás rutas XDG;
 - elegir los perfiles de Kitty y Firefox según la presencia de una batería;
-- compilar `style.scss` a `out.css`;
+- compilar `style.scss` a `~/.cache/gigishell/out.css`;
 - reconstruir la caché de aplicaciones de Dolphin;
 - copiar a `/etc` (con `sudo`) los ficheros de `system/`: la regla udev que evita perder datos al
   retirar un USB y la carga de `i2c-dev`, sin la cual no hay brillo por DDC/CI en un sobremesa;
@@ -207,15 +207,13 @@ sudo pacman -S gjs gtk4-layer-shell gobject-introspection dart-sass
 Comprueba versión con `ags --version` (aquí: `3.1.0`). No hay `package.json` — AGS resuelve
 todo en runtime, no hace falta `npm install`.
 
-**Compilar el CSS** — `estilos/out.css` es un artefacto generado de `estilos/style.scss` y no se
-edita a mano. `install.sh` lo recompila automáticamente. Si modificas SCSS después, corre:
+**Compilar el CSS** — `~/.cache/gigishell/out.css` es un artefacto generado de `estilos/style.scss`,
+fuera del repo, y no se edita a mano. `install.sh` lo compila y el autostart lo recompila antes de
+cada `ags run` si algún `.scss` cambió. Para forzarlo a mano:
 
 ```sh
-cd ~/.config/ags && sass --no-charset --no-source-map estilos/style.scss estilos/out.css
+~/.config/ags/scripts/compilar-css.sh --forzar
 ```
-
-(`--no-source-map` evita dejar un `.map` suelto en `estilos/`; para desarrollo del shell, con mapa
-de depuración enrutado a `~/.cache/gigishell/`, ver `ags/CLAUDE.md`.)
 
 No hace falta hacerlo manualmente durante la primera instalación.
 En Arch/CachyOS, si aparece `sass: command not found`, instálalo con
@@ -833,7 +831,7 @@ migrar y qué se regenera solo.
 
 Todo lo demás dentro de `~/.config/hypr/*.conf`, `~/.config/hypr/scripts/`,
 `~/.config/hypr/envs/`, y todo `~/.config/ags/`: `app.ts`, `modulos/**`, `componentes/**`, `estado/**`, `servicios/**`, `utilidades/**`, `estilos/style.scss`
-(→ `estilos/out.css` generado, no se edita a mano; su `.map` de depuración se genera fuera del repo, en `~/.cache/gigishell/`).
+(→ compilado a `~/.cache/gigishell/out.css`, fuera del repo, junto a su `.map`; no se edita a mano).
 
 ### 14.3 Fuera de `hypr/` y `ags/`, pero incluidos en este repositorio
 

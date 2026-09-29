@@ -1741,9 +1741,9 @@ configure_default_shell() {
     warn "No encontré $VSCODE_CONFIGURATOR; VS Code pedirá el llavero del sistema en cada arranque."
     fi
 
-  # --- 7. Generar el CSS que importa app.ts ---
+  # --- 7. Generar el CSS que carga app.ts ---
     SCSS="$GIGISHELL/ags/estilos/style.scss"
-    CSS="$GIGISHELL/ags/estilos/out.css"
+    CSS="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/out.css"
     APP_ICONS="$GIGISHELL/ags/config/app_icons.json"
 
     [[ -f "$SCSS" ]] || die "Falta $SCSS. La copia de GiGiShell está incompleta; vuelve a ejecutar el instalador o comprueba la rama '$BRANCH'."
@@ -1754,8 +1754,8 @@ configure_default_shell() {
       "$APP_ICONS" >/dev/null \
       || warn "$APP_ICONS no contiene un mapa válido; los workspaces usarán iconos gráficos."
     fi
-    # out.css es una caché sin versionar: la genera ags/scripts/compilar-css.sh (el mismo
-    # que corre antes de cada `ags run`). Sin sass solo es fatal si no hay ninguno previo.
+    # out.css es una caché fuera del repo (~/.cache/gigishell/): la genera
+    # ags/scripts/compilar-css.sh (el mismo que corre antes de cada `ags run`). Sin sass solo es fatal si no hay ninguno previo.
     info "Compilando el CSS de AGS ..."
     if ! "$GIGISHELL/ags/scripts/compilar-css.sh" --forzar; then
     [[ -s "$CSS" ]] || die "No se pudo generar $CSS (¿falta dart-sass o hay un error de Sass?)."
