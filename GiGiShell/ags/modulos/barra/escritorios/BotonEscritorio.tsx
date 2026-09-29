@@ -83,79 +83,90 @@ export default function BotonEscritorio({
       .catch(() => {})
   }
 
-  const botonIcono = (indice: number) => (
-    <button
-      cssClasses={clientes((iconos) => [
-        "ws-icon-btn",
-        iconos[indice]?.esGlifo ? "ws-glyph-btn" : "ws-image-btn",
-      ])}
-      widthRequest={clientes((iconos) => iconos[indice]?.esGlifo ? 16 : 24)}
-      visible={clientes((iconos) => indice < iconos.length)}
-      // Función y no accessor: el texto —lo único que hay que construir para el
-      // icono— se arma al abrir el título y no en cada señal de Hyprland. Vacío deja
-      // el título sin abrir (títulos desactivados o icono ya sin cliente).
-      $={(self: Gtk.Widget) => tituloBarra(self, () =>
-        titulosAppsWorkspaceActivos.get() ? clientes()[indice]?.descripcion() : null)}
-    >
-      <Gtk.GestureClick
-        button={Gdk.BUTTON_SECONDARY}
-        onPressed={() => {
-          const cliente = clientes()[indice]
-          if (cliente) alternarPantallaCompleta(cliente.direccion)
-        }}
-      />
-      <box
-        cssClasses={indiceClienteActivo((indiceActivo) => {
-          const cliente = clientes()[indice]
-          return [
-            "ws-icon-wrap",
-            cliente?.esGlifo ? "ws-glyph-wrap" : "ws-image-wrap",
-            indiceActivo === indice ? "active-client" : "",
-          ].filter(Boolean)
-        })}
-        halign={Gtk.Align.CENTER}
-        valign={Gtk.Align.CENTER}
-        hexpand={false}
-        vexpand={false}
+  const botonIcono = (indice: number) => {
+    // El revealer necesita conservar el dibujo mientras se cierra. Si el icono
+    // lee directamente `clientes()[indice]`, desaparece antes de la animación.
+    let ultimoCliente = clientes()[indice]
+    const clienteMostrado = createComputed(() => {
+      const actual = clientes()[indice]
+      if (actual) ultimoCliente = actual
+      return ultimoCliente
+    })
+
+    return (
+      <button
+        cssClasses={clienteMostrado((cliente) => [
+          "ws-icon-btn",
+          ...(indice === 0 ? ["ws-primer-icono"] : []),
+          cliente?.esGlifo ? "ws-glyph-btn" : "ws-image-btn",
+        ])}
+        widthRequest={clienteMostrado((cliente) => cliente?.esGlifo ? 16 : 24)}
+        // Función y no accessor: el texto —lo único que hay que construir para el
+        // icono— se arma al abrir el título y no en cada señal de Hyprland. Vacío deja
+        // el título sin abrir (títulos desactivados o icono ya sin cliente).
+        $={(self: Gtk.Widget) => tituloBarra(self, () =>
+          titulosAppsWorkspaceActivos.get() ? clientes()[indice]?.descripcion() : null)}
       >
-        <label
-          cssClasses={clientes((iconos) => [
-            "ws-icons",
-            "ws-glyph-icon",
-            iconos[indice]?.esGlifo
-              ? `ws-glyph-${claseAplicacionCssSegura(iconos[indice].claseAplicacion)}`
-              : "",
-          ].filter(Boolean))}
-          label={clientes((iconos) => iconos[indice]?.esGlifo ? iconos[indice].icono : "")}
-          visible={clientes((iconos) => !!iconos[indice]?.esGlifo)}
+        <Gtk.GestureClick
+          button={Gdk.BUTTON_SECONDARY}
+          onPressed={() => {
+            const cliente = clientes()[indice]
+            if (cliente) alternarPantallaCompleta(cliente.direccion)
+          }}
+        />
+        <box
+          cssClasses={indiceClienteActivo((indiceActivo) => {
+            const cliente = clienteMostrado()
+            return [
+              "ws-icon-wrap",
+              cliente?.esGlifo ? "ws-glyph-wrap" : "ws-image-wrap",
+              indiceActivo === indice ? "active-client" : "",
+            ].filter(Boolean)
+          })}
           halign={Gtk.Align.CENTER}
           valign={Gtk.Align.CENTER}
-        />
-        <Gtk.Image
-          cssClasses={["ws-app-icon", "ws-image-icon"]}
-          gicon={clientes((iconos) => iconos[indice]?.iconoGio ?? null)}
-          pixelSize={20}
-          visible={clientes((iconos) => !!(
-            iconos[indice] && !iconos[indice].esGlifo && iconos[indice].iconoGio
-          ))}
-          halign={Gtk.Align.CENTER}
-          valign={Gtk.Align.CENTER}
-        />
-        <Gtk.Image
-          cssClasses={["ws-app-icon", "ws-image-icon"]}
-          iconName={clientes((iconos) =>
-            iconos[indice]?.esGlifo ? "" : (iconos[indice]?.icono ?? "")
-          )}
-          pixelSize={20}
-          visible={clientes((iconos) => !!(
-            iconos[indice] && !iconos[indice].esGlifo && !iconos[indice].iconoGio
-          ))}
-          halign={Gtk.Align.CENTER}
-          valign={Gtk.Align.CENTER}
-        />
-      </box>
-    </button>
-  )
+          hexpand={false}
+          vexpand={false}
+        >
+          <label
+            cssClasses={clienteMostrado((cliente) => [
+              "ws-icons",
+              "ws-glyph-icon",
+              cliente?.esGlifo
+                ? `ws-glyph-${claseAplicacionCssSegura(cliente.claseAplicacion)}`
+                : "",
+            ].filter(Boolean))}
+            label={clienteMostrado((cliente) => cliente?.esGlifo ? cliente.icono : "")}
+            visible={clienteMostrado((cliente) => !!cliente?.esGlifo)}
+            halign={Gtk.Align.CENTER}
+            valign={Gtk.Align.CENTER}
+          />
+          <Gtk.Image
+            cssClasses={["ws-app-icon", "ws-image-icon"]}
+            gicon={clienteMostrado((cliente) => cliente?.iconoGio ?? null)}
+            pixelSize={20}
+            visible={clienteMostrado((cliente) => !!(
+              cliente && !cliente.esGlifo && cliente.iconoGio
+            ))}
+            halign={Gtk.Align.CENTER}
+            valign={Gtk.Align.CENTER}
+          />
+          <Gtk.Image
+            cssClasses={["ws-app-icon", "ws-image-icon"]}
+            iconName={clienteMostrado((cliente) =>
+              cliente?.esGlifo ? "" : (cliente?.icono ?? "")
+            )}
+            pixelSize={20}
+            visible={clienteMostrado((cliente) => !!(
+              cliente && !cliente.esGlifo && !cliente.iconoGio
+            ))}
+            halign={Gtk.Align.CENTER}
+            valign={Gtk.Align.CENTER}
+          />
+        </box>
+      </button>
+    )
+  }
 
   onCleanup(() => eliminarInteraccion())
 
@@ -343,7 +354,10 @@ export default function BotonEscritorio({
         }
       }}
     >
-      <button cssClasses={["ws-num-btn"]}>
+      <button cssClasses={clientes((iconos) => [
+        "ws-num-btn",
+        ...(iconos.length === 0 ? ["sin-apps"] : []),
+      ])}>
         <Gtk.EventControllerMotion
           onEnter={vistaPrevia.alEntrar}
           onLeave={vistaPrevia.alSalir}
@@ -369,13 +383,19 @@ export default function BotonEscritorio({
         <box cssClasses={["ws-apps"]} spacing={0}>
           <For each={() => Array.from({ length: workspaceAppLimit() }, (_, indice) => indice)}>
             {(indice) => (
-              <box spacing={0}>
-                <box
-                  cssClasses={["ws-icon-separator"]}
-                  visible={clientes((iconos) => indice > 0 && indice < iconos.length)}
-                />
-                {botonIcono(indice)}
-              </box>
+              <revealer
+                revealChild={clientes((iconos) => indice < iconos.length)}
+                transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
+                transitionDuration={180}
+              >
+                <box spacing={0}>
+                  <box
+                    cssClasses={["ws-icon-separator"]}
+                    visible={clientes((iconos) => indice > 0 && indice < iconos.length)}
+                  />
+                  {botonIcono(indice)}
+                </box>
+              </revealer>
             )}
           </For>
         </box>

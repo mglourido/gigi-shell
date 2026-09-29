@@ -271,6 +271,10 @@ window.cal-window scrolledwindow > overshoot,
       min-height: 18px;
     }
 
+    .ws-primer-icono {
+      margin-left: -3px;
+    }
+
     .ws-image-btn {
       min-width: 24px;
       padding: 0;
@@ -286,10 +290,6 @@ window.cal-window scrolledwindow > overshoot,
       min-width: 20px;
     }
 
-    .ws-apps {
-      margin-left: -3px;
-    }
-
     .ws-icon-separator {
       min-width: 1px;
       min-height: 5px;
@@ -303,6 +303,12 @@ window.cal-window scrolledwindow > overshoot,
       font-weight: 700;
       margin: 1px 0 0 -3px;
       min-height: 16px;
+      transition: transform 180ms ease;
+    }
+
+    .ws-num-btn.sin-apps .ws-id {
+      // El glifo queda visualmente a la izquierda dentro de la pastilla vacía.
+      transform: translateX(1.5px);
     }
 
     .ws-icons {
