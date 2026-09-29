@@ -161,7 +161,7 @@ y su `before_sleep_cmd` son variables `$IDLE_*`, con un valor por defecto en el 
 `source = ~/.cache/gigishell/hypridle.conf` que las pisa. Ese derivado lo genera
 `hypr/scripts/hypridle.sh` (con `jq`) a partir de **`~/.config/gigishell/inactividad.json`** —la
 autoridad, que escribe `ags/servicios/pantalla/inactividadAhorro.ts`— cada vez que arranca hypridle.
-Antes AGS reescribía el `.conf` con regex y cada ajuste salía en `dotfiles status` como un cambio sin
+Antes AGS reescribía el `.conf` con regex y cada ajuste salía en `gigishell status` como un cambio sin
 commitear. Consecuencias:
 
 - **hypridle se lanza SIEMPRE con `hypridle.sh`** (autostart y `reinicioHypridle.ts`). Un

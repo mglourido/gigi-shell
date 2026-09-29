@@ -14,7 +14,8 @@ end
 #function fish_greeting
 #    # smth smth
 #end
-alias dotfiles='git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
+# Repo bare de GiGiShell (install.sh). No se llama `dotfiles` para no pisar el del usuario.
+alias gigishell='git --git-dir=$HOME/.gigishell/ --work-tree=$HOME'
 
 # Fish 4 no siempre vuelve a ejecutar esta función después de que el perfil de
 # CachyOS instala sus bindings; aplicarla aquí hace efectivos Alt+1..Alt+9.

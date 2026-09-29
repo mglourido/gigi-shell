@@ -12,8 +12,8 @@ curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiShell
 El instalador se encarga de:
 
 - instalar Hyprland, AGS/Astal y las herramientas del escritorio;
-- descargar la rama `main` mediante el repositorio bare de dotfiles. Es la rama
-  predeterminada; puede cambiarse con `DOTFILES_BRANCH`;
+- descargar la rama `main` mediante el repositorio bare `~/.gigishell` (alias `gigishell`).
+  Es la rama predeterminada; puede cambiarse con `GIGISHELL_BRANCH`;
 - respaldar los archivos locales que entren en conflicto;
 - crear los enlaces de `~/.config/ags`, `~/.config/hypr` y demás rutas XDG;
 - elegir los perfiles de Kitty y Firefox según la presencia de una batería;
@@ -24,9 +24,11 @@ El instalador se encarga de:
 - ejecutar la validación final.
 
 El mismo comando sirve para actualizar un equipo que ya tenga GiGiShell instalado: hace
-`fetch` en `~/.dotfiles`, avanza el checkout local hasta `origin/main` por defecto y vuelve a
+`fetch` en `~/.gigishell`, avanza el checkout local hasta `origin/main` por defecto y vuelve a
 comprobar los enlaces. Un `git pull` realizado en otro clon independiente no actualiza
-por sí solo la copia desplegada por `~/.dotfiles`.
+por sí solo la copia desplegada por `~/.gigishell`. (Las instalaciones antiguas tenían el
+repo en `~/.dotfiles`; el instalador lo renombra solo si es el de GiGiShell y no toca un
+`~/.dotfiles` propio del usuario.)
 
 El perfil de Kitty puede forzarse sin mantener ramas distintas para cada
 máquina:
@@ -649,7 +651,7 @@ Estas no son paquetes, son configuración/datos ligados al hardware o cuenta act
 ### Antes de migrar: preflight del repositorio
 
 El instalador remoto solo puede descargar archivos que estén **versionados, incluidos en
-un commit y publicados en `origin/main`** (o en la rama indicada por `DOTFILES_BRANCH`).
+un commit y publicados en `origin/main`** (o en la rama indicada por `GIGISHELL_BRANCH`).
 Que AGS funcione en la máquina de desarrollo no demuestra que esos archivos estén en Git.
 
 Ejecuta esto en la máquina origen antes del push:
@@ -666,8 +668,8 @@ bin/verify-files.sh
 En este repositorio bare usa también:
 
 ```sh
-dotfiles status --short --untracked-files=all -- GiGiShell .github
-dotfiles ls-files GiGiShell/ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx \
+gigishell status --short --untracked-files=all -- GiGiShell .github
+gigishell ls-files GiGiShell/ags/modulos/ajustes/seguridad/SeccionSeguridad.tsx \
   GiGiShell/hypr/scripts/scan-file.sh GiGiShell/bin/preflight.sh
 ```
 

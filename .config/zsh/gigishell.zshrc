@@ -110,7 +110,8 @@ for _config_file in "$ZDOTDIR/completions/"*.zsh(N); do
 done
 unset _config_file
 
-alias dotfiles='git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
+# Repo bare de GiGiShell (install.sh). No se llama `dotfiles` para no pisar el del usuario.
+alias gigishell='git --git-dir=$HOME/.gigishell/ --work-tree=$HOME'
 alias c='clear'
 alias vc='code'
 alias mkdir='mkdir -p'

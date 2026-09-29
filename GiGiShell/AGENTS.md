@@ -16,7 +16,7 @@ GiGiShell es un árbol personal de dotfiles para Hyprland/Wayland. Los archivos 
 
 ## Control de versiones
 
-Antes de terminar un trabajo que añada archivos nuevos, verifica que queden rastreados en el flujo de trabajo del repositorio activo. Este árbol normalmente se gestiona mediante el repositorio bare de dotfiles en `~/.dotfiles`, así que allí hay que preparar los archivos nuevos con el flujo de dotfiles; si alguna vez el árbol fuera un clon normal de git, usa `git add` en las rutas correspondientes. No dejes archivos nuevos sin rastrear cuando deban subirse.
+Antes de terminar un trabajo que añada archivos nuevos, verifica que queden rastreados en el flujo de trabajo del repositorio activo. Este árbol normalmente se gestiona mediante el repositorio bare `~/.gigishell` (alias `gigishell`), así que allí hay que preparar los archivos nuevos con `gigishell add`; si alguna vez el árbol fuera un clon normal de git, usa `git add` en las rutas correspondientes. No dejes archivos nuevos sin rastrear cuando deban subirse.
 Aplica esto también a los archivos de pruebas cuando formen parte del cambio. No incluyas archivos temporales, cachés de trabajo ni otros artefactos generados que no deban versionarse.
 
 ## Estilo de código y convenciones de nombres
@@ -83,7 +83,7 @@ Cuando se añadan pruebas TypeScript, deben usar el ejecutor nativo de Node y vi
 
 ## Guías de commits y pull requests
 
-Este checkout tiene un `.git` vacío; el historial viene del repositorio bare en `~/.dotfiles`. Los commits recientes son resúmenes cortos en español, normalmente imperativos o descriptivos, como `añadida gestión de cups en los ajustes`. Mantén los commits concisos y acotados. Los pull requests deben describir los cambios visibles para el usuario, listar los comandos ejecutados, anotar la verificación manual en AGS/Hyprland e incluir capturas o grabaciones para los cambios de interfaz.
+Este checkout tiene un `.git` vacío; el historial viene del repositorio bare en `~/.gigishell` (alias `gigishell`; antes `~/.dotfiles`). Los commits recientes son resúmenes cortos en español, normalmente imperativos o descriptivos, como `añadida gestión de cups en los ajustes`. Mantén los commits concisos y acotados. Los pull requests deben describir los cambios visibles para el usuario, listar los comandos ejecutados, anotar la verificación manual en AGS/Hyprland e incluir capturas o grabaciones para los cambios de interfaz.
 
 ## Consejos de seguridad y configuración
 

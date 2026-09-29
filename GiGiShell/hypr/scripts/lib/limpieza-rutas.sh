@@ -344,7 +344,7 @@ rutas_vetadas() {
         / /home /root /boot /dev /etc /proc /run /sys /usr /var /bin /sbin /lib /lib64 /opt /srv \
         "$HOME" \
         "$HOME/.config" "$HOME/.local" "$HOME/.local/share" "$HOME/.local/state" \
-        "$HOME/.ssh" "$HOME/.gnupg" "$HOME/.dotfiles" "$HOME/.mozilla" \
+        "$HOME/.ssh" "$HOME/.gnupg" "$HOME/.gigishell" "$HOME/.dotfiles" "$HOME/.mozilla" \
         "${XDG_CACHE_HOME:-$HOME/.cache}"
 }
 

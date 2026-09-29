@@ -4,7 +4,7 @@
 // La autoridad es `~/.config/gigishell/inactividad.json`, NO hypr/hypridle.conf: ese fichero está
 // versionado y es estático (usa variables `$IDLE_*`). `hypr/scripts/hypridle.sh` traduce el JSON a
 // esas variables cada vez que arranca hypridle. Antes se reescribían los `timeout =` del .conf con
-// regex, y cada ajuste acababa en `dotfiles status` como un cambio sin commitear.
+// regex, y cada ajuste acababa en `gigishell status` como un cambio sin commitear.
 
 export type ListenerKind = "dpms" | "lock" | "suspend" | "hibernate"
 

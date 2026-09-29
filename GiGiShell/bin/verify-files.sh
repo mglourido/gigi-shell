@@ -22,7 +22,7 @@ if ((${#tests_versionados[@]})); then
   echo "verify-files: hay tests rastreados; los tests no se versionan:" >&2
   printf '  %s\n' "${tests_versionados[@]}" >&2
   echo "Quitalos del índice sin borrarlos del disco:" >&2
-  printf '  dotfiles rm --cached -- %q\n' "${tests_versionados[@]}" >&2
+  printf '  gigishell rm --cached -- %q\n' "${tests_versionados[@]}" >&2
   exit 1
 fi
 

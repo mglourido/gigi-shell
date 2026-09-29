@@ -117,8 +117,15 @@ instalación que todavía tenga el esquema viejo.
 ## Git caveat
 
 The `.git` directory here is empty — **git commands run from `~/GiGiShell` fail.** GiGiShell is
-a subtree of a separate *bare* dotfiles repo at `~/.dotfiles`, operated via the alias
-`dotfiles() { git --git-dir=~/.dotfiles --work-tree="$HOME" "$@"; }` (see `install.sh`).
+a subtree of a separate *bare* repo at **`~/.gigishell`**, operated via the alias
+`gigishell` (`git --git-dir=~/.gigishell --work-tree="$HOME"`, defined in the shared bash/zsh/fish
+config; see `install.sh`). It used to be `~/.dotfiles` + alias `dotfiles`; it was renamed so it
+doesn't collide with a user's own dotfiles bare repo. `install.sh` migrates an old `~/.dotfiles`
+(asking first) **only if it is unmistakably ours**: bare, `origin` pointing at
+`github.com/mglourido/gigi-shell`, and `GiGiShell/install.sh` in HEAD. A personal bare that merely
+contains GiGiShell (other remote) is left alone and a fresh `~/.gigishell` is cloned beside it.
+`link.sh`/`preflight.sh` fall back to `~/.dotfiles` only under that same check — never loosen it:
+they write `core.hooksPath` and run `checkout` on whatever repo they pick.
 Do not assume normal `git status`/`git log` work here; treat this as a working tree
 without local history unless the user says otherwise.
 
@@ -130,7 +137,7 @@ canonical XDG paths point back to these files.
 ```sh
 bin/link.sh          # create/repair symlinks; never overwrites a real dir/file (warns instead)
 bin/link.sh --check  # report status only (exit 0 if everything OK)
-bin/link.sh --force  # back up whatever is in the way (to ~/.dotfiles-backup-<date>) then link
+bin/link.sh --force  # back up whatever is in the way (to ~/.gigishell-backup-<date>) then link
 ```
 
 `link.sh` is idempotent and data-safe. Beyond symlinking it also: migrates the profile photo
@@ -147,7 +154,7 @@ ellas — solo cuando la base ya existe, para no dejar las apps KDE en tema clar
 `hypr/scripts/reparar-kdeglobals.sh` para reponer `[UiSettings] ColorScheme=BreezeDark` cada vez que
 una app KDE reescribía `kdeglobals` y borraba el grupo; con la base en `/etc/xdg`, KColorSchemeManager
 lo sigue leyendo de ahí aunque el fichero del usuario lo pierda, y el script ya no se llama. `install.sh` is the fresh-machine path: it clones the bare
-dotfiles repo, checks out into `$HOME` (backing up conflicts), then runs `link.sh --force`.
+repo into `~/.gigishell`, checks out into `$HOME` (backing up conflicts), then runs `link.sh --force`.
 
 ## Per-machine application profiles
 
@@ -208,7 +215,7 @@ imprescindible para no romper la sesión:
 
 - Un error de Lua deja la sesión **sin atajos** salvo `SUPER + Q` (abre kitty). Cada módulo se
   carga con `util.carga` (require + pcall) para que uno roto no tumbe el resto. Si un arranque sale
-  mal: TTY (`Ctrl+Alt+F2`) y `dotfiles checkout -- GiGiShell/hypr`.
+  mal: TTY (`Ctrl+Alt+F2`) y `gigishell checkout -- GiGiShell/hypr`.
 - **`hyprctl keyword` YA NO EXISTE** → `hyprctl eval 'hl.config({...})'`.
 - **`hyprctl dispatch` con sintaxis legacy tampoco funciona** → `hyprctl dispatch
   "hl.dsp.exec_cmd('cmd')"`. Ojo: ninguna de las dos formas falla por código de salida en la sesión

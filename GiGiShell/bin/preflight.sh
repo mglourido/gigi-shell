@@ -77,16 +77,30 @@ for path in "${required[@]}"; do
   [[ -f "$GIGISHELL/$path" ]] || fail "falta $path"
 done
 
+# El bare de GiGiShell se llamaba ~/.dotfiles (install.sh lo renombra). Sólo se usa si es
+# inequívocamente el nuestro —bare, origin al repo de GiGiShell y GiGiShell/install.sh en
+# HEAD—: ~/.dotfiles suele ser el bare PROPIO del usuario, y aquí se le escribiría
+# core.hooksPath o se haría checkout sobre él.
+bare_antiguo_es_gigishell() {
+  local d="$HOME/.dotfiles" url
+  [[ "$(git --git-dir="$d" rev-parse --is-bare-repository 2>/dev/null)" == true ]] || return 1
+  url="$(git --git-dir="$d" config --get remote.origin.url 2>/dev/null)" || return 1
+  [[ "$url" =~ github\.com[:/]mglourido/gigi-shell(\.git)?/?$ ]] || return 1
+  git --git-dir="$d" cat-file -e HEAD:GiGiShell/install.sh 2>/dev/null
+}
+
 # Guardia contra la regresión que rompió el instalador: una ruta IGNORADA por git no
 # puede exigirse, porque en la máquina de desarrollo existe (y pasa) y en un checkout
 # limpio no existe nunca (y falla). El fallo no se ve donde se edita la lista, sólo en
 # la máquina nueva, que es el peor sitio posible para descubrirlo. Se comprueba contra
-# el mismo git que versiona GiGiShell: el repo bare de dotfiles (lo normal) o un clon
+# el mismo git que versiona GiGiShell: el repo bare ~/.gigishell (lo normal) o un clon
 # corriente. Sin git no se comprueba nada — es una guardia de desarrollo, no un
 # requisito de instalación.
 PREFLIGHT_GIT=()
 if command -v git >/dev/null 2>&1; then
-  if git --git-dir="$HOME/.dotfiles" --work-tree="$HOME" rev-parse --git-dir >/dev/null 2>&1; then
+  if git --git-dir="$HOME/.gigishell" --work-tree="$HOME" rev-parse --git-dir >/dev/null 2>&1; then
+    PREFLIGHT_GIT=(git --git-dir="$HOME/.gigishell" --work-tree="$HOME")
+  elif bare_antiguo_es_gigishell; then
     PREFLIGHT_GIT=(git --git-dir="$HOME/.dotfiles" --work-tree="$HOME")
   elif git -C "$GIGISHELL" rev-parse --show-toplevel >/dev/null 2>&1; then
     PREFLIGHT_GIT=(git -C "$GIGISHELL")

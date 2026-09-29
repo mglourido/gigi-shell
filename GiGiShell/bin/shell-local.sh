@@ -24,7 +24,7 @@
 #   bin/shell-local.sh --force    respalda (a $LINK_BACKUP) y reemplaza los que no lo cargan
 set -euo pipefail
 
-LINK_BACKUP="${LINK_BACKUP:-$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)}"
+LINK_BACKUP="${LINK_BACKUP:-$HOME/.gigishell-backup-$(date +%Y%m%d-%H%M%S)}"
 
 mode=link
 case "${1:-}" in

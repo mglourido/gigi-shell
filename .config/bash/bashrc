@@ -82,7 +82,8 @@ alias tb='nc termbin.com 9999'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'
 alias jctl="journalctl -p 3 -xb"
 alias rip="expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
-alias dotfiles='git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
+# Repo bare de GiGiShell (install.sh). No se llama `dotfiles` para no pisar el del usuario.
+alias gigishell='git --git-dir=$HOME/.gigishell/ --work-tree=$HOME'
 
 backup() {
     [[ $# -eq 1 ]] || { printf 'usage: backup FILE\n' >&2; return 2; }

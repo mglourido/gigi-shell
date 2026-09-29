@@ -191,7 +191,7 @@ GiGiShell/bin/app-profile.sh status
 GiGiShell/bin/app-profile.sh desktop
 GiGiShell/bin/app-profile.sh status
 GiGiShell/bin/preflight.sh --installed
-git --git-dir="$HOME/.dotfiles" --work-tree="$HOME" diff --cached --check
+gigishell diff --cached --check
 ```
 
 Además, haz una prueba con un `HOME` temporal o con archivos extraídos desde el
@@ -216,7 +216,7 @@ Además, haz una prueba con un `HOME` temporal o con archivos extraídos desde e
 - [ ] El instalador acepta `auto|laptop|desktop` y falla claramente ante otro valor.
 - [ ] El preflight valida los dos perfiles y el destino efectivo.
 - [ ] La instalación aislada desde el índice funciona.
-- [ ] Los archivos necesarios están añadidos al repositorio bare de dotfiles.
+- [ ] Los archivos necesarios están añadidos al repositorio bare `~/.gigishell`.
 - [ ] La documentación explica cómo recargar y diagnosticar la aplicación.
 
 Como referencias completas, consulta [Kitty](kitty-profiles.md) para inclusión

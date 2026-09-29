@@ -1,9 +1,10 @@
 # GiGi-shell
 
 Personal dotfiles for a full Arch Linux / CachyOS desktop (It may work without problems on other OS), managed as a **bare git repo**
-(`~/.dotfiles`) whose work-tree is `$HOME` — every file in this repository lives at its real,
-final path in the home directory. No stow, no copying: `git --git-dir=~/.dotfiles
---work-tree=~ checkout` puts everything exactly where it belongs.
+(`~/.gigishell`, alias `gigishell`) whose work-tree is `$HOME` — every file in this repository lives
+at its real, final path in the home directory. No stow, no copying: `git --git-dir=~/.gigishell
+--work-tree=~ checkout` puts everything exactly where it belongs. It is deliberately **not** called
+`~/.dotfiles`, so it can live next to your own dotfiles bare repo without touching it.
 
 The centerpiece is **[GiGiShell](GiGiShell/)** — a complete Hyprland/Wayland desktop rice (custom AGS
 shell, a Lua-native Hyprland config, and a suite of background daemons for security, power and USB
@@ -22,7 +23,7 @@ curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiShell
 
 The same command **updates** an already-installed machine (fetches, fast-forwards, re-verifies
 symlinks). See **[GiGiShell/README.md](GiGiShell/README.md)** for what gets installed, override
-variables (`KITTY_PROFILE`, `FIREFOX_PROFILE`, `INSTALL_PACKAGES`, `DOTFILES_BRANCH`), and a
+variables (`KITTY_PROFILE`, `FIREFOX_PROFILE`, `INSTALL_PACKAGES`, `GIGISHELL_BRANCH`), and a
 detailed feature tour of the desktop itself; **[GiGiShell/docs/SETUP.md](GiGiShell/docs/SETUP.md)** for
 the full step-by-step + troubleshooting.
 Collision files are automatically backed up.

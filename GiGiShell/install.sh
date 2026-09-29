@@ -8,7 +8,7 @@
 #   bash install.sh --solo-paquetes                   # solo dependencias
 #   bash install.sh --sin-paquetes                    # instalación completa sin gestionar paquetes
 #   curl -sSL <url> | bash -s -- --sin-paquetes
-#   curl -sSL <url> | DOTFILES_BRANCH=<rama> bash      # otra rama del repositorio (no por equipo: para eso están *_PROFILE)
+#   curl -sSL <url> | GIGISHELL_BRANCH=<rama> bash     # otra rama del repositorio (no por equipo: para eso están *_PROFILE)
 #   curl -sSL <url> | KITTY_PROFILE=desktop bash      # forzar perfil de Kitty
 #   curl -sSL <url> | FIREFOX_PROFILE=desktop bash    # forzar perfil de Firefox
 #   curl -sSL <url> | SDDM_AUTOLOGIN=0 bash           # SDDM pide contraseña en vez de entrar solo
@@ -16,8 +16,9 @@
 # Opciones: --solo-paquetes y --sin-paquetes. Sin opciones se ejecuta la instalación completa.
 #
 # Variables:
-#   DOTFILES_REPO    URL del repositorio (por defecto, HTTPS público)
-#   DOTFILES_BRANCH  rama a instalar (por defecto: main)
+#   GIGISHELL_REPO   URL del repositorio (por defecto, HTTPS público)
+#   GIGISHELL_BRANCH rama a instalar (por defecto: main)
+#                    (DOTFILES_REPO / DOTFILES_BRANCH, los nombres antiguos, siguen valiendo)
 #   KITTY_PROFILE    auto, laptop, desktop o conservar
 #   FIREFOX_PROFILE  auto, laptop, desktop o conservar
 #   INSTALL_HIBERNATION 1 prepara hibernación (por defecto: 0; también se pregunta)
@@ -34,12 +35,18 @@
 # REPETICIÓN: puedes volver a ejecutar el instalador; los fallos recuperables se resumen al final.
 set -euo pipefail
 
-REPO_URL="${DOTFILES_REPO:-https://github.com/mglourido/gigi-shell.git}"
-BRANCH="${DOTFILES_BRANCH:-main}"
-DOTGIT="$HOME/.dotfiles"
+REPO_URL="${GIGISHELL_REPO:-${DOTFILES_REPO:-https://github.com/mglourido/gigi-shell.git}}"
+BRANCH="${GIGISHELL_BRANCH:-${DOTFILES_BRANCH:-main}}"
+# El repo bare se llama ~/.gigishell y se maneja con `gigishell <orden git>`, no con el
+# `~/.dotfiles` + `dotfiles` de siempre: ese nombre es el que usa casi cualquiera para SU
+# propio bare, y el instalador se lo reutilizaba (o se lo pisaba) sin avisar. GiGiShell es
+# un repo git más en la cuenta del usuario, no «los dotfiles». Las instalaciones antiguas
+# se migran solas en el paso 1 (ver migrar_bare_antiguo).
+DOTGIT="$HOME/.gigishell"
+DOTGIT_ANTIGUO="$HOME/.dotfiles"
 # GiGiShell vive en $HOME dentro del repositorio bare desplegado allí.
 GIGISHELL="$HOME/GiGiShell"
-BACKUP_BASE="$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
+BACKUP_BASE="$HOME/.gigishell-backup-$(date +%Y%m%d-%H%M%S)"
 BACKUP="$BACKUP_BASE"
 BACKUP_RESERVADO=0
 MODO_INSTALACION=completa
@@ -65,7 +72,7 @@ ASSUME_YES="${ASSUME_YES:-0}"
 SDDM_AUTOLOGIN_EXPLICITO=0; [ -n "${SDDM_AUTOLOGIN+x}" ] && SDDM_AUTOLOGIN_EXPLICITO=1
 SDDM_AUTOLOGIN="${SDDM_AUTOLOGIN:-1}"
 
-dotfiles() { git --git-dir="$DOTGIT" --work-tree="$HOME" "$@"; }
+gigishell() { git --git-dir="$DOTGIT" --work-tree="$HOME" "$@"; }
 info() { printf '\033[1;36m::\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
 
@@ -930,6 +937,43 @@ configure_default_shell() {
   command -v git >/dev/null || die "git no está instalado."
 
   # --- 1. Clonar el repo bare (o reutilizar) ---
+  # Migración de instalaciones anteriores, que dejaban el bare en ~/.dotfiles. Ése es el nombre
+  # más habitual para el bare PROPIO de cualquier usuario, así que moverlo sólo es seguro si no
+  # cabe duda de que es el nuestro. Hacen falta las TRES cosas:
+  #   - es un repo bare;
+  #   - su origin apunta al repo de GiGiShell (un bare personal tiene su propio remoto);
+  #   - su HEAD contiene GiGiShell/install.sh.
+  # Un bare personal que además haya absorbido GiGiShell (fork, merge) falla la segunda y se
+  # queda como está: se clona uno nuevo en ~/.gigishell al lado y se avisa. Y aun cumpliendo
+  # las tres se pregunta antes de mover (sin terminal vale el «sí» por defecto).
+  bare_antiguo_es_gigishell() {
+    local url
+    [ "$(git --git-dir="$DOTGIT_ANTIGUO" rev-parse --is-bare-repository 2>/dev/null)" = true ] || return 1
+    url="$(git --git-dir="$DOTGIT_ANTIGUO" config --get remote.origin.url 2>/dev/null)" || return 1
+    [[ "$url" =~ github\.com[:/]mglourido/gigi-shell(\.git)?/?$ ]] || return 1
+    git --git-dir="$DOTGIT_ANTIGUO" cat-file -e HEAD:GiGiShell/install.sh 2>/dev/null
+  }
+  migrar_bare_antiguo() {
+    [ -d "$DOTGIT_ANTIGUO" ] || return 0
+    if ! bare_antiguo_es_gigishell; then
+      if git --git-dir="$DOTGIT_ANTIGUO" cat-file -e HEAD:GiGiShell/install.sh 2>/dev/null; then
+        warn "$DOTGIT_ANTIGUO contiene GiGiShell pero su origin no es el repo de GiGiShell; no lo toco. GiGiShell usará su propio repo en $DOTGIT."
+      fi
+      return 0
+    fi
+    if [ -e "$DOTGIT" ]; then
+      warn "$DOTGIT_ANTIGUO es el repo antiguo de GiGiShell, pero ya existe $DOTGIT; lo dejo como está. Si no lo usas, bórralo a mano."
+      return 0
+    fi
+    if ! preguntar_si_no "El repo de GiGiShell está en $DOTGIT_ANTIGUO. ¿Lo renombro a $DOTGIT (alias 'gigishell')?" si; then
+      warn "Conservo $DOTGIT_ANTIGUO tal cual; GiGiShell clonará su propio repo en $DOTGIT."
+      return 0
+    fi
+    info "Renombrando el repo de GiGiShell: $DOTGIT_ANTIGUO -> $DOTGIT."
+    mv "$DOTGIT_ANTIGUO" "$DOTGIT" || die "No pude mover $DOTGIT_ANTIGUO a $DOTGIT."
+  }
+  migrar_bare_antiguo
+
     if [ -d "$DOTGIT" ]; then
     # Existir no basta: un clon interrumpido (Ctrl+C, red caída) deja el directorio creado
     # pero sin repo dentro, y a partir de ahí TODAS las reejecuciones fallaban en el fetch
@@ -939,7 +983,7 @@ configure_default_shell() {
     else
       reservar_backup
       warn "$DOTGIT no es un repositorio Git válido; lo guardaré en $BACKUP."
-      mv "$DOTGIT" "$BACKUP/dotfiles-roto"
+      mv "$DOTGIT" "$BACKUP/gigishell-roto"
     fi
     fi
     if [ ! -d "$DOTGIT" ]; then
@@ -953,16 +997,16 @@ configure_default_shell() {
     fi
 
     # refspec estándar para tener refs/remotes/origin/* y upstreams correctos
-    dotfiles config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-    dotfiles config status.showUntrackedFiles no
+    gigishell config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+    gigishell config status.showUntrackedFiles no
     info "Fetch de origin ..."
-    dotfiles fetch --prune origin || die "Falló la actualización desde origin. Comprueba la conexión y vuelve a ejecutar el instalador."
+    gigishell fetch --prune origin || die "Falló la actualización desde origin. Comprueba la conexión y vuelve a ejecutar el instalador."
 
-    dotfiles rev-parse --verify --quiet "refs/remotes/origin/$BRANCH" >/dev/null \
-    || die "La rama '$BRANCH' no existe en origin. Prueba con DOTFILES_BRANCH=<rama>."
+    gigishell rev-parse --verify --quiet "refs/remotes/origin/$BRANCH" >/dev/null \
+    || die "La rama '$BRANCH' no existe en origin. Prueba con GIGISHELL_BRANCH=<rama>."
 
     # --- 2. Checkout/actualización con backup de conflictos ---
-    # -B es importante al reutilizar ~/.dotfiles: un checkout normal de una rama
+    # -B es importante al reutilizar ~/.gigishell: un checkout normal de una rama
     # local existente no la avanza después del fetch y dejaría instalada una versión
     # antigua. La copia desplegada debe seguir exactamente origin/$BRANCH.
     #
@@ -971,14 +1015,14 @@ configure_default_shell() {
     # origin desaparece del historial: solo queda en el reflog, donde nadie lo va a buscar
     # porque nada avisa de que se perdió. Antes de tocar nada se comprueba y se deja una
     # etiqueta de rescate con un nombre que se puede volver a encontrar.
-    if dotfiles rev-parse --verify --quiet "refs/heads/$BRANCH" >/dev/null; then
-    commits_locales="$(dotfiles rev-list --count "origin/$BRANCH..$BRANCH" 2>/dev/null || echo 0)"
+    if gigishell rev-parse --verify --quiet "refs/heads/$BRANCH" >/dev/null; then
+    commits_locales="$(gigishell rev-list --count "origin/$BRANCH..$BRANCH" 2>/dev/null || echo 0)"
     if [[ "$commits_locales" != 0 ]]; then
       rescate="gigishell-preinstall-$(date +%Y%m%d-%H%M%S)"
-      dotfiles tag "$rescate" "$BRANCH" >/dev/null 2>&1 || true
+      gigishell tag "$rescate" "$BRANCH" >/dev/null 2>&1 || true
       warn "La rama local '$BRANCH' tiene $commits_locales commit(s) que no están en origin."
-      dotfiles log --oneline "origin/$BRANCH..$BRANCH" 2>/dev/null | sed 's/^/    /' >&2 || true
-      warn "Los guardé en la etiqueta '$rescate'; recupéralos con: dotfiles log $rescate"
+      gigishell log --oneline "origin/$BRANCH..$BRANCH" 2>/dev/null | sed 's/^/    /' >&2 || true
+      warn "Los guardé en la etiqueta '$rescate'; recupéralos con: gigishell log $rescate"
     fi
     fi
 
@@ -987,7 +1031,7 @@ configure_default_shell() {
     # al backup los que realmente impidan el checkout.
     # Solo cuentan los que EXISTEN en $HOME: en una máquina nueva el diff da todo el árbol como
     # borrado y el aviso listaba cientos de ficheros que no se iban a respaldar porque no hay nada.
-    modificados="$(dotfiles diff --name-only "origin/$BRANCH" -- 2>/dev/null \
+    modificados="$(gigishell diff --name-only "origin/$BRANCH" -- 2>/dev/null \
     | while IFS= read -r f; do [[ -e "$HOME/$f" || -L "$HOME/$f" ]] && printf '%s\n' "$f"; done || true)"
     if [[ -n "$modificados" ]]; then
     warn "Estos archivos difieren de origin/$BRANCH y podrían bloquear la actualización:"
@@ -1001,12 +1045,12 @@ configure_default_shell() {
     # consultan solo las rutas de destino, sin recorrer todo HOME buscando ignorados.
     declare -A cambios_destino=() cambios_locales=() archivos_actuales=() bloqueos_checkout=() bloqueos_ignorados=()
     archivos_destino_lista=() cambios_destino_lista=() cambios_locales_lista=() archivos_actuales_lista=()
-    mapfile -d '' -t archivos_destino_lista < <(dotfiles ls-tree -r -z --name-only "origin/$BRANCH" 2>/dev/null)
-    mapfile -d '' -t archivos_actuales_lista < <(dotfiles ls-files -z 2>/dev/null)
+    mapfile -d '' -t archivos_destino_lista < <(gigishell ls-tree -r -z --name-only "origin/$BRANCH" 2>/dev/null)
+    mapfile -d '' -t archivos_actuales_lista < <(gigishell ls-files -z 2>/dev/null)
     for f in "${archivos_actuales_lista[@]}"; do archivos_actuales["$f"]=1; done
-    if dotfiles rev-parse --verify HEAD >/dev/null 2>&1; then
-    mapfile -d '' -t cambios_destino_lista < <(dotfiles diff --name-only --no-renames -z HEAD "origin/$BRANCH" -- 2>/dev/null)
-    mapfile -d '' -t cambios_locales_lista < <(dotfiles diff --name-only --no-renames -z HEAD -- 2>/dev/null)
+    if gigishell rev-parse --verify HEAD >/dev/null 2>&1; then
+    mapfile -d '' -t cambios_destino_lista < <(gigishell diff --name-only --no-renames -z HEAD "origin/$BRANCH" -- 2>/dev/null)
+    mapfile -d '' -t cambios_locales_lista < <(gigishell diff --name-only --no-renames -z HEAD -- 2>/dev/null)
     for f in "${cambios_destino_lista[@]}"; do cambios_destino["$f"]=1; done
     for f in "${cambios_locales_lista[@]}"; do cambios_locales["$f"]=1; done
     fi
@@ -1016,14 +1060,14 @@ configure_default_shell() {
     for f in "${archivos_destino_lista[@]}"; do
     if [[ -z "${archivos_actuales[$f]:-}" && ( -e "$HOME/$f" || -L "$HOME/$f" ) ]]; then
       bloqueos_checkout["$f"]=1
-      dotfiles check-ignore -q -- "$f" 2>/dev/null && bloqueos_ignorados["$f"]=1
+      gigishell check-ignore -q -- "$f" 2>/dev/null && bloqueos_ignorados["$f"]=1
     fi
     padre="$f"
     while [[ "$padre" == */* ]]; do
       padre="${padre%/*}"
         if [[ -z "${archivos_actuales[$padre]:-}" && ( -e "$HOME/$padre" || -L "$HOME/$padre" ) && ( ! -d "$HOME/$padre" || -L "$HOME/$padre" ) ]]; then
           bloqueos_checkout["$padre"]=1
-          dotfiles check-ignore -q -- "$padre" 2>/dev/null && bloqueos_ignorados["$padre"]=1
+          gigishell check-ignore -q -- "$padre" 2>/dev/null && bloqueos_ignorados["$padre"]=1
         fi
     done
     done
@@ -1042,7 +1086,7 @@ configure_default_shell() {
     unset 'bloqueos_checkout[$f]'
     done
 
-    if ! checkout_error="$(LC_ALL=C dotfiles checkout -B "$BRANCH" "origin/$BRANCH" 2>&1)"; then
+    if ! checkout_error="$(LC_ALL=C gigishell checkout -B "$BRANCH" "origin/$BRANCH" 2>&1)"; then
     if [[ "$checkout_error" != *"would be overwritten by checkout"* \
        && "$checkout_error" != *"would lose untracked files"* ]]; then
       printf '%s\n' "$checkout_error" >&2
@@ -1061,13 +1105,13 @@ configure_default_shell() {
     # el checkout: se conserva el mensaje original para distinguir permisos, disco, etc.
     if ((respaldados == 0)); then
       printf '%s\n' "$checkout_error" >&2
-      die "Falló git checkout y no pude identificar archivos bloqueantes. 'dotfiles status' oculta archivos sin seguimiento por configuración; comprueba también 'dotfiles status --untracked-files=normal'."
+      die "Falló git checkout y no pude identificar archivos bloqueantes. 'gigishell status' oculta archivos sin seguimiento por configuración; comprueba también 'gigishell status --untracked-files=normal'."
     fi
     warn "Se respaldaron $respaldados archivo(s) que impedían actualizar la rama. Copias en: $BACKUP."
-    LC_ALL=C dotfiles checkout -B "$BRANCH" "origin/$BRANCH" \
+    LC_ALL=C gigishell checkout -B "$BRANCH" "origin/$BRANCH" \
       || die "Git sigue sin poder actualizar los archivos; revisa $BACKUP."
     fi
-    dotfiles branch --set-upstream-to="origin/$BRANCH" "$BRANCH" >/dev/null 2>&1 || true
+    gigishell branch --set-upstream-to="origin/$BRANCH" "$BRANCH" >/dev/null 2>&1 || true
     info "Dotfiles en su lugar (rama $BRANCH)."
 
   # --- 3. Symlinks de GiGiShell (respaldando lo que estorbe) ---
@@ -1952,8 +1996,10 @@ if [ -L /etc/systemd/system/display-manager.service ]; then
 EOF
 fi
 cat <<'EOF'
+  • Repo:     GiGiShell se versiona en el repo bare ~/.gigishell; úsalo con el alias
+              'gigishell' (p. ej. 'gigishell status'), definido en bash, zsh y fish.
   • Cambios:  el remoto está configurado con HTTPS; para subir cambios, cámbialo a SSH:
-              dotfiles remote set-url origin git@github.com:mglourido/gigi-shell.git
+              gigishell remote set-url origin git@github.com:mglourido/gigi-shell.git
 EOF
 GPU_PERFIL="${GPU_PERFIL:-$HOME/.config/gigishell/gpu-perfil}"
 if [[ -s "$GPU_PERFIL" ]]; then

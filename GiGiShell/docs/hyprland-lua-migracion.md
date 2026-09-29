@@ -20,7 +20,7 @@ existe: desde el 2026-09-29 los tiempos de hypridle van en `~/.config/gigishell/
 **Si un arranque sale mal** (desde una TTY con Ctrl+Alt+F2 si no hay escritorio): **un error de Lua
 deja la sesión SIN ATAJOS** salvo el de emergencia (`SUPER + Q`, que aquí abre kitty), así que desde
 esa terminal se arregla el módulo o se recupera con
-`dotfiles checkout -- GiGiShell/hypr`. `--verify-config` solo detecta errores de **parseo**, no de
+`gigishell checkout -- GiGiShell/hypr`. `--verify-config` solo detecta errores de **parseo**, no de
 ejecución — por eso cada módulo se carga con `util.carga` (require + pcall): uno roto avisa en
 pantalla y el resto sigue, que es lo que evita el escenario "sin atajos" en la práctica.
 `bin/preflight.sh` pasa `--verify-config` sobre `hyprland.lua`, así que un error de sintaxis no

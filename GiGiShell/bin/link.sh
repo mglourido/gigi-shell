@@ -10,14 +10,14 @@
 #
 # Variables:
 #   GIGISHELL       raíz (por defecto, el directorio padre de este script)
-#   LINK_BACKUP  destino de respaldos en --force (por defecto ~/.dotfiles-backup-<fecha>)
+#   LINK_BACKUP  destino de respaldos en --force (por defecto ~/.gigishell-backup-<fecha>)
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 GIGISHELL="${GIGISHELL:-$(cd -- "$script_dir/.." && pwd)}"
 LINK_BACKUP_EXPLICITO=0
 [[ -n "${LINK_BACKUP:-}" ]] && LINK_BACKUP_EXPLICITO=1
-LINK_BACKUP_BASE="${LINK_BACKUP:-$HOME/.dotfiles-backup-$(date +%Y%m%d-%H%M%S)}"
+LINK_BACKUP_BASE="${LINK_BACKUP:-$HOME/.gigishell-backup-$(date +%Y%m%d-%H%M%S)}"
 LINK_BACKUP="$LINK_BACKUP_BASE"
 LINK_BACKUP_RESERVADO=0
 LINK_BACKUP_USADO=0
@@ -83,10 +83,24 @@ backup() {  # respalda $1 preservando su ruta relativa a $HOME
 gigishell_phys="$(readlink -f "$GIGISHELL")"
 GIGISHELL="$gigishell_phys"
 
-# git que versiona GiGiShell: el repo bare de dotfiles (lo normal, ver install.sh)
+# El bare de GiGiShell se llamaba ~/.dotfiles (install.sh lo renombra). Sólo se usa si es
+# inequívocamente el nuestro —bare, origin al repo de GiGiShell y GiGiShell/install.sh en
+# HEAD—: ~/.dotfiles suele ser el bare PROPIO del usuario, y aquí se le escribiría
+# core.hooksPath o se haría checkout sobre él.
+bare_antiguo_es_gigishell() {
+  local d="$HOME/.dotfiles" url
+  [[ "$(git --git-dir="$d" rev-parse --is-bare-repository 2>/dev/null)" == true ]] || return 1
+  url="$(git --git-dir="$d" config --get remote.origin.url 2>/dev/null)" || return 1
+  [[ "$url" =~ github\.com[:/]mglourido/gigi-shell(\.git)?/?$ ]] || return 1
+  git --git-dir="$d" cat-file -e HEAD:GiGiShell/install.sh 2>/dev/null
+}
+
+# git que versiona GiGiShell: el repo bare ~/.gigishell (lo normal, ver install.sh)
 # o, si el árbol fuera un clon corriente, el repo del propio directorio.
 GIT=()
-if git --git-dir="$HOME/.dotfiles" --work-tree="$HOME" rev-parse --git-dir >/dev/null 2>&1; then
+if git --git-dir="$HOME/.gigishell" --work-tree="$HOME" rev-parse --git-dir >/dev/null 2>&1; then
+  GIT=(git --git-dir="$HOME/.gigishell" --work-tree="$HOME")
+elif bare_antiguo_es_gigishell; then
   GIT=(git --git-dir="$HOME/.dotfiles" --work-tree="$HOME")
 elif git -C "$GIGISHELL" rev-parse --show-toplevel >/dev/null 2>&1; then
   GIT=(git -C "$GIGISHELL")
@@ -155,7 +169,7 @@ repair_clobbered_src() {
     return 0
   fi
   echo "DAÑADO $src era un symlink corrupto: lo borré, pero no pude restaurarlo desde git."
-  echo "      Recuperá el archivo (buscá en $HOME/.dotfiles-backup-*/) y repetí."
+  echo "      Recuperá el archivo (buscá en $HOME/.gigishell-backup-*/ o, de instalaciones viejas, $HOME/.dotfiles-backup-*/) y repetí."
   return 1
 }
 
@@ -363,7 +377,7 @@ fi
 # mimeapps.list y kdeglobals estaban enlazados a ~/.config, y cualquier app que guardara
 # un ajuste (Dolphin > Preferencias, «Abrir con > Recordar», Firefox como navegador
 # predeterminado, `xdg-mime default`) escribía a través del symlink DENTRO DEL REPO:
-# cambios sin commitear en `dotfiles status` que no tocaba subir. Las dos
+# cambios sin commitear en `gigishell status` que no tocaba subir. Las dos
 # especificaciones tienen cascada por XDG_CONFIG_DIRS, así que el fichero del repo se
 # instala como BASE en /etc/xdg (copia con sudo, paso de ficheros de sistema de
 # install.sh) y ~/.config queda como fichero REAL del usuario, fuera de git, con prioridad
@@ -425,7 +439,7 @@ fi
 
 # ── Git hooks: verificaciones antes de cada push ────────────────────────────
 # core.hooksPath es configuración local y no viaja en el repo. GIT ya detectó
-# arriba tanto el bare ~/.dotfiles (worktree $HOME) como un clon convencional;
+# arriba tanto el bare ~/.gigishell (worktree $HOME) como un clon convencional;
 # reutilizarlo es esencial porque `git -C GiGiShell` no reconoce el bare repo.
 if ((${#GIT[@]} > 0)) && [[ -d "$GIGISHELL/.githooks" ]]; then
   hooks_path="$GIGISHELL/.githooks"

@@ -8,7 +8,7 @@
 #
 # ── Por qué existe ───────────────────────────────────────────────────────────
 # Antes AGS reescribía los `timeout =` de hypr/hypridle.conf, que está versionado: cada cambio
-# de Ajustes (y cada entrada/salida del modo ahorro) salía en `dotfiles status` como un cambio
+# de Ajustes (y cada entrada/salida del modo ahorro) salía en `gigishell status` como un cambio
 # sin commitear. hypridle no tiene intérprete Lua (es hyprlang puro), así que no puede leer el
 # JSON por su cuenta como hace el config del compositor. El reparto queda así:
 #

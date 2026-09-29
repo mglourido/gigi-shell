@@ -118,7 +118,7 @@ This will:
    or `yay` is present it drives the whole list, repo and AUR together — one confirmation,
    one dependency resolution, and AGS/Astal come as a **binary** from any repo that carries
    them (`chaotic-aur` does) instead of compiling `libastal-meta` from source.
-2. Clone the bare dotfiles repo and check it out into `$HOME` (backing up anything in the way).
+2. Clone the bare repo into `~/.gigishell` and check it out into `$HOME` (backing up anything in the way).
 3. Symlink every config into its canonical XDG path (`~/.config/ags`, `~/.config/hypr`, …).
 4. Install the `/etc` fragments that legitimately need root (USB writeback udev rule, `i2c-dev`
    for DDC/CI brightness, TLP profile switch helper + sudoers rule, ClamAV update helper +
@@ -143,7 +143,7 @@ Useful overrides:
 curl -fsSL <url> | bash -s -- --sin-paquetes     # skip package installation
 curl -fsSL <url> | KITTY_PROFILE=desktop bash     # force a Kitty profile
 curl -fsSL <url> | FIREFOX_PROFILE=laptop bash    # force a Firefox profile
-curl -fsSL <url> | DOTFILES_BRANCH=<branch> bash     # install a different branch
+curl -fsSL <url> | GIGISHELL_BRANCH=<branch> bash    # install a different branch
 curl -fsSL <url> | ASSUME_YES=1 bash              # unattended: no confirmations at all
 ```
 
