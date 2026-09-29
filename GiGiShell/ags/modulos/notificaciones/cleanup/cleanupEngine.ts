@@ -61,7 +61,7 @@ export function startCleanupEngine(): void {
     const now = Date.now()
     const kept = notifications.get().filter(n => keepAfterBoot(n, now))
     replaceNotifications(kept)
-    console.log(`[notif] boot deep-clean: kept ${kept.length}`)
+    console.log(`[notif] limpieza de arranque: se conservaron ${kept.length} notificaciones`)
   }
 
   // Immediate catch-up sweep, then arm the dynamic timer.
