@@ -47,15 +47,17 @@ let terminalElegida: string | null = null
 export type IdCategoria =
   | "navegador" | "correo" | "archivos" | "pdf"
   | "imagenes" | "video" | "musica" | "texto" | "comprimidos"
+  | "codigo" | "markdown" | "documentos" | "hojas" | "presentaciones"
 
 export interface CategoriaMime {
-  id: IdCategoria
+  /** Un `IdCategoria` en las fijas; el propio MIME en las de «Todos los tipos». */
+  id: string
   icono: string
   /** El primero es el representante (candidatas y app actual). */
   mimes: string[]
 }
 
-export const CATEGORIAS: CategoriaMime[] = [
+export const CATEGORIAS: (CategoriaMime & { id: IdCategoria })[] = [
   {
     id: "navegador", icono: "󰖟",
     mimes: [
@@ -96,7 +98,126 @@ export const CATEGORIAS: CategoriaMime[] = [
       "application/x-bzip2-compressed-tar", "application/x-zstd-compressed-tar", "application/zstd",
     ],
   },
+  // Programación. VS Code (`com.microsoft.VSCode.desktop`) no declara NINGUNO de
+  // estos tipos —solo `application/x-code-workspace`—, así que no sale como
+  // candidata hasta añadirlo a «Abrir con» desde el buscador de la fila; a
+  // partir de ahí ya «sabe» abrirlos y se puede elegir por defecto.
+  {
+    id: "codigo", icono: "󰅩",
+    mimes: [
+      "text/x-python", "application/json", "text/javascript", "application/javascript",
+      "application/typescript", "text/x-typescript-jsx", "text/x-shellscript", "application/x-shellscript",
+      "text/x-csrc", "text/x-chdr", "text/x-c++src", "text/x-c++hdr", "text/rust", "text/x-rust",
+      "text/x-go", "text/x-java", "text/x-lua", "text/css", "application/toml", "application/yaml",
+      "application/x-yaml", "text/x-makefile", "text/x-cmake", "application/xml", "text/xml",
+      "application/sql", "text/x-sql", "application/x-php", "application/x-ruby", "text/x-csharp",
+      "text/x-configuration", "text/x-nix", "application/x-fishscript", "application/x-perl",
+    ],
+  },
+  { id: "markdown", icono: "󰍔", mimes: ["text/markdown", "text/x-markdown"] },
+  {
+    id: "documentos", icono: "󰈬",
+    mimes: [
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.oasis.opendocument.text", "application/msword", "application/rtf",
+    ],
+  },
+  {
+    id: "hojas", icono: "󰈛",
+    mimes: [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.oasis.opendocument.spreadsheet", "application/vnd.ms-excel", "text/csv",
+    ],
+  },
+  {
+    id: "presentaciones", icono: "󰈧",
+    mimes: [
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "application/vnd.oasis.opendocument.presentation", "application/vnd.ms-powerpoint",
+    ],
+  },
 ]
+
+// ── Todos los tipos de archivo ───────────────────────────────────────────────
+// Para lo que no cubre ninguna categoría (.toml, .lua, un formato raro…). El
+// índice sale de los `globs2` de shared-mime-info —la misma base de datos que
+// usa GIO para adivinar el tipo por la extensión—, porque GIO no expone las
+// extensiones de un tipo. Se construye la primera vez que alguien busca y se
+// queda en memoria: son ~1600 líneas y no cambian salvo al instalar paquetes.
+
+export interface TipoArchivo {
+  mime: string
+  descripcion: string
+  /** Sin el `*.`: `["md", "markdown"]`. */
+  extensiones: string[]
+  /** Descripción + extensiones + MIME en minúsculas, para filtrar sin rehacerlo. */
+  busqueda: string
+}
+
+let indiceTipos: TipoArchivo[] | null = null
+
+function construirIndiceTipos(): TipoArchivo[] {
+  const globs = new Map<string, Set<string>>()
+  const rutas = [
+    `${GLib.get_user_data_dir()}/mime/globs2`,
+    ...GLib.get_system_data_dirs().map((d) => `${d}/mime/globs2`),
+  ]
+  for (const ruta of rutas) {
+    try {
+      if (!GLib.file_test(ruta, GLib.FileTest.EXISTS)) continue
+      const [, contenido] = GLib.file_get_contents(ruta)
+      for (const linea of new TextDecoder().decode(contenido).split("\n")) {
+        if (!linea || linea.startsWith("#")) continue
+        // peso:mime:patrón[:flags]
+        const [, mime, patron] = linea.split(":")
+        if (!mime || !patron?.startsWith("*.")) continue
+        const ext = patron.slice(2).toLowerCase()
+        if (!/^[a-z0-9+_.-]+$/.test(ext)) continue
+        if (!globs.has(mime)) globs.set(mime, new Set())
+        globs.get(mime)!.add(ext)
+      }
+    } catch (e) {
+      console.error(`[${ETIQUETA}] no se pudo leer ${ruta}:`, e)
+    }
+  }
+  const tipos: TipoArchivo[] = []
+  for (const [mime, exts] of globs) {
+    const descripcion = Gio.content_type_get_description(mime) || mime
+    const extensiones = [...exts].sort((a, b) => a.length - b.length)
+    tipos.push({
+      mime, descripcion, extensiones,
+      busqueda: `${descripcion} ${extensiones.join(" ")} ${mime}`.toLowerCase(),
+    })
+  }
+  return tipos
+}
+
+/**
+ * Tipos que casan con la consulta. Primero los que tienen esa extensión exacta
+ * (escribir «md» tiene que dar Markdown arriba, no «Markdown de MDX»), luego
+ * los que empiezan por ella y al final los que la contienen en la descripción
+ * o el MIME. Acepta «md», «.md» y «*.md».
+ */
+export function buscarTiposArchivo(consulta: string, maximo: number): TipoArchivo[] {
+  const q = consulta.trim().toLowerCase().replace(/^\*?\./, "")
+  if (!q) return []
+  indiceTipos ??= construirIndiceTipos()
+  const rango = (t: TipoArchivo) =>
+    t.extensiones.includes(q) ? 0
+      : t.extensiones.some((e) => e.startsWith(q)) ? 1
+        : t.busqueda.includes(q) ? 2 : -1
+  return indiceTipos
+    .map((t) => ({ t, r: rango(t) }))
+    .filter((x) => x.r >= 0)
+    .sort((a, b) => a.r - b.r || a.t.descripcion.localeCompare(b.t.descripcion))
+    .slice(0, maximo)
+    .map((x) => x.t)
+}
+
+/** Categoría de un solo tipo, para reutilizar las mismas operaciones. */
+export function categoriaDeTipo(mime: string): CategoriaMime {
+  return { id: mime, icono: "󰈔", mimes: [mime] }
+}
 
 export interface AppCandidata {
   id: string
@@ -162,9 +283,64 @@ export function fijarCategoria(categoria: CategoriaMime, idApp: string): boolean
       const sabe = (Gio.AppInfo.get_all_for_type(mime) as Gio.AppInfo[]).some((a) => a.get_id() === idApp)
       if (sabe) app.set_as_default_for_type(mime)
     }
+    refrescarCacheKde()
     return true
   } catch (e) {
     console.error(`[${ETIQUETA}] no se pudo fijar ${idApp} para ${categoria.id}:`, e)
+    return false
+  }
+}
+
+// ── La lista de «Abrir con» ──────────────────────────────────────────────────
+// Las candidatas de una categoría SON la lista que enseñan Dolphin («Abrir
+// con») y los diálogos GTK: sale de las mismas tres secciones de mimeapps.list
+// (Default + Added − Removed) más los `.desktop` que declaran el tipo. Se edita
+// con `add_supports_type`/`remove_supports_type`, que GIO traduce a `[Added
+// Associations]` y `[Removed Associations]` — medido en un HOME aislado:
+// quitar LibreOffice Draw del PDF lo apunta en Removed, y volver a añadirlo lo
+// saca de ahí sin dejar rastro. Las dos operaciones abarcan todos los tipos de
+// la categoría, igual que elegir la predeterminada.
+
+/** KService guarda las asociaciones en su caché (ksycoca). Rehacerla es un
+ *  seguro barato para que Dolphin vea el cambio sin reiniciarse; se agrupa
+ *  para que quitar tres apps seguidas no lance tres reconstrucciones. */
+let temporizadorSycoca: number | null = null
+function refrescarCacheKde() {
+  if (!GLib.find_program_in_path("kbuildsycoca6")) return
+  if (temporizadorSycoca !== null) GLib.source_remove(temporizadorSycoca)
+  temporizadorSycoca = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
+    temporizadorSycoca = null
+    execAsync(["kbuildsycoca6"]).catch((e) => console.error(`[${ETIQUETA}] kbuildsycoca6 falló:`, e))
+    return GLib.SOURCE_REMOVE
+  })
+}
+
+/** Quita la app de «Abrir con» en los tipos de la categoría donde aparezca. */
+export function quitarDeCategoria(categoria: CategoriaMime, idApp: string): boolean {
+  if (actualCategoria(categoria)?.id === idApp) return false
+  try {
+    for (const mime of categoria.mimes) {
+      const app = (Gio.AppInfo.get_all_for_type(mime) as Gio.AppInfo[]).find((a) => a.get_id() === idApp)
+      app?.remove_supports_type(mime)
+    }
+    refrescarCacheKde()
+    return true
+  } catch (e) {
+    console.error(`[${ETIQUETA}] no se pudo quitar ${idApp} de ${categoria.id}:`, e)
+    return false
+  }
+}
+
+/** Añade cualquier app instalada a «Abrir con» para todos los tipos de la categoría. */
+export function anadirACategoria(categoria: CategoriaMime, idApp: string): boolean {
+  const app = (Gio.AppInfo.get_all() as Gio.AppInfo[]).find((a) => a.get_id() === idApp)
+  if (!app) return false
+  try {
+    for (const mime of categoria.mimes) app.add_supports_type(mime)
+    refrescarCacheKde()
+    return true
+  } catch (e) {
+    console.error(`[${ETIQUETA}] no se pudo añadir ${idApp} a ${categoria.id}:`, e)
     return false
   }
 }

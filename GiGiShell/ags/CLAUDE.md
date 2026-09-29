@@ -1020,6 +1020,21 @@ déficit *a medias* con el título; acotado a 14 (con `tooltipText` para no perd
   - **Los `.desktop` ocultos solo entran como ayudante de una app visible con el mismo nombre**:
     Okular anuncia el PDF únicamente en `okularApplication_pdf.desktop` (`NoDisplay`), pero aceptar
     todos los ocultos colaba «kitty URL Launcher» como gestor de carpetas.
+  - **La lista desplegada de cada fila ES el «Abrir con» de Dolphin** (Default + Added − Removed +
+    los `.desktop` que declaran el tipo), y se edita: la papelera llama a `remove_supports_type`
+    (→ `[Removed Associations]`) y el buscador a `add_supports_type` con cualquier app instalada
+    (→ `[Added Associations]`, y la saca de Removed si estaba), ambos sobre **todos** los MIME de la
+    categoría. La app por defecto no se puede quitar. Tras cada cambio se lanza `kbuildsycoca6`
+    (agrupado a 1,5 s) como seguro para que la caché de KService no enseñe la lista vieja.
+  - **«Todos los tipos de archivo»** cubre lo que no está en una categoría: `buscarTiposArchivo()`
+    indexa los `globs2` de shared-mime-info (GIO no expone las extensiones de un tipo) la primera
+    vez que se busca (~120 ms, medido; luego ~0,1 ms) y cada resultado es la MISMA fila, sobre una
+    categoría de un solo MIME (`categoriaDeTipo`). Máximo 15 filas, con `id` por MIME.
+  - **VS Code no declara los tipos de código**: `visual-studio-code-bin` instala
+    `com.microsoft.VSCode.desktop` con `MimeType=application/x-code-workspace` y nada más, y las
+    líneas `code.desktop` de la base apuntan a un lanzador que ya no existe (todo caía en Kate,
+    micro o Firefox). Por eso no sale como candidata en Código: se añade desde el buscador de la
+    fila (→ Added Associations para todos los MIME) y a partir de ahí ya se puede elegir por defecto.
   - **El terminal no es un tipo MIME**: se guarda en `~/.config/gigishell/apps-predeterminadas.json`
     (lo lee `hypr/scripts/abrir-terminal.sh` en cada SUPER+Q, sin reload), en el `kdeglobals` del
     usuario con `kwriteconfig6` (Dolphin, «Abrir terminal») y en `~/.config/xdg-terminals.list`.

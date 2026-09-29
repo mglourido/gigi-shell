@@ -5,25 +5,92 @@
   "grupos": {
     "web": "Internet",
     "archivos": "Archivos",
-    "sistema": "Sistema"
+    "sistema": "Sistema",
+    "programacion": "Programación",
+    "oficina": "Oficina",
+    "todos": "Todos los tipos de archivo"
   },
   "categorias": {
-    "navegador": { "titulo": "Navegador web", "descripcion": "Enlaces http/https y páginas HTML" },
-    "correo": { "titulo": "Correo", "descripcion": "Enlaces mailto:" },
-    "archivos": { "titulo": "Carpetas", "descripcion": "Gestor de archivos (también SUPER+E y los USB)" },
-    "pdf": { "titulo": "PDF", "descripcion": "Documentos .pdf" },
-    "imagenes": { "titulo": "Imágenes", "descripcion": "PNG, JPEG, WebP, GIF, SVG…" },
-    "video": { "titulo": "Vídeo", "descripcion": "MP4, MKV, WebM, AVI…" },
-    "musica": { "titulo": "Música", "descripcion": "MP3, FLAC, OGG, Opus, WAV…" },
-    "texto": { "titulo": "Texto plano", "descripcion": "Ficheros .txt y similares" },
-    "comprimidos": { "titulo": "Comprimidos", "descripcion": "ZIP, 7z, RAR, tar.gz…" },
-    "terminal": { "titulo": "Terminal", "descripcion": "SUPER+Q y «Abrir terminal» de Dolphin" }
+    "navegador": {
+      "titulo": "Navegador web",
+      "descripcion": "Enlaces http/https y páginas HTML"
+    },
+    "correo": {
+      "titulo": "Correo",
+      "descripcion": "Enlaces mailto:"
+    },
+    "archivos": {
+      "titulo": "Carpetas",
+      "descripcion": "Gestor de archivos (también SUPER+E y los USB)"
+    },
+    "pdf": {
+      "titulo": "PDF",
+      "descripcion": "Documentos .pdf"
+    },
+    "imagenes": {
+      "titulo": "Imágenes",
+      "descripcion": "PNG, JPEG, WebP, GIF, SVG…"
+    },
+    "video": {
+      "titulo": "Vídeo",
+      "descripcion": "MP4, MKV, WebM, AVI…"
+    },
+    "musica": {
+      "titulo": "Música",
+      "descripcion": "MP3, FLAC, OGG, Opus, WAV…"
+    },
+    "texto": {
+      "titulo": "Texto plano",
+      "descripcion": "Ficheros .txt y similares"
+    },
+    "comprimidos": {
+      "titulo": "Comprimidos",
+      "descripcion": "ZIP, 7z, RAR, tar.gz…"
+    },
+    "terminal": {
+      "titulo": "Terminal",
+      "descripcion": "SUPER+Q y «Abrir terminal» de Dolphin"
+    },
+    "codigo": {
+      "titulo": "Código",
+      "descripcion": "Python, JS/TS, JSON, Rust, C, shell, YAML, TOML…"
+    },
+    "markdown": {
+      "titulo": "Markdown",
+      "descripcion": "Ficheros .md"
+    },
+    "documentos": {
+      "titulo": "Documentos",
+      "descripcion": "Word, ODT, RTF"
+    },
+    "hojas": {
+      "titulo": "Hojas de cálculo",
+      "descripcion": "Excel, ODS, CSV"
+    },
+    "presentaciones": {
+      "titulo": "Presentaciones",
+      "descripcion": "PowerPoint, ODP"
+    }
   },
   "fila": {
     "ninguna": "Sin app asignada",
     "cambiar": "Elegir otra app",
-    "sinCandidatas": "No hay ninguna app instalada que declare saber abrir esto.",
-    "error": "No se pudo guardar la elección."
+    "sinCandidatas": "No hay ninguna app en la lista. Añade una abajo.",
+    "error": "No se pudo guardar el cambio.",
+    "ayuda": "Pulsa una app para usarla por defecto.",
+    "ayudaEditable": "Estas son las apps de «Abrir con» en Dolphin. Pulsa una para usarla por defecto; la papelera la quita del menú.",
+    "hacerPredeterminada": "Usar por defecto",
+    "quitar": "Quitar de «Abrir con»",
+    "noQuitarActual": "Es la app por defecto: elige otra antes de quitarla",
+    "anadirMarcador": "Añadir otra app a «Abrir con»…",
+    "anadir": "Añadir a «Abrir con»",
+    "sinResultados": "Ninguna app instalada coincide con la búsqueda."
   },
-  "aviso": "Se guarda en ~/.config/mimeapps.list, que es lo que consultan xdg-open, las apps GTK y KDE, Electron y los navegadores al abrir un enlace o un archivo. Vale al momento para lo que se abra a partir de ahora. Solo cambia los formatos que la app elegida declara saber abrir; el resto conserva su app. Para un formato suelto, usa «Abrir con…» en Dolphin."
+  "aviso": "Se guarda en ~/.config/mimeapps.list, que es lo que consultan xdg-open, Dolphin y el resto de apps KDE y GTK, Electron y los navegadores al abrir un enlace o un archivo. Vale al momento para lo que se abra a partir de ahora. Elegir la app por defecto solo cambia los formatos que esa app declara saber abrir; añadir o quitar una app de «Abrir con» afecta a todos los formatos de la categoría. Para un formato suelto, búscalo en «Todos los tipos de archivo».",
+  "todos": {
+    "marcador": "Buscar por extensión o tipo: md, py, toml, docx, «vídeo»…",
+    "ayuda": "Cualquier tipo de archivo que conozca el sistema. Despliega uno para elegir con qué se abre y editar su «Abrir con».",
+    "sinResultados": "Ningún tipo de archivo coincide con la búsqueda.",
+    "limite": "Se muestran los primeros {{n}}; afina la búsqueda para ver otros."
+  }
 }

@@ -1,38 +1,116 @@
 // modulos/ajustes/predeterminadas/SeccionAppsPredeterminadas.tsx — Ajustes >
-// Apps predeterminadas: con qué se abre un enlace, una carpeta, un PDF…
+// Apps predeterminadas: con qué se abre un enlace, una carpeta, un PDF… y qué
+// apps salen en «Abrir con» de Dolphin para cada cosa.
 //
 // Toda la parte de sistema (qué tipos MIME forman cada categoría, dónde se
 // escribe, el terminal) vive en `servicios/aplicaciones/appsPredeterminadas.ts`.
 //
-// ── Las candidatas se leen al CONSTRUIR la sección ───────────────────────────
-// Igual que el catálogo de Apps al inicio: la sección se monta al abrirla y se
-// desmonta al cerrar Ajustes (el <With> único de SettingsPanel.tsx), así que
-// «una vez» es una vez por visita. Un cambio hecho por fuera con Ajustes
-// abierto («Abrir con > Predeterminada» en Dolphin) se ve al volver a entrar.
+// ── Se lee al CONSTRUIR la sección, y se relee tras cada cambio propio ───────
+// La sección se monta al abrirla y se desmonta al cerrar Ajustes (el <With>
+// único de SettingsPanel.tsx). Un cambio hecho por fuera con Ajustes abierto
+// («Abrir con > Predeterminada» en Dolphin) se ve al volver a entrar. Tras un
+// cambio hecho aquí se RELEE de GIO en vez de apañar la lista a mano: si GIO no
+// lo aplicó, la fila tiene que seguir enseñando lo que de verdad hay.
 //
 // ── Lista desplegable en línea, no un Gtk.DropDown ───────────────────────────
 // Ningún destino de Ajustes usa popovers: la ventana es una layer-shell OVERLAY
 // y el resto de selectores del panel son filas y botones dentro de la tarjeta.
-// Aquí la lista de apps se abre bajo su fila; son listas cortas (2-7 apps).
+//
+// ── Dónde vive el foco ───────────────────────────────────────────────────────
+// El buscador de «añadir» está FUERA de las dos listas que se reconstruyen (la
+// de «Abrir con» y la de resultados), misma precaución que Apps al inicio:
+// reconstruir una lista que contiene el widget con el foco acaba en SIGSEGV.
 
-import { createState } from "ags"
+import { For, createComputed, createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import {
   BotonAjustes, TarjetaAjustes, TextoInformativo, TituloAjuste, TituloSeccion,
 } from "../componentes"
-import { iconoDesdeCadena } from "../inicio/catalogoApps"
 import {
-  CATEGORIAS,
-  actualCategoria, actualTerminal, candidatasCategoria, candidatasTerminal,
-  fijarCategoria, fijarTerminal,
-  type AppCandidata, type IdCategoria,
+  catalogoAppsInstaladas, filtrarAppsInstaladas, iconoDesdeCadena,
+  type AppInstalada,
+} from "../inicio/catalogoApps"
+import {
+  CATEGORIAS, buscarTiposArchivo, categoriaDeTipo,
+  actualCategoria, actualTerminal, anadirACategoria, candidatasCategoria, candidatasTerminal,
+  fijarCategoria, fijarTerminal, quitarDeCategoria,
+  type AppCandidata, type IdCategoria, type TipoArchivo,
 } from "../../../servicios/aplicaciones/appsPredeterminadas"
 import textos from "../../../textos/ajustes/predeterminadas.json" with { type: "json" }
+import { formatearTexto } from "../../../textos/formatear"
+
+const MAX_RESULTADOS = 5
+/** Filas de «Todos los tipos» a la vez: cada una es una fila completa con su
+ *  propio buscador, y una búsqueda corta («a») casaría con cientos. */
+const MAX_TIPOS = 15
 
 const GRUPOS: { titulo: string; icono: string; ids: IdCategoria[] }[] = [
   { titulo: textos.grupos.web, icono: "󰖟", ids: ["navegador", "correo"] },
   { titulo: textos.grupos.archivos, icono: "󰉋", ids: ["archivos", "pdf", "imagenes", "video", "musica", "texto", "comprimidos"] },
+  { titulo: textos.grupos.programacion, icono: "󰅩", ids: ["codigo", "markdown"] },
+  { titulo: textos.grupos.oficina, icono: "󰈬", ids: ["documentos", "hojas", "presentaciones"] },
 ]
+
+function edicionDe(categoria: ReturnType<typeof categoriaDeTipo>, catalogo: AppInstalada[]): Edicion {
+  return {
+    catalogo,
+    quitar: (app) => quitarDeCategoria(categoria, app),
+    anadir: (app) => anadirACategoria(categoria, app),
+  }
+}
+
+const mayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
+
+/**
+ * «Todos los tipos de archivo»: buscador sobre el índice de shared-mime-info y,
+ * por cada resultado, la MISMA fila que las categorías. El campo va fuera del
+ * <For> (el foco no puede vivir en una lista que se rehace) y las filas llevan
+ * `id` por MIME: afinar la búsqueda no reconstruye las que siguen casando, así
+ * que una fila desplegada no se cierra sola mientras se escribe.
+ */
+function TarjetaTodosLosTipos({ catalogo }: { catalogo: AppInstalada[] }) {
+  const [consulta, setConsulta] = createState("")
+  const tipos = consulta((q) => buscarTiposArchivo(q, MAX_TIPOS))
+
+  return (
+    <TarjetaAjustes titulo={textos.grupos.todos} icono="󰈔">
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["dev-row"]}>
+        <TextoInformativo label={textos.todos.ayuda} />
+        <entry
+          cssClasses={["account-entry"]}
+          placeholderText={textos.todos.marcador}
+          hexpand
+          onChanged={(self: Gtk.Entry) => setConsulta(self.get_text())}
+        />
+        <TextoInformativo
+          label={textos.todos.sinResultados}
+          visible={createComputed([consulta, tipos], (q, l) => !!q.trim() && l.length === 0)}
+        />
+      </box>
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        <For each={tipos} id={(t: TipoArchivo) => t.mime}>
+          {(t: TipoArchivo) => {
+            const categoria = categoriaDeTipo(t.mime)
+            return (
+              <FilaPredeterminada
+                titulo={mayuscula(t.descripcion)}
+                descripcion={`${t.extensiones.slice(0, 4).map((e) => "." + e).join(" ")}  ·  ${t.mime}`}
+                icono={categoria.icono}
+                leerCandidatas={() => candidatasCategoria(categoria)}
+                leerActual={() => actualCategoria(categoria)}
+                fijar={(app) => fijarCategoria(categoria, app)}
+                edicion={edicionDe(categoria, catalogo)}
+              />
+            )
+          }}
+        </For>
+      </box>
+      <box cssClasses={["dev-row"]} visible={tipos((l) => l.length >= MAX_TIPOS)}>
+        <TextoInformativo label={formatearTexto(textos.todos.limite, { n: MAX_TIPOS })} />
+      </box>
+    </TarjetaAjustes>
+  )
+}
 
 function IconoApp({ icono }: { icono: string }) {
   const gicon = iconoDesdeCadena(icono)
@@ -41,27 +119,50 @@ function IconoApp({ icono }: { icono: string }) {
     : <label cssClasses={["sp-nav-icon"]} label="󰀻" valign={Gtk.Align.CENTER} />
 }
 
-function FilaPredeterminada({ titulo, descripcion, icono, candidatas, leerActual, fijar }: {
+interface Edicion {
+  /** Catálogo de apps instaladas, compartido por todas las filas de la visita. */
+  catalogo: AppInstalada[]
+  quitar: (id: string) => boolean
+  anadir: (id: string) => boolean
+}
+
+function FilaPredeterminada({ titulo, descripcion, icono, leerCandidatas, leerActual, fijar, edicion }: {
   titulo: string
   descripcion: string
   icono: string
-  candidatas: AppCandidata[]
+  leerCandidatas: () => AppCandidata[]
   leerActual: () => AppCandidata | null
   fijar: (id: string) => boolean
+  /** Ausente = lista fija (el terminal no tiene «Abrir con»). */
+  edicion?: Edicion
 }) {
   const [actual, setActual] = createState<AppCandidata | null>(leerActual())
+  const [candidatas, setCandidatas] = createState<AppCandidata[]>(leerCandidatas())
   const [abierto, setAbierto] = createState(false)
   const [error, setError] = createState(false)
+  const [consulta, setConsulta] = createState("")
   const idActual = actual((a) => a?.id ?? "")
+
+  const releer = (ok: boolean) => {
+    setError(!ok)
+    setActual(leerActual())
+    setCandidatas(leerCandidatas())
+  }
 
   const elegir = (id: string) => {
     const ok = id === idActual.get() || fijar(id)
-    setError(!ok)
-    // Se relee en vez de dar por buena la elección: si GIO no la aplicó, la fila
-    // tiene que seguir enseñando lo que de verdad abre el archivo.
-    setActual(leerActual())
+    releer(ok)
     if (ok) setAbierto(false)
   }
+
+  // Los resultados excluyen lo que ya está en la lista, y dependen de las dos
+  // fuentes: añadir una app tiene que sacarla de los resultados al momento.
+  const resultados = createComputed([consulta, candidatas], (texto, lista) => {
+    if (!edicion || !texto.trim()) return []
+    const ya = new Set(lista.map((c) => c.id))
+    return filtrarAppsInstaladas(edicion.catalogo.filter((a) => !ya.has(a.id)), texto, MAX_RESULTADOS)
+  })
+  let campo: Gtk.Entry | null = null
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["dev-row"]}>
@@ -78,7 +179,7 @@ function FilaPredeterminada({ titulo, descripcion, icono, candidatas, leerActual
           onClicked={() => setAbierto(!abierto.get())}
         >
           <box spacing={8}>
-            {/* El icono cambia con la app: dos ranuras alternadas y no un
+            {/* El icono cambia con la app: ranura con `visible` y no un
                 ternario, que quedaría atado al primer valor (ver IndicadorJuegos). */}
             <image
               pixelSize={16}
@@ -92,20 +193,79 @@ function FilaPredeterminada({ titulo, descripcion, icono, candidatas, leerActual
       </box>
 
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={abierto} cssClasses={["pred-opciones"]}>
-        {candidatas.length === 0
-          ? <TextoInformativo label={textos.fila.sinCandidatas} />
-          : candidatas.map((c) => (
-            <button
-              cssClasses={idActual((id) => id === c.id ? ["pred-opcion", "active"] : ["pred-opcion"])}
-              onClicked={() => elegir(c.id)}
-            >
-              <box spacing={10}>
-                <IconoApp icono={c.icono} />
-                <label label={c.nombre} hexpand xalign={0} ellipsize={3} />
-                <label cssClasses={["pred-marca"]} label="󰄬" visible={idActual((id) => id === c.id)} />
+        <TextoInformativo
+          label={edicion ? textos.fila.ayudaEditable : textos.fila.ayuda}
+          cssClasses={["pred-ayuda"]}
+        />
+        <TextoInformativo label={textos.fila.sinCandidatas} visible={candidatas((l) => l.length === 0)} />
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+          <For each={candidatas} id={(c: AppCandidata) => c.id}>
+            {(c: AppCandidata) => (
+              <box spacing={6}>
+                <button
+                  hexpand
+                  cssClasses={idActual((id) => id === c.id ? ["pred-opcion", "active"] : ["pred-opcion"])}
+                  tooltipText={textos.fila.hacerPredeterminada}
+                  onClicked={() => elegir(c.id)}
+                >
+                  <box spacing={10}>
+                    <IconoApp icono={c.icono} />
+                    <label label={c.nombre} hexpand xalign={0} ellipsize={3} />
+                    <label cssClasses={["pred-marca"]} label="󰄬" visible={idActual((id) => id === c.id)} />
+                  </box>
+                </button>
+                {edicion ? (
+                  <button
+                    cssClasses={["sp-rule-del"]}
+                    valign={Gtk.Align.CENTER}
+                    sensitive={idActual((id) => id !== c.id)}
+                    tooltipText={idActual((id) => id === c.id ? textos.fila.noQuitarActual : textos.fila.quitar)}
+                    onClicked={() => releer(edicion.quitar(c.id))}
+                  >
+                    <label label="󰆴" />
+                  </button>
+                ) : <box />}
               </box>
-            </button>
-          ))}
+            )}
+          </For>
+        </box>
+
+        {edicion ? (
+          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["pred-anadir"]}>
+            <entry
+              cssClasses={["account-entry"]}
+              placeholderText={textos.fila.anadirMarcador}
+              hexpand
+              $={(self: Gtk.Entry) => { campo = self }}
+              onChanged={(self: Gtk.Entry) => setConsulta(self.get_text())}
+            />
+            <TextoInformativo
+              label={textos.fila.sinResultados}
+              visible={createComputed([consulta, resultados], (t, r) => !!t.trim() && r.length === 0)}
+            />
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+              <For each={resultados} id={(a: AppInstalada) => a.id}>
+                {(a: AppInstalada) => (
+                  <button
+                    cssClasses={["pred-opcion"]}
+                    tooltipText={textos.fila.anadir}
+                    onClicked={() => {
+                      releer(edicion.anadir(a.id))
+                      // Vaciar el campo rehace `resultados` y oculta la lista.
+                      campo?.set_text("")
+                    }}
+                  >
+                    <box spacing={10}>
+                      <IconoApp icono={a.icono} />
+                      <label label={a.nombre} hexpand xalign={0} ellipsize={3} />
+                      <label cssClasses={["pred-marca"]} label="󰐕" />
+                    </box>
+                  </button>
+                )}
+              </For>
+            </box>
+          </box>
+        ) : <box />}
         <TextoInformativo label={textos.fila.error} visible={error} cssClasses={["pred-error"]} />
       </box>
     </box>
@@ -114,6 +274,8 @@ function FilaPredeterminada({ titulo, descripcion, icono, candidatas, leerActual
 
 export default function SeccionAppsPredeterminadas() {
   const porId = new Map(CATEGORIAS.map((c) => [c.id, c]))
+  // Una sola lectura del catálogo por visita, compartida por todas las filas.
+  const catalogo = catalogoAppsInstaladas()
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
@@ -128,21 +290,24 @@ export default function SeccionAppsPredeterminadas() {
                 titulo={textos.categorias[id].titulo}
                 descripcion={textos.categorias[id].descripcion}
                 icono={categoria.icono}
-                candidatas={candidatasCategoria(categoria)}
+                leerCandidatas={() => candidatasCategoria(categoria)}
                 leerActual={() => actualCategoria(categoria)}
                 fijar={(app) => fijarCategoria(categoria, app)}
+                edicion={edicionDe(categoria, catalogo)}
               />
             )
           })}
         </TarjetaAjustes>
       ))}
 
+      <TarjetaTodosLosTipos catalogo={catalogo} />
+
       <TarjetaAjustes titulo={textos.grupos.sistema} icono="󰆍">
         <FilaPredeterminada
           titulo={textos.categorias.terminal.titulo}
           descripcion={textos.categorias.terminal.descripcion}
           icono="󰆍"
-          candidatas={candidatasTerminal()}
+          leerCandidatas={candidatasTerminal}
           leerActual={actualTerminal}
           fijar={fijarTerminal}
         />
