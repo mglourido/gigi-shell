@@ -6,7 +6,7 @@ at its real, final path in the home directory. No stow, no copying: `git --git-d
 --work-tree=~ checkout` puts everything exactly where it belongs. It is deliberately **not** called
 `~/.dotfiles`, so it can live next to your own dotfiles bare repo without touching it.
 
-The centerpiece is **[GiGiShell](GiGiShell/)** — a complete Hyprland/Wayland desktop rice (custom AGS
+The centerpiece is **[GiGiShell](../GiGiShell/)** — a complete Hyprland/Wayland desktop rice (custom AGS
 shell, a Lua-native Hyprland config, and a suite of background daemons for security, power and USB
 safety). Everything else in this repo is the shell/terminal/tooling layer it runs on top of.
 
@@ -22,9 +22,9 @@ curl -fsSL https://raw.githubusercontent.com/mglourido/gigi-shell/main/GiGiShell
 ```
 
 The same command **updates** an already-installed machine (fetches, fast-forwards, re-verifies
-symlinks). See **[GiGiShell/README.md](GiGiShell/README.md)** for what gets installed, override
+symlinks). See **[GiGiShell/README.md](../GiGiShell/README.md)** for what gets installed, override
 variables (`KITTY_PROFILE`, `FIREFOX_PROFILE`, `INSTALL_PACKAGES`, `GIGISHELL_BRANCH`), and a
-detailed feature tour of the desktop itself; **[GiGiShell/docs/SETUP.md](GiGiShell/docs/SETUP.md)** for
+detailed feature tour of the desktop itself; **[GiGiShell/docs/SETUP.md](../GiGiShell/docs/SETUP.md)** for
 the full step-by-step + troubleshooting.
 Collision files are automatically backed up.
 
@@ -34,7 +34,7 @@ Collision files are automatically backed up.
 fastfetch, MangoHud) — everything Hyprland/AGS-related lives under `GiGiShell/` and is symlinked into
 `~/.config` by `GiGiShell/bin/link.sh` instead, since it needs more than a straight checkout (profile
 selection, machine-local JSON state, `/etc` fragments). See
-[`GiGiShell/docs/anadir-perfiles-por-equipo.md`](GiGiShell/docs/anadir-perfiles-por-equipo.md) for why
+[`GiGiShell/docs/anadir-perfiles-por-equipo.md`](../GiGiShell/docs/anadir-perfiles-por-equipo.md) for why
 per-machine variants (Kitty, Firefox) are handled that way instead of just branching the repo.
 
 ## 🐚 Shell & terminal
@@ -75,9 +75,9 @@ Every push/PR runs (`.github/workflows/gigishell-validate.yml`):
 
 ## 📖 More documentation
 
-- **[`GiGiShell/README.md`](GiGiShell/README.md)** — the desktop itself: features, installation,
+- **[`GiGiShell/README.md`](../GiGiShell/README.md)** — the desktop itself: features, installation,
   performance numbers.
-- **[`GiGiShell/docs/SETUP.md`](GiGiShell/docs/SETUP.md)** — full install walkthrough + troubleshooting.
-- **[`GiGiShell/CLAUDE.md`](GiGiShell/CLAUDE.md)** and **[`GiGiShell/ags/CLAUDE.md`](GiGiShell/ags/CLAUDE.md)**
+- **[`GiGiShell/docs/SETUP.md`](../GiGiShell/docs/SETUP.md)** — full install walkthrough + troubleshooting.
+- **[`GiGiShell/CLAUDE.md`](../GiGiShell/CLAUDE.md)** and **[`GiGiShell/ags/CLAUDE.md`](../GiGiShell/ags/CLAUDE.md)**
   — the deep architectural notes: not just *what* things do, but *why* they're built that way.
 - **[`DEVELOPMENT.md`](DEVELOPMENT.md)** — repo-maintenance notes (this hook, mainly).
