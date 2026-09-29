@@ -1310,7 +1310,9 @@ $cadena-realce-activo: rgba(255, 255, 255, 0.055);
   &:hover {
     background: linear-gradient(135deg, acento-azul(), acento());
     color: $white;
-    transform: translateY(-2px) scale(1.045);
+    // El hueco existente entre hermanos es de 4 px; limitar la escala evita que
+    // el siguiente botón tape el borde ampliado al pintarse encima en GTK.
+    transform: translateY(-2px) scale(1.02);
     box-shadow: none;
 
     .power-icon {
@@ -1325,7 +1327,7 @@ $cadena-realce-activo: rgba(255, 255, 255, 0.055);
   }
 
   &:active {
-    transform: translateY(1px) scale(1.025);
+    transform: translateY(1px) scale(1.02);
     box-shadow: none;
   }
 }
