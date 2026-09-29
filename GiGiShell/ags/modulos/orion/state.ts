@@ -9,6 +9,9 @@ import {
   orionAppsDefault,
   orionRecordarUltimaSeccion,
 } from "../ajustes/preferences"
+import AstalHyprland from "gi://AstalHyprland"
+import { clienteJuegoEnFoco } from "../../servicios/juegos/registro"
+import { escritorioTieneJuego } from "../../servicios/juegos/cierreRofi"
 
 export type SectionId =
   | "inicio" | "apps" | "rice" | "keybinds" | "reactivo"
@@ -202,6 +205,45 @@ export function finalizarCierrePanel() {
 // reaparecer una sección guardada por una configuración anterior.
 orionRecordarUltimaSeccion.subscribe(() => {
   if (!orionRecordarUltimaSeccion.get()) ultimaSeccionCerrada = null
+})
+
+// ── Cierre automático al ir a un juego ───────────────────────────────────────
+//
+// Si Orion se abrió FUERA de un juego y el foco pasa después a uno (cambias de
+// escritorio con el atajo, el juego se trae al frente solo…), Orion se cierra:
+// es una layer OVERLAY y se quedaría tapando la partida. Si se abrió ESTANDO en
+// el juego, se respeta — ahí el usuario lo ha llamado a propósito encima de él.
+//
+// La foto se toma en cada apertura (también al reanudar una suspensión), y la
+// fuente es el registro de juegos del shell: con "Detectar juegos" apagado el
+// foco de juego es siempre `null` y esto no hace nada.
+let abiertoEnJuego = false
+
+orionVisible.subscribe(() => {
+  if (orionVisible.get()) abiertoEnJuego = clienteJuegoEnFoco.get() !== null
+})
+
+clienteJuegoEnFoco.subscribe(() => {
+  if (!orionVisible.get() || abiertoEnJuego) return
+  if (clienteJuegoEnFoco.get() !== null) hidePanel()
+})
+
+// Con una layer con el teclado encima, Hyprland no emite `activewindow` al cambiar
+// de escritorio (medido con rofi; ver `servicios/juegos/cierreRofi.ts`), así que el
+// foco de juego no se entera. Se mira además si el escritorio nuevo tiene un juego.
+//
+// En el mismo escuchador: abrir ROFI cierra Orion. Son dos lanzadores, y rofi se
+// abre encima (misma capa OVERLAY) dejando a Orion vivo debajo, con el teclado
+// disputado y reapareciendo al cerrar rofi. Se cierra con `hidePanel()`, no
+// tocando el estado a mano, para no saltarse la animación ni la limpieza.
+AstalHyprland.get_default().connect("event", (_origen, nombre: string, datos: string) => {
+  if (!orionVisible.get()) return
+  if (nombre === "openlayer" && datos.trim().toLowerCase().startsWith("rofi")) {
+    hidePanel()
+    return
+  }
+  if (nombre !== "workspacev2" || abiertoEnJuego) return
+  if (escritorioTieneJuego(datos)) hidePanel()
 })
 
 export function setQuery(query: string) {

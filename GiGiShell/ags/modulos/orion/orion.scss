@@ -301,6 +301,206 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 .sf-teal   { background: rgba($j-accent-teal, 0.55); }
 .sf-amber  { background: rgba($j-accent-amber, 0.55); }
 
+// ── Franja de Inicio: tema actual + carrusel ─────────────────────────────────
+// Va opaca como la de métricas (tapa el blur) y comparte su borde superior, así
+// que las dos se leen como un único pie de dos pisos.
+.fi-contenedor {
+  padding: 7px 10px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: $j-bg-shell-opaco;
+}
+
+.Orion .fi-tema,
+.Orion .fc-carrusel,
+.Orion .fx-tarjeta {
+  background: fondo-control-opaco(rgba(255, 255, 255, 0.022));
+  border: 1px solid $j-border-subtle;
+  border-radius: $j-radius-sm;
+  padding: 6px 9px;
+}
+
+.Orion .fi-tema {
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  &:hover {
+    @include hover-con-profundidad(fondo-control-opaco(rgba(255, 255, 255, 0.05)));
+    .fi-carta.delante, .fi-carta.sola { box-shadow: 0 0 0 1px c.acento(0.55), 0 6px 14px rgba(0, 0, 0, 0.45); }
+  }
+}
+
+.fi-eyebrow {
+  font-family: $j-font-mono;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.55px;
+  color: $j-text-muted;
+}
+.fi-chip {
+  font-family: $j-font-mono;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: c.acento(0.95);
+  background: c.acento(0.14);
+  border-radius: 99px;
+  padding: 0 5px;
+}
+.fi-nombre {
+  font-family: $j-font-sans;
+  font-size: 11px;
+  font-weight: 700;
+  color: $j-text-primary;
+  padding: 1px 0 0;
+}
+.fi-meta { font-size: 10px; color: $j-text-secondary; }
+.fi-sub  { font-size: 9px; font-family: $j-font-mono; color: c.acento-azul(0.72); padding-top: 2px; }
+
+// Las cartas: la de delante nítida y con sombra; las de detrás más oscuras y
+// giradas, para que el mazo se entienda de un vistazo.
+.fi-carta {
+  border-radius: $j-radius-xs;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.40);
+  transition: box-shadow 140ms ease;
+}
+.fi-carta .rice-thumb-viewport,
+.fi-carta .rice-thumb-placeholder,
+.fi-carta-img { border-radius: $j-radius-xs - 1px; }
+.fi-carta .rice-thumb-placeholder { background: rgba(255, 255, 255, 0.05); }
+.fi-carta.detras-1 { transform: rotate(4deg);  opacity: 0.78; }
+.fi-carta.detras-2 { transform: rotate(8deg);  opacity: 0.5; }
+.fi-carta.detras-1 .fi-carta-img,
+.fi-carta.detras-2 .fi-carta-img { filter: brightness(0.7) saturate(0.8); }
+
+.fi-insignia {
+  font-family: $j-font-mono;
+  font-size: 9px;
+  font-weight: 700;
+  color: $j-text-primary;
+  background: rgba(8, 8, 12, 0.72);
+  border-radius: 99px;
+  padding: 1px 6px;
+}
+.fi-insignia-glifo { color: c.acento(); }
+
+.Orion .fi-aleatorio {
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 99px;
+  color: $j-text-primary;
+  background: rgba(8, 8, 12, 0.62);
+  &:hover { background: rgba(8, 8, 12, 0.85); color: c.acento(); }
+}
+
+// Carrusel
+.fc-cabecera { padding: 0 0 2px 2px; }
+.Orion .fc-punto {
+  min-width: 5px;
+  min-height: 5px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: min-width 180ms ease, background 180ms ease;
+  &.activo { min-width: 14px; background: c.acento(0.8); }
+}
+.Orion .fc-accion {
+  min-width: 18px;
+  min-height: 18px;
+  border-radius: 6px;
+  color: $j-text-muted;
+  &:hover { color: $j-accent-red; background: rgba($j-accent-red, 0.1); }
+}
+
+// Página "Reciente"
+.Orion .fh-fila {
+  min-height: 22px;
+  padding: 0 5px;
+  border-radius: 7px;
+  &:hover { @include hover-con-profundidad; }
+}
+.fh-icono { min-width: 18px; }
+.fh-titulo { font-size: 11px; color: rgba(226, 226, 226, 0.86); }
+.fh-accion {
+  font-family: $j-font-mono;
+  font-size: 8px;
+  color: $j-text-muted;
+  &.fijada { color: $j-accent-amber; }
+}
+.fh-tecla {
+  font-family: $j-font-mono;
+  font-size: 9px;
+  font-weight: 600;
+  color: c.acento-azul(0.92);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid $j-border-subtle;
+  border-radius: 5px;
+  padding: 0 4px;
+}
+.fh-tiempo {
+  font-family: $j-font-mono;
+  font-size: 8px;
+  color: $j-text-muted;
+  min-width: 30px;
+}
+// Piso de arriba: tarjetas de "lo que pasa ahora". Mismo marco que las de abajo,
+// relleno más prieto para que 44 px de contenido quepan en los 58 del piso.
+.Orion .fx-tarjeta { padding: 5px 8px; }
+.Orion .fj-tarjeta {
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  &:hover { @include hover-con-profundidad(fondo-control-opaco(rgba(255, 255, 255, 0.05))); .fj-ir { color: c.acento(); } }
+}
+.fi-eyebrow.sonando { color: c.acento-azul(0.85); }
+
+// Tarjeta "Jugando ahora"
+.fj-icono { min-width: 32px; }
+.fj-glifo { font-family: $j-font-mono; font-size: 26px; color: c.acento(); }
+.fj-nombre { font-size: 11px; font-weight: 700; color: $j-text-primary; }
+.fj-meta { font-family: $j-font-mono; font-size: 8px; color: $j-text-muted; }
+.fj-ir { color: $j-text-muted; }
+.fj-mas {
+  font-family: $j-font-mono;
+  font-size: 9px;
+  font-weight: 700;
+  color: $j-text-secondary;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 99px;
+  padding: 1px 6px;
+}
+// Tarjeta "Sonando"
+.Orion .fs-abrir {
+  padding: 2px;
+  border-radius: 9px;
+  &:hover { @include hover-con-profundidad; }
+}
+.fs-portada {
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+.fs-portada-glifo { font-family: $j-font-mono; font-size: 20px; color: c.acento(0.8); }
+.fs-titulo  { font-size: 11px; font-weight: 700; color: $j-text-primary; }
+.fs-artista { font-size: 10px; color: $j-text-secondary; }
+.fs-origen  {
+  font-family: $j-font-mono;
+  font-size: 8px;
+  color: $j-text-muted;
+}
+.Orion .fs-control {
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: 99px;
+  color: $j-text-secondary;
+  &:hover { @include hover-con-profundidad; color: $j-text-primary; }
+  &:disabled { color: rgba(226, 226, 226, 0.15); }
+  &.principal {
+    min-width: 30px;
+    min-height: 30px;
+    color: $j-bg-shell-opaco;
+    background: c.acento(0.9);
+    &:hover { background: c.acento(); }
+  }
+}
+.fh-vacio-glifo { font-family: $j-font-mono; font-size: 16px; color: $j-text-muted; }
+.fh-vacio-texto { font-size: 9px; color: $j-text-muted; }
+
 // ── Section title ─────────────────────────────────────────────────────────────
 .section-title {
   font-size: 10px;
@@ -849,6 +1049,7 @@ popover.background {
     // histórico; se actualizan junto al fondo principal para evitar costuras.
     .ns,
     .sys-strip-fixed,
+    .fi-contenedor,
     .apps-cat-btn,
     .apps-mode-toggle {
       background: $bg;

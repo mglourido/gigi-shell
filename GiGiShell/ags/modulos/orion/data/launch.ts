@@ -1,5 +1,6 @@
 import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
+import { registrarApp, type IdentidadApp } from "./historial"
 
 // Punto ÚNICO por el que Orion abre una app. Antes cada sitio (Apps, Inicio,
 // buscador, panel derecho) hacía su propio `sh -c <exec>`, y por eso las apps
@@ -24,10 +25,15 @@ const LANZADOR = `${GLib.get_user_config_dir()}/hypr/scripts/lanzar-anclado.py`
  * falta, `execAsync` rechaza y la app simplemente no se abre, así que se cae al
  * `sh -c` de siempre — degradar a "se abre sin anclar" es preferible a "no se
  * abre".
+ *
+ * `app` es la identidad para el historial de Inicio. Es opcional para que un
+ * lanzamiento sin identidad conocida siga funcionando, pero los cuatro sitios
+ * que abren apps la pasan: sin ella el lanzamiento no deja rastro.
  */
-export function launchApp(exec: string): void {
+export function launchApp(exec: string, app?: IdentidadApp): void {
   const cmd = exec.trim()
   if (!cmd) return
+  if (app) registrarApp("abierta", app, cmd)
   execAsync([LANZADOR, cmd]).catch(() => {
     execAsync(["sh", "-c", cmd]).catch(() => {})
   })

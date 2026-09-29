@@ -624,6 +624,34 @@ déficit *a medias* con el título; acotado a 14 (con `tooltipText` para no perd
     de `activeSection` llegaba con el widget desmapeado y animaba sobre una medida no fiable,
     dejando el fondo bajo el botón anterior.
 
+  **La franja de Inicio (`components/sections/home/franjaInicio.tsx`) va en dos pisos**, fuera del
+  viewport como las métricas: arriba **Sonando** y **Jugando ahora** (tarjetas separadas, el piso solo
+  existe si hay reproductor o juego; con una sola tarjeta, esa ocupa el ancho entero) y abajo **Tema
+  actual** + el carrusel (hoy solo **Reciente**). Lo que no se deduce del código:
+  - **Todo tiene TAMAÑO FIJO, y no es estética.** Las filas son homogéneas (cada mitad pide el
+    natural de la más ancha) y una `Gtk.Picture` pide de natural el tamaño de su textura aunque tenga
+    `set_size_request`: sin las cajas fijas, un nombre de fondo largo ensanchaba y alargaba la layer
+    entera de Orion, que **no vuelve a encogerse sola**, y un piso con una fila de más le quitaba
+    píxeles al otro y lo cortaba por abajo. Las etiquetas de ahí se recortan con elipsis por defecto.
+  - **El alto es estado (`alturaFranjaInicio`) y `NavSections` lo resta del viewport de Inicio**: al
+    aparecer el piso de arriba crece la franja y encogen las apps favoritas, pero la layer mide lo
+    mismo.
+  - **La caja fija es una subclase de `Gtk.Box` sin layout manager y SIN `vfunc_dispose`.** Los dos
+    intentos anteriores fallaron, y los dos están medidos: con `vfunc_dispose` en JS, el GC tenía que
+    ejecutarlo al finalizar las cartas que se rehacen (GJS lo bloquea: "Attempting to run a JS
+    callback during garbage collection"); con `Gtk.CustomLayout` y la medida en JS, **GJS aborta el
+    proceso** al abrir Orion (aserción de `CairoContext` en `cwrapper.h`; el core dump tiene el marco
+    dentro de `gtk_layout_manager_measure`). No uses `Gtk.CustomLayout` desde JS.
+  - El **historial** (`data/historial.ts`, lógica pura con test en `historial.modelo.ts`, en
+    `~/.local/share/orion/historial.json`) solo apunta lo que se HIZO: `launchApp` cuando recibe la
+    identidad de la app, `addFavorite` y el clic en un atajo de los resultados — una búsqueda que no
+    acaba en nada no deja rastro.
+  - **Jugando ahora** sale del registro de `servicios/juegos/` sin llamar a
+    `iniciarRegistroJuegos()` (ya lo arranca `gamingState` a los 4 s), y la duración es la edad del
+    PROCESO (`/proc/<pid>/stat`), no desde que AGS vio la ventana: si no, reiniciar el shell pondría
+    a cero una partida de dos horas. **Sonando** sale del servicio MPRIS compartido y se muestra
+    también en pausa: ocultarlo al pausar lo haría desaparecer bajo el cursor.
+
   **La sección Temas (`components/sections/RiceSection.tsx` + `sections/rice/`) gestiona franjas
   horarias y grupos de fondos.** Cuatro vistas en un `Gtk.Stack` (rejilla, franjas, grupo, fondo).
   Puntos que no se deducen del código:

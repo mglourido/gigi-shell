@@ -93,12 +93,16 @@ function openAppContext(app: AppEntry) {
     execName: app.execName,
     appId: app.appId,
     desktopFile: app.desktopFile,
-    launch: () => launchApp(app.exec),
+    launch: () => launchApp(app.exec, identidadDe(app)),
   })
 }
 
+function identidadDe(app: AppEntry) {
+  return { id: app.appId, nombre: app.name, icono: app.iconName }
+}
+
 function launchAppDirect(app: AppEntry) {
-  launchApp(app.exec)
+  launchApp(app.exec, identidadDe(app))
   hidePanel()
 }
 

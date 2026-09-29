@@ -33,6 +33,9 @@ export const keybindsHandler: SearchHandler = {
             iconName: "input-keyboard-symbolic",
             // Navigate to keybinds section with filter applied (query stays in SearchBar)
             navigateTo: "keybinds",
+            // Lo lee la sección reactiva para apuntar el atajo pulsado en el
+            // historial de Inicio (una búsqueda que no se pulsa no deja rastro).
+            meta: { kbBinding: kb.binding, kbDescripcion: kb.description },
             action: () => {},
           })
         }

@@ -100,7 +100,11 @@ function crearResultado(a: Gio.AppInfo): SearchResult {
     },
     action: () => {
       const cmd = (a.get_commandline() ?? "").replace(/%[fFuUdDnNickvmb]/g, "").trim()
-      if (cmd) launchApp(cmd)
+      if (cmd) launchApp(cmd, {
+        id: a.get_id() ?? a.get_executable() ?? "",
+        nombre: a.get_name() ?? "",
+        icono: a.get_icon()?.to_string() ?? "",
+      })
     },
   }
 }

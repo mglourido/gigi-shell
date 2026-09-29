@@ -21,6 +21,7 @@ import { initAutoDnd } from "./modulos/notificaciones/autoDnd/watcher"
 import { initNotifDaemonCheck } from "./modulos/notificaciones/daemon/comprobacion"
 import { initTrayApps } from "./modulos/ajustes/trayApps"
 import { initGamingState } from "./servicios/energia/gamingState"
+import { initCierreRofiJuego } from "./servicios/juegos/cierreRofi"
 import { initBrilloAhorro } from "./servicios/energia/brilloAhorro"
 import { inicializarCamara } from "./servicios/camara/init.ts"
 import { initTlpAuto } from "./servicios/energia/tlpAuto"
@@ -259,6 +260,7 @@ app.start({
       initAutoDnd()
       initTrayApps()
       initGamingState()
+      initCierreRofiJuego()
       // Después de NotificationPopup: es quien construye el AstalNotifd que reclama el nombre.
       initNotifDaemonCheck()
       // Arma el temporizador de la próxima alarma. Va aquí y no a t=0 porque NO siembra de

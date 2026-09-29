@@ -12,6 +12,7 @@ import {
   type AppContextItem,
 } from "../../state"
 import { addFavorite, removeFavorite, isFavorite, favorites } from "../../data/favorites"
+import { olvidarApp } from "../../data/historial"
 import { invalidarCatalogoApps } from "../../data/catalogo"
 import { desinstalarApp } from "../../data/uninstall"
 import { crearIconoApp } from "../shared/tarjetaApp"
@@ -116,6 +117,7 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
         // nada. `appResolver` no lo salvaría: buscaría una variante del binario
         // y aquí no hay ninguna, la app ya no está.
         if (isFavorite(app.appId)) removeFavorite(app.appId)
+        olvidarApp(app.appId)
         invalidarCatalogoApps()
       }
       // La ficha del panel derecho solo se suelta si la app ha dejado de

@@ -4,9 +4,10 @@
 // módulo en vez de pasarse como prop.
 
 import { Gtk } from "ags/gtk4"
-import { setQuery, orionVisible } from "../../state"
+import { setQuery, setSearchQuery, orionVisible } from "../../state"
 
 let _entry: Gtk.Entry | null = null
+let _sinResolver = false
 
 // La búsqueda corre síncrona en el bucle de GTK (escaneo de apps + reconstruir
 // la lista reactiva), así que se debouncea: al teclear rápido solo se resuelve
@@ -18,6 +19,21 @@ export function focusSearchAndType(char: string) {
   _entry.text = _entry.text + char
   _entry.set_position(-1)
   _entry.grab_focus()
+}
+
+/**
+ * Escribe `texto` en el buscador SIN pasar por el motor: la sección activa lo
+ * filtra en sitio (la de Atajos lee `searchQuery`). Lo usa el historial de
+ * Inicio para abrir un atajo ya localizado; resolverlo como una búsqueda podría
+ * mandarlo a la lista reactiva si alguna app puntuara más que el atajo.
+ */
+export function mostrarEnBusqueda(texto: string) {
+  if (!_entry) return
+  _sinResolver = true
+  _entry.text = texto
+  _sinResolver = false
+  _entry.set_position(-1)
+  setSearchQuery(texto)
 }
 
 export default function SearchBar() {
@@ -35,6 +51,7 @@ export default function SearchBar() {
   entry.connect("changed", () => {
     const texto = entry.text
     cancelarDebounce()
+    if (_sinResolver) return
     // Vaciar es la salida rápida de la búsqueda (limpia resultados y vuelve a la
     // sección de origen); no interesa retrasarla ni un frame.
     if (!texto.trim()) { setQuery(texto); return }

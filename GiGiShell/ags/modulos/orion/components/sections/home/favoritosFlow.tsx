@@ -72,7 +72,7 @@ function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
   // El doble clic lanza directo; se veta mientras hay un arrastre en curso
   // para que soltar un tile sobre sí mismo no lo abra de paso.
   const estaSuprimido = activarDobleClic(btn, () => {
-    launchApp(app.exec)
+    launchApp(app.exec, { id: app.id, nombre: app.name, icono: app.iconName })
     hidePanel()
   }, () => !_draggedId)
 
@@ -89,7 +89,7 @@ function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
         // binario, que es exactamente el caso en que tampoco lo encontrará —
         // por eso el panel deja el motivo escrito en vez de un botón muerto.
         desktopFile: Gio.DesktopAppInfo.new(app.id)?.get_filename() ?? "",
-        launch: () => launchApp(app.exec),
+        launch: () => launchApp(app.exec, { id: app.id, nombre: app.name, icono: app.iconName }),
       })
     } catch (_) {}
   })

@@ -19,7 +19,7 @@ import {
 import CentroComandos from "./components/shell/CentroComandos"
 import { focusSearchAndType } from "./components/shell/SearchBar"
 import NavSections from "./components/shell/NavSections"
-import { SystemStats } from "./components/sections/HomeSection"
+import { SystemStats, FranjaInicio } from "./components/sections/HomeSection"
 import CornerCurve from "./components/shell/CornerCurve"
 import RightPanel from "./components/shell/RightPanel"
 import { clipWindowInputToContent } from "../../utilidades/inputRegion"
@@ -61,6 +61,7 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
       <box cssClasses={["orion-main"]} orientation={Gtk.Orientation.VERTICAL}>
         <CentroComandos />
         <NavSections navegacion={navegacion} />
+        <FranjaInicio />
         <SystemStats />
       </box>
       <box cssClasses={["orion-panel-sep"]} visible={rightPanelVisible(v => v)} />

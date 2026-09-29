@@ -12,6 +12,7 @@ import {
 } from "../../state"
 import type { SearchResult } from "../../search"
 import { activarDobleClic } from "../shared/dobleClic"
+import { registrarAtajo } from "../../data/historial"
 import { crearIconoApp } from "../shared/tarjetaApp"
 import type {
   ElementoNavegacionBusqueda,
@@ -32,9 +33,15 @@ function mostrarContextoApp(resultado: SearchResult): void {
   })
 }
 
+function navegarDesde(resultado: SearchResult, destino: NonNullable<SearchResult["navigateTo"]>): void {
+  const binding = resultado.meta?.kbBinding
+  if (binding) registrarAtajo(binding, resultado.meta?.kbDescripcion ?? resultado.title)
+  setSection(destino)
+}
+
 function activarResultado(resultado: SearchResult): void {
   if (resultado.navigateTo) {
-    setSection(resultado.navigateTo)
+    navegarDesde(resultado, resultado.navigateTo)
     return
   }
   resultado.action()
@@ -96,7 +103,7 @@ function crearFila(
     navegacion.seleccionarResultado(navegable)
     if (estaSuprimido?.()) return
     if (resultado.navigateTo) {
-      setSection(resultado.navigateTo)
+      navegarDesde(resultado, resultado.navigateTo)
     } else if (!esApp) {
       resultado.action()
       hidePanel()

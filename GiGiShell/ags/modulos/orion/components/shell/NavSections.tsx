@@ -7,7 +7,7 @@ import { onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
 import { activeSection, onSectionChange } from "../../state"
 import { SECTION_COMPONENTS } from "../sections"
-import { ALTURA_FRANJA_SISTEMA } from "../sections/HomeSection"
+import { ALTURA_FRANJA_SISTEMA, alturaFranjaInicio } from "../sections/HomeSection"
 import type { NavegacionBusqueda } from "../shared/NavegacionBusqueda"
 
 const ALTURA_VIEWPORT_ORION = 458
@@ -42,10 +42,11 @@ export default function NavSections({ navegacion }: NavSectionsProps) {
     outer.append(w)
   }
 
-  function show(id: string) {
-    for (const [wid, w] of Object.entries(widgets)) w.visible = wid === id
+  function ajustarAltura(id: string) {
+    // En Inicio el viewport cede lo que ocupan las dos franjas fijas de abajo;
+    // la de arriba cambia de alto sola (aparece al sonar música o abrir un juego).
     const altura = id === "inicio"
-      ? ALTURA_VIEWPORT_ORION - ALTURA_FRANJA_SISTEMA
+      ? ALTURA_VIEWPORT_ORION - ALTURA_FRANJA_SISTEMA - alturaFranjaInicio.get()
       : ALTURA_VIEWPORT_ORION
     // Se limpia primero el mínimo porque al pasar de una sección alta a Inicio
     // GTK rechaza temporalmente un máximo menor que el mínimo anterior.
@@ -53,11 +54,18 @@ export default function NavSections({ navegacion }: NavSectionsProps) {
     scroll.set_max_content_height(altura)
     scroll.set_min_content_height(altura)
     scroll.height_request = altura
+  }
+
+  function show(id: string) {
+    for (const [wid, w] of Object.entries(widgets)) w.visible = wid === id
+    ajustarAltura(id)
     scroll.get_vadjustment().set_value(0)
   }
 
   show(activeSection.get())
   onCleanup(onSectionChange(show))
+  // Sin resetear el desplazamiento: esto no es un cambio de sección.
+  onCleanup(alturaFranjaInicio.subscribe(() => ajustarAltura(activeSection.get())))
 
   return scroll
 }

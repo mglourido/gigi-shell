@@ -5,6 +5,7 @@
 import { createState } from "ags"
 import GLib from "gi://GLib"
 import { validateFavorites, resolveExec, invalidateCache } from "./appResolver"
+import { registrarApp } from "./historial"
 
 const DISK_PATH = `${GLib.get_home_dir()}/.local/share/orion/favorites.json`
 
@@ -62,6 +63,7 @@ export function addFavorite(app: FavoriteApp) {
   const updated = [...cur, app]
   setFavorites(updated)
   saveFavorites(updated)
+  registrarApp("fijada", { id: app.id, nombre: app.name, icono: app.iconName }, app.exec)
 }
 
 export function removeFavorite(id: string) {

@@ -8,6 +8,10 @@ observación del socket de eventos, rama single-instance, el ajuste y por qué e
 timeout vale 15 s— vive en `anclaje.py`, compartida con `lanzar-anclado.py` (el
 camino de Orion). Aquí queda solo lo propio de rofi: el toggle y sus flags.
 
+Dos cierres automáticos: 5 s sin actividad (flags de abajo, los resuelve rofi) y
+pasar el foco a un juego si se abrió fuera de él — ese lo hace AGS
+(`ags/servicios/juegos/cierreRofi.ts`), que es quien sabe qué ventana es un juego.
+
 Ver diseño: docs/superpowers/specs/2026-06-13-rofi-single-instance-move-design.md
 """
 
@@ -40,6 +44,13 @@ def main():
         "-sorting-method", "fzf",
         "-case-smart",
         "-theme-str", tema_busqueda,
+        # Se cierra solo tras 5 s sin tocarlo. El reloj es de rofi y se reinicia
+        # con cada tecla ("delay after inactivity" en su config por defecto), así
+        # que solo salta si lo abriste y no llegaste a escribir ni moverte.
+        # `kb-cancel` sale con el mismo código que Escape: el script termina abajo
+        # sin anclar nada.
+        "-timeout-delay", "5",
+        "-timeout-action", "kb-cancel",
     ])
     if resultado_rofi.returncode != 0:
         return
