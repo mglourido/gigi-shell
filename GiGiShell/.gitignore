@@ -56,6 +56,9 @@ guardian/target/
 
 # --- Desechable ---
 
+# Planes y especificaciones generados durante el trabajo; se conservan solo localmente.
+docs/superpowers/
+
 # scripts de inspección y pruebas de usar y tirar
 ags/scratch/
 # copias de seguridad de editores (nano, gedit)
