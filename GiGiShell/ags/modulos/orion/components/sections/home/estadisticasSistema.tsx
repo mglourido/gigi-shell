@@ -5,9 +5,9 @@
 
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
+import { ticInicio } from "../../../data/ticInicio"
 import { readFile } from "ags/file"
 import { createState, type Accessor } from "ags"
-import GLib from "gi://GLib"
 import GObject from "gi://GObject"
 import Pango from "gi://Pango"
 import { orionVisible, activeSection } from "../../../state"
@@ -112,7 +112,7 @@ async function updateNvidia() {
 // "inicio"; se para al cerrar o al cambiar de sección. En reposo el consumo es
 // cero.
 
-let _pollSource: number | null = null
+let _sondeando = false
 
 // CPU/RAM/iGPU son lecturas de sysfs (micras); nvidia-smi es un spawn de
 // proceso real (~lo más caro de este módulo con diferencia). Van a tics
@@ -133,8 +133,13 @@ function pollShouldRun(): boolean {
   return orionVisible.get() && activeSection.get() === "inicio"
 }
 
+// El reloj es el tic COMPARTIDO de Inicio (`data/ticInicio.ts`), no uno propio:
+// así las métricas y la barra de progreso de "Sonando" se refrescan en el mismo
+// despertar. `_sondeando` solo marca si el sondeo está activo.
+ticInicio.subscribe(() => { if (_sondeando) tick() })
+
 function startPolling() {
-  if (_pollSource !== null) return
+  if (_sondeando) return
   // Resetea los acumuladores delta para que el primer tick tras reabrir no
   // muestre un pico falso calculado sobre todo el tiempo que estuvo cerrado.
   prevTotal = 0
@@ -142,17 +147,11 @@ function startPolling() {
   prevRc6 = -1
   _nvidiaTick = false  // el tick inmediato de abajo lo pone a true → nvidia-smi también refresca al abrir
   tick()  // refresco inmediato para no mostrar datos rancios al abrir
-  _pollSource = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 1000, () => {
-    tick()
-    return GLib.SOURCE_CONTINUE
-  })
+  _sondeando = true
 }
 
 function stopPolling() {
-  if (_pollSource !== null) {
-    GLib.source_remove(_pollSource)
-    _pollSource = null
-  }
+  _sondeando = false
 }
 
 function syncPolling() {

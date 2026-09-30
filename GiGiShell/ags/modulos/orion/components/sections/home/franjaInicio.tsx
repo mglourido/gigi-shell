@@ -48,6 +48,7 @@ import { clientesJuego, clienteJuegoEnFoco } from "../../../../../servicios/jueg
 import { describirJuego, GLIFO_JUEGO } from "../../../../../servicios/juegos/iconos"
 import { extraerInicioProceso } from "../../../../../servicios/aplicaciones/procesos"
 import { msVivo, duracionSesion, normalizarDireccion } from "../../../data/jugando.modelo"
+import { ticInicio } from "../../../data/ticInicio"
 import {
   reproductoresMultimedia, revisionMultimedia, obtenerEstadoReproductor, type EstadoReproductor,
 } from "../../../../../servicios/multimedia/mpris"
@@ -434,9 +435,13 @@ let caducidadNotis: number | null = null
 
 function recalcularNotisRecientes() {
   if (caducidadNotis !== null) { GLib.source_remove(caducidadNotis); caducidadNotis = null }
+  // Cerrado no se filtra nada: cada notificación que llegara recorrería el
+  // almacén para una página que nadie ve. Al abrir se recalcula (este mismo
+  // manejador va suscrito a `orionVisible`, antes que el carrusel).
+  if (!orionVisible.get()) return
   const lista = notisRecientes()
   setHayNotisRecientes(lista.length > 0)
-  if (lista.length === 0 || !orionVisible.get()) return
+  if (lista.length === 0) return
   const vence = lista[lista.length - 1].timestamp + VENTANA_NOTIS_MS - Date.now()
   caducidadNotis = GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.max(250, vence + 50), () => {
     caducidadNotis = null
@@ -447,7 +452,6 @@ function recalcularNotisRecientes() {
 notifications.subscribe(recalcularNotisRecientes)
 orionNotisApps.subscribe(recalcularNotisRecientes)
 orionVisible.subscribe(recalcularNotisRecientes)
-recalcularNotisRecientes()
 
 function abrirPanelNotificaciones() {
   hidePanel()
@@ -927,19 +931,10 @@ function TarjetaSonando(): Gtk.Widget {
     irA(pos / prDuracion)
   }
 
-  // Sondeo de posición (MPRIS no notifica el avance): 1 s, y SOLO con Orion
-  // abierto — cerrado se quita el temporizador, no basta con saltarse el cuerpo.
-  let sondeo: number | null = null
-  const sincronizarSondeo = () => {
-    const hace = orionVisible.get() && prJugador !== null && prDuracion !== null
-    if (hace && sondeo === null) {
-      sondeo = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => { actualizarTiempo(); return GLib.SOURCE_CONTINUE })
-    } else if (!hace && sondeo !== null) {
-      GLib.source_remove(sondeo)
-      sondeo = null
-    }
-  }
-  orionVisible.subscribe(sincronizarSondeo)
+  // Posición (MPRIS no notifica el avance): con el tic COMPARTIDO de Inicio
+  // (`data/ticInicio.ts`), el mismo de las métricas. Solo late con Orion abierto
+  // y en Inicio, así que cerrado no hay nada que quitar aquí.
+  ticInicio.subscribe(actualizarTiempo)
   // Al reabrir Orion la barra aparece ya en su sitio: animar desde donde se quedó
   // al cerrar (quizá minutos atrás) sería un barrido sin significado.
   orionVisible.subscribe(() => { if (!orionVisible.get()) mostrada = null })
@@ -979,8 +974,16 @@ function TarjetaSonando(): Gtk.Widget {
     sincronizandoVol = false
   }
 
-  function enlazarVolumen() {
+  function soltarVolumen() {
     if (manejadorVol) { try { manejadorVol.s.disconnect(manejadorVol.id) } catch (_) {} manejadorVol = null }
+  }
+
+  function enlazarVolumen() {
+    soltarVolumen()
+    // Cerrado no se enlaza nada: ni se recorren los streams ni se escucha el
+    // volumen de la app (que cambia cada vez que alguien lo toca, en cualquier
+    // sitio). `reconstruir` vuelve a enlazar al abrir.
+    if (!orionVisible.get()) { streamsApp = []; return }
     const r = prJugador
     streamsApp = r && audioWp
       ? (audioWp.get_streams() ?? []).filter((s: any) => streamEsDeReproductor(propsDeStream(s), {
@@ -1016,10 +1019,25 @@ function TarjetaSonando(): Gtk.Widget {
     guardarAudioPresets(presets)
   })
 
-  if (audioWp) {
-    audioWp.connect("stream-added", () => enlazarVolumen())
-    audioWp.connect("stream-removed", () => enlazarVolumen())
-  }
+  // Altas y bajas de streams: solo mientras Orion está abierto. Las señales se
+  // conectan al abrir y se sueltan al cerrar, junto con la del volumen.
+  let senalesStreams: number[] = []
+  orionVisible.subscribe(() => {
+    if (!audioWp) return
+    if (orionVisible.get()) {
+      if (senalesStreams.length === 0) {
+        senalesStreams = [
+          audioWp.connect("stream-added", () => enlazarVolumen()),
+          audioWp.connect("stream-removed", () => enlazarVolumen()),
+        ]
+      }
+    } else {
+      for (const id of senalesStreams) { try { audioWp.disconnect(id) } catch (_) {} }
+      senalesStreams = []
+      soltarVolumen()
+      streamsApp = []
+    }
+  })
 
   function reconstruir() {
     vaciarCaja(caja)
@@ -1028,7 +1046,6 @@ function TarjetaSonando(): Gtk.Widget {
     const sel = actual()
     prJugador = sel?.r ?? null
     prDuracion = sel ? duracionDe(sel.r) : null
-    sincronizarSondeo()
     enlazarVolumen()
     if (!sel) return
     const { r, e, indice, total } = sel
@@ -1250,12 +1267,18 @@ type Suscribible = { subscribe: (fn: () => void) => () => void }
  * Reconstruye `widget` al mapearse por primera vez, y a partir de ahí ante cada
  * cambio de `fuentes` y en cada apertura de Orion. Antes del primer mapeo no
  * hace nada: la franja existe en todos los monitores desde el arranque.
+ *
+ * **Con Orion cerrado tampoco reconstruye**, aunque cambien las fuentes: cada
+ * pista nueva, pausa o notificación rehacía las tarjetas en TODOS los monitores
+ * (y "Sonando" decodificaba la carátula entera para sacar su color) sin que
+ * nadie las viera. No hace falta apuntar que quedó pendiente: abrir Orion
+ * reconstruye siempre, así que lo que cambió mientras tanto se pinta al abrir.
  */
 function conReconstruccionPerezosa<W extends Gtk.Widget>(
   widget: W, reconstruir: () => void, fuentes: Suscribible[],
 ): W {
   let cargado = false
-  const siCargado = () => { if (cargado) reconstruir() }
+  const siCargado = () => { if (cargado && orionVisible.get()) reconstruir() }
   for (const f of fuentes) f.subscribe(siCargado)
   orionVisible.subscribe(() => { if (orionVisible.get()) siCargado() })
   widget.connect("map", () => {
