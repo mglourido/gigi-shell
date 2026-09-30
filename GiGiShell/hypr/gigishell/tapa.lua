@@ -61,8 +61,11 @@ local RUTA_PREFS = (os.getenv("XDG_CONFIG_HOME") or (util.HOGAR .. "/.config"))
 -- este módulo no puede quedarse sin acción por un fallo de carga del otro: sin él,
 -- la reserva mínima es suspender de verdad.
 local acciones
+-- El módulo del botón, también para ADELANTAR su cuenta atrás (ver cuerpo()).
+local boton_mod = nil
 do
   local ok, boton = pcall(require, "gigishell.boton-apagado")
+  if ok and type(boton) == "table" then boton_mod = boton end
   if ok and type(boton) == "table" and type(boton.acciones) == "table" then
     -- Copia, no la tabla prestada: la extendemos abajo y escribir en la del botón de
     -- encendido le añadiría a ESE menú una acción que su UI no ofrece.
@@ -115,6 +118,15 @@ local M = {}
 M.acciones = acciones
 
 local function cuerpo()
+  -- Cerrar la tapa con la cuenta atrás del botón de encendido en marcha es
+  -- «sí, hazlo ya»: se ejecuta la acción DEL BOTÓN en lugar de la de la tapa, sin
+  -- mirar pantallas externas ni `accionTapa` — el usuario ya eligió qué quería
+  -- al pulsar. Ver la cabecera de la cuenta atrás en gigishell/boton-apagado.lua.
+  if boton_mod and type(boton_mod.confirmar_pendiente) == "function"
+      and boton_mod.confirmar_pendiente() then
+    return
+  end
+
   -- Fichero ausente o corrupto → leer_json da nil → acción de fábrica.
   local prefs = util.leer_json(RUTA_PREFS)
   local accion = ACCION_POR_DEFECTO

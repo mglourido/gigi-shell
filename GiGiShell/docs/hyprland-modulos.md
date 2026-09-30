@@ -471,6 +471,30 @@ con AGS caído (con la acción de fábrica, `apagar`) y cambiar el ajuste no nec
 acción que sí pasa por AGS es `menu`, vía `ags request toggle-power-menu`, y bajo hyprlock **no
 se hace**: el menú quedaría dibujado por debajo del bloqueo y abierto al desbloquear.
 
+**Cuenta atrás de confirmación.** Las acciones drásticas (apagar, reiniciar, suspender, hibernar,
+cerrar sesión) no salen al pulsar: se abre un overlay de 5 s (`ags/modulos/cuenta-atras/`) con
+«Vuelve a pulsar el botón de encendido para cancelar», y la acción sale al llegar a 0. La segunda
+pulsación, Esc o el botón «Cancelar» la anulan; **cerrar la tapa durante la cuenta la adelanta**
+(ejecuta la acción del botón, no la de la tapa, sin mirar pantallas externas). Se quita desde
+Ajustes > Energía (`botonCuentaAtras`; solo un `false` explícito la desactiva). Reparto:
+- **El estado y el timer viven en Lua** (`pendiente` + `hl.timer` en `boton-apagado.lua`), no en
+  AGS: la tapa y la segunda pulsación tienen que consultarlo dentro de los 100 ms de un callback.
+  AGS solo pinta (`ags request cuenta-atras <accion> <s>` / `cuenta-atras-cerrar`), y su
+  «Cancelar» llama a `GiGiShell.boton_cancelar()` por `hyprctl eval` en vez de cerrarse solo — si
+  no, la acción saldría igual con la ventana ya quitada.
+- **Con la sesión bloqueada no hay cuenta atrás**: hyprlock tapa el overlay y sería una espera
+  invisible, así que el botón actúa al momento, como antes.
+- **Con AGS caído, tampoco**: el request falla y su `|| hyprctl eval "GiGiShell.boton_confirmar()"`
+  ejecuta en el acto. Un botón sin confirmación es mejor que un botón que no hace nada.
+- **La cancelación va fuera del `pcall` fail-open**: la reserva de ese `pcall` es apagar, y un
+  fallo al cancelar no puede acabar apagando justo cuando el usuario ha pedido que no.
+- Límite conocido: un `hyprctl reload` a mitad de la cuenta cancela el `hl.timer` (ver
+  `autostart.lua`) y la acción no sale; el overlay se cierra solo a los ~7,5 s.
+- Para probarlo sin apagar: sustituir las acciones por un stub con `hyprctl eval
+  'package.loaded["gigishell.boton-apagado"].acciones.apagar = function() … end'`, disparar
+  `GiGiShell.boton_apagado()` / `GiGiShell.tapa_cerrada()` por `hyprctl eval`, y `hyprctl reload`
+  al acabar para reponer las reales.
+
 **Sin ceder la tecla, el bind se ejecuta pero NO se nota — y ese es el modo de fallo.**
 `systemd-logind` maneja esa misma tecla por su cuenta (`HandlePowerKey`, **`poweroff` de
 fábrica**) a nivel de **asiento**, leyendo el evento de entrada sin pasar por el compositor. O
@@ -516,6 +540,9 @@ Dos diferencias con el botón, y las dos son deliberadas:
   `ags/app.ts`, que **ENTRA y no alterna**: cerrar la tapa estando ya dentro tiene que dejarla
   puesta, y `toggle-suspension-falsa` haría justo lo contrario — sacar de ella con la tapa cerrada
   y nadie delante de la pantalla.
+- **Con la cuenta atrás del botón de encendido en marcha, la tapa la ADELANTA**: `tapa_cerrada()`
+  llama primero a `confirmar_pendiente()` del módulo del botón y, si había cuenta, ejecuta la
+  acción del botón y no la suya — ni `accionTapa` ni la excepción de pantalla externa cuentan ahí.
 - **Abrir la tapa enciende la pantalla SIEMPRE** (`switch:off:Lid Switch` → `GiGiShell.tapa_abierta()`),
   sin mirar la preferencia. Con la acción "Apagar la pantalla" no habría nadie más que la
   encendiera (`mouse_move_enables_dpms = false`, ver `gigishell/ventanas.lua`) y abrir la tapa a un

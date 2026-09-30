@@ -84,20 +84,110 @@ M.acciones = {
   apagar = function() hl.exec_cmd("systemctl poweroff") end,
 }
 
+-- ═══ CUENTA ATRÁS DE CONFIRMACIÓN ═══
+-- Las acciones drásticas no salen al pulsar: se abre una cuenta atrás de
+-- SEGUNDOS_CUENTA_ATRAS (overlay de AGS, modulos/cuenta-atras/) y la acción sale al
+-- llegar a 0. Volver a pulsar el botón la cancela; cerrar la tapa mientras corre la
+-- ADELANTA (gigishell/tapa.lua llama a M.confirmar_pendiente()). Se puede apagar
+-- desde Ajustes > Energía (`botonCuentaAtras`; sólo un `false` explícito la quita).
+--
+-- El estado vive AQUÍ y no en AGS: la tapa y la segunda pulsación tienen que
+-- consultarlo dentro de los 100 ms de un callback, y preguntarle a AGS por un
+-- proceso no cabe. AGS sólo pinta; el hl.timer es quien ejecuta.
+--
+-- Sin cuenta atrás, y a propósito:
+--   · con la sesión bloqueada — hyprlock tapa cualquier overlay, así que sería una
+--     espera invisible; ahí el botón actúa al momento, como siempre;
+--   · con AGS caído — el `||` del request confirma en el acto (fail-open: un botón
+--     que no hace nada es peor que uno sin confirmación);
+--   · en las acciones que no hay que proteger (bloquear, pantalla, menú, nada).
+--
+-- Límite conocido: un `hyprctl reload` en mitad de la cuenta cancela el hl.timer y
+-- reinicia este módulo (ver autostart.lua), así que la acción no sale. Degrada hacia
+-- "no pasa nada", que es lo que ya significa cancelar; el overlay se cierra solo.
+local SEGUNDOS_CUENTA_ATRAS = 5
+
+local CON_CUENTA_ATRAS = {
+  apagar = true, reiniciar = true, suspender = true, hibernar = true, cerrarSesion = true,
+}
+
+-- Cuenta atrás en curso: { accion = "…" } o nil. La IDENTIDAD de la tabla es la
+-- ficha del timer (mismo patrón que gigishell/reparto-ventanas.lua): si al saltar
+-- ya no es la misma, alguien la canceló o la confirmó antes.
+local pendiente = nil
+
+local function ejecutar(accion)
+  local fn = M.acciones[accion] or M.acciones[ACCION_POR_DEFECTO]
+  fn()
+end
+
+--- Si hay una cuenta atrás, la cierra y ejecuta su acción YA. Devuelve true si la
+--- había. La usan la tapa (adelantar) y la reserva de AGS caído (vía hyprctl eval).
+function M.confirmar_pendiente()
+  local p = pendiente
+  if not p then return false end
+  pendiente = nil
+  pcall(hl.exec_cmd, "ags request cuenta-atras-cerrar")
+  ejecutar(p.accion)
+  return true
+end
+
+--- Cancela la cuenta atrás si la hay. Devuelve true si la había.
+function M.cancelar_pendiente()
+  if not pendiente then return false end
+  pendiente = nil
+  pcall(hl.exec_cmd, "ags request cuenta-atras-cerrar")
+  return true
+end
+
+local function iniciar_cuenta_atras(accion)
+  local p = { accion = accion }
+  hl.timer(function()
+    if pendiente ~= p then return end
+    -- Mismo fail-open que el botón: si la acción lanza, sale la de fábrica.
+    local ok, err = pcall(M.confirmar_pendiente)
+    if not ok then
+      util.notificar("cuenta atrás del botón falló (" .. tostring(err):sub(1, 120)
+        .. ") — ejecutando acción de fábrica")
+      pcall(M.acciones[ACCION_POR_DEFECTO])
+    end
+  end, { timeout = SEGUNDOS_CUENTA_ATRAS * 1000, type = "oneshot" })
+  -- Se marca DESPUÉS de crear el timer: si hl.timer lanza, el pcall de fuera
+  -- ejecuta la acción de fábrica y no queda una cuenta fantasma sin timer.
+  pendiente = p
+  -- `accion` viene de CON_CUENTA_ATRAS (identificadores sin espacios ni comillas),
+  -- así que interpolarla en la línea de shell es seguro.
+  hl.exec_cmd("sh -c 'ags request cuenta-atras " .. accion .. " " .. SEGUNDOS_CUENTA_ATRAS
+    .. " || hyprctl eval \"GiGiShell.boton_confirmar()\"'")
+end
+
 local function cuerpo()
   -- Fichero ausente o JSON corrupto → leer_json da nil → acción de fábrica,
   -- que es el comportamiento histórico del script (jq fallando → "apagar").
   local prefs = util.leer_json(RUTA_PREFS)
   local accion = ACCION_POR_DEFECTO
-  if type(prefs) == "table" and type(prefs.botonApagado) == "string" then
-    accion = prefs.botonApagado
+  local con_cuenta_atras = true
+  if type(prefs) == "table" then
+    if type(prefs.botonApagado) == "string" then accion = prefs.botonApagado end
+    if prefs.botonCuentaAtras == false then con_cuenta_atras = false end
   end
   -- Acción desconocida → fábrica (el `apagar|*)` del case del script).
-  local fn = M.acciones[accion] or M.acciones[ACCION_POR_DEFECTO]
-  fn()
+  if not M.acciones[accion] then accion = ACCION_POR_DEFECTO end
+
+  if con_cuenta_atras and CON_CUENTA_ATRAS[accion] and not bloqueado() then
+    iniciar_cuenta_atras(accion)
+    return
+  end
+  ejecutar(accion)
 end
 
 function GiGiShell.boton_apagado()
+  -- Segunda pulsación con una cuenta atrás en curso: CANCELAR. Va fuera del pcall
+  -- de `cuerpo` a propósito — su reserva es apagar, y un fallo aquí no puede
+  -- acabar apagando justo cuando el usuario ha pedido que no.
+  local ok_c, cancelada = pcall(M.cancelar_pendiente)
+  if ok_c and cancelada then return end
+
   local ok, err = pcall(cuerpo)
   if not ok then
     -- Fail-open: se avisa (para que el fallo sea arreglable) y la acción de
@@ -107,6 +197,21 @@ function GiGiShell.boton_apagado()
       .. ") — ejecutando acción de fábrica")
     pcall(M.acciones[ACCION_POR_DEFECTO])
   end
+end
+
+-- Puntos de entrada para `hyprctl eval`: la reserva de AGS caído (confirmar) y el
+-- botón «Cancelar» / Esc del overlay (cancelar).
+function GiGiShell.boton_confirmar()
+  local ok, err = pcall(M.confirmar_pendiente)
+  if not ok then
+    util.notificar("boton_confirmar falló (" .. tostring(err):sub(1, 120)
+      .. ") — ejecutando acción de fábrica")
+    pcall(M.acciones[ACCION_POR_DEFECTO])
+  end
+end
+
+function GiGiShell.boton_cancelar()
+  pcall(M.cancelar_pendiente)
 end
 
 return M

@@ -1274,3 +1274,79 @@ popover.tray-overflow-popover.closing > contents {
   border-top-right-radius: 16px;
   border-bottom-right-radius: 16px;
 }
+
+// ── Cuenta atrás del botón de encendido (modulos/cuenta-atras/) ──────────────
+// Mismo velo que el menú de energía: es su pariente — la acción que aquel pide
+// con un clic, aquí a punto de salir sola.
+.cuenta-atras-window {
+  background: transparent;
+}
+
+.cuenta-atras-fondo {
+  background-color: rgba(20, 20, 20, 0.45);
+  backdrop-filter: blur(14px);
+}
+
+.cuenta-atras-tarjeta {
+  background: rgb(30, 30, 46);
+  border-radius: 16px;
+  padding: 32px 48px 28px;
+  min-width: 360px;
+}
+
+.cuenta-atras-icono {
+  font-family: $font-icon, monospace;
+  font-size: 44px;
+  color: $red;
+}
+
+.cuenta-atras-titulo {
+  font-size: 17px;
+  font-weight: 700;
+  color: $text;
+}
+
+.cuenta-atras-numero {
+  font-size: 72px;
+  font-weight: 800;
+  color: $white;
+  margin: -6px 0;
+}
+
+.cuenta-atras-progreso {
+  min-height: 6px;
+
+  trough {
+    min-height: 6px;
+    border-radius: 3px;
+    background: rgba($text, 0.12);
+  }
+
+  progress {
+    min-height: 6px;
+    border-radius: 3px;
+    background: $red;
+  }
+}
+
+.cuenta-atras-ayuda {
+  font-size: 13px;
+  color: rgba($text, 0.7);
+  margin-top: 6px;
+}
+
+.cuenta-atras-cancelar {
+  all: unset;
+  margin-top: 8px;
+  padding: 8px 28px;
+  border-radius: 10px;
+  background: rgba($text, 0.08);
+  color: $text;
+  font-weight: 700;
+
+  &:hover,
+  &:focus-visible {
+    background: linear-gradient(135deg, acento-azul(), acento());
+    color: $white;
+  }
+}

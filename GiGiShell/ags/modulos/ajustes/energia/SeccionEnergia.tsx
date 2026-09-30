@@ -34,6 +34,7 @@ import SuspensionFalsa from "./SuspensionFalsa"
 import { tlpAvailable, tlpMode, tlpBusy, setTlpMode } from "../../../servicios/energia/tlp.ts"
 import {
   accionesEnergiaOcultas, botonApagado, setAccionEnergiaOculta, setBotonApagado,
+  botonCuentaAtras, setBotonCuentaAtras,
   accionTapa, setAccionTapa,
   tapaIgnorarConPantallaExterna, setTapaIgnorarConPantallaExterna,
   apagadoPreventivo, setApagadoPreventivo,
@@ -162,6 +163,11 @@ function TarjetaApagadoPreventivo() {
   )
 }
 
+// Espejo de CON_CUENTA_ATRAS de hypr/gigishell/boton-apagado.lua.
+const ACCIONES_CON_CUENTA_ATRAS: readonly AccionBotonEncendido[] = [
+  "apagar", "reiniciar", "suspender", "hibernar", "cerrarSesion",
+]
+
 const etiquetaAccion = (accion: AccionBotonEncendido) =>
   (textos.botonEncendido.opciones as Record<string, string>)[accion] ?? accion
 
@@ -209,6 +215,15 @@ function TarjetaBotonEncendido() {
           />
         </box>
       </box>
+      {/* Sólo cuenta en las acciones que la llevan (ver CON_CUENTA_ATRAS en
+          hypr/gigishell/boton-apagado.lua); con las demás el interruptor no cambia nada. */}
+      <AjusteInterruptor
+        titulo={textos.botonEncendido.cuentaAtras.titulo}
+        informacion={textos.botonEncendido.cuentaAtras.descripcion}
+        activo={botonCuentaAtras}
+        sensible={botonApagado((a) => ACCIONES_CON_CUENTA_ATRAS.includes(a))}
+        alAlternar={() => setBotonCuentaAtras(!botonCuentaAtras.get())}
+      />
     </TarjetaAjustes>
   )
 }

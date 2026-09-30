@@ -150,6 +150,10 @@
   "botonEncendido": {
     "titulo": "Al pulsar el botón de encendido",
     "descripcion": "Se aplica a la pulsación corta del botón físico, también con la sesión bloqueada. La pulsación larga la sigue gestionando el firmware y siempre apaga el equipo.",
+    "cuentaAtras": {
+      "titulo": "Confirmar con una cuenta atrás",
+      "descripcion": "Antes de apagar, reiniciar, suspender, hibernar o cerrar la sesión se muestra una cuenta atrás de 5 segundos; vuelve a pulsar el botón para cancelar. Si cierras la tapa durante la cuenta, la acción se ejecuta en el acto. Con la sesión bloqueada el botón actúa al momento."
+    },
     "aviso": "El botón lo controla systemd-logind, así que apagará el equipo ignorando esta elección. Cédeselo a Hyprland con:",
     "avisoComando": "sudo install -Dm644 ~/GiGiShell/system/logind.conf.d/99-gigishell-powerkey.conf /etc/systemd/logind.conf.d/99-gigishell-powerkey.conf && sudo systemctl reload systemd-logind",
     "opciones": {

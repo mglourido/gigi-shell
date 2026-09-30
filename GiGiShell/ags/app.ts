@@ -4,6 +4,7 @@ import GLib from "gi://GLib"
 import Barra from "./modulos/barra/Barra"
 import Lagarto from "./modulos/mascotas/Lagarto"
 import MenuEnergia from "./modulos/menu-energia/MenuEnergia"
+import CuentaAtras, { cerrarCuentaAtras, mostrarCuentaAtras } from "./modulos/cuenta-atras/CuentaAtras"
 import OSD, { showOSD } from "./modulos/osd/OSD"
 import { showMicOSD } from "./modulos/osd/MicOSD"
 import QuickSettings from "./modulos/ajustes-rapidos/QuickSettings"
@@ -56,6 +57,23 @@ if (!GLib.file_test(CSS, GLib.FileTest.EXISTS))
 app.start({
   css: CSS,
   requestHandler(argv, response) {
+    // Cuenta atrás del botón de encendido. La abre y la cierra
+    // hypr/gigishell/boton-apagado.lua, que es quien lleva el timer y ejecuta la
+    // acción; aquí sólo se pinta. Comparación por POSICIÓN y no con `includes`: el
+    // segundo argumento es un nombre de acción ("suspender", "apagar"…) y no debe
+    // poder casar con ningún otro request de abajo. Una acción desconocida no llega
+    // (el Lua sólo manda las de su CON_CUENTA_ATRAS); si llegara, no se pinta nada
+    // pero la cuenta del Lua sigue y la acción sale igual a su hora.
+    if (argv[0] === "cuenta-atras") {
+      if (mostrarCuentaAtras(argv[1] ?? "", Number(argv[2]))) response("ok")
+      else response("error: acción o segundos no válidos")
+      return
+    }
+    if (argv[0] === "cuenta-atras-cerrar") {
+      cerrarCuentaAtras()
+      response("ok")
+      return
+    }
     if (argv.includes("volume-osd")) {
       showOSD()
       response("ok")
@@ -186,6 +204,7 @@ app.start({
     // si el sprite no carga en una máquina nueva.
     try { app.get_monitors().map(Lagarto) } catch (e) { console.error("[app] Lagarto failed:", e) }
     app.get_monitors().map(MenuEnergia)
+    try { app.get_monitors().map(CuentaAtras) } catch (e) { console.error("[app] CuentaAtras failed:", e) }
     app.get_monitors().map(OSD)
     // Resumen inicial simultáneo: cada tarjeta aplica su propia condición (el
     // volumen se omite si arranca silenciado o a cero, y el brillo si ya está al

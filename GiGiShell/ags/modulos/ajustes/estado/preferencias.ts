@@ -434,6 +434,13 @@ export { modoDaltonismo }
 const [botonApagado, _setBotonApagado] = createState<AccionBotonEncendido>(ACCION_BOTON_PREDETERMINADA)
 export { botonApagado }
 
+// Cuenta atrás de 5 s antes de las acciones drásticas del botón de encendido
+// (apagar, reiniciar, suspender, hibernar, cerrar sesión). La lleva
+// hypr/gigishell/boton-apagado.lua, que relee esta clave en cada pulsación; sólo un
+// `false` explícito la quita, así que de fábrica está puesta.
+const [botonCuentaAtras, _setBotonCuentaAtras] = createState(true)
+export { botonCuentaAtras }
+
 // Acción al cerrar la tapa del portátil. Mismo contrato que `botonApagado`: la
 // ejecuta hypr/gigishell/tapa.lua (bind sobre `switch:on:Lid Switch`) releyendo esta
 // clave en cada cierre, así que el setter solo persiste. El valor de fábrica es
@@ -617,6 +624,7 @@ function load() {
     // Sin guarda de `typeof`: normalizar ya devuelve el valor de fábrica ante
     // cualquier cosa que no sea una acción conocida (ausente incluida).
     _setBotonApagado(normalizarAccionBotonEncendido(saved.botonApagado))
+    if (typeof saved.botonCuentaAtras === "boolean") _setBotonCuentaAtras(saved.botonCuentaAtras)
     _setAccionTapa(normalizarAccionTapa(saved.accionTapa))
     if (typeof saved.apagadoPreventivo === "boolean") _setApagadoPreventivo(saved.apagadoPreventivo)
     if (typeof saved.apagadoPreventivoPct === "number" && Number.isFinite(saved.apagadoPreventivoPct)) {
@@ -691,6 +699,7 @@ function save() {
       timeFormat: timeFormat.get(),
       modoDaltonismo: modoDaltonismo.get(),
       botonApagado: botonApagado.get(),
+      botonCuentaAtras: botonCuentaAtras.get(),
       accionTapa: accionTapa.get(),
       tapaIgnorarConPantallaExterna: tapaIgnorarConPantallaExterna.get(),
       apagadoPreventivo: apagadoPreventivo.get(),
@@ -984,6 +993,11 @@ export function setBotonApagado(accion: AccionBotonEncendido) {
   const siguiente = normalizarAccionBotonEncendido(accion)
   if (botonApagado.get() === siguiente) return
   _setBotonApagado(siguiente)
+  save()
+}
+export function setBotonCuentaAtras(on: boolean) {
+  if (botonCuentaAtras.get() === on) return
+  _setBotonCuentaAtras(on)
   save()
 }
 // Igual que setBotonApagado: sin recarga de Hyprland, porque el bind es fijo y
