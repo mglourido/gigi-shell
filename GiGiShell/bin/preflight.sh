@@ -214,7 +214,7 @@ if [[ "$mode" == "--installed" ]]; then
   commands=(
     hyprctl:hyprland hyprlock:hyprlock hypridle:hypridle hyprsunset:hyprsunset
     uwsm:uwsm sass:dart-sass jq:jq rofi:rofi rofimoji:rofimoji wtype:wtype magick:imagemagick
-    cliphist:cliphist wl-copy:wl-clipboard wl-paste:wl-clipboard
+    cliphist:cliphist wl-copy:wl-clipboard wl-paste:wl-clipboard wl-clip-persist:wl-clip-persist
     brightnessctl:brightnessctl ddcutil:ddcutil playerctl:playerctl wpctl:wireplumber
     pactl:libpulse pw-metadata:pipewire wf-recorder:wf-recorder grim:grim
     slurp:slurp hyprshot:hyprshot awww:awww awww-daemon:awww

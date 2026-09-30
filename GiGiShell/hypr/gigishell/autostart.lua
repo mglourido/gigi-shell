@@ -141,7 +141,12 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("/usr/lib/hyprpolkitagent/hyprpolkitagent")
   -- La limpieza es condicional y termina antes de arrancar el watcher, evitando
   -- que este vuelva a guardar el contenido heredado de la sesión anterior.
-  hl.exec_cmd("~/.config/hypr/scripts/limpiar-portapapeles.sh al-iniciar; ~/.config/hypr/scripts/clipboard-history.sh start")
+  -- wl-clip-persist va detrás de la limpieza por lo mismo, y es independiente de
+  -- la preferencia de historial: en Wayland el portapapeles lo sirve la app que
+  -- copió, y si esa app se cierra (Orion, rofi, un diálogo) la selección queda
+  -- VACÍA aunque cliphist sí la guardara — pegar no pegaba nada. Ver la sección
+  -- del portapapeles en docs/hyprland-modulos.md.
+  hl.exec_cmd("~/.config/hypr/scripts/limpiar-portapapeles.sh al-iniciar; ~/.config/hypr/scripts/clipboard-history.sh persistir; ~/.config/hypr/scripts/clipboard-history.sh start")
   -- Monitor de eventos de seguridad. Sin retardo: sus seguidores del journal
   -- (`journalctl -kf -n 0`) no ven el backlog, así que arrancar tarde = ventana
   -- ciega en OOM/panic/sudo/SSH. Sus partes caras (SMART, unidades, descargas)

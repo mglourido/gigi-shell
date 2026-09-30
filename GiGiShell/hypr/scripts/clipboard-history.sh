@@ -11,6 +11,10 @@
 #           moría con AGS al usar `exec`.
 #   stop    mata el watcher, cierra el selector y borra el historial guardado.
 #   picker  abre el selector Rofi (SUPER+V). Toggle: si ya está abierto, lo cierra.
+#   persistir arranca wl-clip-persist (si está instalado y no corre ya), que se
+#           queda con una copia de cada selección para que no se vacíe al cerrarse
+#           la app que copió. No depende de la preferencia de historial: sin él,
+#           pegar tras cerrar el origen no pega nada, haya historial o no.
 
 prefs="$HOME/.config/gigishell/preferences.json"
 limite_historial=500
@@ -45,6 +49,13 @@ case "${1:-}" in
         # y NO muere aunque AGS/Hyprland reinicien.
         setsid --fork wl-paste --watch cliphist store \
             -max-items "$limite_historial" >/dev/null 2>&1
+        ;;
+    persistir)
+        command -v wl-clip-persist >/dev/null 2>&1 || exit 0
+        pgrep -x wl-clip-persist >/dev/null && exit 0
+        # Solo la selección normal: con la primaria (`both`) re-servir cada
+        # arrastre de ratón rompe la selección de texto en algunas apps.
+        setsid --fork wl-clip-persist --clipboard regular >/dev/null 2>&1
         ;;
     stop)
         pkill -f "$watch_re" 2>/dev/null || true
@@ -116,7 +127,7 @@ case "${1:-}" in
         printf '%s\n' "$sel" | cliphist decode | wl-copy
         ;;
     *)
-        echo "Uso: $0 {start|stop|picker}" >&2
+        echo "Uso: $0 {start|stop|picker|persistir}" >&2
         exit 2
         ;;
 esac

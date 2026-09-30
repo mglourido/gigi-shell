@@ -604,7 +604,7 @@ install_packages() {
     # Solo estaba noto-fonts-emoji, que no trae ninguna de las dos: sin esto Qt cae a la
     # fuente sustituta que le toque y las ventanas salen con otra tipografía y otra métrica.
     ttf-meslo-nerd ttf-cascadia-code-nerd noto-fonts noto-fonts-emoji
-    rofi rofimoji wtype cliphist wl-clipboard imagemagick brightnessctl ddcutil playerctl
+    rofi rofimoji wtype cliphist wl-clipboard wl-clip-persist imagemagick brightnessctl ddcutil playerctl
     qalculate-gtk wf-recorder grim slurp jq hyprshot btop
     # Dependencias directas de las funciones de cámara: v4l-utils da controles y
     # formatos V4L2, psmisc aporta fuser para detectar procesos que usan el dispositivo,

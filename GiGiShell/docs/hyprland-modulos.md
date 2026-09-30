@@ -4336,6 +4336,19 @@ texto normal — conservando el ID de `cliphist` en una columna oculta para pode
 selección exacta. Cancelar (Esc) sale con 0 sin tocar el portapapeles, para no pisar con un
 `wl-copy` vacío lo que el usuario tenía copiado.
 
+**Pegar no pegaba nada tras cerrar la app que copió** (`persistir`, `wl-clip-persist`). En Wayland
+el portapapeles no es un búfer del compositor: lo sirve **la app que copió**, y cuando esa app se
+cierra la selección pasa a vacía. cliphist sí la había guardado (el watcher la lee al instante), así
+que la entrada aparecía la primera en SUPER+V pero `wl-paste` respondía `Nothing is copied` —de ahí
+el «entrar en el portapapeles y volver a elegir la última». Pasaba sobre todo con lo que se cierra
+solo justo después de copiar: Orion, rofi, diálogos. Medido: `timeout 1 wl-copy --foreground x`
+deja la entrada en cliphist y la selección vacía. `wl-clip-persist --clipboard regular` toma una
+copia de cada selección nueva y la sirve él. Va **fuera** de la preferencia de historial (con el
+historial apagado el fallo es el mismo) y **después** de `limpiar-portapapeles.sh al-iniciar` en el
+autostart. Solo la selección normal: con la primaria también, re-servir cada selección de ratón
+interfiere con seleccionar texto en algunas apps. Que re-sirva la selección hace que el watcher la
+vea dos veces; cliphist deduplica la entrada idéntica, así que no se duplica el historial.
+
 `miniatura-portapapeles.sh` no crea ficheros intermedios ni caché propia: canaliza
 `cliphist decode` directo a ImageMagick, con límites de memoria/mapa/disco (128 MiB/0/0) para acotar
 el coste de generar una miniatura bajo demanda, escribiendo ya en la ruta que espera Rofi.
