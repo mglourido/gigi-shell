@@ -196,8 +196,18 @@ export function HomeSection() {
   // por monitor, aunque no se abra Orion—. Un cambio de favoritos (reordenar por
   // arrastre) solo reconstruye si la sección ya se abrió; si no, ya se cargará al
   // abrirla.
+  //
+  // Y ya cargada, tampoco se reconstruye con la sección FUERA DE LA VISTA (Orion
+  // cerrado u otra sección): desinstalar una app quita su favorito con Orion
+  // apartado, y eso rehacía los tiles en una ventana que nadie ve. Se apunta y se
+  // rehace en el siguiente `map`.
   let cargado = false
-  favorites.subscribe(() => { if (cargado) rebuildApps() })
+  let pendiente = false
+  favorites.subscribe(() => {
+    if (!cargado) return
+    if (!root.get_mapped()) { pendiente = true; return }
+    rebuildApps()
+  })
 
   const root = (
     <box cssClasses={["section-home"]} orientation={Gtk.Orientation.VERTICAL}>
@@ -209,7 +219,10 @@ export function HomeSection() {
   ) as unknown as Gtk.Widget
 
   root.connect("map", () => {
-    if (cargado) return
+    if (cargado) {
+      if (pendiente) { pendiente = false; rebuildApps() }
+      return
+    }
     cargado = true
     rebuildApps()
   })

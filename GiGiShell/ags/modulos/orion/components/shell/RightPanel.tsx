@@ -7,7 +7,7 @@ import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import {
-  rightPanelApp, rightPanelVisible, hidePanel, hideRightPanel,
+  rightPanelApp, rightPanelVisible, hidePanel, hideRightPanel, orionVisible,
   suspenderPanel, reanudarPanel, descartarSuspension,
   type AppContextItem,
 } from "../../state"
@@ -266,9 +266,28 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
     rebuild()
   }
 
-  rightPanelApp.subscribe(sincronizarApp)
+  // Con Orion cerrado el panel no se reconstruye: desinstalar (que aparta Orion)
+  // cambia favoritos y ficha con la ventana oculta. Se apunta y se rehace al
+  // abrir, antes del primer frame (`reanudarPanel` repone la ficha y luego abre).
+  let pendienteApp = false
+  let pendienteFavoritos = false
+  rightPanelApp.subscribe(() => {
+    if (!orionVisible.get()) { pendienteApp = true; return }
+    sincronizarApp()
+  })
+  favorites.subscribe(() => {
+    if (!orionVisible.get()) { pendienteFavoritos = true; return }
+    rebuild()
+  })
+  orionVisible.subscribe(() => {
+    if (!orionVisible.get() || (!pendienteApp && !pendienteFavoritos)) return
+    // Un fijado/desfijado cambia la ficha aunque la app sea la misma.
+    if (pendienteFavoritos) ultimaAppId = null
+    pendienteApp = false
+    pendienteFavoritos = false
+    sincronizarApp()
+  })
   rightPanelVisible.subscribe(sincronizarAcciones)
-  favorites.subscribe(rebuild)
   sincronizarApp()
 
   return (

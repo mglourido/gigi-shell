@@ -108,9 +108,17 @@ const altoContenido = () => ALTO_PISO_TEMA + (hayPisoAhora() ? ALTO_PISO_AHORA +
  */
 const [alturaFranjaInicio, setAlturaFranjaInicio] = createState(altoContenido() + RELLENO_FRANJA)
 export { alturaFranjaInicio }
-const recalcularAltura = () => setAlturaFranjaInicio(altoContenido() + RELLENO_FRANJA)
+// Con Orion cerrado no se recalcula: el alto solo sirve para maquetar el panel,
+// y cada reproductor o juego que aparece movería el tamaño de una ventana que
+// nadie ve (y, en cadena, el viewport de `NavSections`). Al abrir se recalcula
+// antes del primer frame (esta suscripción es de módulo, anterior a la de la
+// animación de entrada de `Orion.tsx`).
+const recalcularAltura = () => {
+  if (orionVisible.get()) setAlturaFranjaInicio(altoContenido() + RELLENO_FRANJA)
+}
 clientesJuego.subscribe(recalcularAltura)
 reproductoresMultimedia.subscribe(recalcularAltura)
+orionVisible.subscribe(recalcularAltura)
 
 /**
  * Caja de tamaño FIJO (mínimo = natural = `ancho`×`alto`) alrededor de un hijo.
@@ -890,30 +898,48 @@ function TarjetaSonando(): Gtk.Widget {
   })
 
   // El corte entre los dos tramos no salta: se DESLIZA hasta la posición nueva
-  // (ease-out). Cubre el avance de cada segundo, una búsqueda y el cambio de pista
-  // (vuelve hacia el principio). El reloj de frames solo corre mientras dura una
-  // animación; en reposo no queda ningún tick callback vivo.
+  // (ease-out). Cubre una búsqueda, el cambio de pista (vuelve hacia el
+  // principio) y el de reproductor.
+  //
+  // **Va a 30 fps con un temporizador propio, NO con el reloj de frames.** Un
+  // tick callback corre a la frecuencia del monitor: a 240 Hz, animar 450 ms en
+  // cada segundo de reproducción eran ~108 redibujados por segundo mientras
+  // sonaba algo, y el coste crecía con los Hz de la pantalla. Con el temporizador
+  // la ventana solo se redibuja cuando se pide (30 veces por segundo como mucho,
+  // tenga el monitor los Hz que tenga).
+  //
+  // Y el avance normal de cada segundo NO se anima: en una pista de 3 min la
+  // barra avanza menos de un píxel por segundo, así que animarlo sería gastar
+  // redibujados en algo invisible. Solo se anima un salto de más de ~2 px.
   const DURACION_ANIM_US = 450_000
+  const FPS_ANIM = 30
+  const SALTO_MIN_PX = 2
   let mostrada: number | null = null
   let animDesde = 0
   let animHasta = 0
   let animInicioUs = 0
   let tickAnim: number | null = null
 
+  function pararAnimacion() {
+    if (tickAnim !== null) { GLib.source_remove(tickAnim); tickAnim = null }
+  }
+
   function irA(fraccion: number) {
-    if (mostrada === null || !progreso.get_mapped()) {
-      // Primera vez (o sin pintar): no hay de dónde venir.
+    const ancho = progreso.get_width()
+    const salto = mostrada === null ? Infinity : Math.abs(fraccion - mostrada) * ancho
+    if (mostrada === null || !progreso.get_mapped() || salto < SALTO_MIN_PX) {
+      // Primera vez, sin pintar, o un avance que no llega a verse animado.
+      pararAnimacion()
       mostrada = fraccion
       progreso.queue_draw()
       return
     }
-    if (Math.abs(fraccion - mostrada) < 1e-4) return
     animDesde = mostrada
     animHasta = fraccion
     animInicioUs = GLib.get_monotonic_time()
     if (tickAnim !== null) return
-    tickAnim = progreso.add_tick_callback((_w, reloj) => {
-      const t = Math.min(1, (reloj.get_frame_time() - animInicioUs) / DURACION_ANIM_US)
+    tickAnim = GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.round(1000 / FPS_ANIM), () => {
+      const t = Math.min(1, (GLib.get_monotonic_time() - animInicioUs) / DURACION_ANIM_US)
       const suave = 1 - Math.pow(1 - t, 3)
       mostrada = animDesde + (animHasta - animDesde) * suave
       progreso.queue_draw()
@@ -937,7 +963,7 @@ function TarjetaSonando(): Gtk.Widget {
   ticInicio.subscribe(actualizarTiempo)
   // Al reabrir Orion la barra aparece ya en su sitio: animar desde donde se quedó
   // al cerrar (quizá minutos atrás) sería un barrido sin significado.
-  orionVisible.subscribe(() => { if (!orionVisible.get()) mostrada = null })
+  orionVisible.subscribe(() => { if (!orionVisible.get()) { pararAnimacion(); mostrada = null } })
 
   // ── Volumen de la app ──
   // El mismo volumen por app que la "mezcla de aplicaciones" de Quick Settings,
@@ -1343,9 +1369,14 @@ export function FranjaInicio() {
     limite.queue_resize()
   }
   sincronizarPisos()
-  alturaFranjaInicio.subscribe(sincronizarPisos)
-  reproductoresMultimedia.subscribe(sincronizarPisos)
-  clientesJuego.subscribe(sincronizarPisos)
+  // Igual que el alto: con Orion cerrado no se toca la maqueta; al abrir se pone
+  // al día (aunque el alto no haya cambiado, puede haber cambiado QUÉ tarjeta
+  // del piso de arriba se ve).
+  const siAbierto = () => { if (orionVisible.get()) sincronizarPisos() }
+  alturaFranjaInicio.subscribe(siAbierto)
+  reproductoresMultimedia.subscribe(siAbierto)
+  clientesJuego.subscribe(siAbierto)
+  orionVisible.subscribe(siAbierto)
 
   return (
     <box

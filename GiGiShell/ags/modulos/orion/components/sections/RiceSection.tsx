@@ -292,13 +292,20 @@ export function RiceSection() {
       return
     }
     loaded = true
-    suscripciones.push(currentWallpaper.subscribe(syncHighlight))
-    suscripciones.push(currentGroup.subscribe(syncHighlight))
+    // Todo lo de abajo solo actúa con la sección A LA VISTA (`root` mapeado): con
+    // Orion cerrado o en otra sección, el planificador de fondos o una copia en
+    // la carpeta de fondos rehacían o repintaban una rejilla que nadie ve (el
+    // reloj de franjas ya se suelta en el `unmap`; la guarda es por si otra vista
+    // lo mantiene vivo). No hace
+    // falta apuntar nada: el `map` de arriba reconstruye la rejilla al volver.
+    const aLaVista = () => root.get_mapped()
+    suscripciones.push(currentWallpaper.subscribe(() => { if (aLaVista()) syncHighlight() }))
+    suscripciones.push(currentGroup.subscribe(() => { if (aLaVista()) syncHighlight() }))
     // Al cruzar una franja cambia qué está atenuado y qué chip se enseña. Solo se
     // rehace la rejilla si es la vista visible: reconstruir por debajo de un
     // editor abierto se llevaría por delante lo que el usuario está tocando.
     suscripciones.push(ahoraFranjas.subscribe(() => {
-      if (vista.v === "rejilla") reconstruirRejilla()
+      if (aLaVista() && vista.v === "rejilla") reconstruirRejilla()
     }))
     ir({ v: "rejilla" })
   })
@@ -316,7 +323,9 @@ export function RiceSection() {
   const dir = Gio.File.new_for_path(WALLPAPER_DIR)
   const dirMonitor = dir.monitor_directory(Gio.FileMonitorFlags.NONE, null)
   dirMonitor.connect("changed", () => {
-    if (!loaded || vista.v !== "rejilla") return
+    // Sin la sección a la vista no se rebota ni se reconstruye: el `map` rehace
+    // la rejilla (y genera las miniaturas nuevas) cuando se vuelva a ella.
+    if (!loaded || vista.v !== "rejilla" || !root.get_mapped()) return
     if (debounce) GLib.source_remove(debounce)
     debounce = GLib.timeout_add(GLib.PRIORITY_DEFAULT_IDLE, 800, () => {
       debounce = 0

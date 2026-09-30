@@ -1,4 +1,5 @@
 import app from "ags/gtk4/app"
+import { Gtk } from "ags/gtk4"
 import GLib from "gi://GLib"
 import Barra from "./modulos/barra/Barra"
 import Lagarto from "./modulos/mascotas/Lagarto"
@@ -170,6 +171,14 @@ app.start({
     response("unknown request")
   },
   main() {
+    // Cursor de texto FIJO en todo el shell. En GTK4 el parpadeo es un fundido
+    // animado con el reloj de frames: mientras parpadea, la ventana se redibuja a
+    // la frecuencia del monitor, y dura `cursor-blink-timeout` (10 s) tras enfocar
+    // un campo. El buscador de Orion se enfoca solo al abrir, así que cada
+    // apertura costaba 10 s a ~250 despertares/s (medido a 240 Hz; sin parpadeo,
+    // un segundo de pico y luego ~5/s). Asignar la propiedad aquí la fija para
+    // esta app (fuente APPLICATION), sin tocar la preferencia del escritorio.
+    try { Gtk.Settings.get_default()?.set_property("gtk-cursor-blink", false) } catch (_) {}
     app.get_monitors().flatMap(Barra)
     // Mascota puramente cosmética: se monta siempre (ventana barata, oculta por
     // `visible`) para que el toggle de Ajustes se aplique en caliente, igual

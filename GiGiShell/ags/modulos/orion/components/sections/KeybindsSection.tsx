@@ -5,7 +5,7 @@
 
 import { Gtk } from "ags/gtk4"
 import { keybinds } from "../../data/keybinds"
-import { searchQuery } from "../../state"
+import { searchQuery, orionVisible } from "../../state"
 import { vaciarCaja } from "../shared/gtkUtils"
 
 export function KeybindsSection() {
@@ -76,8 +76,29 @@ export function KeybindsSection() {
 
   build()
   // Rebuild when gigishell/keybinds.lua / gigishell/variables.lua change on disk.
-  keybinds.subscribe(build)
-  searchQuery.subscribe(() => applyFilter(searchQuery.get()))
+  // Con Orion cerrado solo se apunta que hay cambios: reconstruir las ~70 filas
+  // de una ventana que nadie ve es trabajo tirado (y con varios monitores, una
+  // vez por monitor). Al abrir se reconstruye si quedó algo pendiente.
+  // Lo mismo con el filtro: al cerrar, Orion vacía la búsqueda, y eso no debe
+  // recorrer las filas de una ventana oculta.
+  let pendiente = false
+  let filtroPendiente = false
+  keybinds.subscribe(() => {
+    if (!orionVisible.get()) { pendiente = true; return }
+    build()
+  })
+  searchQuery.subscribe(() => {
+    if (!orionVisible.get()) { filtroPendiente = true; return }
+    applyFilter(searchQuery.get())
+  })
+  orionVisible.subscribe(() => {
+    if (!orionVisible.get()) return
+    // `build()` ya aplica el filtro vigente al terminar.
+    if (pendiente) build()
+    else if (filtroPendiente) applyFilter(searchQuery.get())
+    pendiente = false
+    filtroPendiente = false
+  })
 
   return content
 }

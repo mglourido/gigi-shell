@@ -295,8 +295,12 @@ export function AppsSection(navegacion: NavegacionBusqueda) {
   // entrada, antes de que el panel sea interactivo, así que las apps ya están
   // cuando se necesitan para la navegación por teclado.
   let cargado = false
+  let catalogoPendiente = false
   root.connect("map", () => {
-    if (cargado) return
+    if (cargado) {
+      if (catalogoPendiente) { catalogoPendiente = false; rebuild(categoriaActual) }
+      return
+    }
     cargado = true
     rebuild("all")
   })
@@ -305,9 +309,15 @@ export function AppsSection(navegacion: NavegacionBusqueda) {
   // caché y se repinta la categoría que esté puesta — solo si la sección ya se
   // cargó: forzar la carga perezosa desde aquí pagaría el parseo de los ~161
   // `.desktop` en una sección que el usuario aún no ha abierto.
+  //
+  // Y con la sección FUERA DE LA VISTA (Orion cerrado u otra sección) tampoco se
+  // repinta: el catálogo cambia sobre todo con Orion cerrado (instalar con pacman,
+  // desinstalar, que aparta Orion), y rehacer la rejilla entera para una ventana
+  // oculta es trabajo tirado. Se apunta y se repinta en el siguiente `map`.
   const soltarInvalidador = registrarInvalidadorCatalogo(() => {
     _appCache = null
     if (!cargado) return
+    if (!root.get_mapped()) { catalogoPendiente = true; return }
     rebuild(categoriaActual)
   })
 
