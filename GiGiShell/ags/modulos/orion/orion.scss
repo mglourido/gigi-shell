@@ -434,6 +434,37 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   border-radius: 5px;
   padding: 0 4px;
 }
+// Página "Notificaciones" del carrusel: mismas filas que Reciente, con el glifo
+// de la app (el del panel de notificaciones) y su nombre delante del título.
+.fn-glifo { font-family: $j-font-mono; font-size: 13px; color: c.acento(0.85); }
+.fn-app {
+  font-family: $j-font-mono;
+  font-size: 9px;
+  font-weight: 700;
+  color: $j-text-secondary;
+}
+.fh-titulo.fn-nueva { color: $j-text-primary; font-weight: 700; }
+// Página "Abiertas": fila = botón principal (app + escritorio) y, si agrupa
+// varias ventanas, un botón con el icono de la app por cada una.
+.fa-glifo { font-family: $j-font-mono; font-size: 14px; color: c.acento(0.85); }
+.fa-escritorio {
+  font-family: $j-font-mono;
+  font-size: 9px;
+  color: $j-text-muted;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 99px;
+  padding: 0 6px;
+}
+// Fila con varias ventanas: no es un botón (lo son sus iconos), así que mide
+// como `.fh-fila` pero sin su hover.
+.Orion .fa-fila-varias { min-height: 22px; padding: 0 5px 0 2px; }
+.Orion .fa-ventana {
+  min-width: 20px;
+  min-height: 20px;
+  padding: 1px;
+  border-radius: 6px;
+  &:hover { @include hover-con-profundidad; }
+}
 .fh-tiempo {
   font-family: $j-font-mono;
   font-size: 8px;
@@ -441,7 +472,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   min-width: 30px;
 }
 // Piso de arriba: tarjetas de "lo que pasa ahora". Mismo marco que las de abajo,
-// relleno más prieto para que 44 px de contenido quepan en los 58 del piso.
+// relleno más prieto: 44 px de contenido (58 con el paginador de Sonando) en los 68 del piso.
 .Orion .fx-tarjeta { padding: 5px 8px; }
 .Orion .fj-tarjeta {
   transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
@@ -482,6 +513,63 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   font-family: $j-font-mono;
   font-size: 8px;
   color: $j-text-muted;
+}
+// Carrusel de reproductores: mismo deslizamiento que `.qs-media-content`.
+.fs-contenido {
+  transition: opacity 110ms ease-out, transform 110ms ease-out;
+  &.switch-out-next   { opacity: 0; transform: translateX(-10px); }
+  &.switch-out-prev   { opacity: 0; transform: translateX(10px); }
+  &.switch-enter-next { opacity: 0; transform: translateX(10px);  transition: none; }
+  &.switch-enter-prev { opacity: 0; transform: translateX(-10px); transition: none; }
+}
+.Orion .fs-cambiar {
+  font-family: $j-font-mono;
+  font-size: 10px;
+  min-width: 14px;
+  min-height: 0;
+  padding: 0 2px;
+  border-radius: 4px;
+  color: $j-text-secondary;
+  &:hover { color: $j-text-primary; background: c.acento-azul(0.1); }
+}
+// Barra de progreso de "Sonando": `color` es el tramo de lo que QUEDA (fijo, va
+// con el fondo de Orion); el de lo sonado sale de la carátula y lo pinta el código.
+.fs-progreso { color: rgba(255, 255, 255, 0.13); }
+.fs-fila-progreso { margin-top: 3px; margin-right: 4px; }
+.fs-tiempo {
+  font-family: $j-font-mono;
+  font-size: 8px;
+  color: $j-text-muted;
+}
+// Volumen de la app bajo los controles de "Sonando". Fino como la barra de
+// progreso; por encima del 100 % amplifica, como en Quick Settings.
+.fs-fila-volumen { margin-top: 1px; }
+.fs-volumen-icono { font-family: $j-font-mono; font-size: 10px; color: $j-text-muted; min-width: 12px; }
+.Orion .fs-volumen {
+  min-height: 10px;
+  padding: 0;
+  margin: 0;
+  trough {
+    min-height: 3px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.13);
+  }
+  highlight { border-radius: 99px; background: c.acento(0.85); }
+  slider {
+    min-width: 8px;
+    min-height: 8px;
+    margin: -3px;
+    border-radius: 99px;
+    background: $j-text-primary;
+    box-shadow: none;
+    border: none;
+  }
+}
+.fs-cuenta {
+  font-family: $j-font-mono;
+  font-size: 8px;
+  font-weight: 700;
+  color: $j-text-secondary;
 }
 .Orion .fs-control {
   min-width: 24px;
@@ -630,6 +718,7 @@ popover.background {
 
 .rp-inner { padding: 0; }
 
+.rp-ventana-titulo { font-size: 9px; color: $j-text-muted; margin: 2px 0 4px; }
 .rp-eyebrow {
   padding: 14px 13px 0;
   font-family: $j-font-mono;

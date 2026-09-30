@@ -21,6 +21,7 @@
 
 import { Gtk } from "ags/gtk4"
 import Gio from "gi://Gio"
+import GioUnix from "gi://GioUnix?version=2.0"
 import GLib from "gi://GLib"
 import Pango from "gi://Pango"
 import { createState } from "ags"
@@ -50,11 +51,37 @@ import { msVivo, duracionSesion, normalizarDireccion } from "../../../data/jugan
 import {
   reproductoresMultimedia, revisionMultimedia, obtenerEstadoReproductor, type EstadoReproductor,
 } from "../../../../../servicios/multimedia/mpris"
+import { findMediaClient } from "../../../../../servicios/multimedia/mediaClient"
+import { resolveMediaLengthSeconds, safeMediaPosition, formatMediaTime } from "../../../../../servicios/multimedia/mediaProgress"
+import {
+  ACENTO_MEDIA_PREDETERMINADO, semillaDeCaratula, tonosDeAcento,
+} from "../../../../../servicios/multimedia/colorCaratula"
+import AstalHyprland from "gi://AstalHyprland"
+import AstalWp from "gi://AstalWp"
+import { suscribirDatosEscritorios } from "../../../../../servicios/escritorios/controlador"
+import { filtrarVentanasDeUsuario } from "../../../../../servicios/ventanas/emergentesX11"
+import { obtenerEntradaEscritorio } from "../../../../../servicios/aplicaciones/entradasEscritorio"
+import { obtenerIconosClientesEscritorio } from "../../../../barra/escritorios/iconos"
+import type { IconoClienteEscritorio } from "../../../../barra/escritorios/modelo"
+import { streamEsDeReproductor } from "../../../../../servicios/multimedia/streamDeReproductor"
+import {
+  propsDeStream, nombreDeProps, clavePreset, audioPresets, setAudioPresets, guardarAudioPresets,
+} from "../../../../../servicios/multimedia/presetsApps"
+import { fijarVolumenEndpoint } from "../../../../../servicios/multimedia/escrituraVolumen"
+import { ajustarVolumen, VOLUMEN_MAX } from "../../../../../servicios/multimedia/volumenAmplificado"
+import {
+  notifications, openNotifPanel, getAppIcon, type StoredNotification,
+} from "../../../../notificaciones/store"
+import { closeAllPanels } from "../../../../../estado/shell"
+import { orionNotisApps } from "../../../../ajustes/preferences"
+
+const hypr = AstalHyprland.get_default()
 
 // Dos pisos: arriba lo que está pasando AHORA (Sonando / Jugando ahora), que
 // solo aparece si hay algo; abajo Tema + Reciente, que están siempre.
 const ALTO_PISO_TEMA = 101
-const ALTO_PISO_AHORA = 58
+// 68 y no 58: con varios reproductores, "‹ 1/N ›" va encima de los controles.
+const ALTO_PISO_AHORA = 68
 const SEPARACION_PISOS = 7
 // Relleno vertical de `.fi-contenedor` (7 + 4).
 const RELLENO_FRANJA = 11
@@ -287,7 +314,7 @@ function TemaActual(): Gtk.Widget {
 
 function iconoDeApp(id: string, icono: string): Gtk.Image {
   let gicon: Gio.Icon | null = null
-  try { gicon = Gio.DesktopAppInfo.new(id)?.get_icon() ?? null } catch (_) {}
+  try { gicon = GioUnix.DesktopAppInfo.new(id)?.get_icon() ?? null } catch (_) {}
   return crearIconoApp(gicon, icono, 18)
 }
 
@@ -337,8 +364,8 @@ function filaHistorial(e: EntradaHistorial, ahora: number): Gtk.Widget {
   const estaSuprimido = activarDobleClic(boton, () => { lanzar(); hidePanel() })
   boton.connect("clicked", () => {
     if (estaSuprimido()) return
-    let info: Gio.DesktopAppInfo | null = null
-    try { info = Gio.DesktopAppInfo.new(e.id) } catch (_) {}
+    let info: GioUnix.DesktopAppInfo | null = null
+    try { info = GioUnix.DesktopAppInfo.new(e.id) } catch (_) {}
     showAppContext({
       id: e.id, name: e.nombre, iconName: e.icono || "application-x-executable",
       gicon: info?.get_icon() ?? null,
@@ -379,6 +406,256 @@ function PaginaReciente(): Gtk.Widget {
   return conReconstruccionPerezosa(caja, reconstruir, [historial])
 }
 
+// ── Página del carrusel: Notificaciones ──────────────────────────────────────
+// Lo que ha llegado en los últimos 5 minutos de las apps elegidas en Ajustes >
+// Orion (`orionNotisApps`, por defecto WhatsApp y Discord),
+// sacado del mismo almacén que el panel de notificaciones. Los avisos del propio
+// sistema (`source: "system"`, los de `hypr/scripts/`) se quedan fuera: no son
+// "lo que te han escrito". Sin nada reciente la página no existe (ni punto).
+//
+// Caducar a los 5 min no necesita sondeo: un solo temporizador armado hasta que
+// vence la más antigua, y solo con Orion abierto. Cerrado no corre nada; al
+// abrir se recalcula.
+
+const VENTANA_NOTIS_MS = 5 * 60 * 1000
+
+function notisRecientes(): StoredNotification[] {
+  const desde = Date.now() - VENTANA_NOTIS_MS
+  // Solo las apps elegidas en Ajustes > Orion (subcadena del nombre, minúsculas).
+  const apps = orionNotisApps.get()
+  return notifications.get()
+    .filter(n => n.source !== "system" && n.timestamp >= desde
+      && apps.some(a => String(n.appName ?? "").toLowerCase().includes(a)))
+    .sort((a, b) => b.timestamp - a.timestamp)
+}
+
+const [hayNotisRecientes, setHayNotisRecientes] = createState(false)
+let caducidadNotis: number | null = null
+
+function recalcularNotisRecientes() {
+  if (caducidadNotis !== null) { GLib.source_remove(caducidadNotis); caducidadNotis = null }
+  const lista = notisRecientes()
+  setHayNotisRecientes(lista.length > 0)
+  if (lista.length === 0 || !orionVisible.get()) return
+  const vence = lista[lista.length - 1].timestamp + VENTANA_NOTIS_MS - Date.now()
+  caducidadNotis = GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.max(250, vence + 50), () => {
+    caducidadNotis = null
+    recalcularNotisRecientes()
+    return GLib.SOURCE_REMOVE
+  })
+}
+notifications.subscribe(recalcularNotisRecientes)
+orionNotisApps.subscribe(recalcularNotisRecientes)
+orionVisible.subscribe(recalcularNotisRecientes)
+recalcularNotisRecientes()
+
+function abrirPanelNotificaciones() {
+  hidePanel()
+  closeAllPanels()
+  openNotifPanel()
+}
+
+function filaNotificacion(n: StoredNotification, ahora: number): Gtk.Widget {
+  const boton = new Gtk.Button({ cssClasses: ["fh-fila"], hexpand: true })
+  const fila = new Gtk.Box({ spacing: 8 })
+  const icono = new Gtk.Box({ cssClasses: ["fh-icono"], valign: Gtk.Align.CENTER })
+  icono.append(new Gtk.Label({ label: getAppIcon(n.appName), cssClasses: ["fn-glifo"] }))
+  fila.append(icono)
+  fila.append(etiqueta(n.appName, ["fn-app"], SIN_RECORTE))
+  const texto = n.summary || n.body
+  fila.append(etiqueta(texto, ["fh-titulo", ...(n.read ? [] : ["fn-nueva"])], {
+    hexpand: true, tooltipText: n.body ? `${n.summary}\n${n.body}` : n.summary,
+  }))
+  fila.append(etiqueta(tiempoRelativo(n.timestamp, ahora), ["fh-tiempo"], { xalign: 1 }))
+  boton.set_child(fila)
+  boton.connect("clicked", abrirPanelNotificaciones)
+  return boton
+}
+
+function PaginaNotificaciones(): Gtk.Widget {
+  const caja = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["fh-lista"], spacing: 2 })
+  function reconstruir() {
+    vaciarCaja(caja)
+    const ahora = Date.now()
+    for (const n of notisRecientes().slice(0, FILAS_HISTORIAL)) caja.append(filaNotificacion(n, ahora))
+  }
+  return conReconstruccionPerezosa(caja, reconstruir, [notifications, hayNotisRecientes, orionNotisApps])
+}
+
+// ── Página del carrusel: Abiertas ────────────────────────────────────────────
+// Las ventanas abiertas AHORA, una fila por (escritorio, app): tres Firefox en el
+// escritorio 2 son UNA fila, y un Firefox en el 2 y otro en el 5 son dos. Si la
+// fila tiene una sola ventana, la fila entera es el botón; si agrupa varias, los
+// botones son los iconos de la app, uno por ventana y a la izquierda. Lo que se abre es
+// el menú lateral de siempre, con acciones de ventana (ver `RightPanel.tsx`).
+//
+// TODO(vista previa): al pasar el ratón por una fila o por el botón de una
+// ventana se debería enseñar una miniatura de ESA ventana. Hoy Hyprland no nos
+// da una captura por ventana que sirva aquí (y `grim` solo captura salidas
+// enteras), así que queda pendiente para cuando lo permita. El sitio para
+// engancharlo es `filaVentanas`: el hover de `principal` y de cada botón de ventana.
+//
+// Coste: las señales de Hyprland solo se escuchan con Orion ABIERTO (el
+// controlador compartido de la barra, `suscribirDatosEscritorios`), y la lista
+// solo se reconstruye si cambia de verdad (firma por escritorio, clase y
+// direcciones): con `follow_mouse`, cruzar el ratón entre ventanas avisa sin que
+// haya nada nuevo que pintar.
+
+interface GrupoVentanas {
+  clave: string
+  escritorioId: number
+  escritorio: string
+  nombre: string
+  ventanas: { cliente: any; icono: IconoClienteEscritorio }[]
+}
+
+const [gruposVentanas, setGruposVentanas] = createState<GrupoVentanas[]>([])
+const [hayVentanas, setHayVentanas] = createState(false)
+let firmaVentanas = ""
+
+function etiquetaEscritorioDe(ws: any): string {
+  const id = Number(ws?.id ?? 0)
+  if (id > 0) return String(id)
+  return String(ws?.name ?? "").replace(/^special:/, "") || "especial"
+}
+
+function calcularGruposVentanas() {
+  const clientes = filtrarVentanasDeUsuario(hypr.get_clients() as any[]).filter((c: any) => !!c.class)
+  const iconos = obtenerIconosClientesEscritorio(clientes as any)
+  const porDireccion = new Map(iconos.map(i => [i.direccion, i]))
+  const grupos = new Map<string, GrupoVentanas>()
+  for (const c of clientes) {
+    const ws = c.workspace
+    const icono = porDireccion.get(c.address)
+    if (!icono) continue
+    const clave = `${ws?.id ?? 0}|${String(c.class).toLowerCase()}`
+    let g = grupos.get(clave)
+    if (!g) {
+      g = {
+        clave, escritorioId: Number(ws?.id ?? 0), escritorio: etiquetaEscritorioDe(ws),
+        nombre: obtenerEntradaEscritorio(c)?.nombre || String(c.class),
+        ventanas: [],
+      }
+      grupos.set(clave, g)
+    }
+    g.ventanas.push({ cliente: c, icono })
+  }
+  // El escritorio en el que estás primero; luego por número (especiales al final).
+  const aqui = Number(hypr.get_focused_workspace?.()?.id ?? 0)
+  const orden = (id: number) => id === aqui ? -1 : id > 0 ? id : 1000 - id
+  const lista = [...grupos.values()].sort((a, b) =>
+    orden(a.escritorioId) - orden(b.escritorioId) || a.nombre.localeCompare(b.nombre))
+  const firma = `${aqui}#` + lista.map(g => `${g.clave}:${g.ventanas.map(v => v.cliente.address).join(",")}`).join(";")
+  setHayVentanas(lista.length > 0)
+  if (firma === firmaVentanas) return
+  firmaVentanas = firma
+  setGruposVentanas(lista)
+}
+
+let bajaEscritorios: (() => void) | null = null
+orionVisible.subscribe(() => {
+  if (orionVisible.get()) {
+    if (!bajaEscritorios) bajaEscritorios = suscribirDatosEscritorios(calcularGruposVentanas)
+  } else if (bajaEscritorios) {
+    bajaEscritorios()
+    bajaEscritorios = null
+  }
+})
+
+function iconoVentana(icono: IconoClienteEscritorio, tam: number): Gtk.Widget {
+  if (icono.esGlifo) return new Gtk.Label({ label: icono.icono, cssClasses: ["fa-glifo"] })
+  return crearIconoApp(icono.iconoGio, icono.icono, tam)
+}
+
+function abrirFichaVentana(g: GrupoVentanas, v: GrupoVentanas["ventanas"][number]) {
+  showAppContext({
+    id: `ventana:${v.cliente.address}`,
+    name: g.nombre,
+    iconName: v.icono.esGlifo ? "application-x-executable" : v.icono.icono,
+    gicon: v.icono.iconoGio,
+    execRaw: "", execName: String(v.cliente.class ?? ""), appId: `ventana:${v.cliente.address}`,
+    launch: () => {},
+    ventana: {
+      direccion: String(v.cliente.address),
+      // El título se lee al abrir la ficha, no al construir la fila: cambia sin
+      // parar (pestañas, pistas) y no forma parte de la firma de la lista.
+      titulo: String(v.cliente.title ?? ""),
+      escritorio: g.escritorio,
+    },
+  })
+}
+
+function filaVentanas(g: GrupoVentanas): Gtk.Widget {
+  const info = () => {
+    const caja = new Gtk.Box({ spacing: 8, hexpand: true })
+    caja.append(etiqueta(g.nombre, ["fh-titulo"], { hexpand: true }))
+    caja.append(etiqueta(`workspace ${g.escritorio}`, ["fa-escritorio"], { ...SIN_RECORTE, xalign: 1 }))
+    return caja
+  }
+
+  // UNA ventana: la fila entera es el botón (icono + nombre + escritorio).
+  if (g.ventanas.length === 1) {
+    const v = g.ventanas[0]
+    const boton = new Gtk.Button({ cssClasses: ["fh-fila"], hexpand: true })
+    const cuerpo = new Gtk.Box({ spacing: 8 })
+    const icono = new Gtk.Box({ cssClasses: ["fh-icono"], valign: Gtk.Align.CENTER })
+    icono.append(iconoVentana(v.icono, 18))
+    cuerpo.append(icono)
+    cuerpo.append(info())
+    boton.set_child(cuerpo)
+    boton.set_tooltip_text(String(v.cliente.title || g.nombre))
+    boton.connect("clicked", () => abrirFichaVentana(g, v))
+    return boton
+  }
+
+  // VARIAS: los botones son los iconos, uno por ventana y a la izquierda; el
+  // nombre y el escritorio son solo rótulo. (Nada de botones dentro de un botón:
+  // el clic llegaría a los dos, como pasó con las flechas de "Sonando".)
+  const fila = new Gtk.Box({ cssClasses: ["fa-fila-varias"], spacing: 6, hexpand: true })
+  const botones = new Gtk.Box({ cssClasses: ["fa-ventanas"], spacing: 2, valign: Gtk.Align.CENTER })
+  for (const v of g.ventanas) {
+    const b = new Gtk.Button({ cssClasses: ["fa-ventana"], valign: Gtk.Align.CENTER })
+    b.set_child(iconoVentana(v.icono, 16))
+    b.set_tooltip_text(String(v.cliente.title || g.nombre))
+    b.connect("clicked", () => abrirFichaVentana(g, v))
+    botones.append(b)
+  }
+  fila.append(botones)
+  fila.append(info())
+  return fila
+}
+
+function PaginaAbiertas(): Gtk.Widget {
+  const lista = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["fh-lista"], spacing: 2 })
+  // Desplazable, pero la rueda NO se la queda en los bordes: con la barra en modo
+  // EXTERNAL el ScrolledWindow no atiende la rueda él mismo, y este controlador
+  // solo la consume mientras la lista puede moverse en ese sentido. Arriba del
+  // todo o abajo del todo la deja pasar al carrusel, que cambia de página: así la
+  // rueda sigue sirviendo para navegar entre páginas también aquí.
+  const desplazable = new Gtk.ScrolledWindow({ vexpand: true, hexpand: true })
+  desplazable.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.EXTERNAL)
+  desplazable.set_propagate_natural_height(false)
+  desplazable.set_child(lista)
+  const rueda = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
+  rueda.connect("scroll", (_c, _dx, dy) => {
+    const adj = desplazable.get_vadjustment()
+    const max = adj.get_upper() - adj.get_page_size()
+    if (dy === 0 || max <= 0) return false
+    const valor = adj.get_value()
+    if ((dy > 0 && valor >= max - 0.5) || (dy < 0 && valor <= 0.5)) return false
+    adj.set_value(Math.max(0, Math.min(max, valor + dy * 26)))
+    return true
+  })
+  desplazable.add_controller(rueda)
+
+  function reconstruir() {
+    vaciarCaja(lista)
+    for (const g of gruposVentanas.get()) lista.append(filaVentanas(g))
+  }
+  conReconstruccionPerezosa(lista, reconstruir, [gruposVentanas])
+  return desplazable
+}
+
 // ── Tarjeta: Jugando ahora ────────────────────────────────────────────────────
 // Sale del registro de juegos del shell (el mismo de la pastilla de la barra), sin
 // sondeo propio: el registro ya lo arranca `gamingState` a los 4 s, y aquí no se
@@ -401,9 +678,9 @@ function tiempoDeJuego(pid: number | null | undefined): string | null {
   return ms === null ? null : duracionSesion(ms)
 }
 
-function enfocarJuego(direccion: string) {
+function enfocarVentana(direccion: string, ocultarOrion = true) {
   const dir = direccion.startsWith("0x") ? direccion : `0x${direccion}`
-  hidePanel()
+  if (ocultarOrion) hidePanel()
   execAsync(["hyprctl", "dispatch", `hl.dsp.focus({window='address:${dir}'})`]).catch(() => {})
 }
 
@@ -455,21 +732,25 @@ function TarjetaJugando(): Gtk.Widget {
   }
 
   let direccionActual = ""
-  tarjeta.connect("clicked", () => { if (direccionActual) enfocarJuego(direccionActual) })
+  tarjeta.connect("clicked", () => { if (direccionActual) enfocarVentana(direccionActual) })
   return conReconstruccionPerezosa(tarjeta, reconstruir, [clientesJuego, clienteJuegoEnFoco])
 }
 
 // ── Tarjeta: Sonando ──────────────────────────────────────────────────────────
 // Del servicio MPRIS compartido (el mismo de Quick Settings y la barra): cero
-// sondeo propio y un solo registro de señales para todo el shell. Se enseña el
-// reproductor que está SONANDO; si ninguno suena, el primero con pista (en pausa).
+// sondeo propio y un solo registro de señales para todo el shell.
+//
+// Con varios reproductores es un CARRUSEL como el de Quick Settings: ‹ 1/N › en
+// la cabecera, rueda del ratón encima de la tarjeta y el mismo deslizamiento de
+// salida/entrada. Al abrir Orion se entra por el que está SONANDO; si ninguno
+// suena, por el primero con pista (en pausa). La selección se guarda por
+// `bus_name`, no por índice: si un reproductor aparece o se va mientras miras
+// otro, sigues viendo el mismo.
 
-function reproductorPrincipal(): { r: any; e: EstadoReproductor } | null {
-  const lista = reproductoresMultimedia.get()
-  const con = lista
+function reproductoresConPista(): { r: any; e: EstadoReproductor }[] {
+  return reproductoresMultimedia.get()
     .map(r => ({ r, e: obtenerEstadoReproductor(r) }))
     .filter((x): x is { r: any; e: EstadoReproductor } => !!x.e)
-  return con.find(x => x.e.reproduciendo) ?? con[0] ?? null
 }
 
 function botonControl(icono: string, tooltip: string, activo: boolean, alPulsar: () => void, clases: string[] = []): Gtk.Button {
@@ -481,13 +762,280 @@ function botonControl(icono: string, tooltip: string, activo: boolean, alPulsar:
 }
 
 function TarjetaSonando(): Gtk.Widget {
-  const caja = new Gtk.Box({ cssClasses: ["fx-tarjeta", "fs-tarjeta"], spacing: 8, hexpand: true })
+  const tarjeta = new Gtk.Box({ cssClasses: ["fx-tarjeta", "fs-tarjeta"], hexpand: true })
+  tarjeta.set_overflow(Gtk.Overflow.HIDDEN)
+  // Lo que se desliza al cambiar de reproductor; el marco de la tarjeta se queda.
+  const caja = new Gtk.Box({ cssClasses: ["fs-contenido"], spacing: 8, hexpand: true })
+  tarjeta.append(caja)
+
+  let seleccion: string | null = null
+  let cambiando = false
+
+  /** El reproductor elegido, o el principal si el elegido ya no está. */
+  function actual() {
+    const con = reproductoresConPista()
+    const i = seleccion ? con.findIndex(x => x.r.bus_name === seleccion) : -1
+    if (i >= 0) return { ...con[i], indice: i, total: con.length }
+    const p = con.find(x => x.e.reproduciendo) ?? con[0]
+    if (!p) return null
+    seleccion = p.r.bus_name
+    return { ...p, indice: con.indexOf(p), total: con.length }
+  }
+
+  function paso(delta: 1 | -1) {
+    const con = reproductoresConPista()
+    if (con.length < 2 || cambiando) return
+    const destino = () => {
+      const lista = reproductoresConPista()
+      if (lista.length < 2) return
+      const i = Math.max(0, lista.findIndex(x => x.r.bus_name === seleccion))
+      seleccion = lista[(i + delta + lista.length) % lista.length].r.bus_name
+      reconstruir()
+    }
+    // Mismo deslizamiento que Quick Settings: sale hacia un lado, el nuevo entra
+    // desde el opuesto (colocado sin transición y soltado un frame después).
+    cambiando = true
+    const dir = delta > 0 ? "next" : "prev"
+    caja.add_css_class(`switch-out-${dir}`)
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 110, () => {
+      destino()
+      caja.remove_css_class(`switch-out-${dir}`)
+      caja.add_css_class(`switch-enter-${dir}`)
+      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 16, () => {
+        caja.remove_css_class(`switch-enter-${dir}`)
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 130, () => { cambiando = false; return GLib.SOURCE_REMOVE })
+        return GLib.SOURCE_REMOVE
+      })
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  const rueda = new Gtk.EventControllerScroll({
+    flags: Gtk.EventControllerScrollFlags.BOTH_AXES | Gtk.EventControllerScrollFlags.DISCRETE,
+  })
+  rueda.connect("scroll", (_c, dx, dy) => {
+    const d = Math.abs(dx) > Math.abs(dy) ? dx : dy
+    if (d === 0 || reproductoresConPista().length < 2) return false
+    paso(d > 0 ? 1 : -1)
+    return true
+  })
+  tarjeta.add_controller(rueda)
+
+  // Cada apertura de Orion vuelve a entrar por el que suena (se registra antes
+  // que la reconstrucción perezosa, así esta ya ve la selección limpia).
+  orionVisible.subscribe(() => { if (orionVisible.get()) seleccion = null })
+
+  // ── Barra de progreso ──
+  // DOBLE barra, partida en la posición por un hueco: la izquierda (lo que ya ha
+  // sonado) lleva el acento de la carátula con la MISMA regla que el seekbar de
+  // Quick Settings (`tonosDeAcento(...).acento`), y la derecha (lo que queda) un
+  // color fijo sacado del CSS (`.fs-progreso { color }`), que va con el fondo de
+  // Orion y no cambia con la pista. Es un único DrawingArea que sobrevive a las
+  // reconstrucciones: el sondeo de 1 s solo lo repinta, no rehace la tarjeta.
+  const ALTO_BARRA = 3
+  const HUECO = 3
+  const progreso = new Gtk.DrawingArea({ cssClasses: ["fs-progreso"], hexpand: true, canTarget: false })
+  progreso.set_content_height(ALTO_BARRA)
+  // Tiempos a los lados: lo que lleva y lo que QUEDA (con signo menos, como en un
+  // reproductor); la duración total va en el tooltip de la fila. Ancho fijo en
+  // caracteres para que la barra no baile al pasar de 9:59 a 10:00.
+  const lblLleva = new Gtk.Label({ cssClasses: ["fs-tiempo"], xalign: 0, widthChars: 5 })
+  const lblQueda = new Gtk.Label({ cssClasses: ["fs-tiempo"], xalign: 1, widthChars: 6 })
+  const filaProgreso = new Gtk.Box({ cssClasses: ["fs-fila-progreso"], spacing: 5 })
+  filaProgreso.append(lblLleva)
+  filaProgreso.append(progreso)
+  filaProgreso.append(lblQueda)
+  let prJugador: any = null
+  let prDuracion: number | null = null
+  let prSemilla = ACENTO_MEDIA_PREDETERMINADO
+
+  function duracionDe(r: any): number | null {
+    let cruda: unknown = null
+    try { cruda = r.get_meta?.("mpris:length")?.deep_unpack?.() } catch (_) {}
+    return resolveMediaLengthSeconds(r.length, cruda)
+  }
+
+  progreso.set_draw_func((_a, cr, ancho, alto) => {
+    if (!prJugador || !prDuracion || mostrada === null) return
+    const fraccion = mostrada
+    const y = (alto - ALTO_BARRA) / 2
+    const radio = ALTO_BARRA / 2
+    const tramo = (x: number, w: number) => {
+      if (w <= 0) return
+      const rr = Math.min(radio, w / 2)
+      cr.newPath()
+      cr.arc(x + w - rr, y + rr, rr, -Math.PI / 2, 0)
+      cr.arc(x + w - rr, y + ALTO_BARRA - rr, rr, 0, Math.PI / 2)
+      cr.arc(x + rr, y + ALTO_BARRA - rr, rr, Math.PI / 2, Math.PI)
+      cr.arc(x + rr, y + rr, rr, Math.PI, 1.5 * Math.PI)
+      cr.closePath()
+      cr.fill()
+    }
+    // El hueco solo existe entre dos tramos: en 0 % y en 100 % la barra es entera.
+    const corte = ancho * fraccion
+    const finIzq = fraccion >= 1 ? ancho : Math.max(0, corte - HUECO / 2)
+    const iniDer = fraccion <= 0 ? 0 : Math.min(ancho, corte + HUECO / 2)
+
+    const [r, g, b] = tonosDeAcento(prSemilla).acento
+    cr.setSourceRGBA(r / 255, g / 255, b / 255, 1)
+    tramo(0, finIzq)
+
+    const c = progreso.get_color()
+    cr.setSourceRGBA(c.red, c.green, c.blue, c.alpha)
+    tramo(iniDer, ancho - iniDer)
+  })
+
+  // El corte entre los dos tramos no salta: se DESLIZA hasta la posición nueva
+  // (ease-out). Cubre el avance de cada segundo, una búsqueda y el cambio de pista
+  // (vuelve hacia el principio). El reloj de frames solo corre mientras dura una
+  // animación; en reposo no queda ningún tick callback vivo.
+  const DURACION_ANIM_US = 450_000
+  let mostrada: number | null = null
+  let animDesde = 0
+  let animHasta = 0
+  let animInicioUs = 0
+  let tickAnim: number | null = null
+
+  function irA(fraccion: number) {
+    if (mostrada === null || !progreso.get_mapped()) {
+      // Primera vez (o sin pintar): no hay de dónde venir.
+      mostrada = fraccion
+      progreso.queue_draw()
+      return
+    }
+    if (Math.abs(fraccion - mostrada) < 1e-4) return
+    animDesde = mostrada
+    animHasta = fraccion
+    animInicioUs = GLib.get_monotonic_time()
+    if (tickAnim !== null) return
+    tickAnim = progreso.add_tick_callback((_w, reloj) => {
+      const t = Math.min(1, (reloj.get_frame_time() - animInicioUs) / DURACION_ANIM_US)
+      const suave = 1 - Math.pow(1 - t, 3)
+      mostrada = animDesde + (animHasta - animDesde) * suave
+      progreso.queue_draw()
+      if (t < 1) return GLib.SOURCE_CONTINUE
+      tickAnim = null
+      return GLib.SOURCE_REMOVE
+    })
+  }
+
+  function actualizarTiempo() {
+    if (!prJugador || !prDuracion) return
+    const pos = safeMediaPosition(prJugador.position, prDuracion)
+    lblLleva.label = formatMediaTime(pos)
+    lblQueda.label = `-${formatMediaTime(prDuracion - pos)}`
+    irA(pos / prDuracion)
+  }
+
+  // Sondeo de posición (MPRIS no notifica el avance): 1 s, y SOLO con Orion
+  // abierto — cerrado se quita el temporizador, no basta con saltarse el cuerpo.
+  let sondeo: number | null = null
+  const sincronizarSondeo = () => {
+    const hace = orionVisible.get() && prJugador !== null && prDuracion !== null
+    if (hace && sondeo === null) {
+      sondeo = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => { actualizarTiempo(); return GLib.SOURCE_CONTINUE })
+    } else if (!hace && sondeo !== null) {
+      GLib.source_remove(sondeo)
+      sondeo = null
+    }
+  }
+  orionVisible.subscribe(sincronizarSondeo)
+  // Al reabrir Orion la barra aparece ya en su sitio: animar desde donde se quedó
+  // al cerrar (quizá minutos atrás) sería un barrido sin significado.
+  orionVisible.subscribe(() => { if (!orionVisible.get()) mostrada = null })
+
+  // ── Volumen de la app ──
+  // El mismo volumen por app que la "mezcla de aplicaciones" de Quick Settings,
+  // pero solo el de ESTE reproductor, debajo de sus controles. Los streams de la
+  // app se buscan en AstalWp (`streamDeReproductor.ts`); si hay varios (un
+  // navegador con dos pestañas sonando) el deslizador los mueve todos. Sin stream
+  // (la app aún no ha abierto audio, o suena en otro equipo) la fila no aparece.
+  // Es un widget PERSISTENTE, como la barra: los streams van y vienen sin rehacer
+  // la tarjeta, y no se destruye un deslizador mientras se arrastra.
+  let audioWp: AstalWp.Audio | null = null
+  try { audioWp = AstalWp.get_default()?.audio ?? null } catch (_) {}
+  const volumen = new Gtk.Scale({
+    orientation: Gtk.Orientation.HORIZONTAL, cssClasses: ["fs-volumen"], hexpand: true,
+    drawValue: false, valign: Gtk.Align.CENTER,
+  })
+  volumen.set_range(0, VOLUMEN_MAX)
+  volumen.set_increments(0.05, 0.1)
+  const iconoVolumen = new Gtk.Label({ cssClasses: ["fs-volumen-icono"] })
+  const filaVolumen = new Gtk.Box({ cssClasses: ["fs-fila-volumen"], spacing: 4, visible: false })
+  filaVolumen.append(iconoVolumen)
+  filaVolumen.append(volumen)
+
+  let streamsApp: any[] = []
+  let manejadorVol: { s: any; id: number } | null = null
+  let sincronizandoVol = false
+  let ultimaEscrituraVol = 0
+
+  function pintarVolumen(v: number) {
+    iconoVolumen.label = v <= 0.001 ? "󰝟" : v < 0.5 ? "󰖀" : "󰕾"
+    filaVolumen.set_tooltip_text(`Volumen de la app · ${Math.round(v * 100)} %`)
+    if (Math.abs(volumen.get_value() - v) < 0.005) return
+    sincronizandoVol = true
+    volumen.set_value(v)
+    sincronizandoVol = false
+  }
+
+  function enlazarVolumen() {
+    if (manejadorVol) { try { manejadorVol.s.disconnect(manejadorVol.id) } catch (_) {} manejadorVol = null }
+    const r = prJugador
+    streamsApp = r && audioWp
+      ? (audioWp.get_streams() ?? []).filter((s: any) => streamEsDeReproductor(propsDeStream(s), {
+        entry: r.entry, busName: r.bus_name, identity: r.identity,
+      }))
+      : []
+    filaVolumen.visible = streamsApp.length > 0
+    if (streamsApp.length === 0) return
+    const principal = streamsApp[0]
+    pintarVolumen(principal.volume)
+    // Cambios hechos desde fuera (la propia app, Quick Settings, pavucontrol). La
+    // guarda de 300 ms es contra nuestro propio eco, como en Quick Settings.
+    manejadorVol = {
+      s: principal,
+      id: principal.connect("notify::volume", () => {
+        if (Date.now() - ultimaEscrituraVol < 300) return
+        pintarVolumen(principal.volume)
+      }),
+    }
+  }
+
+  volumen.connect("value-changed", () => {
+    if (sincronizandoVol || streamsApp.length === 0) return
+    const v = ajustarVolumen(volumen.get_value())
+    ultimaEscrituraVol = Date.now()
+    for (const s of streamsApp) fijarVolumenEndpoint(s, v)
+    pintarVolumen(v)
+    // Igual que el deslizador de Quick Settings: tocarlo es una decisión explícita
+    // y deja preset, que es lo que hace que la app vuelva a sonar así mañana.
+    const clave = clavePreset("speaker", nombreDeProps(propsDeStream(streamsApp[0])))
+    const presets = { ...audioPresets.get(), [clave]: v }
+    setAudioPresets(presets)
+    guardarAudioPresets(presets)
+  })
+
+  if (audioWp) {
+    audioWp.connect("stream-added", () => enlazarVolumen())
+    audioWp.connect("stream-removed", () => enlazarVolumen())
+  }
 
   function reconstruir() {
     vaciarCaja(caja)
-    const principal = reproductorPrincipal()
-    if (!principal) return
-    const { r, e } = principal
+    ;(filaProgreso.get_parent() as Gtk.Box | null)?.remove(filaProgreso)
+    ;(filaVolumen.get_parent() as Gtk.Box | null)?.remove(filaVolumen)
+    const sel = actual()
+    prJugador = sel?.r ?? null
+    prDuracion = sel ? duracionDe(sel.r) : null
+    sincronizarSondeo()
+    enlazarVolumen()
+    if (!sel) return
+    const { r, e, indice, total } = sel
+    const rutaCaratula = e.caratula ? e.caratula.replace(/^file:\/\//, "") : ""
+    prSemilla = rutaCaratula && !rutaCaratula.startsWith("http") && GLib.file_test(rutaCaratula, GLib.FileTest.EXISTS)
+      ? semillaDeCaratula(rutaCaratula)
+      : ACENTO_MEDIA_PREDETERMINADO
 
     // Carátula + textos son UN botón: llevan a la app (si el reproductor se deja).
     const abrir = new Gtk.Button({ cssClasses: ["fs-abrir"], hexpand: true })
@@ -513,16 +1061,45 @@ function TarjetaSonando(): Gtk.Widget {
     texto.append(cabecera)
     texto.append(etiqueta(e.titulo, ["fs-titulo"], { tooltipText: e.titulo }))
     if (e.artista) texto.append(etiqueta(e.artista, ["fs-artista"]))
+    // Un directo (o un reproductor sin duración) no tiene progreso que enseñar.
+    if (prDuracion) {
+      filaProgreso.set_tooltip_text(`Duración ${formatMediaTime(prDuracion)}`)
+      texto.append(filaProgreso)
+      actualizarTiempo()
+    }
     cuerpo.append(texto)
     abrir.set_child(cuerpo)
-    const puedeAbrir = !!r.can_raise
-    abrir.set_tooltip_text(puedeAbrir ? `Abrir ${origen || "reproductor"}` : null)
+    // Como el clic derecho del reproductor de Quick Settings: lleva a la VENTANA
+    // que reproduce (escritorio incluido). `raise()` de MPRIS queda de reserva
+    // para un reproductor sin ventana localizable. Orion NO se oculta: se va a
+    // la app sin perder el lanzador (a diferencia de "Jugando ahora").
+    const cliente = () => findMediaClient(r, hypr.get_clients?.() ?? [])
+    const puedeAbrir = !!cliente()?.address || !!r.can_raise
+    abrir.set_tooltip_text(puedeAbrir ? `Ir a ${origen || "reproductor"}` : null)
     abrir.connect("clicked", () => {
-      if (!puedeAbrir) return
-      hidePanel()
+      const c = cliente()
+      if (c?.address) { enfocarVentana(String(c.address), false); return }
+      if (!r.can_raise) return
       try { r.raise() } catch (_) {}
     })
     caja.append(abrir)
+
+    // La navegación va FUERA de `abrir`: dentro de ese botón, pulsar una flecha
+    // también lo activaba a él, que cierra Orion y levanta el reproductor.
+    const derecha = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, valign: Gtk.Align.CENTER })
+    if (total > 1) {
+      const nav = new Gtk.Box({ cssClasses: ["fs-nav"], halign: Gtk.Align.CENTER })
+      const flecha = (glifo: string, tooltip: string, delta: 1 | -1) => {
+        const b = new Gtk.Button({ cssClasses: ["fs-cambiar"], tooltipText: tooltip })
+        b.set_child(new Gtk.Label({ label: glifo }))
+        b.connect("clicked", () => paso(delta))
+        return b
+      }
+      nav.append(flecha("󰅁", "Reproductor anterior", -1))
+      nav.append(etiqueta(`${indice + 1}/${total}`, ["fs-cuenta"], SIN_RECORTE))
+      nav.append(flecha("󰅂", "Reproductor siguiente", 1))
+      derecha.append(nav)
+    }
 
     const controles = new Gtk.Box({ spacing: 2, valign: Gtk.Align.CENTER })
     controles.append(botonControl("media-skip-backward-symbolic", "Anterior", !!r.can_go_previous, () => { try { r.previous() } catch (_) {} }))
@@ -532,12 +1109,14 @@ function TarjetaSonando(): Gtk.Widget {
       () => { try { r.play_pause() } catch (_) {} }, ["principal"],
     ))
     controles.append(botonControl("media-skip-forward-symbolic", "Siguiente", !!r.can_go_next, () => { try { r.next() } catch (_) {} }))
-    caja.append(controles)
+    derecha.append(controles)
+    derecha.append(filaVolumen)
+    caja.append(derecha)
   }
 
   // `revisionMultimedia` sube en cada cambio de un reproductor (pista, estado,
   // carátula resuelta) salvo la posición, que es lo único que cambia por segundo.
-  return conReconstruccionPerezosa(caja, reconstruir, [reproductoresMultimedia, revisionMultimedia])
+  return conReconstruccionPerezosa(tarjeta, reconstruir, [reproductoresMultimedia, revisionMultimedia])
 }
 
 // ── Carrusel ──────────────────────────────────────────────────────────────────
@@ -702,10 +1281,26 @@ export function FranjaInicio() {
   pisoTema.append(TemaActual())
   pisoTema.append(Carrusel([
     {
+      id: "notificaciones",
+      titulo: "Notificaciones",
+      widget: PaginaNotificaciones(),
+      accion: { icono: "preferences-system-notifications-symbolic", tooltip: "Abrir notificaciones", alPulsar: abrirPanelNotificaciones },
+      hayContenido: hayNotisRecientes,
+    },
+    {
       id: "reciente",
       titulo: "Reciente",
       widget: PaginaReciente(),
       accion: { icono: "edit-clear-all-symbolic", tooltip: "Borrar historial", alPulsar: borrarHistorial },
+    },
+    {
+      id: "abiertas",
+      titulo: "Abiertas",
+      widget: PaginaAbiertas(),
+      hayContenido: hayVentanas,
+      // Siempre hay ventanas: si pudiera ser la de entrada, Orion se abriría aquí
+      // en vez de en Reciente. Se llega con los puntos o la rueda.
+      prioritaria: { get: () => false, subscribe: () => () => {} },
     },
   ]))
 

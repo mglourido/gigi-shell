@@ -4,6 +4,7 @@
 
 import { Gtk } from "ags/gtk4"
 import Gio from "gi://Gio"
+import GioUnix from "gi://GioUnix?version=2.0"
 import Gdk from "gi://Gdk"
 import GObject from "gi://GObject"
 import GLib from "gi://GLib"
@@ -88,7 +89,7 @@ function buildAppFlowBtn(app: FavoriteApp): Gtk.Button {
         // favorito cuya app ya no existe devuelve `""` y la detección cae en el
         // binario, que es exactamente el caso en que tampoco lo encontrará —
         // por eso el panel deja el motivo escrito en vez de un botón muerto.
-        desktopFile: Gio.DesktopAppInfo.new(app.id)?.get_filename() ?? "",
+        desktopFile: GioUnix.DesktopAppInfo.new(app.id)?.get_filename() ?? "",
         launch: () => launchApp(app.exec, { id: app.id, nombre: app.name, icono: app.iconName }),
       })
     } catch (_) {}

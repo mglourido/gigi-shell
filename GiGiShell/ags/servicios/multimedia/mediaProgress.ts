@@ -63,3 +63,12 @@ export function safeMediaPosition(position: unknown, length: number): number {
   if (!Number.isFinite(value) || value < 0) return 0
   return Math.min(value, length)
 }
+
+/** Segundos → `m:ss` (el formato de los tiempos de los reproductores). */
+export function formatMediaTime(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0:00"
+  const total = Math.floor(value)
+  const minutes = Math.floor(total / 60)
+  const seconds = total % 60
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`
+}

@@ -312,6 +312,15 @@ export { orionAppsDefault }
 const [orionRecordarUltimaSeccion, _setOrionRecordarUltimaSeccion] = createState(false)
 export { orionRecordarUltimaSeccion }
 
+// Apps cuyas notificaciones salen en la página "Notificaciones" de Inicio de
+// Orion (las de los últimos 5 minutos). Se compara como SUBCADENA del nombre de
+// app de la notificación, en minúsculas: "whatsapp" casa con "WhatsApp" y con
+// "whatsapp-for-linux". Lista vacía = la página no aparece nunca. Se aplica en
+// caliente. Default: WhatsApp y Discord (si no llega nada de ellas, la página
+// simplemente no se enseña, como sin notificaciones).
+const [orionNotisApps, _setOrionNotisApps] = createState<string[]>(["whatsapp", "discord"])
+export { orionNotisApps }
+
 // Monitor de actualizaciones (scripts/updates-monitor.sh) + icono de la barra.
 // El toggle MAESTRO se aplica en caliente (su setter lanza/mata el script y el
 // icono se monta/desmonta con este estado). Default: activado.
@@ -571,6 +580,7 @@ function load() {
     }
     if (typeof saved.orion === "boolean") _setOrionEnabled(saved.orion)
     if (typeof saved.orionAppsDefault === "boolean") _setOrionAppsDefault(saved.orionAppsDefault)
+    if (Array.isArray(saved.orionNotisApps)) _setOrionNotisApps(sanitizeApps(saved.orionNotisApps))
     if (typeof saved.orionRecordarUltimaSeccion === "boolean") {
       _setOrionRecordarUltimaSeccion(saved.orionRecordarUltimaSeccion)
     }
@@ -664,6 +674,7 @@ function save() {
       orion: orionEnabled.get(),
       orionAppsDefault: orionAppsDefault.get(),
       orionRecordarUltimaSeccion: orionRecordarUltimaSeccion.get(),
+      orionNotisApps: orionNotisApps.get(),
       updatesMonitor: updatesMonitorEnabled.get(),
       updatesPeriodic: updatesPeriodicEnabled.get(),
       updatesIntervalHours: updatesIntervalHours.get(),
@@ -893,6 +904,16 @@ export function setOrionAppsDefault(on: boolean) {
 }
 export function setOrionRecordarUltimaSeccion(activo: boolean) {
   _setOrionRecordarUltimaSeccion(activo)
+  save()
+}
+/** Añade una app a las notificaciones de Orion. Normaliza y evita duplicados. */
+export function addOrionNotisApp(app: string) {
+  _setOrionNotisApps(sanitizeApps([...orionNotisApps.get(), app]))
+  save()
+}
+/** Quita una app (comparación exacta contra el valor ya normalizado). */
+export function removeOrionNotisApp(app: string) {
+  _setOrionNotisApps(orionNotisApps.get().filter((a) => a !== app))
   save()
 }
 // Maestro del monitor de actualizaciones: se aplica en caliente. Al activar lanza

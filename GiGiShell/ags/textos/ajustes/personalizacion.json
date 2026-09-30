@@ -196,6 +196,15 @@
     "ultimaSeccion": {
       "titulo": "Mantener la última sección abierta",
       "descripcion": "Al volver a abrir Orion, conserva la última sección visitada. Tras reiniciar la interfaz, vuelve a usar Inicio o Aplicaciones como página inicial."
+    },
+    "notificaciones": {
+      "titulo": "Notificaciones en Inicio",
+      "ayuda": "Apps cuyas notificaciones de los últimos 5 minutos aparecen en Inicio, junto a Reciente. Basta con parte del nombre (\"whatsapp\" vale para WhatsApp). Si no llega nada de ellas, la página no se muestra.",
+      "vacia": "Ninguna app: la página de notificaciones no aparecerá.",
+      "placeholder": "Nombre de la app (p. ej. telegram)",
+      "anadir": "Añadir",
+      "quitar": "Quitar",
+      "sugerencias": "Han enviado notificaciones:"
     }
   },
   "portapapeles": {

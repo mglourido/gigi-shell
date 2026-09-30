@@ -307,6 +307,20 @@ export interface AppContextItem {
   // detección cae en el binario, que sigue funcionando en la mayoría de casos.
   desktopFile?: string
   launch: () => void
+  /**
+   * Si viene, la ficha es de una VENTANA abierta (página "Abiertas" de Inicio) y
+   * no de una app instalada: el panel cambia sus acciones por las de gestionar
+   * esa ventana (ir, traer aquí, pantalla completa, maximizar, cerrar).
+   */
+  ventana?: VentanaContexto
+}
+
+export interface VentanaContexto {
+  /** Dirección de Hyprland (`0x…`): lo único que identifica una ventana. */
+  direccion: string
+  titulo: string
+  /** Lo que se enseña del escritorio ("3", o el nombre de un especial). */
+  escritorio: string
 }
 
 export const [rightPanelApp,     setRightPanelApp]     = createState<AppContextItem | null>(null)

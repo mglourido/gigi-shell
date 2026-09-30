@@ -1,6 +1,7 @@
 import { Gtk } from "ags/gtk4"
 import { AjusteInterruptor, TarjetaAjustes, TituloSeccion } from "../componentes"
 import LimpiezaPortapapeles from "./LimpiezaPortapapeles"
+import AppsNotificacionesOrion from "./AppsNotificacionesOrion"
 import {
   orionEnabled, setOrionEnabled,
   orionAppsDefault, setOrionAppsDefault,
@@ -21,6 +22,7 @@ export default function SeccionFuncionesShell({ vista }: { vista: VistaFunciones
         <AjusteInterruptor titulo={textos.orion.menu.titulo} informacion={textos.orion.menu.descripcion} activo={orionEnabled} alAlternar={() => setOrionEnabled(!orionEnabled.get())} />
         <AjusteInterruptor titulo={textos.orion.paginaInicial.titulo} informacion={textos.orion.paginaInicial.descripcion} activo={orionAppsDefault} visible={orionEnabled} alAlternar={() => setOrionAppsDefault(!orionAppsDefault.get())} />
         <AjusteInterruptor titulo={textos.orion.ultimaSeccion.titulo} informacion={textos.orion.ultimaSeccion.descripcion} activo={orionRecordarUltimaSeccion} visible={orionEnabled} alAlternar={() => setOrionRecordarUltimaSeccion(!orionRecordarUltimaSeccion.get())} />
+        <AppsNotificacionesOrion />
       </TarjetaAjustes>}
 
       {vista === "portapapeles" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.portapapeles} icono="󰅇">

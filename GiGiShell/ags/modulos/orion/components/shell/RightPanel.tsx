@@ -7,7 +7,7 @@ import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import {
-  rightPanelApp, rightPanelVisible, hidePanel,
+  rightPanelApp, rightPanelVisible, hidePanel, hideRightPanel,
   suspenderPanel, reanudarPanel, descartarSuspension,
   type AppContextItem,
 } from "../../state"
@@ -16,6 +16,10 @@ import { olvidarApp } from "../../data/historial"
 import { invalidarCatalogoApps } from "../../data/catalogo"
 import { desinstalarApp } from "../../data/uninstall"
 import { crearIconoApp } from "../shared/tarjetaApp"
+import {
+  enfocarVentana, traerVentanaAqui, alternarPantallaCompletaVentana,
+  alternarMaximizarVentana, cerrarVentana, modoPantallaCompleta,
+} from "../../../../servicios/ventanas/acciones"
 import { vaciarCaja } from "../shared/gtkUtils"
 import type {
   ElementoNavegacionBusqueda,
@@ -127,6 +131,38 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
     })
   }
 
+  /**
+   * Ficha de una ventana abierta (página "Abiertas" de Inicio). Las acciones que
+   * te llevan a la ventana cierran Orion —es una layer OVERLAY y la taparía—;
+   * cerrar la ventana lo deja abierto, porque lo normal es seguir recogiendo y la
+   * fila desaparece sola de la lista.
+   */
+  function accionesDeVentana(direccion: string) {
+    const acts = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["rp-actions"] })
+    const agregar = (icono: string, etiqueta: string, alActivar: () => void, clases: string[] = []) => {
+      const { boton, navegable } = crearAccion(icono, etiqueta, alActivar, clases)
+      acts.append(boton)
+      accionesActuales.push(navegable)
+    }
+    const modo = modoPantallaCompleta(direccion)
+    agregar("go-jump-symbolic", "Ir a la ventana", () => { hidePanel(); enfocarVentana(direccion) })
+    agregar("go-down-symbolic", "Traer aquí", () => { hidePanel(); traerVentanaAqui(direccion) })
+    agregar(
+      "view-fullscreen-symbolic", modo === 2 ? "Salir de pantalla completa" : "Pantalla completa",
+      () => { hidePanel(); alternarPantallaCompletaVentana(direccion) },
+    )
+    agregar(
+      "window-maximize-symbolic", modo === 1 ? "Restaurar tamaño" : "Maximizar",
+      () => { hidePanel(); alternarMaximizarVentana(direccion) },
+    )
+    acts.append(new Gtk.Box({ cssClasses: ["rp-action-sep"] }))
+    agregar("window-close-symbolic", "Cerrar ventana", () => {
+      cerrarVentana(direccion)
+      hideRightPanel()
+    }, ["destructiva"])
+    inner.append(acts)
+  }
+
   function rebuild() {
     const app = rightPanelApp.get()
     vaciarCaja(inner)
@@ -138,7 +174,10 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
 
     // ── Header ───────────────────────────────────────────────────────────────
     const header = new Gtk.Box({ cssClasses: ["rp-header"], spacing: 10 })
-    const eyebrow = new Gtk.Label({ label: "APLICACIÓN", cssClasses: ["rp-eyebrow"], halign: Gtk.Align.START })
+    const eyebrow = new Gtk.Label({
+      label: app.ventana ? `VENTANA · ESCRITORIO ${app.ventana.escritorio.toUpperCase()}` : "APLICACIÓN",
+      cssClasses: ["rp-eyebrow"], halign: Gtk.Align.START,
+    })
     inner.append(eyebrow)
     const headerIcon = crearIconoApp(app.gicon, app.iconName, 22)
     headerIcon.set_css_classes(["rp-app-icon"])
@@ -150,7 +189,19 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
       cssClasses: ["rp-app-name"], ellipsize: 3, maxWidthChars: 13,
     }))
     inner.append(header)
+    if (app.ventana?.titulo) {
+      inner.append(new Gtk.Label({
+        label: app.ventana.titulo, halign: Gtk.Align.START, cssClasses: ["rp-ventana-titulo"],
+        ellipsize: 3, maxWidthChars: 22, tooltipText: app.ventana.titulo,
+      }))
+    }
     inner.append(new Gtk.Box({ cssClasses: ["j-hdiv"] }))
+
+    if (app.ventana) {
+      accionesDeVentana(app.ventana.direccion)
+      sincronizarAcciones()
+      return
+    }
 
     // ── Actions ───────────────────────────────────────────────────────────────
     const acts = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, cssClasses: ["rp-actions"] })
@@ -207,8 +258,11 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
   let ultimaAppId: string | null = null
   function sincronizarApp() {
     const app = rightPanelApp.get()
-    if (app && app.appId === ultimaAppId) return
-    ultimaAppId = app?.appId ?? null
+    // Una ventana se identifica por su dirección, no por la app: dos ventanas de
+    // Firefox son dos fichas distintas.
+    const clave = app ? `${app.appId}\0${app.ventana?.direccion ?? ""}` : null
+    if (clave !== null && clave === ultimaAppId) return
+    ultimaAppId = clave
     rebuild()
   }
 
