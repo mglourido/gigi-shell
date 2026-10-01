@@ -25,6 +25,7 @@ import { initTrayApps } from "./modulos/ajustes/trayApps"
 import { initGamingState } from "./servicios/energia/gamingState"
 import { initCierreRofiJuego } from "./servicios/juegos/cierreRofi"
 import { initBrilloAhorro } from "./servicios/energia/brilloAhorro"
+import { initRefrescoAhorro } from "./servicios/energia/refrescoAhorro"
 import { inicializarCamara } from "./servicios/camara/init.ts"
 import { initTlpAuto } from "./servicios/energia/tlpAuto"
 import { initInactividadAhorro } from "./servicios/pantalla/inactividadAhorro"
@@ -318,6 +319,7 @@ app.start({
       // absolutamente nada corriendo.
       inicializarCamara()
       initBrilloAhorro()
+      initRefrescoAhorro()
       initTlpAuto()
       initInactividadAhorro()
       // Vigilante del volumen por aplicación. Aplica los presets de `audioPresets.json`

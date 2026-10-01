@@ -131,6 +131,7 @@ import {
   type FilaControlCamara,
 } from "./camaraQsDatos"
 import { crearCicloVida } from "../../utilidades/cicloVida"
+import { observarEstadoWifi, refrescarEstadoWifi } from "../../servicios/red/estadoWifi"
 import QsTile from "./componentes/QsTile"
 
 const WIFI_SIGNAL_BARS = 4
@@ -1165,6 +1166,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
 }) {
   const network = AstalNetwork.get_default()
   const wifi = network.wifi
+  const estadoWifi = observarEstadoWifi()
   const bt = AstalBluetooth.get_default()
   const hypr = AstalHyprland.get_default()
 
@@ -1183,29 +1185,28 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
       label: network.client.get_primary_connection()?.get_id() || "Ethernet",
       active: true,
     }
-    const wifiActivo = !!wifi?.enabled && wifi.state === NET_DS.ACTIVATED
-    return { icon: "󰤨", label: wifiActivo ? wifi?.ssid || "Wi-Fi" : "Wi-Fi", active: wifi?.enabled ?? false }
+    const actual = estadoWifi.get()
+    return { icon: "󰤨", label: actual.conectada ? actual.ssid || "Wi-Fi" : "Wi-Fi", active: actual.habilitada }
   }
   const [netTile, setNetTile] = createState(computeNetTile())
-  const syncNetTile = () => setNetTile(computeNetTile())
+  const syncNetTile = () => {
+    const siguiente = computeNetTile()
+    const anterior = netTile.get()
+    if (siguiente.icon !== anterior.icon || siguiente.label !== anterior.label || siguiente.active !== anterior.active)
+      setNetTile(siguiente)
+  }
   network.connect("notify::primary", syncNetTile)
   network.connect("notify::wired", syncNetTile)
   network.connect("notify::wifi", syncNetTile)
-  if (wifi) {
-    wifi.connect("notify::ssid", syncNetTile)
-    wifi.connect("notify::enabled", syncNetTile)
-    wifi.connect("notify::state", syncNetTile)
-    wifi.connect("notify::strength", syncNetTile)
-  }
+  onCleanup(estadoWifi.subscribe(syncNetTile))
   if (network.wired) {
     network.wired.connect("notify::state", syncNetTile)
   }
   network.client.connect("notify::primary-connection", syncNetTile)
   network.client.get_primary_connection()?.connect("notify::id", syncNetTile)
   quickSettingsVisible.subscribe(() => {
-    if (quickSettingsVisible.get()) syncNetTile()
+    if (quickSettingsVisible.get()) { refrescarEstadoWifi(); syncNetTile() }
   })
-  const wifiStrength = wifi ? createBinding(wifi, "strength") : null
 
   // Estado ÚNICO del tile de Bluetooth: icono, texto y CSS (`active`) salen del
   // mismo objeto y del mismo setter. Antes el CSS venía por su cuenta de un
@@ -1296,7 +1297,7 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
                 valign={Gtk.Align.CENTER}
                 visible={netTile((t) => t.icon !== ETHERNET_GLYPH)}
               >
-                <For each={wifiStrength ? wifiStrength((s) => wifiSignalBarClasses(s ?? 0)) : () => wifiSignalBarClasses(0)}>
+                <For each={estadoWifi((s) => wifiSignalBarClasses(s.intensidad))}>
                   {(classes) => <box cssClasses={classes} valign={Gtk.Align.END} />}
                 </For>
               </box>
@@ -4485,6 +4486,7 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
 function QsWifiMenu({ onBack }: { onBack: () => void }) {
   const network = AstalNetwork.get_default()
   const wifi = network.wifi
+  const estadoWifi = observarEstadoWifi()
   const [scanning, setScanning] = createState(false)
   const abrirEditorConexiones = () => {
     execAsync("nm-connection-editor").catch((error) => {
@@ -4539,9 +4541,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   const [passwordStr, setPasswordStr] = createState("")
   const [passwordError, setPasswordError] = createState(false)
   const [wifiNotice, setWifiNotice] = createState("")
-  const ssidConectado = () => wifi.enabled && wifi.state === AstalNetwork.DeviceState.ACTIVATED
-    ? wifi.ssid || ""
-    : ""
+  const ssidConectado = () => estadoWifi.get().conectada ? estadoWifi.get().ssid : ""
   const [wifiState, setWifiState] = createState({ ssid: ssidConectado(), connecting: null as string | null })
   const [savedSsids, setSavedSsids] = createState<string[]>([])
   const [search, setSearch] = createState("")
@@ -4681,16 +4681,16 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
   wifi.connect("notify::active-access-point", () => {
     if (!inWifiView()) return
     actualizarPuntosAcceso()
-    sincronizarWifi()
   })
-  wifi.connect("notify::ssid", () => {
+  let conectadaAnterior = estadoWifi.get().conectada
+  onCleanup(estadoWifi.subscribe(() => {
+    const conectada = estadoWifi.get().conectada
+    const antes = conectadaAnterior
+    conectadaAnterior = conectada
     if (!inWifiView()) return
-    sincronizarWifi()
-  })
-  wifi.connect("notify::state", () => {
-    if (inWifiView()) sincronizarWifi()
-    if (wifi.enabled && wifi.state === AstalNetwork.DeviceState.ACTIVATED) comprobarConectividad()
-  })
+    if (wifiState.get().ssid !== ssidConectado()) sincronizarWifi()
+    if (conectada && !antes) comprobarConectividad()
+  }))
   wifi.connect("notify::enabled", () => {
     if (!inWifiView()) return
     sincronizarWifi(wifi.enabled ? wifiState().connecting : null)
@@ -4747,6 +4747,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
       return
     }
     actualizarPuntosAcceso()
+    refrescarEstadoWifi()
     sincronizarWifi()
     updateSaved()
     // Con la radio apagada no tiene sentido escanear ni sondear conectividad:

@@ -40,6 +40,8 @@ interface PowerConfig {
   brightnessMode: BrilloAhorroModo
   brightnessPct: number        // target brightness (0..100) while power-save is on, modo "fijo"
   brightnessDropPct: number    // puntos porcentuales que se restan al brillo actual, modo "relativo"
+  reduceRefresh: boolean       // when true, monitors drop to `refreshHz` during power-save
+  refreshHz: number            // tasa de refresco (Hz) a la que bajan los monitores durante el ahorro
   tlpAuto: boolean             // when true, the TLP profile switches to "ahorro" during power-save
   idleOverride: boolean        // when true, hypridle timeouts are replaced by the three below
   idleDpms: TiempoAhorro       // screen off
@@ -128,6 +130,10 @@ const DEFAULTS: PowerConfig = {
   brightnessMode: "fijo",
   brightnessPct: 40,
   brightnessDropPct: 20,
+  // Apagado por defecto por lo mismo que el brillo: se nota (el ratón y las animaciones
+  // dejan de ir a 240 Hz) y una medida que se nota tiene que pedirse.
+  reduceRefresh: false,
+  refreshHz: 60,
   tlpAuto: false,
   idleOverride: false,
   idleDpms: { min: 2, on: true },
@@ -182,6 +188,9 @@ function loadConfig(): PowerConfig {
         brightnessPct: typeof data.brightnessPct === "number" ? clampPct(data.brightnessPct) : DEFAULTS.brightnessPct,
         brightnessDropPct: typeof data.brightnessDropPct === "number"
           ? clampPct(data.brightnessDropPct) : DEFAULTS.brightnessDropPct,
+        reduceRefresh: typeof data.reduceRefresh === "boolean" ? data.reduceRefresh : DEFAULTS.reduceRefresh,
+        refreshHz: typeof data.refreshHz === "number" && data.refreshHz >= 1 && data.refreshHz <= 1000
+          ? Math.round(data.refreshHz) : DEFAULTS.refreshHz,
         tlpAuto: typeof data.tlpAuto === "boolean" ? data.tlpAuto : DEFAULTS.tlpAuto,
         idleOverride: typeof data.idleOverride === "boolean" ? data.idleOverride : DEFAULTS.idleOverride,
         idleDpms: leerTiempo(data.idleDpms, DEFAULTS.idleDpms),
@@ -256,6 +265,8 @@ export const [reduceBrightnessInPowerSave, _setReduceBrightness] = createState(i
 export const [powerSaveBrightnessMode, _setBrightnessMode] = createState(initial.brightnessMode)
 export const [powerSaveBrightnessPct, _setBrightnessPct] = createState(initial.brightnessPct)
 export const [powerSaveBrightnessDropPct, _setBrightnessDropPct] = createState(initial.brightnessDropPct)
+export const [reduceRefreshInPowerSave, _setReduceRefresh] = createState(initial.reduceRefresh)
+export const [powerSaveRefreshHz, _setRefreshHz] = createState(initial.refreshHz)
 export const [tlpAutoInPowerSave, _setTlpAuto] = createState(initial.tlpAuto)
 export const [idleOverrideInPowerSave, _setIdleOverride] = createState(initial.idleOverride)
 export const [idleDpmsAhorro, _setIdleDpms] = createState(initial.idleDpms)
@@ -320,6 +331,8 @@ function persistAhora() {
       brightnessMode: powerSaveBrightnessMode.get(),
       brightnessPct: powerSaveBrightnessPct.get(),
       brightnessDropPct: powerSaveBrightnessDropPct.get(),
+      reduceRefresh: reduceRefreshInPowerSave.get(),
+      refreshHz: powerSaveRefreshHz.get(),
       tlpAuto: tlpAutoInPowerSave.get(),
       idleOverride: idleOverrideInPowerSave.get(),
       idleDpms: idleDpmsAhorro.get(),
@@ -411,6 +424,18 @@ export function setPowerSaveBrightnessPct(v: number) {
 }
 export function setPowerSaveBrightnessDropPct(v: number) {
   _setBrightnessDropPct(clampPct(v))
+  recompute()
+  persist()
+}
+export function setReduceRefreshInPowerSave(v: boolean) {
+  _setReduceRefresh(v)
+  recompute()
+  persist()
+}
+export function setPowerSaveRefreshHz(v: number) {
+  const n = Math.round(v)
+  if (!Number.isFinite(n) || n < 1 || n > 1000) return
+  _setRefreshHz(n)
   recompute()
   persist()
 }

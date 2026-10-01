@@ -167,6 +167,12 @@ export function saveMonitorPref(description: string, pref: MonitorPref) {
   saveDisplayConfigNow()
 }
 
+// Modo que el ahorro reemplazó en cada monitor (clave = nombre de conector) y al que hay que
+// volver al salir. Solo RAM y a propósito: el cambio del ahorro es en vivo y NO toca
+// `monitorPrefs`/display.json, así que un AGS que muera con el ahorro puesto no deja
+// residuo — el siguiente `hyprctl reload` o inicio de sesión repone los Hz de siempre.
+export const modoAntesDelAhorro = new Map<string, string>()
+
 // ── Poller de monitores (ref-counted) ────────────────────────────────────────
 export const [monitors, setMonitors] = createState<any[]>([])
 let lastSig = ""
@@ -237,8 +243,12 @@ export function releasePoll() {
 // Aplica un patch parcial a un monitor: resuelve pref completa, persiste, emite
 // hyprctl y refresca. `position` sale de patch.position o del estado actual.
 export function applyPatch(mon: any, patch: Partial<MonitorPref>) {
+  // Un modo elegido a mano durante el ahorro manda: el ahorro deja de tener nada que
+  // devolver. Sin modo en el patch (p. ej. cambiar la escala) se persiste el modo NORMAL,
+  // no el de ahorro, que si no acabaría en display.json como si lo hubiera elegido el usuario.
+  if (patch.mode !== undefined) modoAntesDelAhorro.delete(mon.name)
   const resolved: MonitorPref = {
-    mode: patch.mode ?? `${mon.width}x${mon.height}@${mon.refreshRate.toFixed(2)}Hz`,
+    mode: patch.mode ?? modoAntesDelAhorro.get(mon.name) ?? `${mon.width}x${mon.height}@${mon.refreshRate.toFixed(2)}Hz`,
     scale: patch.scale ?? mon.scale,
     vrr: patch.vrr ?? mon.vrr,
     enabled: patch.enabled ?? !mon.disabled,
@@ -261,6 +271,25 @@ export function applyPatch(mon: any, patch: Partial<MonitorPref>) {
   saveMonitorPref(mon.description, resolved)
   // Bajo config Lua no existe `hyprctl keyword`: el cambio en vivo va por eval.
   execAsync(["hyprctl", "eval", `hl.monitor(${spec})`]).catch(() => {})
+    .then(() => { GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => { refreshMonitors(); return GLib.SOURCE_REMOVE }) })
+}
+
+// Cambia el modo de un monitor SOLO EN VIVO: como `applyPatch` pero sin `saveMonitorPref`.
+// Lo usa el modo ahorro, cuyo modo no es una preferencia del usuario y no debe llegar a disco.
+export function aplicarModoTemporal(mon: any, modeString: string): Promise<unknown> {
+  const position = `${mon.x}x${mon.y}`
+  const pref: MonitorPref = {
+    ...monitorPrefs[mon.description],
+    mode: modeString,
+    scale: mon.scale,
+    vrr: mon.vrr,
+    enabled: !mon.disabled,
+    mirrorOf: mon.mirrorOf ?? "none",
+    transform: mon.transform ?? 0,
+    position,
+  }
+  const spec = buildMonitorSpecLua({ name: mon.name, position, pref })
+  return execAsync(["hyprctl", "eval", `hl.monitor(${spec})`]).catch(() => {})
     .then(() => { GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => { refreshMonitors(); return GLib.SOURCE_REMOVE }) })
 }
 

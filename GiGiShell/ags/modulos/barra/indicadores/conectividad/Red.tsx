@@ -6,6 +6,7 @@ import { barrasActivas, clasesBarraRed, determinarTipoRed } from "./datosRed"
 import type { CalidadRed, TipoRed } from "./datosRed"
 import type { EstadoVisibilidadBarra } from "../../../../estado/visibilidadBarra"
 import { tituloBarra } from "../../componentes/tituloBarra"
+import { observarEstadoWifi, refrescarEstadoWifi } from "../../../../servicios/red/estadoWifi"
 
 const GLIFO_ETHERNET = "󰈀"
 const INDICES_BARRAS = [0, 1, 2, 3]
@@ -19,9 +20,10 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
   const P = AstalNetwork.Primary
   const C = AstalNetwork.Connectivity
   const DS = AstalNetwork.DeviceState
+  const estadoWifi = observarEstadoWifi()
 
   const cableActivo = () => !!red.wired && red.wired.state === DS.ACTIVATED
-  const wifiActiva = () => !!red.wifi?.enabled && red.wifi.state === DS.ACTIVATED
+  const wifiActiva = () => estadoWifi.get().conectada
   const tipoPrimario = (): "wired" | "wifi" | "unknown" =>
     red.primary === P.WIRED ? "wired" : red.primary === P.WIFI ? "wifi" : "unknown"
   const calcularTipo = () => determinarTipoRed(tipoPrimario(), cableActivo(), wifiActiva())
@@ -35,7 +37,7 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
     const sufijo = calidad === "portal" ? " · Inicia sesión (portal cautivo)"
       : calidad === "limited" ? " · Sin internet" : ""
     if (tipo === "wired") return `Ethernet${sufijo}`
-    if (tipo === "wifi") return `${red.wifi?.ssid || "Wi-Fi"}${sufijo}`
+    if (tipo === "wifi") return `${estadoWifi.get().ssid || "Wi-Fi"}${sufijo}`
     return "Sin conexión"
   }
   const obtenerInstantanea = () => {
@@ -50,12 +52,12 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
 
   const [instantanea, establecerInstantanea] = createState(obtenerInstantanea())
   const [cantidadBarras, establecerCantidadBarras] = createState(
-    instantanea().tipo === "wifi" ? barrasActivas(red.wifi?.strength ?? 0) : 0,
+    instantanea().tipo === "wifi" ? barrasActivas(estadoWifi.get().intensidad) : 0,
   )
   const sincronizar = () => {
     const dato = obtenerInstantanea()
     establecerInstantanea(dato)
-    establecerCantidadBarras(dato.tipo === "wifi" ? barrasActivas(red.wifi?.strength ?? 0) : 0)
+    establecerCantidadBarras(dato.tipo === "wifi" ? barrasActivas(estadoWifi.get().intensidad) : 0)
   }
   const actualizarVisible = () => { if (visibilidad.visible.get()) sincronizar() }
   const comprobarConectividadInicial = () => {
@@ -72,17 +74,7 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
     }
   }
 
-  let desconectarWifi: (() => void) | null = null
   let desconectarCable: (() => void) | null = null
-  const enlazarWifi = () => {
-    desconectarWifi?.()
-    desconectarWifi = red.wifi
-      ? cicloVida.conectarSenales(red.wifi, ["notify::strength", "notify::ssid", "notify::internet", "notify::enabled", "notify::state"], () => {
-          actualizarVisible()
-          comprobarConectividadInicial()
-        })
-      : null
-  }
   const enlazarCable = () => {
     desconectarCable?.()
     desconectarCable = red.wired
@@ -92,13 +84,12 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
         })
       : null
   }
-  enlazarWifi()
   enlazarCable()
+  cicloVida.suscribir(estadoWifi, () => { actualizarVisible(); comprobarConectividadInicial() })
   cicloVida.conectarSenales(red, ["notify::connectivity", "notify::primary"], actualizarVisible)
-  cicloVida.conectarSenales(red, ["notify::wifi"], () => { enlazarWifi(); actualizarVisible(); comprobarConectividadInicial() })
   cicloVida.conectarSenales(red, ["notify::wired"], () => { enlazarCable(); actualizarVisible(); comprobarConectividadInicial() })
   cicloVida.suscribir(visibilidad.refrescar, () => {
-    if (visibilidad.refrescar.get()) sincronizar()
+    if (visibilidad.refrescar.get()) { refrescarEstadoWifi(); sincronizar() }
   })
   comprobarConectividadInicial()
 

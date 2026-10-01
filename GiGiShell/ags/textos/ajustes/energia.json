@@ -7,6 +7,7 @@
     "modoAhorro": "Comportamiento durante el ahorro",
     "tlp": "Perfil de energía TLP",
     "brilloAhorro": "Brillo durante el ahorro",
+    "refrescoAhorro": "Refresco de pantalla durante el ahorro",
     "inactividadAhorro": "Inactividad durante el ahorro",
     "suspensionFalsa": "Suspensión falsa",
     "suspensionFalsaApps": "Apps que se congelan en la suspensión falsa",
@@ -56,6 +57,13 @@
     "nivel": "Bajar el brillo hasta",
     "tooltip": "Editar el brillo del modo ahorro",
     "sinSoporte": "En este equipo no se ha detectado ningún control de brillo (ni panel interno ni DDC/CI), así que este ajuste no puede aplicarse."
+  },
+  "refresco": {
+    "titulo": "Bajar la tasa de refresco",
+    "descripcion": "Al entrar en modo ahorro pone los monitores a los Hz que elijas y devuelve los de siempre al salir. Una pantalla a 60 Hz en vez de 144 o 240 dibuja muchos menos fotogramas por segundo, y cada uno lo tiene que componer la GPU. Solo baja: un monitor que ya va a esos Hz o a menos no se toca. Si cambias la frecuencia a mano durante el ahorro, manda la tuya.",
+    "nivel": "Refresco durante el ahorro",
+    "hz": "{{hz}} Hz",
+    "sinModos": "No se han podido leer los modos de los monitores, así que no hay frecuencias entre las que elegir."
   },
   "inactividadAhorro": {
     "titulo": "Usar tiempos de inactividad más cortos",

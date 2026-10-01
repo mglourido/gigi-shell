@@ -24,6 +24,8 @@ import {
   powerSaveBrightnessMode, setPowerSaveBrightnessMode,
   powerSaveBrightnessPct, setPowerSaveBrightnessPct,
   powerSaveBrightnessDropPct, setPowerSaveBrightnessDropPct,
+  reduceRefreshInPowerSave, setReduceRefreshInPowerSave,
+  powerSaveRefreshHz, setPowerSaveRefreshHz,
   tlpAutoInPowerSave, setTlpAutoInPowerSave,
   powerSaveActive, batteryStatusText,
 } from "../../../servicios/energia/powerState.ts"
@@ -59,6 +61,8 @@ import {
   type AccionTapa,
 } from "../../../servicios/energia/tapaPortatil.ts"
 import { DisplaySelect } from "../../../servicios/pantalla/controls"
+import { monitors, acquirePoll, releasePoll } from "../../../servicios/pantalla/service.ts"
+import { formatearTexto } from "../../../textos/formatear.ts"
 
 /** Deslizador de porcentaje entero atado a un estado. Lo comparten el umbral de batería,
  *  el brillo del ahorro y el apagado preventivo. Lo comparten el umbral de batería
@@ -344,6 +348,50 @@ function TarjetaMenuEnergia() {
   )
 }
 
+/** Hz elegibles: la unión de las tasas de todos los monitores, de mayor a menor. Con la
+ *  frecuencia guardada siempre presente aunque ningún monitor la ofrezca ahora (un monitor
+ *  desenchufado): si no, el selector mostraría un valor que no es el que se va a aplicar. */
+function hzDisponibles(lista: any[], elegido: number): number[] {
+  const hz = new Set<number>([elegido])
+  for (const m of lista)
+    for (const modo of (m.availableModes ?? []) as string[]) {
+      const r = modo.match(/@([\d.]+)Hz$/)
+      if (r) hz.add(Math.round(parseFloat(r[1])))
+    }
+  return [...hz].sort((a, b) => b - a)
+}
+
+function TarjetaRefresco() {
+  // El selector se alimenta de `monitors`, que solo se sondea mientras alguien lo pide.
+  acquirePoll()
+  onCleanup(() => releasePoll())
+  return (
+    <TarjetaAjustes titulo={textos.grupos.refrescoAhorro} icono="󰍹">
+      <AjusteInterruptor
+        titulo={textos.refresco.titulo}
+        informacion={textos.refresco.descripcion}
+        activo={reduceRefreshInPowerSave}
+        alAlternar={() => setReduceRefreshInPowerSave(!reduceRefreshInPowerSave.get())}
+      />
+      <box
+        orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand
+        visible={reduceRefreshInPowerSave}
+      >
+        <TituloAjuste label={textos.refresco.nivel} halign={Gtk.Align.START} />
+        <box cssClasses={["sp-field"]} widthRequest={320} hexpand={false} halign={Gtk.Align.START}>
+          <DisplaySelect
+            current={powerSaveRefreshHz((hz) => formatearTexto(textos.refresco.hz, { hz }))}
+            options={createComputed(() => hzDisponibles(monitors(), powerSaveRefreshHz()).map((hz) => ({
+              label: formatearTexto(textos.refresco.hz, { hz }), value: String(hz), active: hz === powerSaveRefreshHz(),
+            })))}
+            onSelect={(v) => setPowerSaveRefreshHz(Number(v))}
+          />
+        </box>
+      </box>
+    </TarjetaAjustes>
+  )
+}
+
 export default function SeccionEnergia() {
   const summaryClass = powerSaveActive((active) =>
     active ? ["sp-energy-summary", "active"] : ["sp-energy-summary"]
@@ -507,6 +555,8 @@ export default function SeccionEnergia() {
           />
         </box>
       </TarjetaAjustes>
+
+      <TarjetaRefresco />
 
       <TarjetaBotonEncendido />
 

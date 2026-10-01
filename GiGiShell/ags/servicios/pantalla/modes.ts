@@ -44,6 +44,20 @@ export function parseAvailableModes(modes: string[]): ParsedModes {
   return { resolutions }
 }
 
+// Modo de `availableModes` con la resolución `w`x`h` y la tasa más cercana a `hz`
+// (empate → la más baja, que es la que gasta menos). `null` si esa resolución no existe.
+export function modoMasCercanoAHz(modes: string[], w: number, h: number, hz: number): string | null {
+  const res = parseAvailableModes(modes).resolutions.find(r => r.w === w && r.h === h)
+  if (!res) return null
+  let mejor = res.refreshRates[0]
+  for (const r of res.refreshRates) {
+    const d = Math.abs(parseFloat(r.raw) - hz)
+    const dm = Math.abs(parseFloat(mejor.raw) - hz)
+    if (d < dm || (d === dm && parseFloat(r.raw) < parseFloat(mejor.raw))) mejor = r
+  }
+  return mejor.modeString
+}
+
 export const SCALE_PRESETS = [1.0, 1.25, 1.33, 1.5, 1.75, 2.0]
 
 export const TRANSFORMS: { value: number; label: string }[] = [
