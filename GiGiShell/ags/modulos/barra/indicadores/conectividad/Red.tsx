@@ -1,4 +1,5 @@
 import AstalNetwork from "gi://AstalNetwork"
+import GLib from "gi://GLib"
 import { For, createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import { crearCicloVida } from "../../../../utilidades/cicloVida"
@@ -13,6 +14,53 @@ const INDICES_BARRAS = [0, 1, 2, 3]
 // NM puede entregar el dispositivo activado antes de completar su primer chequeo.
 // Una sola consulta compartida adelanta el veredicto sin bloquear ni duplicarlo por monitor.
 let comprobacionInicialLanzada = false
+
+// Portal cautivo: tras iniciar sesión en él, NM no se entera hasta su siguiente chequeo,
+// y mientras no ve conectividad total reintenta con backoff hasta `interval` (300 s por
+// defecto). Lo único que forzaba un chequeo era abrir la vista Wi-Fi de Quick Settings,
+// así que el glifo de la barra se quedaba en «Inicia sesión» varios minutos con la
+// sesión ya iniciada. Mientras dure PORTAL/LIMITED se pide un chequeo cada pocos
+// segundos; con FULL (o sin red) el temporizador se retira. Uno solo para todas las
+// barras: el veredicto es de NM, no de cada monitor.
+const INTERVALO_PORTAL_S = 10
+let sondeoPortal = 0
+let chequeoEnCurso = false
+let vigilanciaPortalInstalada = false
+
+function vigilarPortal(red: AstalNetwork.Network) {
+  if (vigilanciaPortalInstalada) return
+  vigilanciaPortalInstalada = true
+  const C = AstalNetwork.Connectivity
+  const pendiente = () => red.connectivity === C.PORTAL || red.connectivity === C.LIMITED
+  const chequear = () => {
+    if (chequeoEnCurso) return
+    chequeoEnCurso = true
+    try {
+      red.client.check_connectivity_async(null, (_cliente, resultado) => {
+        chequeoEnCurso = false
+        try { red.client.check_connectivity_finish(resultado) }
+        catch (error) { console.warn("No se pudo recomprobar la conectividad:", error) }
+      })
+    } catch (error) {
+      chequeoEnCurso = false
+      console.warn("No se pudo iniciar la recomprobación de conectividad:", error)
+    }
+  }
+  const revisar = () => {
+    if (pendiente() && !sondeoPortal) {
+      sondeoPortal = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, INTERVALO_PORTAL_S, () => {
+        if (!pendiente()) { sondeoPortal = 0; return GLib.SOURCE_REMOVE }
+        chequear()
+        return GLib.SOURCE_CONTINUE
+      })
+    } else if (!pendiente() && sondeoPortal) {
+      GLib.source_remove(sondeoPortal)
+      sondeoPortal = 0
+    }
+  }
+  red.connect("notify::connectivity", revisar)
+  revisar()
+}
 
 export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBarra }) {
   const cicloVida = crearCicloVida()
@@ -92,6 +140,7 @@ export default function Red({ visibilidad }: { visibilidad: EstadoVisibilidadBar
     if (visibilidad.refrescar.get()) { refrescarEstadoWifi(); sincronizar() }
   })
   comprobarConectividadInicial()
+  vigilarPortal(red)
 
   return (
     <box

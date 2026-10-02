@@ -180,7 +180,15 @@ export default function Actualizaciones({
           halign={Gtk.Align.CENTER}
           valign={Gtk.Align.CENTER}
         >
-          <label cssClasses={["upd-icon"]} label={meta.icon} />
+          {/* Centrado igual que la campana: la pastilla mide más que el glifo
+              (`min-width`) y una Gtk.Box deja al hijo pegado a la izquierda. */}
+          <label
+            cssClasses={["upd-icon"]}
+            label={meta.icon}
+            hexpand
+            halign={Gtk.Align.CENTER}
+            valign={Gtk.Align.CENTER}
+          />
         </box>
       </button>
     )
