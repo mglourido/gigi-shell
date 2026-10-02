@@ -431,6 +431,13 @@ EOF
       fail "configuración de shell compartida con rutas de este equipo: $shared_file (va en el fichero local)"
     fi
   done
+  # Con ZDOTDIR=~/.config/zsh estos no se leen; un instalador que escribe en ellos
+  # (bun usa $HOME/.zshrc fijo) deja su PATH sin aplicar y sin error. ~/.zshrc lo
+  # enlaza shell-local.sh al local (y lo comprueba arriba); los otros dos, aviso.
+  for zsh_huerfano in "$HOME/.zprofile" "$HOME/.zlogin"; do
+    [[ -f "$zsh_huerfano" ]] && grep -qvE '^[[:space:]]*(#|$)' "$zsh_huerfano" \
+      && warn "$zsh_huerfano no lo lee zsh (ZDOTDIR=~/.config/zsh): pasa sus líneas a ~/.config/zsh/.zshenv o .zshrc"
+  done
   bash -n "$HOME/.config/bash/bashrc" 2>/dev/null || fail "sintaxis Bash: ~/.config/bash/bashrc"
   for zsh_file in "$HOME/.zshenv" "$HOME/.config/zsh/gigishell.zshenv" "$HOME/.config/zsh/gigishell.zshrc" \
     "$HOME/.config/zsh/.zshenv" "$HOME/.config/zsh/.zshrc" "$HOME/.config/zsh/functions/"*.zsh; do

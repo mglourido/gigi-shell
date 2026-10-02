@@ -33,6 +33,15 @@ instalador escribiría en el generado y la siguiente regeneración lo borraría.
   `~/.bun`, `fnm`, `opam`, `depot_tools`…), rutas con el nombre de usuario y
   cualquier ajuste de un solo equipo.
 
+**`~/.zshrc` es un symlink a `$ZDOTDIR/.zshrc`.** `~/.zshenv` fija
+`ZDOTDIR=~/.config/zsh`, así que zsh no lee `~/.zshrc`; pero algunos instaladores
+escriben ahí sin mirar `ZDOTDIR` (el de bun tiene `$HOME/.zshrc` fijo) y su `PATH`
+no se aplicaría, sin ningún error. Con el symlink, lo que añaden con `>>` cae en
+el local. Lo crea `shell-local.sh`; si ya hay un `~/.zshrc` con contenido solo
+avisa, y `--force` lo respalda y lo enlaza. Un instalador que lo edite con
+`sed -i` rompe el symlink (lo deja como fichero normal) y vuelve el aviso.
+`~/.zprofile` y `~/.zlogin` tampoco se leen: si tienen contenido, se avisa.
+
 `bin/preflight.sh --installed` falla si el compartido contiene rutas de ese tipo
 fuera de comentarios (`/home/`, `.cargo/`, `.bun`, `opam-init`, `fnm env`,
 `depot_tools`).

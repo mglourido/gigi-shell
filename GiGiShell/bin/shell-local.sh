@@ -147,4 +147,39 @@ for entrada in "${LOCALES[@]}"; do
   fi
 done
 
+# ~/.zshenv fija ZDOTDIR=~/.config/zsh, así que zsh NO lee ~/.zshrc ni ~/.zprofile.
+# Hay instaladores que escriben ahí sin mirar ZDOTDIR (bun lo tiene fijo a
+# $HOME/.zshrc): lo que añaden no se aplicaría nunca, sin ningún error. Por eso
+# ~/.zshrc es un symlink al local: lo que añadan con `>>` cae donde zsh lee.
+# Uno con contenido no se reemplaza sin --force (que lo respalda): puede traer
+# otra configuración entera (el de /etc/skel de CachyOS carga la suya) y
+# fundirlo a ciegas la duplicaría. Un `sed -i` sobre el symlink lo convierte en
+# fichero normal; entonces vuelve a salir el aviso.
+zshrc_home="$HOME/.zshrc" zshrc_local="$HOME/.config/zsh/.zshrc"
+if [[ -L "$zshrc_home" && "$(readlink -f "$zshrc_home")" == "$(readlink -f "$zshrc_local")" ]]; then
+  echo "OK    $zshrc_home -> $zshrc_local"
+elif [[ -e "$zshrc_home" || -L "$zshrc_home" ]] && grep -qvE '^[[:space:]]*(#|$)' "$zshrc_home" 2>/dev/null \
+  && [[ "$mode" != force ]]; then
+  echo "WARN  $zshrc_home no lo lee zsh (ZDOTDIR=~/.config/zsh): pasa sus líneas útiles"
+  echo "      a ~/.config/zsh/.zshenv (PATH) o .zshrc, o usa --force (lo respalda y lo enlaza)."
+  status=1
+elif [[ "$mode" == check ]]; then
+  echo "FALTA $zshrc_home -> $zshrc_local"; status=1
+else
+  if [[ -e "$zshrc_home" || -L "$zshrc_home" ]]; then
+    mkdir -p "$LINK_BACKUP"
+    mv "$zshrc_home" "$LINK_BACKUP/.zshrc"
+    echo "BACKUP $zshrc_home -> $LINK_BACKUP/.zshrc"
+  fi
+  ln -s "$zshrc_local" "$zshrc_home"
+  echo "LINK  $zshrc_home -> $zshrc_local"
+fi
+
+for huerfano in "$HOME/.zprofile" "$HOME/.zlogin"; do
+  [[ -f "$huerfano" ]] || continue
+  grep -qvE '^[[:space:]]*(#|$)' "$huerfano" || continue
+  echo "WARN  $huerfano no lo lee zsh (ZDOTDIR=~/.config/zsh): pasa sus líneas útiles"
+  echo "      a ~/.config/zsh/.zshenv (PATH) o .zshrc y borra el fichero."
+done
+
 exit $status
