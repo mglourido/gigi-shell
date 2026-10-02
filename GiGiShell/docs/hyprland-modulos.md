@@ -231,6 +231,19 @@ La tarjeta meteorológica se añade mediante `hyprlock-tiempo.conf` solo si
 Open-Meteo ocurre después de aparecer el bloqueo y se repite cada diez minutos;
 si no hay red, la tarjeta muestra que el dato no está disponible.
 
+**Tres fallos seguidos bloquean la cuenta, y hyprlock no lo dice.** `/etc/pam.d/hyprlock` pasa por
+`system-auth`, que lleva `pam_faillock` con los valores de fábrica (`deny=3`, `unlock_time=600`):
+tras tres intentos fallidos rechaza **también la contraseña correcta** durante 10 minutos. Pasó al
+aporrear el teclado (cada Enter es un intento). hyprlock 0.9.6 solo manda el `PAM_ERROR_MSG` del
+módulo a su log, así que `$FAIL` dice "Authentication failed" y parece que la contraseña está mal.
+Una etiqueta de `hyprlock.conf` llama cada segundo a `hypr/scripts/hyprlock-faillock.sh`, que lee
+el contador (`faillock --user`) con el mismo criterio que el módulo y, mientras dura el bloqueo,
+**tapa el campo** con la cuenta atrás. Tapa, no desactiva: hyprlock no tiene forma de ignorar el
+teclado desde la config, pero lo que se teclee entonces no cuenta, porque `pam_faillock authfail`
+no apunta fallos con la cuenta ya bloqueada. Las medidas de la tapa están en el script. Desbloquear
+antes de tiempo, desde un TTY: `faillock --user $USER --reset`. El contador vive en `/run`, así que
+reiniciar también lo borra.
+
 **La guarda de instancia única se mudó al script, y ahora es una sola.** hyprlock no la tiene
 (0.9.6: ni siquiera una cadena "already running" en el binario), así que llamarlo con uno ya puesto
 arranca un segundo proceso encima del bloqueo — y duplicarlo pasa solo: el listener bloquea a los
