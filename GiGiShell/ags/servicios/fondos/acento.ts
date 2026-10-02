@@ -60,7 +60,7 @@ import GLib from "gi://GLib"
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import { acentoAdaptativoEnabled } from "../../modulos/ajustes/preferences"
-import { currentWallpaper } from "../../modulos/orion/data/wallpaperConfig"
+import { currentWallpaper, releerEstadoFondo } from "../../modulos/orion/data/wallpaperConfig"
 import {
   buscarEntrada, conEntrada, leerEntradas, sello, serializarEntradas,
   type EntradaAcento,
@@ -74,6 +74,12 @@ const CACHE = `${GLib.get_user_cache_dir()}/gigishell/acento-fondo.json`
  * única forma de distinguir ese caso: `execAsync` entrega stderr, no el código de
  * salida. Ver la nota de códigos de salida de `acento-fondo.py`. */
 const MARCA_SIN_ACENTO = "sin-acento"
+
+/** Hasta cuándo, desde que arranca AGS, no se lanza el `python3` del extractor: es
+ * lo que antes hacía el `setTimeout` de 4 s de `app.ts` para todo el módulo. Ahora
+ * solo frena la extracción; la caché se consulta en el acto. */
+const EXTRACCION_NO_ANTES_MS = 3000
+const ARRANQUE_US = GLib.get_monotonic_time()
 
 let arrancado = false
 let provider: Gtk.CssProvider | null = null
@@ -141,11 +147,73 @@ function pintar(hoja: string) {
   provider.load_from_string(hoja)
 }
 
+// ── Resultado del último trabajo ──────────────────────────────────────────────
+
+/** Cómo terminó el último cálculo. `fallo` y `salida-ilegible` son los únicos que
+ * dejan el shell SIN teñir por una causa que no es el fondo. */
+type Estado =
+  | "apagado" | "sin-fondo" | "cache" | "extraido" | "sin-acento"
+  | "fallo" | "salida-ilegible" | "error-interno"
+
+const ESTADO_PATH = `${GLib.get_user_cache_dir()}/gigishell/acento-estado.json`
+
+/**
+ * Deja escrito si el fondo actual se enfatizó o no, y por qué. Es la salida que
+ * faltaba: antes un fallo del extractor dejaba el tema de fábrica sin ningún rastro
+ * y era imposible distinguir "no hay acento" de "no se llegó a calcular".
+ * `GLib.file_set_contents` escribe a un temporal y renombra: nunca queda a medias.
+ */
+function registrar(estado: Estado, fondo: string, intentos: number, paleta: string[] | null, detalle = "") {
+  const datos = {
+    estado,
+    enfatizado: paleta !== null,
+    fondo,
+    acentos: paleta,
+    intentos,
+    detalle,
+    hora: new Date().toISOString(),
+  }
+  if (estado === "fallo" || estado === "salida-ilegible" || estado === "error-interno") {
+    console.error(`[acento] ${estado} (${intentos} intentos) ${fondo}: ${detalle}`)
+  }
+  try {
+    const dir = GLib.path_get_dirname(ESTADO_PATH)
+    if (!GLib.file_test(dir, GLib.FileTest.EXISTS)) GLib.mkdir_with_parents(dir, 0o755)
+    GLib.file_set_contents(ESTADO_PATH, JSON.stringify(datos, null, 2))
+  } catch (_) { /* el registro es informativo: nunca debe romper el cálculo */ }
+}
+
+/** Esperas entre reintentos del extractor. Un fallo del entorno suele ser pasajero
+ * (arranque con la CPU saturada, imagen a medio copiar tras cambiarla). */
+const REINTENTOS_MS = [1500, 4000]
+
+function pausa(ms: number): Promise<void> {
+  return new Promise((resolver) => {
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+      resolver()
+      return GLib.SOURCE_REMOVE
+    })
+  })
+}
+
+/** Punto de entrada: pase lo que pase dentro, nunca sale una promesa rechazada
+ * (como `void recalcular()` las tragaba sin dejar rastro) y el shell queda con el
+ * tema de fábrica, no a medio teñir. */
 async function recalcular() {
   const token = ++peticion
+  try {
+    await calcular(token)
+  } catch (error) {
+    if (token !== peticion) return
+    registrar("error-interno", currentWallpaper.get(), 0, null, String((error as Error)?.message ?? error))
+    try { pintar(hojaDePaleta(null)) } catch (_) { /* nada más que hacer */ }
+  }
+}
 
+async function calcular(token: number) {
   if (!acentoAdaptativoEnabled.get()) {
     pintar(hojaDePaleta(null))
+    registrar("apagado", "", 0, null)
     return
   }
 
@@ -154,7 +222,10 @@ async function recalcular() {
   // acento vigente: `wallpaper.json` se reescribe entero en cada cambio y el
   // monitor puede pillarlo a medias. Un parpadeo al azul por eso sería peor que
   // conservar un instante el color anterior, que además es el mismo casi siempre.
-  if (fondo === "") return
+  if (fondo === "") {
+    registrar("sin-fondo", "", 0, null, "wallpaper.json sin `current`")
+    return
+  }
 
   // La caché primero, y SIN pasar por el bucle de eventos: acertar tiene que ser
   // pintar en el acto. Un `await` aquí metería un fotograma con los colores del
@@ -164,29 +235,59 @@ async function recalcular() {
     const guardada = buscarEntrada(cargarCache(), fondo, selloActual)
     if (guardada !== null) {
       pintar(hojaDePaleta(guardada.acentos))
+      registrar("cache", fondo, 0, guardada.acentos)
       return
     }
   }
 
   let paleta: string[] | null = null
-  let cacheable = selloActual !== ""
-  try {
-    paleta = paletaDeSalida(await execAsync(["python3", EXTRACTOR, fondo]))
-    // Salida ilegible sin fallar (no debería pasar nunca): no se cachea, porque
-    // no sabemos si el problema es de la imagen o del momento.
-    cacheable = cacheable && paleta !== null
-  } catch (error) {
-    // rc != 0. Solo `sin-acento` es una propiedad de la IMAGEN y se puede guardar;
-    // lo demás (Pillow ausente, fichero a medio copiar) es del entorno y cachearlo
-    // dejaría el tema de fábrica clavado hasta vaciar la caché a mano.
-    paleta = null
-    cacheable = cacheable && String((error as Error)?.message ?? "").includes(MARCA_SIN_ACENTO)
+  let estado: Estado = "fallo"
+  let detalle = ""
+  let intentos = 0
+
+  // Reintentos: solo para fallos del ENTORNO (rc != 0 sin `sin-acento`, o una
+  // salida que no parsea). `sin-acento` es una propiedad de la imagen y no se
+  // reintenta. Cada espera comprueba el token: si el fondo cambió, esta petición
+  // ya no pinta nada y la nueva se encarga.
+  const espera = EXTRACCION_NO_ANTES_MS - (GLib.get_monotonic_time() - ARRANQUE_US) / 1000
+  if (espera > 0) {
+    await pausa(espera)
+    if (token !== peticion) return
   }
 
-  if (cacheable) guardarCache({ ruta: fondo, sello: selloActual, acentos: paleta })
+  for (;;) {
+    intentos++
+    try {
+      paleta = paletaDeSalida(await execAsync(["python3", EXTRACTOR, fondo]))
+      estado = paleta !== null ? "extraido" : "salida-ilegible"
+      detalle = paleta !== null ? "" : "el extractor salió con 0 pero la línea no es una paleta válida"
+    } catch (error) {
+      paleta = null
+      const mensaje = String((error as Error)?.message ?? error)
+      if (mensaje.includes(MARCA_SIN_ACENTO)) {
+        estado = "sin-acento"
+        detalle = "la imagen no tiene color suficiente"
+      } else {
+        estado = "fallo"
+        detalle = mensaje.trim().slice(0, 300)
+      }
+    }
+
+    if (estado === "extraido" || estado === "sin-acento") break
+    if (token !== peticion) return
+    if (intentos > REINTENTOS_MS.length) break
+    await pausa(REINTENTOS_MS[intentos - 1])
+    if (token !== peticion) return
+  }
+
+  // Solo se cachea lo que es propiedad de la imagen: una paleta buena o `sin-acento`.
+  if (selloActual !== "" && (estado === "extraido" || estado === "sin-acento")) {
+    guardarCache({ ruta: fondo, sello: selloActual, acentos: paleta })
+  }
 
   if (token !== peticion) return   // llegó tarde: manda una petición posterior
   pintar(hojaDePaleta(paleta))
+  registrar(estado, fondo, intentos, paleta, detalle)
 }
 
 /**
@@ -216,5 +317,9 @@ export function initAcentoAdaptativo() {
   currentWallpaper.subscribe(() => void recalcular())
   acentoAdaptativoEnabled.subscribe(() => void recalcular())
 
+  // Cambiar de fondo ANTES de este arranque (el `setTimeout` de 4 s) no avisaba a
+  // nadie: aún no había suscripción, y un aviso perdido del monitor de inotify en
+  // esa ventana dejaba el estado en memoria con el fondo viejo. Se relee del disco.
+  releerEstadoFondo()
   void recalcular()
 }

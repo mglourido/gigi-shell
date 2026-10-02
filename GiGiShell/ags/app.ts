@@ -198,6 +198,11 @@ app.start({
     // un segundo de pico y luego ~5/s). Asignar la propiedad aquí la fija para
     // esta app (fuente APPLICATION), sin tocar la preferencia del escritorio.
     try { Gtk.Settings.get_default()?.set_property("gtk-cursor-blink", false) } catch (_) {}
+    // Acento adaptativo ANTES de construir ventanas: con la caché en caliente (lo
+    // normal) acertar cuesta un `stat` y un JSON, así que las ventanas nacen ya
+    // teñidas en vez de recibir el color a los 4 s. Con la caché en frío el
+    // extractor espera por su cuenta a que pase el arranque (ver `acento.ts`).
+    try { initAcentoAdaptativo() } catch (e) { console.error("[app] initAcentoAdaptativo failed:", e) }
     app.get_monitors().flatMap(Barra)
     // Mascota puramente cosmética: se monta siempre (ventana barata, oculta por
     // `visible`) para que el toggle de Ajustes se aplique en caliente, igual
@@ -305,7 +310,7 @@ app.start({
       // reserva del tema —un tema completo, no un estado a medias— y esto solo lo
       // tiñe cuando el extractor conteste. Además lanza un `python3`, que es justo
       // lo que no debe competir con la construcción de las ventanas.
-      initAcentoAdaptativo()
+      // (Movido al inicio de main(): ver allí.)
       // Las tres medidas de ahorro que actúan sobre el SISTEMA (brillo del panel, perfil
       // de TLP y tiempos de hypridle). Van aquí por el mismo criterio: siembran del
       // ESTADO —`powerSaveActive` ya está resuelto y sus apuntes están en disco—, no de

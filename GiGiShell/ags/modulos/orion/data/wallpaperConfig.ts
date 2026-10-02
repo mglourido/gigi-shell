@@ -92,6 +92,10 @@ function cargarEstado() {
   _setCurrentGroup(typeof cfg.currentGroup === "string" ? cfg.currentGroup : "")
 }
 
+/** Relee `wallpaper.json` ahora. Para quien necesite el fondo REAL en un momento
+ * concreto sin fiarse de que el monitor no haya perdido un aviso. */
+export function releerEstadoFondo() { cargarEstado() }
+
 function cargarConfig() {
   _setWallpapersConfig(normalizar(leerJson(CONFIG_PATH)))
 }
