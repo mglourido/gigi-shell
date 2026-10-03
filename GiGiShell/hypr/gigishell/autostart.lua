@@ -234,7 +234,7 @@ hl.on("hyprland.start", function()
   -- una vez al año — puede esperar unos segundos.
   hl.exec_cmd("sleep 5.5 && ~/.config/hypr/scripts/disk-monitor.sh")
 
-  -- ── t=5..8 · lo caro ───────────────────────────────────────────────────────
+  -- ── t=3..8 · lo caro ───────────────────────────────────────────────────────
   -- Monitor de actualizaciones (SO + drivers GPU). Toca RED y sincroniza una BD
   -- temporal de pacman: lo último que quieres compitiendo con el arranque de la
   -- sesión.
@@ -246,7 +246,13 @@ hl.on("hyprland.start", function()
   -- entero en un sitio y para poder ejecutarlo a mano sin esperas. Además le da
   -- tiempo a systemd a terminar el boot: `systemd-analyze` falla si aún no ha
   -- acabado, y con él se perdía el aviso de arranque lento.
-  hl.exec_cmd("sleep 8 && ~/.config/hypr/scripts/boot-healthcheck.sh")
+  --
+  -- Ya no es un `sleep 8` fijo: `esperar-arranque.sh 3 8` vuelve en cuanto systemd
+  -- ha terminado Y hay ruta por defecto, nunca antes de 3 s ni después de 8. El
+  -- retardo fijo era el peor caso pagado siempre — medido aquí, las dos
+  -- condiciones se cumplen a t≈3 s y los avisos salían a t≈9,5 s. Sin red, o con
+  -- una que tarde, sale al vencer el tope: lo mismo que antes. Ver su cabecera.
+  hl.exec_cmd("~/.config/hypr/scripts/esperar-arranque.sh 3 8; ~/.config/hypr/scripts/boot-healthcheck.sh")
 
   -- Firmas de ClamAV. **Este es el ÚNICO sitio del sistema que actualiza firmas solo**, y
   -- sustituye al periodo de `clamav-freshclam`: en vez de un servicio que despierta cada N

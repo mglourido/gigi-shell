@@ -4271,8 +4271,9 @@ caminos con dos criterios distintos para la misma operación irreversible.
 
 ### Comprobación de arranque (`boot-healthcheck.sh`)
 
-Es el `exec-once` más caro del arranque —de ahí que vaya al final del calendario escalonado, a
-`t=30` (ver la sección de `gigishell/autostart.lua` más arriba)— y por eso está pensado para ser **silencioso
+Es el `exec-once` más caro del arranque —de ahí que no salga a t=0: lo retiene
+`esperar-arranque.sh 3 8` hasta que systemd ha terminado y hay ruta por defecto, entre 3 y 8 s (ver
+la sección de `gigishell/autostart.lua` más arriba)— y por eso está pensado para ser **silencioso
 en una máquina sana**: solo notifica por categoría cuando encuentra un problema, y todo (incluida la
 pasada limpia) queda en `hypr/logs/boot-healthcheck.log` (ignorado por git, ver `.gitignore`).
 Ejecutado a mano responde al instante — el retraso lo pone quien lo lanza, no el script.
