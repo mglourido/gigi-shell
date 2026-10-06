@@ -611,6 +611,12 @@ install_packages() {
     # y mpv abre la vista previa. Haruna ya traía mpv indirectamente, pero el shell lo
     # ejecuta directamente y debe declararlo por sí mismo.
     v4l-utils psmisc mpv
+    # python-pillow: lo importa ags/scripts/acento-fondo.py, el extractor de «Enfatizar
+    # fondo de escritorio». Nunca estuvo declarado: llegaba como dependencia de otro paquete
+    # y una limpieza de huérfanos se lo llevó (2026-10-02). El extractor sale con 1, el shell
+    # se queda con la paleta de fábrica y el ajuste parece colgado, sin ningún aviso en
+    # pantalla. Declarado aquí queda marcado como explícito y deja de ser huérfano.
+    python-pillow
     # libcanberra: reproduce el `sound-name` de las notificaciones (alarmas y temporizador del
     # panel de reloj). Sin él la alerta se ve pero no suena, sin error visible.
     libcanberra

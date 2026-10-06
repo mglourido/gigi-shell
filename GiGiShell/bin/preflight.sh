@@ -255,6 +255,11 @@ if [[ "$mode" == "--installed" ]]; then
       || fail "falta '$command' (Arch/CachyOS: sudo pacman -S --needed $package)"
   done
 
+  # Pillow no trae ningún comando, así que la tabla de arriba no puede verlo: se prueba
+  # el import. Sin él, «Enfatizar fondo de escritorio» deja el tema de fábrica sin avisar.
+  python3 -c 'import PIL' >/dev/null 2>&1 \
+    || fail "falta el módulo Python 'PIL' (Arch/CachyOS: sudo pacman -S --needed python-pillow)"
+
   # gigishell-eventd es opcional (sin él, oom-monitor.sh corre en bash), así que su
   # ausencia es AVISO. Lo que sí importa es que no esté DESACTUALIZADO: el script le
   # cede todo al binario, y uno compilado antes de un cambio en eventd/src seguiría

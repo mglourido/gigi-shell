@@ -254,7 +254,13 @@ def main(argv: list[str]) -> int:
     except SinAcento:
         print(MARCA_SIN_ACENTO, file=sys.stderr)
         return 1
-    except Exception:
+    except Exception as error:
+        # El motivo va a stderr: es lo que `acento.ts` deja en `acento-estado.json`.
+        # Sin esto un Pillow desinstalado se registraba como `fallo` con el detalle
+        # vacío. La marca se retira del texto por si viniera en la ruta de la imagen:
+        # si no, un fallo del entorno se cachearía como "fondo sin acento".
+        motivo = f"{type(error).__name__}: {error}".replace(MARCA_SIN_ACENTO, "sin_acento")
+        print(motivo, file=sys.stderr)
         return 1
     print(json.dumps({
         "acentos": [hexa(corregir(rgb)) for rgb in brutos],
