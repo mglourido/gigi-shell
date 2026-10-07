@@ -1124,10 +1124,12 @@ configure_default_shell() {
     LINK="$GIGISHELL/bin/link.sh"
     if [ -x "$LINK" ]; then
     info "Creando enlaces simbólicos de GiGiShell ..."
+    # LINK_BASES_DIFERIDAS: las bases de /etc/xdg las instala el paso 4; aquí todavía no
+    # pueden estar, y que link.sh las diera por fallo abortaba la instalación antes de llegar.
     if (( BACKUP_RESERVADO )); then
-      LINK_BACKUP="$BACKUP" bash "$LINK" --force || die "No se pudieron crear todos los enlaces. Revisa los mensajes anteriores."
+      LINK_BASES_DIFERIDAS=1 LINK_BACKUP="$BACKUP" bash "$LINK" --force || die "No se pudieron crear todos los enlaces. Revisa los mensajes anteriores."
     else
-      bash "$LINK" --force || die "No se pudieron crear todos los enlaces. Revisa los mensajes anteriores."
+      LINK_BASES_DIFERIDAS=1 bash "$LINK" --force || die "No se pudieron crear todos los enlaces. Revisa los mensajes anteriores."
     fi
     else
     die "No encontré $LINK. El repositorio no contiene GiGiShell/bin/link.sh."

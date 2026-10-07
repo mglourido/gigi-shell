@@ -395,18 +395,30 @@ fi
 # Aquí solo se retiran los symlinks del esquema viejo, y solo cuando la base ya está
 # instalada: quitarlos antes dejaría las apps KDE en tema claro y sin asociaciones.
 # Nunca se toca un fichero real.
+# LINK_BASES_DIFERIDAS=1 lo pasa install.sh en su paso 3: las bases las instala él mismo
+# en el paso 4 (hace falta sudo), DESPUÉS de esta pasada. Sin esto, una base ausente
+# (máquina nueva) o desfasada (actualización que la cambia) daba status=1 y el instalador
+# moría con «No se pudieron crear todos los enlaces» antes de llegar a instalarla — con
+# todos los enlaces en OK y sin poder salir nunca de ahí reejecutándolo.
+bases_diferidas="${LINK_BASES_DIFERIDAS:-0}"
 BASES_XDG=(kdeglobals mimeapps.list)
 for nombre in "${BASES_XDG[@]}"; do
   base="$GIGISHELL/$nombre"
   instalada="/etc/xdg/$nombre"
   viejo="$HOME/.config/$nombre"
   if [[ ! -e "$instalada" ]]; then
+    if [[ "$bases_diferidas" == 1 ]]; then
+      echo "PENDIENTE $instalada (base de $nombre; la instala el paso de ficheros de sistema)"
+      continue
+    fi
     echo "AVISO falta $instalada (base de $nombre). Instálala con:"
     echo "      sudo install -Dm644 $base $instalada && $GIGISHELL/bin/link.sh"
     status=1; continue
   fi
   if cmp -s "$base" "$instalada"; then
     echo "OK    $instalada"
+  elif [[ "$bases_diferidas" == 1 ]]; then
+    echo "PENDIENTE $instalada difiere de $base (la reinstala el paso de ficheros de sistema)"
   else
     echo "AVISO $instalada difiere de $base; reinstálala con:"
     echo "      sudo install -Dm644 $base $instalada"
