@@ -274,7 +274,10 @@
   &.on { background: #a6e3a1; }             // activo
   &.off { background: $red; }               // inactivo pero instalado
 }
-.dev-select { min-width: 190px; }
+.dev-select {
+  min-width: 190px;
+  &.al-contenido { min-width: 0; }
+}
 button.pred-gestionar {
   min-width: 28px;
   min-height: 28px;
@@ -347,8 +350,9 @@ scale.dev-slider { margin: 0 2px 2px; }
   background: rgba(245, 50, 105, 0.025);
 }
 button.dev-reset {
-  min-height: 30px;
-  padding: 4px 12px;
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
   border-radius: 7px;
   color: rgba($text, 0.72);
   background: rgba(255, 255, 255, 0.055);

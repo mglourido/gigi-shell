@@ -13,9 +13,10 @@ let closeActiveSelect: (() => void) | null = null
 // salga un poco del host a que quede una franja ilegible.
 const ALTO_MINIMO_LISTA = 96
 
-export function DisplaySelect({ current, options, onSelect, compact = true, buscador, anchoCaracteres }: {
+export function DisplaySelect({ current, options, onSelect, compact = true, buscador, anchoCaracteres, ajustarAlContenido = false }: {
   current: any, options: any, onSelect: (value: string) => void, compact?: boolean, buscador?: string,
   anchoCaracteres?: number,
+  ajustarAlContenido?: boolean,
 }) {
   const [open, setOpen] = createState(false)
   const [consulta, establecerConsulta] = createState("")
@@ -174,7 +175,7 @@ export function DisplaySelect({ current, options, onSelect, compact = true, busc
           halign={Gtk.Align.START}
           ellipsize={3}
           maxWidthChars={maxCaracteres}
-          widthChars={anchoCaracteres ?? -1}
+          widthChars={ajustarAlContenido ? -1 : anchoCaracteres ?? -1}
           tooltipText={current}
           cssClasses={["qs-display-select-value"]}
         />

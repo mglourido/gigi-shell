@@ -62,8 +62,8 @@ function SelectRow({ setting, label, hint, choices }: {
   const options = deviceSettings((s) => choices.map(c => ({ ...c, value: String(c.value), active: String(c.value) === String(s[setting]) })))
   return (
     <FilaAjuste titulo={label} informacion={hint}>
-      <box cssClasses={["dev-select"]}>
-        <DisplaySelect compact={false} current={current} options={options} onSelect={(v) => {
+      <box cssClasses={["dev-select", "al-contenido"]} valign={Gtk.Align.CENTER} hexpand={false}>
+        <DisplaySelect compact={false} anchoCaracteres={18} ajustarAlContenido current={current} options={options} onSelect={(v) => {
           const choice = choices.find(c => String(c.value) === v)
           if (choice) updateDeviceSettings({ [setting]: choice.value } as Partial<DeviceSettings>)
         }} />
@@ -198,7 +198,7 @@ export default function SeccionDispositivos({ vista }: { vista: VistaDispositivo
           <button cssClasses={confirmReset((v) => v ? ["dev-reset", "confirm"] : ["dev-reset"])} onClicked={() => {
             if (confirmReset.get()) { resetDeviceSettings(); setConfirmReset(false) }
             else setConfirmReset(true)
-          }}><label label={confirmReset((v) => v ? textos.restablecer.confirmar : textos.restablecer.boton)} /></button>
+          }} valign={Gtk.Align.CENTER}><label label={confirmReset((v) => v ? textos.restablecer.confirmar : textos.restablecer.boton)} /></button>
         </box>
       </box>
     </overlay>
