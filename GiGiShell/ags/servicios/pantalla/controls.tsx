@@ -121,7 +121,7 @@ export function DisplaySelect({ current, options, onSelect, compact = true, busc
         const haciaArriba = huecoArriba > huecoAbajo && huecoAbajo < ALTO_MAXIMO
         const tope = Math.max(ALTO_MINIMO_LISTA, Math.min(ALTO_MAXIMO, haciaArriba ? huecoArriba : huecoAbajo))
 
-        desplazable.set_max_content_height(Math.max(48, tope - (buscador ? 42 : 0)))
+        desplazable.set_max_content_height(Math.max(48, tope - (buscador ? 34 : 0)))
         list.set_halign(Gtk.Align.START)
         list.set_valign(Gtk.Align.START)
         // Los márgenes cuentan dentro de `measure`: medir ya desplazado resta
@@ -184,9 +184,9 @@ export function DisplaySelect({ current, options, onSelect, compact = true, busc
   ) as unknown as Gtk.Widget
 
   list = (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={buscador ? 4 : 0}
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={0}
       cssClasses={clase("qs-display-select-list")}>
-    {buscador ? <entry cssClasses={["account-entry", "sp-selector-buscador"]}
+    {buscador ? <entry cssClasses={["qs-display-select-search"]}
       placeholderText={buscador} text={consulta} hexpand
       onChanged={(entrada: Gtk.Entry) => establecerConsulta(entrada.get_text())} /> : <box />}
     <Gtk.ScrolledWindow
@@ -194,7 +194,7 @@ export function DisplaySelect({ current, options, onSelect, compact = true, busc
       hscrollbarPolicy={Gtk.PolicyType.NEVER}
       vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
       propagateNaturalHeight
-      maxContentHeight={ALTO_MAXIMO - (buscador ? 42 : 0)}
+      maxContentHeight={ALTO_MAXIMO - (buscador ? 34 : 0)}
       vexpand={false}
       cssClasses={clase("qs-display-select-scroll")}
     >

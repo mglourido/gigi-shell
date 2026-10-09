@@ -75,9 +75,10 @@ export default function SistemaTab() {
         {(e: NotifRule | null) => e
           ? <RuleEditor rule={e} onClose={() => setEditing(null)} />
           : <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand>
-              <label cssClasses={["st-tab-hint"]} label={textos.pestana.cabecera} halign={Gtk.Align.START} wrap={true} />
+              <label cssClasses={["st-tab-hint"]} label={textos.pestana.cabecera} hexpand xalign={0} wrap={true} />
               <Gtk.Entry
-                cssClasses={["re-entry"]}
+                cssClasses={["re-entry", "re-system-search"]}
+                hexpand
                 placeholderText={textos.pestana.buscar}
                 onChanged={(self) => setBusqueda(self.text)}
               />

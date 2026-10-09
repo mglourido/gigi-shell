@@ -61,7 +61,12 @@ export default function AppsNotificacionesOrion() {
       <TituloSubseccion label={t.titulo} halign={Gtk.Align.START} />
       <TextoInformativo label={t.ayuda} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
 
-      <ListaAjustes cantidad={orionNotisApps((lista: string[]) => lista.length)} vacia={t.vacia}>
+      <ListaAjustes
+        cantidad={orionNotisApps((lista: string[]) => lista.length)}
+        alto={orionNotisApps((lista: string[]) => Math.max(40, Math.min(180, lista.length * 36)))}
+        vacia={t.vacia}
+        cssClasses={["orion-notis-lista"]}
+      >
         <For each={orionNotisApps}>
           {(app: string) => <FilaApp app={app} />}
         </For>
@@ -82,15 +87,30 @@ export default function AppsNotificacionesOrion() {
 
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={sugerencias((l) => l.length > 0)}>
         <TextoInformativo label={t.sugerencias} halign={Gtk.Align.START} />
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+        <Gtk.FlowBox
+          cssClasses={["orion-notis-sugerencias"]}
+          selectionMode={Gtk.SelectionMode.NONE}
+          minChildrenPerLine={1}
+          maxChildrenPerLine={4}
+          rowSpacing={4}
+          columnSpacing={4}
+          homogeneous={false}
+          halign={Gtk.Align.START}
+        >
           <For each={sugerencias}>
             {(app: string) => (
-              <button cssClasses={["sp-add-rule"]} onClicked={() => addOrionNotisApp(app)} tooltipText={`${t.anadir} ${app}`}>
+              <button
+                cssClasses={["sp-add-rule", "orion-notis-sugerencia"]}
+                halign={Gtk.Align.START}
+                valign={Gtk.Align.CENTER}
+                onClicked={() => addOrionNotisApp(app)}
+                tooltipText={`${t.anadir} ${app}`}
+              >
                 <label label={`+ ${app}`} />
               </button>
             )}
           </For>
-        </box>
+        </Gtk.FlowBox>
       </box>
     </box>
   )

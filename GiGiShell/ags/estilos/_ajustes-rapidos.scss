@@ -739,20 +739,38 @@ button.qs-display-select {
     }
   }
 }
-.sp-selector-buscador { margin: 5px 5px 0; }
 .sp-selector-vacio { padding: 8px; }
+.qs-display-select-search {
+  min-height: 32px;
+  margin: 1px 1px 0;
+  padding: 0 10px;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px 7px 0 0;
+  outline: none;
+  outline-offset: 0;
+  box-shadow: none;
+  color: #dfe1f0;
+  background: transparent;
+  font-size: 12px;
+  &:focus {
+    border-color: acento(0.55);
+    outline: none;
+    box-shadow: none;
+  }
+}
 
 // La talla BASE es la de Ajustes y la variante `.compact` la de Quick Settings —
 // al revés de como estaba, cuando el único tamaño era el compacto y un select
 // grande abría una lista con letra de 11 px e interlineado de 2 px. Las dos clases
 // las pone `DisplaySelect` según su prop `compact`.
 .qs-display-select-options {
-  padding: 4px;
+  padding: 4px 2px;
   background-color: rgb(20, 20, 28);
   border-radius: 7px;
   opacity: 1;
 
-  &.compact { padding: 3px; }
+  &.compact { padding: 3px 2px; }
 }
 
 button.qs-display-select-opt {
@@ -760,13 +778,14 @@ button.qs-display-select-opt {
   background-color: rgb(20, 20, 28);
   opacity: 1;
   border-radius: 6px;
-  padding: 6px 10px;
+  min-height: 0;
+  padding: 5px 10px;
   color: rgb(190, 190, 205);
   font-size: 12px;
   transition: all 100ms ease;
 
   &.compact {
-    padding: 2px 8px;
+    padding: 3px 8px;
     color: rgb(150, 150, 165);
     font-size: 11px;
   }

@@ -88,6 +88,7 @@ export default function AjusteDuracionPopups() {
             <entry
               cssClasses={["sp-num-input"]}
               widthChars={5}
+              maxWidthChars={5}
               xalign={1}
               placeholderText={familia.placeholder}
               $={(self: Gtk.Entry) => {

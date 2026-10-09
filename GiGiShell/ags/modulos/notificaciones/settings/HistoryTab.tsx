@@ -47,7 +47,7 @@ export default function HistoryTab() {
           ? <RuleEditor rule={e} onClose={cerrarEditor} />
           : <box orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand>
               <box spacing={8} valign={Gtk.Align.CENTER} hexpand>
-                <label cssClasses={["st-tab-hint"]} label={textos.sinReglas.cabecera} halign={Gtk.Align.START} hexpand wrap={true} />
+                <label cssClasses={["st-tab-hint"]} label={textos.sinReglas.cabecera} hexpand wrap={true} />
                 <button
                   cssClasses={confirmandoBorrado((c) => c ? ["re-delete", "confirm"] : ["re-delete"])}
                   tooltipText={textos.sinReglas.borrarAyuda}
@@ -119,7 +119,7 @@ export default function HistoryTab() {
                                   <label cssClasses={["re-row-summary"]} label={entry.summary || textos.sinReglas.sinTitulo} halign={Gtk.Align.START} ellipsize={3} />
                                   {entry.sampleBody && <label cssClasses={["re-row-body"]} label={entry.sampleBody} halign={Gtk.Align.START} ellipsize={3} />}
                                 </box>
-                                <button cssClasses={["st-add-btn"]} onClicked={() => setEditing(ruleFromHistoryEntry(`user.${Date.now()}`, entry))}>
+                                <button cssClasses={["st-add-btn"]} valign={Gtk.Align.CENTER} onClicked={() => setEditing(ruleFromHistoryEntry(`user.${Date.now()}`, entry))}>
                                   <label label={textos.sinReglas.crearRegla} />
                                 </button>
                               </box>

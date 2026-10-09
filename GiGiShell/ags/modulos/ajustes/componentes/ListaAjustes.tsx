@@ -8,7 +8,7 @@ type PropiedadesListaAjustes = {
   children: any
   cantidad?: Accessor<number>
   vacia?: string | Accessor<string>
-  alto?: number
+  alto?: number | Accessor<number>
   expandir?: boolean
   cssClasses?: string[]
 }
@@ -19,6 +19,7 @@ type PropiedadesListaAjustes = {
 export default function ListaAjustes({
   children, cantidad, vacia, alto = 176, expandir = false, cssClasses = [],
 }: PropiedadesListaAjustes) {
+  const altoActual = typeof alto === "number" ? () => alto : alto
   return (
     <box cssClasses={["sp-lista"]} orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand vexpand={expandir}>
       {cantidad ? <TextoInformativo cssClasses={["sp-lista-resumen"]}
@@ -27,8 +28,8 @@ export default function ListaAjustes({
         cssClasses={["sp-lista-scroll", ...cssClasses]}
         hexpand
         vexpand={expandir}
-        minContentHeight={expandir ? 0 : alto}
-        maxContentHeight={expandir ? -1 : alto}
+        minContentHeight={expandir ? 0 : altoActual}
+        maxContentHeight={expandir ? -1 : altoActual}
         propagateNaturalHeight={!expandir}
         propagateNaturalWidth={false}
         hscrollbarPolicy={Gtk.PolicyType.NEVER}

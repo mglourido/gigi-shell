@@ -127,6 +127,7 @@ function TarjetaApagadoPreventivo() {
             min={APAGADO_PREVENTIVO_MIN} max={APAGADO_PREVENTIVO_MAX}
             labelClass="sp-field-value"
             tooltip={textos.apagadoPreventivo.tooltip}
+            widthRequest={48}
           />
         </box>
         {DeslizadorPorcentaje(
@@ -434,6 +435,7 @@ export default function SeccionEnergia() {
               min={0} max={100}
               labelClass="sp-field-value"
               tooltip={textos.umbral.tooltip}
+              widthRequest={48}
             />
           </box>
           {DeslizadorPorcentaje(powerSaveThreshold, setPowerSaveThreshold) as unknown as any}
@@ -528,6 +530,7 @@ export default function SeccionEnergia() {
                 min={5} max={100}
                 labelClass="sp-field-value"
                 tooltip={textos.brillo.tooltip}
+                widthRequest={48}
               />
             </box>
             {DeslizadorPorcentaje(powerSaveBrightnessPct, setPowerSaveBrightnessPct, 5) as unknown as any}
@@ -541,6 +544,7 @@ export default function SeccionEnergia() {
               min={1} max={100}
               labelClass="sp-field-value"
               tooltip={textos.brillo.tooltipReduccion}
+              widthRequest={48}
             />
           </box>
           {DeslizadorPorcentaje(powerSaveBrightnessDropPct, setPowerSaveBrightnessDropPct, 1) as unknown as any}

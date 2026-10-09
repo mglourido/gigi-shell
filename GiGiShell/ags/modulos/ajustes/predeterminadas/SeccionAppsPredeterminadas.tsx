@@ -20,8 +20,10 @@
 // de «Abrir con» y la de resultados), misma precaución que Apps al inicio:
 // reconstruir una lista que contiene el widget con el foco acaba en SIGSEGV.
 
-import { For, createComputed, createState } from "ags"
+import { For, createComputed, createState, onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
+import Graphene from "gi://Graphene"
+import GLib from "gi://GLib"
 import {
   BotonAjustes, EntradaTextoAjustes, ListaAjustes, TarjetaAjustes, TextoInformativo, TituloAjuste,
 } from "../componentes"
@@ -43,6 +45,7 @@ const MAX_RESULTADOS = 5
 /** Filas de «Todos los tipos» a la vez: cada una es una fila completa con su
  *  propio buscador, y una búsqueda corta («a») casaría con cientos. */
 const MAX_TIPOS = 15
+let cerrarGestionActiva: (() => void) | null = null
 
 const GRUPOS: { titulo: string; icono: string; ids: IdCategoria[] }[] = [
   { titulo: textos.grupos.web, icono: "󰖟", ids: ["navegador", "correo"] },
@@ -151,7 +154,7 @@ function FilaPredeterminada({ titulo, descripcion, icono, leerCandidatas, leerAc
   const elegir = (id: string) => {
     const ok = id === idActual.get() || fijar(id)
     releer(ok)
-    if (ok) setAbierto(false)
+    if (ok) cerrar()
   }
 
   // Los resultados excluyen lo que ya está en la lista, y dependen de las dos
@@ -162,73 +165,158 @@ function FilaPredeterminada({ titulo, descripcion, icono, leerCandidatas, leerAc
     return filtrarAppsInstaladas(edicion.catalogo.filter((a) => !ya.has(a.id)), texto, MAX_RESULTADOS)
   })
   let campo: Gtk.Entry | null = null
+  let panel: Gtk.Widget
+  let anfitrion: Gtk.Overlay | null = null
+  let controladorFuera: Gtk.GestureClick | null = null
+  let cierrePendiente = 0
+  const ajustesObservados: [Gtk.Adjustment, number][] = []
 
-  return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["dev-row"]}>
-      <box spacing={10} valign={Gtk.Align.CENTER}>
-        <label cssClasses={["dev-card-icon"]} label={icono} valign={Gtk.Align.CENTER} />
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
-          <TituloAjuste label={titulo} />
-          <TextoInformativo label={descripcion} />
-        </box>
-        <box cssClasses={["dev-select"]} valign={Gtk.Align.CENTER} hexpand={false}>
-          <DisplaySelect compact={false} buscador={textos.fila.buscar} anchoCaracteres={22}
-            current={actual((a) => a?.nombre ?? textos.fila.ninguna)}
-            options={createComputed(() => candidatas().map((app) => ({
-              value: app.id, label: app.nombre, active: app.id === idActual(),
-            })))}
-            onSelect={elegir} />
-        </box>
-        {edicion ? <BotonAjustes activo={abierto} label="󰒓" tooltipText={textos.fila.gestionar}
-          onClicked={() => setAbierto(!abierto.get())} /> : <box />}
-      </box>
+  const perteneceA = (widget: Gtk.Widget | null, ancestro: Gtk.Widget) => {
+    let actual = widget
+    while (actual) {
+      if (actual === ancestro) return true
+      actual = actual.get_parent()
+    }
+    return false
+  }
 
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={abierto} cssClasses={["pred-opciones"]}>
-        <TextoInformativo
-          label={edicion ? textos.fila.ayudaEditable : textos.fila.ayuda}
-          cssClasses={["pred-ayuda"]}
-        />
-        <ListaAjustes cantidad={candidatas((lista) => lista.length)} vacia={textos.fila.sinCandidatas}>
-          <For each={candidatas} id={(c: AppCandidata) => c.id}>
-            {(c: AppCandidata) => (
-              <box spacing={6}>
+  const cerrar = () => {
+    if (cierrePendiente) GLib.source_remove(cierrePendiente)
+    cierrePendiente = 0
+    for (const [ajuste, senal] of ajustesObservados) ajuste.disconnect(senal)
+    ajustesObservados.length = 0
+    if (anfitrion && controladorFuera) anfitrion.remove_controller(controladorFuera)
+    controladorFuera = null
+    if (anfitrion && panel.get_parent() === anfitrion) anfitrion.remove_overlay(panel)
+    anfitrion = null
+    setAbierto(false)
+    if (cerrarGestionActiva === cerrar) cerrarGestionActiva = null
+  }
+
+  const buscarAnfitrion = (widget: Gtk.Widget): Gtk.Overlay | null => {
+    let padre = widget.get_parent()
+    while (padre) {
+      if (padre instanceof Gtk.Overlay && padre.has_css_class("display-select-host")) return padre
+      padre = padre.get_parent()
+    }
+    return null
+  }
+
+  const abrir = (boton: Gtk.Button) => {
+    cerrarGestionActiva?.()
+    anfitrion = buscarAnfitrion(boton)
+    if (!anfitrion) return
+
+    const [valido, punto] = boton.compute_point(anfitrion, new Graphene.Point({ x: 0, y: 0 }))
+    if (!valido) {
+      anfitrion = null
+      return
+    }
+
+    let limiteSuperior = 0
+    let limiteInferior = anfitrion.get_height()
+    let ancestro = boton.get_parent()
+    while (ancestro) {
+      if (ancestro instanceof Gtk.Viewport) {
+        const [visible, origen] = ancestro.compute_point(anfitrion, new Graphene.Point({ x: 0, y: 0 }))
+        if (visible) {
+          limiteSuperior = Math.max(limiteSuperior, origen.y)
+          limiteInferior = Math.min(limiteInferior, origen.y + ancestro.get_height())
+        }
+      }
+      if (ancestro instanceof Gtk.ScrolledWindow) {
+        const ajuste = ancestro.get_vadjustment()
+        ajustesObservados.push([ajuste, ajuste.connect("value-changed", cerrar)])
+      }
+      ancestro = ancestro.get_parent()
+    }
+
+    const ancho = Math.min(420, Math.max(280, anfitrion.get_width() - 16))
+    panel.set_size_request(ancho, -1)
+    const [, altoNatural] = panel.measure(Gtk.Orientation.VERTICAL, ancho)
+    const alto = Math.min(altoNatural, 360)
+    const yFila = Math.round(punto.y)
+    const huecoAbajo = limiteInferior - yFila - boton.get_height() - 8
+    const huecoArriba = yFila - limiteSuperior - 8
+    const arriba = alto > huecoAbajo && huecoArriba > huecoAbajo
+    const x = Math.max(8, Math.min(anfitrion.get_width() - ancho - 8,
+      Math.round(punto.x + boton.get_width() - ancho)))
+
+    panel.set_halign(Gtk.Align.START)
+    panel.set_valign(Gtk.Align.START)
+    panel.set_margin_start(x)
+    panel.set_margin_top(arriba ? Math.max(limiteSuperior + 4, yFila - alto - 8) : yFila + boton.get_height() + 8)
+    panel.set_vexpand(false)
+    anfitrion.add_overlay(panel)
+    anfitrion.set_clip_overlay(panel, false)
+    anfitrion.set_measure_overlay(panel, false)
+
+    controladorFuera = new Gtk.GestureClick()
+    controladorFuera.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+    controladorFuera.connect("pressed", (gesto, _pulsacion, xPulsado, yPulsado) => {
+      gesto.set_state(Gtk.EventSequenceState.DENIED)
+      if (!anfitrion) return
+      const elegido = anfitrion.pick(xPulsado, yPulsado, Gtk.PickFlags.DEFAULT)
+      if (perteneceA(elegido, boton) || perteneceA(elegido, panel) || cierrePendiente) return
+      cierrePendiente = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+        cierrePendiente = 0
+        cerrar()
+        return GLib.SOURCE_REMOVE
+      })
+    })
+    anfitrion.add_controller(controladorFuera)
+    cerrarGestionActiva = cerrar
+    setAbierto(true)
+  }
+
+  panel = (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["pred-opciones"]}>
+      <TextoInformativo
+        label={edicion ? textos.fila.ayudaEditable : textos.fila.ayuda}
+        cssClasses={["pred-ayuda"]}
+      />
+      <ListaAjustes alto={144} cantidad={candidatas((lista) => lista.length)} vacia={textos.fila.sinCandidatas}>
+        <For each={candidatas} id={(c: AppCandidata) => c.id}>
+          {(c: AppCandidata) => (
+            <box spacing={6}>
+              <button
+                hexpand
+                cssClasses={idActual((id) => id === c.id ? ["pred-opcion", "active"] : ["pred-opcion"])}
+                tooltipText={textos.fila.hacerPredeterminada}
+                onClicked={() => elegir(c.id)}
+              >
+                <box spacing={10}>
+                  <IconoApp icono={c.icono} />
+                  <label label={c.nombre} hexpand xalign={0} ellipsize={3} />
+                  <label cssClasses={["pred-marca"]} label="󰄬" visible={idActual((id) => id === c.id)} />
+                </box>
+              </button>
+              {edicion ? (
                 <button
-                  hexpand
-                  cssClasses={idActual((id) => id === c.id ? ["pred-opcion", "active"] : ["pred-opcion"])}
-                  tooltipText={textos.fila.hacerPredeterminada}
-                  onClicked={() => elegir(c.id)}
+                  cssClasses={["sp-rule-del"]}
+                  valign={Gtk.Align.CENTER}
+                  sensitive={idActual((id) => id !== c.id)}
+                  tooltipText={idActual((id) => id === c.id ? textos.fila.noQuitarActual : textos.fila.quitar)}
+                  onClicked={() => releer(edicion.quitar(c.id))}
                 >
-                  <box spacing={10}>
-                    <IconoApp icono={c.icono} />
-                    <label label={c.nombre} hexpand xalign={0} ellipsize={3} />
-                    <label cssClasses={["pred-marca"]} label="󰄬" visible={idActual((id) => id === c.id)} />
-                  </box>
+                  <label label="󰆴" />
                 </button>
-                {edicion ? (
-                  <button
-                    cssClasses={["sp-rule-del"]}
-                    valign={Gtk.Align.CENTER}
-                    sensitive={idActual((id) => id !== c.id)}
-                    tooltipText={idActual((id) => id === c.id ? textos.fila.noQuitarActual : textos.fila.quitar)}
-                    onClicked={() => releer(edicion.quitar(c.id))}
-                  >
-                    <label label="󰆴" />
-                  </button>
-                ) : <box />}
-              </box>
-            )}
-          </For>
-        </ListaAjustes>
+              ) : <box />}
+            </box>
+          )}
+        </For>
+      </ListaAjustes>
 
-        {edicion ? (
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["pred-anadir"]}>
-            <EntradaTextoAjustes
-              placeholderText={textos.fila.anadirMarcador}
-              hexpand
-              $={(self: Gtk.Entry) => { campo = self }}
-              onChanged={(self: Gtk.Entry) => setConsulta(self.get_text())}
-            />
-            <ListaAjustes cantidad={resultados((lista) => lista.length)}
+      {edicion ? (
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["pred-anadir"]}>
+          <EntradaTextoAjustes
+            placeholderText={textos.fila.anadirMarcador}
+            hexpand
+            $={(self: Gtk.Entry) => { campo = self }}
+            onChanged={(self: Gtk.Entry) => setConsulta(self.get_text())}
+          />
+          <box orientation={Gtk.Orientation.VERTICAL} visible={consulta((texto) => !!texto.trim())}>
+            <ListaAjustes alto={96} cantidad={resultados((lista) => lista.length)}
               vacia={consulta((texto) => texto.trim() ? textos.fila.sinResultados : textos.fila.escribirBusqueda)}>
               <For each={resultados} id={(a: AppInstalada) => a.id}>
                 {(a: AppInstalada) => (
@@ -237,7 +325,6 @@ function FilaPredeterminada({ titulo, descripcion, icono, leerCandidatas, leerAc
                     tooltipText={textos.fila.anadir}
                     onClicked={() => {
                       releer(edicion.anadir(a.id))
-                      // Vaciar el campo rehace los resultados, sin mover el buscador.
                       campo?.set_text("")
                     }}
                   >
@@ -251,8 +338,38 @@ function FilaPredeterminada({ titulo, descripcion, icono, leerCandidatas, leerAc
               </For>
             </ListaAjustes>
           </box>
+        </box>
+      ) : <box />}
+    </box>
+  ) as unknown as Gtk.Widget
+  onCleanup(cerrar)
+
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["dev-row"]}>
+      <box spacing={10} valign={Gtk.Align.CENTER}>
+        <label cssClasses={["dev-card-icon"]} label={icono} valign={Gtk.Align.START} />
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
+          <TituloAjuste label={titulo} />
+          <TextoInformativo label={descripcion} />
+        </box>
+        <box cssClasses={["dev-select"]} valign={Gtk.Align.CENTER} hexpand={false}>
+          <DisplaySelect compact={false} buscador={textos.fila.buscar} anchoCaracteres={22}
+            current={actual((a) => a?.nombre ?? textos.fila.ninguna)}
+            options={createComputed(() => candidatas().map((app) => ({
+              value: app.id, label: app.nombre, active: app.id === idActual(),
+            })))}
+            onSelect={elegir} />
+        </box>
+        {edicion ? (
+          <BotonAjustes activo={abierto} cssClasses={["pred-gestionar"]}
+            heightRequest={28} valign={Gtk.Align.CENTER} tooltipText={textos.fila.gestionar}
+            onClicked={(self: Gtk.Button) => abierto.get() ? cerrar() : abrir(self)}>
+            <label label="󰒓" xalign={0.5} yalign={0.5}
+              halign={Gtk.Align.CENTER} valign={Gtk.Align.CENTER} marginEnd={2} />
+          </BotonAjustes>
         ) : <box />}
       </box>
+
       <TextoInformativo label={textos.fila.error} visible={error} cssClasses={["pred-error"]} />
     </box>
   )

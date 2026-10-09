@@ -195,6 +195,33 @@
 }
 .sp-field-label { font-size: 12px; color: $text; font-family: $font-icon; }
 .sp-field-value { font-size: 12px; font-weight: 700; color: acento(); font-family: $font-icon; }
+// Los porcentajes editables junto a los sliders son texto de valor, no botones
+// destacados: elimina el chip del tema y deja el ancho para leer el porcentaje.
+.sp-content button.qs-inline-value-btn {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  &:hover, &:focus, &:focus-visible { background: transparent; border: none; outline: none; box-shadow: none; }
+}
+.sp-content entry.qs-inline-number-input,
+.sp-content entry.qs-inline-number-input.compact {
+  min-height: 28px;
+  padding: 0 7px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.045);
+  color: $text;
+  font-size: 12px;
+  &:focus, &:focus-visible {
+    border-color: acento(0.6);
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
 .sp-field-hint { font-size: 10px; color: rgba($text, 0.58); font-family: $font-icon; }
 // Aviso de configuración: una pista que el usuario TIENE que leer (p. ej. que
 // logind se queda el botón de encendido), no una descripción más.
@@ -248,6 +275,11 @@
   &.off { background: $red; }               // inactivo pero instalado
 }
 .dev-select { min-width: 190px; }
+button.pred-gestionar {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+}
 .sp-content button.qs-display-select {
   min-height: 28px;
   padding: 0 10px;
@@ -360,8 +392,16 @@ button.dl-city-result {
 }
 
 // ── Apps predeterminadas ────────────────────────────────────────────────────
-// La lista de apps que se abre bajo cada fila; misma familia que .dl-city-result.
-.pred-opciones { padding-left: 28px; }
+// Panel flotante de «Abrir con»: se monta en el overlay de la sección para no
+// desplazar las demás categorías ni quedar recortado por la tarjeta de origen.
+.pred-opciones {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 10px;
+  background: rgba(24, 24, 32, 0.98);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+}
 button.pred-opcion {
   min-height: 32px;
   padding: 4px 10px;
@@ -413,6 +453,26 @@ button.pred-opcion {
 }
 .sp-content entry.sp-num-input { min-height: 28px; padding: 0 9px; font-size: 12px; }
 .sp-content button.sp-add-rule { min-height: 28px; padding: 0 12px; }
+.sp-content .orion-notis-sugerencias {
+  background: transparent;
+  border: none;
+}
+.sp-content button.sp-add-rule.orion-notis-sugerencia {
+  min-height: 25px;
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.sp-content .orion-notis-lista .sp-rule-row {
+  min-height: 30px;
+  padding: 2px 8px;
+}
+.sp-content .orion-notis-lista button.sp-rule-del {
+  min-width: 27px;
+  min-height: 27px;
+  padding: 0;
+  border-radius: 6px;
+}
 .sp-content button.sp-step-btn { min-height: 28px; padding: 0 10px; }
 .account-entry.account-entry-compact { font-size: 12px; }
 .account-secondary-btn, .account-save-btn {
@@ -465,6 +525,10 @@ button.account-save-pending {
 .sys-row {
   min-height: 20px;
   padding: 8px 0;
+  border-radius: 6px;
+  background: transparent;
+  transition: background-color 160ms ease;
+  &:hover { background: rgba(255, 255, 255, 0.035); }
 }
 .sys-row.bordered { border-top: 1px solid rgba(255, 255, 255, 0.045); }
 .sys-label {
