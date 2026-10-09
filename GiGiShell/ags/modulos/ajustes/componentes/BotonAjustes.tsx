@@ -24,10 +24,10 @@ export default function BotonAjustes({
 
   return (
     <button
+      heightRequest={30}
+      valign={Gtk.Align.CENTER}
       {...propiedades}
       cssClasses={clases}
-      heightRequest={30}
-      valign={Gtk.Align.START}
     >
       {children}
     </button>

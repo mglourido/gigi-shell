@@ -148,7 +148,7 @@ const FABRICAS_SECCION: Record<IdSeccion, () => unknown> = {
   defaultApps: () => <SeccionAppsPredeterminadas />,
   storage: () => <SeccionAlmacenamiento vista="uso" />,
   cleanup: () => <SeccionAlmacenamiento vista="limpieza" />,
-  notifications: () => <SettingsTabs />,
+  notifications: () => <SettingsTabs mostrarTitulo={false} />,
   monitoring: () => <SeccionSeguridad vista="vigilancia" />,
   scans: () => <SeccionSeguridad vista="escaneos" />,
   proteccion: () => <SeccionProteccion />,

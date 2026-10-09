@@ -28,7 +28,7 @@ import { For, createBinding, createComputed, type Accessor } from "ags"
 import { Gtk } from "ags/gtk4"
 import AstalWp from "gi://AstalWp"
 import Interruptor from "../../../componentes/Interruptor"
-import { FilaAjuste, TextoInformativo } from "../componentes"
+import { FilaAjuste, ListaAjustes, TextoInformativo } from "../componentes"
 import {
   CAPTURAS_IGNORADAS_SIEMPRE, claveCaptura, detalleCaptura,
   type CapturaAudio, type OrigenCaptura,
@@ -67,9 +67,9 @@ function FilaCapturaMicrofono({ inicial, filas }: {
   const clave = inicial.clave
   const fila = filas((lista) => lista.find((f) => f.clave === clave) ?? inicial)
   return (
-    <FilaAjuste titulo={clave}>
+    <FilaAjuste titulo={clave} compacta>
       <box spacing={8} valign={Gtk.Align.CENTER}>
-        <TextoInformativo label={fila(estadoFila)} />
+        <TextoInformativo label={fila(estadoFila)} hexpand={false} />
         <Interruptor
           activo={fila((f) => !f.ignorada && f.origen !== "sistema")}
           sensible={fila((f) => f.origen !== "sistema")}
@@ -121,14 +121,13 @@ export default function CapturasMicrofono() {
   )
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
-      <TextoInformativo label={textos.descripcion} halign={Gtk.Align.START} wrap />
-      <box cssClasses={["dev-row"]} visible={filas((lista: FilaCaptura[]) => lista.length === 0)}>
-        <TextoInformativo label={textos.vacio} halign={Gtk.Align.START} />
-      </box>
-      <For each={filas} id={(fila: FilaCaptura) => fila.clave}>
-        {(fila: FilaCaptura) => <FilaCapturaMicrofono inicial={fila} filas={filas} />}
-      </For>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["dev-row"]}>
+      <TextoInformativo label={textos.descripcion} />
+      <ListaAjustes cantidad={filas((lista) => lista.length)} vacia={textos.vacio}>
+        <For each={filas} id={(fila: FilaCaptura) => fila.clave}>
+          {(fila: FilaCaptura) => <FilaCapturaMicrofono inicial={fila} filas={filas} />}
+        </For>
+      </ListaAjustes>
     </box>
   )
 }

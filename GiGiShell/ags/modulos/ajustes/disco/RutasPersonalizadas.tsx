@@ -30,7 +30,7 @@ import { Gtk } from "ags/gtk4"
 import { With, createState, onCleanup, type Accessor } from "ags"
 import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
-import { BotonAjustes, TextoInformativo } from "../componentes"
+import { BotonAjustes, EntradaTextoAjustes, ListaAjustes, TextoInformativo } from "../componentes"
 import {
   anadirRutaPersonalizada, quitarRutaPersonalizada, rutasPersonalizadas,
   anadirRutaProtegida, quitarRutaProtegida, rutasProtegidas,
@@ -127,8 +127,7 @@ function EditorDeRutas({ t, validador, rutas, anadir: guardar, quitar, claseAvis
       <TextoInformativo label={t.descripcion} wrap xalign={0} maxWidthChars={62} />
 
       <box spacing={6}>
-        <entry
-          cssClasses={["account-entry"]}
+        <EntradaTextoAjustes
           placeholderText={t.placeholder}
           hexpand
           $={(self: Gtk.Entry) => { campo = self }}
@@ -150,33 +149,33 @@ function EditorDeRutas({ t, validador, rutas, anadir: guardar, quitar, claseAvis
         maxWidthChars={60}
       />
 
-      <With value={rutas}>
-        {(lista: string[]) => lista.length === 0 ? (
-          <TextoInformativo label={t.vacia} xalign={0} />
-        ) : (
-          <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
-            {lista.map(ruta => (
-              <box spacing={10} cssClasses={["alm-ruta"]} valign={Gtk.Align.CENTER}>
-                {/* Recorte por el PRINCIPIO (Pango START = 1), no por el final como el resto del
-                    shell: en `/home/x/proyectos/build/salida` lo que identifica la carpeta es el
-                    final, y el `/home/x/` que comparten todas es justo lo prescindible. Con END se
-                    quedaban varias filas leyéndose igual. El tooltip trae la ruta entera. */}
-                <label
-                  cssClasses={["alm-ruta-texto"]}
-                  label={ruta}
-                  halign={Gtk.Align.START}
-                  hexpand
-                  ellipsize={1}
-                  tooltipText={ruta}
-                />
-                <BotonAjustes onClicked={() => quitar(ruta)}>
-                  <label label={t.quitar} />
-                </BotonAjustes>
-              </box>
-            ))}
-          </box>
-        )}
-      </With>
+      <ListaAjustes cantidad={rutas((lista) => lista.length)} vacia={t.vacia}>
+        <With value={rutas}>
+          {(lista: string[]) => (
+            <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+              {lista.map(ruta => (
+                <box spacing={10} cssClasses={["alm-ruta"]} valign={Gtk.Align.CENTER}>
+                  {/* Recorte por el PRINCIPIO (Pango START = 1), no por el final como el resto del
+                      shell: en `/home/x/proyectos/build/salida` lo que identifica la carpeta es el
+                      final, y el `/home/x/` que comparten todas es justo lo prescindible. Con END se
+                      quedaban varias filas leyéndose igual. El tooltip trae la ruta entera. */}
+                  <label
+                    cssClasses={["alm-ruta-texto"]}
+                    label={ruta}
+                    halign={Gtk.Align.START}
+                    hexpand
+                    ellipsize={1}
+                    tooltipText={ruta}
+                  />
+                  <BotonAjustes onClicked={() => quitar(ruta)}>
+                    <label label={t.quitar} />
+                  </BotonAjustes>
+                </box>
+              ))}
+            </box>
+          )}
+        </With>
+      </ListaAjustes>
 
       <TextoInformativo
         cssClasses={[claseAviso]}

@@ -18,8 +18,8 @@ import { Gtk } from "ags/gtk4"
 import Pango from "gi://Pango"
 import { For, With, createComputed, createState, onCleanup, type Accessor } from "ags"
 import {
-  AjusteInterruptor, BotonAjustes, FilaAjuste, TarjetaAjustes,
-  TextoInformativo, TituloSeccion,
+  AjusteInterruptor, BotonAjustes, EntradaTextoAjustes, FilaAjuste, ListaAjustes,
+  PaginacionAjustes, TarjetaAjustes, TextoInformativo, usarPaginacion,
 } from "../componentes"
 import {
   ACCIONES, ACCIONES_AUTOMATIZABLES, agrupar, accion as buscarAccion,
@@ -42,9 +42,6 @@ import textos from "../../../textos/ajustes/almacenamiento.json" with { type: "j
 import { formatearTexto } from "../../../textos/formatear"
 
 type VistaAlmacenamiento = "uso" | "limpieza"
-
-/** Cuántas aplicaciones se enseñan antes de "Ver más". */
-const APPS_VISIBLES = 12
 
 // ── Análisis compartido ──────────────────────────────────────────────────────
 //
@@ -96,7 +93,10 @@ function BarraDisco({ disco }: { disco: Disco }) {
  * El estado (ocupado / resultado) NO vive aquí sino en `usarLimpiezas`, por encima del `<With>`
  * que reconstruye estas filas cuando entra un análisis nuevo. Ver la cabecera de ese módulo.
  */
-function FilaCategoriaVista({ fila, limpiezas }: { fila: FilaCategoria; limpiezas: Limpiezas }) {
+function FilaCategoriaVista({ fila, limpiezas, columnas }: {
+  fila: FilaCategoria; limpiezas: Limpiezas;
+  columnas: { tamanos: Gtk.SizeGroup; acciones: Gtk.SizeGroup },
+}) {
   const id = fila.categoria.accion
   const meta = id ? buscarAccion(id) : undefined
   const ocupado = limpiezas.ocupadas((set: ReadonlySet<IdAccion>) => id ? set.has(id) : false)
@@ -116,27 +116,31 @@ function FilaCategoriaVista({ fila, limpiezas }: { fila: FilaCategoria; limpieza
             algo — en «Miniaturas» las dos son iguales y repetirlas sería ruido. Sin esto, ver
             «Registros · 100 MiB» con un botón al lado hace pensar que pulsarlo devuelve 100 MiB,
             cuando la retención configurada deja el journal justo como está. */}
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={1} valign={Gtk.Align.START}>
-          <label cssClasses={["alm-tamano"]} label={formatearBytes(fila.bytes)} halign={Gtk.Align.END} />
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={1} valign={Gtk.Align.CENTER} cssClasses={["alm-columna-tamano"]}
+          $={(self: Gtk.Box) => columnas.tamanos.add_widget(self)}>
+          <label cssClasses={["alm-tamano"]} label={formatearBytes(fila.bytes)} xalign={1} />
           {meta ? (
             <label
               cssClasses={["alm-liberable", fila.liberable ? "algo" : "nada"]}
-              halign={Gtk.Align.END}
               visible={fila.liberable !== fila.bytes}
+              wrap wrapMode={Pango.WrapMode.WORD_CHAR} xalign={1} widthChars={16} maxWidthChars={16}
               label={textoLiberable(fila.liberable)}
             />
           ) : <box />}
         </box>
         {meta && id ? (
           <BotonAjustes
+            cssClasses={["alm-accion"]}
+            $={(self: Gtk.Button) => columnas.acciones.add_widget(self)}
             onClicked={() => limpiezas.ejecutar(id)}
             sensitive={ocupado((esta: boolean) => !esta)}
             tooltipText={meta.descripcion}
           >
-            <label label={ocupado((esta: boolean) => esta ? textos.estados.limpiando : meta.etiqueta)} />
+            <label label={ocupado((esta: boolean) => esta ? textos.estados.limpiando : meta.etiqueta)}
+              wrap wrapMode={Pango.WrapMode.WORD_CHAR} widthChars={18} maxWidthChars={18} />
           </BotonAjustes>
         ) : (
-          <box widthRequest={4} />
+          <box cssClasses={["alm-accion"]} $={(self: Gtk.Box) => columnas.acciones.add_widget(self)} />
         )}
       </box>
       <With value={resultado}>
@@ -210,17 +214,12 @@ function aplicaFiltro(app: App, filtro: FiltroApps): boolean {
 function CatalogoApps({ apps }: { apps: Accessor<App[]> }) {
   const [busqueda, setBusqueda] = createState("")
   const [filtro, setFiltro] = createState<FiltroApps>("todas")
-  const [expandido, setExpandido] = createState(false)
 
   // El script ya devuelve la lista ordenada por tamaño, así que aquí solo se filtra: reordenar
   // ~1600 elementos en cada pulsación del buscador es trabajo que ya está hecho.
   const filtradas = createComputed([apps, busqueda, filtro], (lista, texto, f) =>
     lista.filter(app => aplicaFiltro(app, f) && (!texto || app.nombre.toLowerCase().includes(texto))))
-  // El recorte a `APPS_VISIBLES` es lo que hace utilizable esta tarjeta: con ~1600 paquetes,
-  // pintarlos todos construye 1600 filas de tres widgets cada una dentro de un ScrolledWindow que
-  // no virtualiza nada. Se enseñan doce y el resto entra bajo demanda.
-  const visibles = createComputed([filtradas, expandido], (lista, abierto) =>
-    abierto ? lista : lista.slice(0, APPS_VISIBLES))
+  const { pagina, paginas, visibles, irAPagina } = usarPaginacion(filtradas)
 
   return (
     <TarjetaAjustes titulo={textos.grupos.apps} icono="󰏖">
@@ -235,17 +234,17 @@ function CatalogoApps({ apps }: { apps: Accessor<App[]> }) {
             tamano: formatearBytes(lista.reduce((suma, app) => suma + app.bytes, 0)),
           }))}
         />
-        <entry
+        <EntradaTextoAjustes
           cssClasses={["account-entry", "alm-buscador"]}
           placeholderText={textos.apps.buscar}
           hexpand
-          onChanged={(self: Gtk.Entry) => setBusqueda(self.text.trim().toLowerCase())}
+          onChanged={(self: Gtk.Entry) => { setBusqueda(self.text.trim().toLowerCase()); irAPagina(0) }}
         />
         <box spacing={6}>
           {FILTROS.map(f => (
             <BotonAjustes
               activo={filtro((actual: FiltroApps) => actual === f.id)}
-              onClicked={() => { setFiltro(f.id); setExpandido(false) }}
+              onClicked={() => { setFiltro(f.id); irAPagina(0) }}
             >
               <label label={f.etiqueta} />
             </BotonAjustes>
@@ -253,10 +252,8 @@ function CatalogoApps({ apps }: { apps: Accessor<App[]> }) {
         </box>
       </box>
 
-      <box orientation={Gtk.Orientation.VERTICAL}>
-        {/* `id` por NOMBRE de paquete: sin él, `<For>` indexa por identidad de objeto y cada
-            pulsación en el buscador reconstruiría las doce filas enteras — el mismo fallo que
-            documenta la barra en el CLAUDE.md de ags. El nombre es único por definición. */}
+      <ListaAjustes vacia={textos.apps.sinResultados} cantidad={filtradas((lista) => lista.length)} alto={296}>
+        {/* La clave conserva las filas que siguen en la página al buscar. */}
         <For each={visibles} id={(app: App) => app.nombre}>
           {(app: App) => (
             <box spacing={10} cssClasses={["dev-row", "alm-app"]} valign={Gtk.Align.CENTER}>
@@ -273,25 +270,15 @@ function CatalogoApps({ apps }: { apps: Accessor<App[]> }) {
                     label={app.explicito ? textos.apps.explicita : textos.apps.dependencia}
                   />
                 </box>
-                <TextoInformativo label={app.descripcion} wrap xalign={0} maxWidthChars={58} />
+                <TextoInformativo label={app.descripcion} wrap={false} ellipsize={3}
+                  tooltipText={app.descripcion} xalign={0} maxWidthChars={58} />
               </box>
-              <label cssClasses={["alm-tamano"]} label={formatearBytes(app.bytes)} valign={Gtk.Align.START} />
+              <label cssClasses={["alm-tamano"]} label={formatearBytes(app.bytes)} xalign={1} valign={Gtk.Align.START} />
             </box>
           )}
         </For>
-      </box>
-
-      <box cssClasses={["dev-row"]} visible={filtradas((lista: App[]) => lista.length === 0)}>
-        <TextoInformativo label={textos.apps.sinResultados} />
-      </box>
-      <box
-        cssClasses={["dev-row"]}
-        visible={filtradas((lista: App[]) => lista.length > APPS_VISIBLES)}
-      >
-        <BotonAjustes onClicked={() => setExpandido(!expandido.get())} halign={Gtk.Align.START}>
-          <label label={expandido((abierto: boolean) => abierto ? textos.apps.verMenos : textos.apps.verMas)} />
-        </BotonAjustes>
-      </box>
+      </ListaAjustes>
+      <PaginacionAjustes pagina={pagina} paginas={paginas} alCambiar={irAPagina} />
     </TarjetaAjustes>
   )
 }
@@ -304,7 +291,6 @@ function VistaUso() {
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section", "alm-section"]} hexpand>
-      <TituloSeccion titulo={textos.vistas.uso} />
 
       <box spacing={10} valign={Gtk.Align.CENTER}>
         <label
@@ -333,16 +319,22 @@ function VistaUso() {
             )
           }
           const grupos = agrupar(a.categorias)
+          // Compartir las medidas reales incluye padding y bordes del botón;
+          // un min-width idéntico en una caja vacía no alinea ambas columnas.
+          const columnas = {
+            tamanos: new Gtk.SizeGroup({ mode: Gtk.SizeGroupMode.HORIZONTAL }),
+            acciones: new Gtk.SizeGroup({ mode: Gtk.SizeGroupMode.HORIZONTAL }),
+          }
           return (
             <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>
               <TarjetaAjustes titulo={textos.grupos.discos} icono="󰋊">
                 {a.discos.map(disco => <BarraDisco disco={disco} />)}
               </TarjetaAjustes>
               <TarjetaAjustes titulo={textos.grupos.sistema} icono="󰒓">
-                {grupos.sistema.map(fila => <FilaCategoriaVista fila={fila} limpiezas={limpiezas} />)}
+                {grupos.sistema.map(fila => <FilaCategoriaVista fila={fila} limpiezas={limpiezas} columnas={columnas} />)}
               </TarjetaAjustes>
               <TarjetaAjustes titulo={textos.grupos.personal} icono="󰋜">
-                {grupos.personal.map(fila => <FilaCategoriaVista fila={fila} limpiezas={limpiezas} />)}
+                {grupos.personal.map(fila => <FilaCategoriaVista fila={fila} limpiezas={limpiezas} columnas={columnas} />)}
               </TarjetaAjustes>
               <CatalogoApps apps={analisis((x: Analisis) => x.apps)} />
             </box>
@@ -353,7 +345,7 @@ function VistaUso() {
   )
 }
 
-function AccionManual({ id, limpiezas }: { id: IdAccion; limpiezas: Limpiezas }) {
+function AccionManual({ id, limpiezas, botones }: { id: IdAccion; limpiezas: Limpiezas; botones: Gtk.SizeGroup }) {
   const meta = buscarAccion(id)!
   const ocupado = limpiezas.ocupadas((set: ReadonlySet<IdAccion>) => set.has(id))
   const resultado = limpiezas.resultados((mapa: ReadonlyMap<IdAccion, ResultadoLimpieza>) => mapa.get(id) ?? null)
@@ -366,11 +358,13 @@ function AccionManual({ id, limpiezas }: { id: IdAccion; limpiezas: Limpiezas })
           <TextoInformativo label={meta.descripcion} wrap xalign={0} maxWidthChars={58} />
         </box>
         <BotonAjustes
+          $={(self: Gtk.Button) => botones.add_widget(self)}
           variante={meta.peligrosa ? "secundario" : "principal"}
           onClicked={() => limpiezas.ejecutar(id)}
           sensitive={ocupado((esta: boolean) => !esta)}
         >
-          <label label={ocupado((esta: boolean) => esta ? textos.estados.limpiando : meta.etiqueta)} />
+          <label label={ocupado((esta: boolean) => esta ? textos.estados.limpiando : meta.etiqueta)}
+            wrap wrapMode={Pango.WrapMode.WORD_CHAR} widthChars={20} maxWidthChars={20} />
         </BotonAjustes>
       </box>
       <With value={resultado}>
@@ -386,6 +380,7 @@ function VistaLimpieza() {
   const [analisis] = usarAnalisis()
   const [marcadas, setMarcadas] = createState(ACCIONES_AUTOMATIZABLES.filter(id => accionAutomatica(id).get()))
   const limpiezas = usarLimpiezas()
+  const botones = new Gtk.SizeGroup({ mode: Gtk.SizeGroupMode.HORIZONTAL })
 
   const alternar = (id: IdAccion) => {
     const nuevo = !accionAutomatica(id).get()
@@ -397,7 +392,6 @@ function VistaLimpieza() {
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section", "alm-section"]} hexpand>
-      <TituloSeccion titulo={textos.vistas.limpieza} />
 
       <TarjetaAjustes titulo={textos.auto.titulo} icono="󰃢">
         <AjusteInterruptor
@@ -508,7 +502,7 @@ function VistaLimpieza() {
 
       {/* Manual: TODAS las acciones, también las que piden contraseña y por eso no salen arriba. */}
       <TarjetaAjustes titulo={textos.vistas.limpieza} icono="󰩹">
-        {ACCIONES.map(meta => <AccionManual id={meta.id} limpiezas={limpiezas} />)}
+        {ACCIONES.map(meta => <AccionManual id={meta.id} limpiezas={limpiezas} botones={botones} />)}
       </TarjetaAjustes>
     </box>
   )

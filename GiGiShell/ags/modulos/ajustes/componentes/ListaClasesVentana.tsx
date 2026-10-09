@@ -13,6 +13,9 @@ import AstalHyprland from "gi://AstalHyprland"
 import { PANTALLA_COMPLETA_REAL } from "../../../servicios/juegos/deteccion"
 import TextoInformativo from "./TextoInformativo"
 import TituloSubseccion from "./TituloSubseccion"
+import ListaAjustes from "./ListaAjustes"
+import EntradaTextoAjustes from "./EntradaTextoAjustes"
+import BotonAjustes from "./BotonAjustes"
 
 export interface TextosListaClases {
   titulo: string
@@ -92,38 +95,30 @@ export default function ListaClasesVentana({
       <TituloSubseccion label={textos.titulo} halign={Gtk.Align.START} />
       <TextoInformativo label={textos.ayuda} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
 
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+      <ListaAjustes cantidad={clases((lista: string[]) => lista.length)} vacia={textos.vacia}>
         <For each={clases}>
           {(clase: string) => <FilaClase clase={clase} alQuitar={alQuitar} quitar={textos.quitar} />}
         </For>
-      </box>
-
-      <TextoInformativo
-        label={textos.vacia}
-        halign={Gtk.Align.START}
-        visible={clases((lista: string[]) => lista.length === 0)}
-      />
+      </ListaAjustes>
 
       <box spacing={6} valign={Gtk.Align.CENTER}>
-        <entry
-          cssClasses={["sp-num-input", "sp-clase-entrada"]}
-          hexpand
+        <EntradaTextoAjustes
+          expandir
           xalign={0}
           placeholderText={textos.placeholder}
           $={(self: Gtk.Entry) => { entrada = self }}
           onActivate={anadirEscrito}
         />
-        <button cssClasses={["sp-add-rule"]} onClicked={anadirEscrito} valign={Gtk.Align.CENTER}>
+        <BotonAjustes onClicked={anadirEscrito}>
           <label label={textos.anadir} />
-        </button>
-        <button
-          cssClasses={["sp-add-rule"]}
+        </BotonAjustes>
+        <BotonAjustes
           onClicked={anadirActual}
           valign={Gtk.Align.CENTER}
           tooltipText={textos.anadirVentana}
         >
           <label label={`󰊓 ${textos.ventana}`} />
-        </button>
+        </BotonAjustes>
       </box>
     </box>
   )

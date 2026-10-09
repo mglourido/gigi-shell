@@ -24,10 +24,8 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "rules", label: textos.pestanas.reglas },
 ]
 
-/** `mostrarTitulo` existe porque estas pestañas se montan en DOS sitios con cabeceras distintas:
- *  en Ajustes > Notificaciones, donde el «✦ Notificaciones» es el título de la sección igual que
- *  en el resto de secciones; y en la ventana propia (`SettingsWindow`), que ya rotula
- *  «Ajustes de notificaciones» encima y ahí el título repetido sobra. */
+/** El panel general y SettingsWindow ya aportan su propia cabecera. Un montaje
+ * independiente puede conservar el título mediante `mostrarTitulo`. */
 export default function SettingsTabs({ mostrarTitulo = true }: { mostrarTitulo?: boolean } = {}) {
   const [tab, setTab] = createState<TabId>("general")
   // Editar desde el panel (clic derecho > 󰏫) entra POR AQUÍ y no por una pestaña: la

@@ -3,7 +3,7 @@
 // La distribución de teclado vive únicamente en Entrada y periféricos.
 import { Gtk } from "ags/gtk4"
 import Interruptor from "../../../componentes/Interruptor"
-import { BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo, TituloAjuste, TituloSeccion } from "../componentes"
+import { BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
 import { createComputed, createState, For, onCleanup, With } from "ags"
 import { DisplaySelect } from "../../../servicios/pantalla/controls"
 import { timeFormat, setTimeFormat, type TimeFormat } from "../preferences"
@@ -14,6 +14,7 @@ import {
   refreshAutoLocation, searchCity, setManualLocation, type CityResult,
 } from "./fechaHora"
 import textos from "../../../textos/ajustes/fecha-idioma.json" with { type: "json" }
+import textosGenerales from "../../../textos/ajustes/general.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
 
 // Nombre legible de un locale: "es_ES.UTF-8" → "Español (ES)".
@@ -131,7 +132,6 @@ export default function SeccionFechaIdioma({ vista }: { vista: VistaFechaIdioma 
   return (
     <overlay cssClasses={["display-select-host"]} vexpand>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand valign={Gtk.Align.START}>
-        <TituloSeccion titulo={textos.vistas[vista]} />
 
         {/* ── Idioma ─────────────────────────────────────────────────── */}
         {vista === "idioma" && <TarjetaAjustes titulo={textos.tarjetas.idioma} icono="󰗊">
@@ -144,6 +144,7 @@ export default function SeccionFechaIdioma({ vista }: { vista: VistaFechaIdioma 
             <box hexpand>
               <DisplaySelect
                 compact={false}
+                buscador={textosGenerales.listas.buscar}
                 current={createComputed(() => localeLabel(snapshot().locale))}
                 options={opcionesIdiomas}
                 onSelect={(idioma) => applyLocale(idioma)}
@@ -180,6 +181,7 @@ export default function SeccionFechaIdioma({ vista }: { vista: VistaFechaIdioma 
                 <box hexpand>
                   <DisplaySelect
                     compact={false}
+                    buscador={textosGenerales.listas.buscar}
                     current={createComputed(() => snapshot().timezone || "—")}
                     options={opcionesZonasHorarias}
                     onSelect={(zona) => applyTimezone(zona)}

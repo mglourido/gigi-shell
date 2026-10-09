@@ -8,7 +8,7 @@ import Pango from "gi://Pango"
 import { createState, createComputed, For, onCleanup } from "ags"
 import { DisplaySelect } from "../../../servicios/pantalla/controls"
 import Interruptor from "../../../componentes/Interruptor"
-import { TextoInformativo, TituloAjuste, TituloSeccion, TituloSubseccion } from "../componentes"
+import { TextoInformativo, TituloAjuste, TituloSubseccion } from "../componentes"
 import {
   monitors, monitorPrefs, monitorCaps, applyPatch, acquirePoll, releasePoll,
   globalVrrMode, applyGlobalVrr,
@@ -150,7 +150,6 @@ export default function SeccionPantalla() {
   return (
     <overlay cssClasses={["display-select-host"]} vexpand>
     <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-section"]} hexpand valign={Gtk.Align.START}>
-      <TituloSeccion titulo={textos.seccion.titulo} />
 
       {/* Selector de monitor */}
       <TextoInformativo cssClasses={["sp-display-detected-title"]} label={textos.seccion.pantallasDetectadas} halign={Gtk.Align.START} />
@@ -177,7 +176,7 @@ export default function SeccionPantalla() {
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
           <TituloAjuste label={textos.monitor.resolucion.titulo} halign={Gtk.Align.START} />
-          <DisplaySelect
+          <DisplaySelect compact={false}
             current={createComputed(() => { const s = selected(); return s ? `${s.width}×${s.height}` : "—" })}
             options={createComputed(() => {
               const s = selected(); if (!s) return []
@@ -201,7 +200,7 @@ export default function SeccionPantalla() {
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
           <TituloAjuste label={textos.monitor.frecuencia.titulo} halign={Gtk.Align.START} />
-          <DisplaySelect
+          <DisplaySelect compact={false}
             current={createComputed(() => { const s = selected(); return s ? `${Math.round(s.refreshRate)} Hz` : "—" })}
             options={createComputed(() => {
               const s = selected(); if (!s) return []
@@ -213,7 +212,7 @@ export default function SeccionPantalla() {
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
           <TituloAjuste label={textos.monitor.escala.titulo} halign={Gtk.Align.START} />
-          <DisplaySelect
+          <DisplaySelect compact={false}
             current={createComputed(() => { const s = selected(); return s ? matchScalePreset(s.scale).toFixed(2) : "—" })}
             options={createComputed(() => {
               const s = selected(); if (!s) return []
@@ -226,7 +225,7 @@ export default function SeccionPantalla() {
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
           <TituloAjuste label={textos.monitor.rotacion.titulo} halign={Gtk.Align.START} />
-          <DisplaySelect
+          <DisplaySelect compact={false}
             current={createComputed(() => { const s = selected(); const t = s ? (s.transform ?? 0) : 0; return etiquetaTransformacion(t) })}
             options={createComputed(() => {
               const s = selected(); const cur = s ? (s.transform ?? 0) : 0
@@ -239,7 +238,7 @@ export default function SeccionPantalla() {
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}
           visible={createComputed(() => monitors().length > 1)}>
           <TituloAjuste label={textos.monitor.posicion.titulo} halign={Gtk.Align.START} />
-          <DisplaySelect
+          <DisplaySelect compact={false}
             current={textos.monitor.posicion.seleccionar}
             options={createComputed(() => {
               const s = selected(); if (!s) return []
@@ -270,7 +269,7 @@ export default function SeccionPantalla() {
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0}
           visible={createComputed(() => monitors().length > 1)}>
           <TituloAjuste label={textos.monitor.duplicar.titulo} halign={Gtk.Align.START} />
-          <DisplaySelect
+          <DisplaySelect compact={false}
             current={createComputed(() => { const s = selected(); return s && s.mirrorOf && s.mirrorOf !== "none" ? s.mirrorOf : textos.monitor.duplicar.ninguno })}
             options={createComputed(() => {
               const s = selected(); if (!s) return []
@@ -291,7 +290,7 @@ export default function SeccionPantalla() {
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0} visible={admiteDiezBits}>
           <TituloAjuste label={textos.monitor.profundidadColor.titulo} halign={Gtk.Align.START} />
-          <DisplaySelect
+          <DisplaySelect compact={false}
             current={createComputed(() => `${curBitdepth(selected())}-bit`)}
             options={createComputed(() => { const bd = curBitdepth(selected()); return [
               { label: "8-bit", value: "8", active: bd === 8 },
@@ -307,7 +306,7 @@ export default function SeccionPantalla() {
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0} visible={admiteHdr}>
           <TituloAjuste label={textos.monitor.gestionColor.titulo} halign={Gtk.Align.START} />
-          <DisplaySelect
+          <DisplaySelect compact={false}
             current={createComputed(() => etiquetaColor(curCm(selected())))}
             options={createComputed(() => { const cm = curCm(selected()); return CM_MODES.map(c => ({ label: etiquetaColor(c.value), value: c.value, active: c.value === cm })) })}
             onSelect={(value) => { const s = selected(); if (s) applyPatch(s, { cm: value }) }}
@@ -408,7 +407,7 @@ export default function SeccionPantalla() {
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={anyVrr}>
           <TextoInformativo label={textos.globales.vrr.titulo} halign={Gtk.Align.START} />
-          <DisplaySelect
+          <DisplaySelect compact={false}
             current={globalVrrMode((v: number) => v === 0
               ? textos.globales.vrr.opciones.desactivado
               : v === 1

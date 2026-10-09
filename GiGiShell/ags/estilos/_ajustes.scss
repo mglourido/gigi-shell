@@ -95,23 +95,60 @@
   .sp-nav-content { padding-left: 8px; }
 }
 
+.sp-area-contenido { min-width: 0; }
+.sp-cabecera-fija { padding: 18px 20px 14px; }
 .sp-content {
   /* Sin min-width: este ScrolledWindow ocupa lo que sobra del ancho del panel. */
-  padding: 18px 20px;
+  padding: 0 20px 18px;
+}
 
-  scrollbar,
-  scrollbar slider,
-  scrollbar button {
-    opacity: 0;
-    min-width: 0;
-    min-height: 0;
-    margin: 0;
+// Solo los scrolls de Ajustes: el selector flotante conserva su estilo propio.
+.sp-content > scrollbar,
+.sp-lista-scroll > scrollbar {
+  min-width: 6px;
+  min-height: 6px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  opacity: 1;
+  range, trough {
+    min-width: 6px;
+    min-height: 6px;
     padding: 0;
-    background: transparent;
+    margin: 0;
     border: none;
+    background: transparent;
     box-shadow: none;
   }
+  slider {
+    min-width: 3px;
+    min-height: 24px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    box-shadow: none;
+    background: rgba($text, 0.22);
+    &:hover { background: acento(0.55); }
+  }
+  &.horizontal slider { min-width: 24px; min-height: 3px; }
+  button { min-width: 0; min-height: 0; padding: 0; background: transparent; border: none; }
 }
+.sp-content > scrollbar.vertical { margin-left: 8px; }
+.sp-lista-scroll > scrollbar.vertical { margin: 6px 3px; }
+.dev-card > .sp-lista { margin: 10px 14px; }
+.sp-lista-scroll {
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.07);
+}
+.sp-lista-resumen { font-size: 10px; color: rgba($text, 0.55); padding: 0; }
+.sp-lista-vacia { padding: 12px; }
+.sp-paginacion { padding: 8px 12px; }
+.sp-lista-scroll .sp-rule-row { min-height: 30px; padding: 6px 12px; }
+.dev-row.sp-fila-compacta { min-height: 30px; padding: 6px 12px; }
 
 .sp-section {
   /* Suelo de legibilidad, no el ancho de diseño: el ancho real lo da el panel
@@ -152,16 +189,13 @@
 }
 
 .sp-field {
-  // Suelo de ancho para las columnas de campos, NO su ancho de diseño (lo da el
-  // panel). Era 560, y con el relleno de `.dev-row` (14+14) más el borde de la
-  // tarjeta sumaba 590 sobre los ~592 de hueco: cualquier anidamiento extra sacaba
-  // ya la barra horizontal. 520 deja margen y no se nota, porque estas cajas se
-  // estiran con el panel.
-  min-width: 520px;
+  // El ancho lo da el panel; un mínimo propio reaparece como scroll horizontal
+  // al anidar el campo dentro de una tarjeta o usar una pantalla estrecha.
+  min-width: 0;
 }
 .sp-field-label { font-size: 12px; color: $text; font-family: $font-icon; }
 .sp-field-value { font-size: 12px; font-weight: 700; color: acento(); font-family: $font-icon; }
-.sp-field-hint { font-size: 10px; color: rgba($text, 0.4); font-family: $font-icon; }
+.sp-field-hint { font-size: 10px; color: rgba($text, 0.58); font-family: $font-icon; }
 // Aviso de configuración: una pista que el usuario TIENE que leer (p. ej. que
 // logind se queda el botón de encendido), no una descripción más.
 .sp-field-hint-warn { color: $orange; }
@@ -199,7 +233,7 @@
 }
 .dev-card-icon { color: acento(); font-family: $font-icon; font-size: 15px; }
 .dev-row {
-  min-height: 45px;
+  min-height: 32px;
   padding: 9px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.045);
   &:last-child { border-bottom: none; }
@@ -214,6 +248,17 @@
   &.off { background: $red; }               // inactivo pero instalado
 }
 .dev-select { min-width: 190px; }
+.sp-content button.qs-display-select {
+  min-height: 28px;
+  padding: 0 10px;
+  font-family: $font-icon;
+  font-weight: 400;
+  border: 1px solid rgba($text, 0.1);
+  background: rgba($text, 0.045);
+  &:hover { background: rgba($text, 0.08); }
+  &.open { border-color: acento(0.55); }
+  .qs-display-select-value { font-weight: 400; }
+}
 
 // ── Ajustes > Atajos de teclado ───────────────────────────────────────────────
 // Misma lista que la sección "Atajos" de Orion, pero con la tipografía de Ajustes:
@@ -226,6 +271,9 @@
   font-family: $font-icon;
 }
 .kb-buscador { min-height: 30px; }
+.kb-seccion { padding-bottom: 0; }
+// Variante de .sp-lista-scroll: la altura la reparte GTK con el espacio del panel.
+.sp-lista-scroll.kb-lista-scroll { min-height: 0; }
 .kb-lista { padding: 2px 0 4px; }
 .kb-ajustes-grupo {
   font-size: 11px;
@@ -329,6 +377,12 @@ button.pred-opcion {
 .pred-error { color: $red; }
 .pred-ayuda { margin-bottom: 2px; }
 .pred-anadir { margin-top: 6px; }
+.sp-content .pred-opcion,
+.qs-display-select-list:not(.compact) .qs-display-select-opt {
+  font-family: $font-icon;
+  font-size: 12px;
+  font-weight: 400;
+}
 
 // ── Cuenta ──────────────────────────────────────────────────────────────────
 .account-section { padding-bottom: 10px; }
@@ -352,10 +406,14 @@ button.pred-opcion {
 .account-current-user { color: $text; font-size: 14px; font-weight: 700; }
 .account-controls { min-width: 0; }
 .account-entry {
-  min-height: 0; padding: 0 9px; border-radius: 7px;
+  min-height: 28px; padding: 0 9px; border-radius: 7px;
+  font-size: 12px; font-family: $font-icon;
   color: $text; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08);
   &:focus { border-color: acento(.6); }
 }
+.sp-content entry.sp-num-input { min-height: 28px; padding: 0 9px; font-size: 12px; }
+.sp-content button.sp-add-rule { min-height: 28px; padding: 0 12px; }
+.sp-content button.sp-step-btn { min-height: 28px; padding: 0 10px; }
 .account-entry.account-entry-compact { font-size: 12px; }
 .account-secondary-btn, .account-save-btn {
   min-height: 0; padding: 0 12px; border-radius: 7px; font-size: 11px; font-weight: 600;
@@ -430,6 +488,8 @@ button.account-save-pending {
    Dispositivos y Seguridad) y solo añade lo propio de esta sección: la barra de
    uso por disco, la columna de tamaños y las etiquetas del catálogo de apps. */
 .alm-section { padding-bottom: 12px; }
+.alm-columna-tamano { min-width: 100px; }
+.alm-accion { min-width: 128px; }
 .alm-icono {
   color: acento();
   font-family: $font-icon;

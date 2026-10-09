@@ -8,6 +8,7 @@ import { For, createComputed } from "ags"
 import { Gtk } from "ags/gtk4"
 import TextoInformativo from "../componentes/TextoInformativo"
 import TituloSubseccion from "../componentes/TituloSubseccion"
+import { ListaAjustes, EntradaTextoAjustes, BotonAjustes } from "../componentes"
 import { orionNotisApps, addOrionNotisApp, removeOrionNotisApp, orionEnabled } from "../preferences"
 import { notifications } from "../../notificaciones/store"
 import textos from "../../../textos/ajustes/personalizacion.json" with { type: "json" }
@@ -60,34 +61,28 @@ export default function AppsNotificacionesOrion() {
       <TituloSubseccion label={t.titulo} halign={Gtk.Align.START} />
       <TextoInformativo label={t.ayuda} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
 
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+      <ListaAjustes cantidad={orionNotisApps((lista: string[]) => lista.length)} vacia={t.vacia}>
         <For each={orionNotisApps}>
           {(app: string) => <FilaApp app={app} />}
         </For>
-      </box>
-      <TextoInformativo
-        label={t.vacia}
-        halign={Gtk.Align.START}
-        visible={orionNotisApps((l: string[]) => l.length === 0)}
-      />
+      </ListaAjustes>
 
       <box spacing={6} valign={Gtk.Align.CENTER}>
-        <entry
-          cssClasses={["sp-num-input", "sp-clase-entrada"]}
-          hexpand
+        <EntradaTextoAjustes
+          expandir
           xalign={0}
           placeholderText={t.placeholder}
           $={(self: Gtk.Entry) => { entrada = self }}
           onActivate={anadirEscrito}
         />
-        <button cssClasses={["sp-add-rule"]} onClicked={anadirEscrito} valign={Gtk.Align.CENTER}>
+        <BotonAjustes onClicked={anadirEscrito}>
           <label label={t.anadir} />
-        </button>
+        </BotonAjustes>
       </box>
 
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={sugerencias((l) => l.length > 0)}>
         <TextoInformativo label={t.sugerencias} halign={Gtk.Align.START} />
-        <box spacing={4}>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
           <For each={sugerencias}>
             {(app: string) => (
               <button cssClasses={["sp-add-rule"]} onClicked={() => addOrionNotisApp(app)} tooltipText={`${t.anadir} ${app}`}>

@@ -1,6 +1,6 @@
 import { createComputed, For } from "ags"
 import { Gtk } from "ags/gtk4"
-import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
+import { AjusteInterruptor, EntradaTextoAjustes, ListaAjustes, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
 import {
   batteryMonitorEnabled, setBatteryMonitorEnabled,
   tempMonitorEnabled, setTempMonitorEnabled,
@@ -26,7 +26,7 @@ function PaquetesVigilados() {
     <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} visible={updatesMonitorEnabled}>
       <TituloSubseccion label={t.titulo} halign={Gtk.Align.START} />
       <TextoInformativo label={t.ayuda} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+      <ListaAjustes cantidad={updatesWatchList((lista: string[]) => lista.length)} vacia={t.vacia}>
         <For each={updatesWatchList}>
           {(nombre: string) => (
             <box spacing={5} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]}>
@@ -38,12 +38,10 @@ function PaquetesVigilados() {
             </box>
           )}
         </For>
-      </box>
-      <TextoInformativo label={t.vacia} halign={Gtk.Align.START} visible={updatesWatchList((l) => l.length === 0)} />
+      </ListaAjustes>
       <box spacing={6} valign={Gtk.Align.CENTER}>
-        <entry
-          cssClasses={["sp-num-input", "sp-clase-entrada"]}
-          hexpand
+        <EntradaTextoAjustes
+          expandir
           xalign={0}
           placeholderText={t.placeholder}
           $={(self: Gtk.Entry) => { entrada = self }}

@@ -7,7 +7,7 @@ import OpcionDaltonismo from "../accesibilidad/OpcionDaltonismo"
 import SelectorFondoShell from "./SelectorFondoShell"
 import {
   AjusteInterruptor, FilaAjuste, TarjetaAjustes,
-  TextoInformativo, TituloSeccion,
+  ListaAjustes, TextoInformativo,
 } from "../componentes"
 import {
   acentoAdaptativoEnabled, setAcentoAdaptativoEnabled,
@@ -33,15 +33,18 @@ import textosAccesibilidad from "../../../textos/ajustes/accesibilidad.json" wit
 import textosPersonalizacion from "../../../textos/ajustes/personalizacion.json" with { type: "json" }
 import textosApps from "../../../textos/ajustes/apps.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
+import { iconoDesdeCadena } from "../inicio/catalogoApps"
 
 function FilaAppBandeja({ app }: { app: TrayAppInfo }) {
   const visible = hiddenTrayApps((ocultas: string[]) => !ocultas.includes(app.id))
+  const icono = iconoDesdeCadena(app.iconName)
   return (
-    <FilaAjuste titulo={app.title}>
+    <box cssClasses={["dev-row", "sp-fila-compacta"]} spacing={10}>
+      {icono ? <image gicon={icono} pixelSize={22} valign={Gtk.Align.CENTER} />
+        : <label cssClasses={["dev-card-icon"]} label="󰀻" valign={Gtk.Align.CENTER} />}
+      <label cssClasses={["sp-field-label"]} label={app.title} hexpand xalign={0}
+        ellipsize={3} tooltipText={app.title} valign={Gtk.Align.CENTER} />
       <box spacing={8} valign={Gtk.Align.CENTER}>
-        {app.iconName
-          ? <image iconName={app.iconName} pixelSize={22} />
-          : <label cssClasses={["sp-nav-icon"]} label="󰀻" />}
         <button
           cssClasses={["sp-rule-del"]}
           valign={Gtk.Align.CENTER}
@@ -52,7 +55,7 @@ function FilaAppBandeja({ app }: { app: TrayAppInfo }) {
         </button>
         <Interruptor activo={visible} alAlternar={() => visible.get() ? hideTrayApp(app.id) : showTrayApp(app.id)} />
       </box>
-    </FilaAjuste>
+    </box>
   )
 }
 
@@ -61,7 +64,6 @@ function FilaAppBandeja({ app }: { app: TrayAppInfo }) {
 export default function SeccionDiseno() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-      <TituloSeccion titulo={textos.secciones.diseno} />
 
       <TarjetaAjustes titulo={textosAccesibilidad.grupos.daltonismo} icono="󰦧">
         <box cssClasses={["dev-row"]}>
@@ -108,12 +110,9 @@ export default function SeccionDiseno() {
             <button cssClasses={["sp-step-btn"]} onClicked={() => setTrayOverflowAt(trayOverflowAt.get() + 1)}><label label="+" /></button>
           </box>
         </FilaAjuste>
-        <box orientation={Gtk.Orientation.VERTICAL} visible={trayBarEnabled}>
-          <box cssClasses={["dev-row"]} visible={knownTrayApps((apps: TrayAppInfo[]) => apps.length === 0)}>
-            <TextoInformativo label={textosApps.vacio} halign={Gtk.Align.START} />
-          </box>
+        <ListaAjustes cantidad={knownTrayApps((apps: TrayAppInfo[]) => apps.length)} vacia={textosApps.vacio}>
           <For each={knownTrayApps}>{(app: TrayAppInfo) => <FilaAppBandeja app={app} />}</For>
-        </box>
+        </ListaAjustes>
       </TarjetaAjustes>
     </box>
   )

@@ -3,6 +3,14 @@
     "titulo": "Ajustes",
     "editarValor": "Editar valor"
   },
+  "listas": {
+    "elementos": "{{cantidad}} elementos",
+    "pagina": "Página {{actual}} de {{total}}",
+    "anterior": "Página anterior",
+    "siguiente": "Página siguiente",
+    "buscar": "Buscar…",
+    "sinResultados": "No hay opciones disponibles."
+  },
   "secciones": {
     "cuenta": "Cuenta",
     "idiomaRegion": "Idioma y región",

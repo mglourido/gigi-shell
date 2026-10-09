@@ -14,13 +14,14 @@ type PropiedadesTextoInformativo = {
 /** Texto secundario compartido para descripciones y avisos de Ajustes. */
 export default function TextoInformativo({
   cssClasses = [],
-  halign = Gtk.Align.START,
+  halign = Gtk.Align.FILL,
   ...propiedades
 }: PropiedadesTextoInformativo) {
   return (
     <label
       cssClasses={["sp-field-hint", ...cssClasses]}
-      halign={halign}
+      halign={halign === Gtk.Align.START ? Gtk.Align.FILL : halign}
+      hexpand
       wrap
       wrapMode={Pango.WrapMode.WORD_CHAR}
       xalign={0}

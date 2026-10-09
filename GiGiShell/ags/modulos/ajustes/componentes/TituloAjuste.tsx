@@ -18,13 +18,13 @@ type PropiedadesTituloAjuste = {
 /** Etiqueta principal compartida por los controles de Ajustes. */
 export default function TituloAjuste({
   cssClasses = [],
-  halign = Gtk.Align.START,
+  halign = Gtk.Align.FILL,
   ...propiedades
 }: PropiedadesTituloAjuste) {
   return (
     <label
       cssClasses={["sp-field-label", ...cssClasses]}
-      halign={halign}
+      halign={halign === Gtk.Align.START ? Gtk.Align.FILL : halign}
       wrap
       wrapMode={Pango.WrapMode.WORD_CHAR}
       xalign={0}

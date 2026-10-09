@@ -6,6 +6,7 @@ type PropiedadesFilaAjuste = {
   informacion?: any
   children: any
   cssClasses?: string[]
+  compacta?: boolean
   spacing?: number
   maxCaracteresInformacion?: number
   expandirInformacion?: boolean
@@ -18,15 +19,16 @@ export default function FilaAjuste({
   informacion,
   children,
   cssClasses = [],
+  compacta = false,
   spacing = 14,
   maxCaracteresInformacion = 52,
-  expandirInformacion = false,
+  expandirInformacion = true,
   visible,
 }: PropiedadesFilaAjuste) {
   const propiedadVisibilidad = visible === undefined ? {} : { visible }
   return (
     <box
-      cssClasses={["dev-row", ...cssClasses]}
+      cssClasses={["dev-row", ...(compacta ? ["sp-fila-compacta"] : []), ...cssClasses]}
       spacing={spacing}
       valign={Gtk.Align.CENTER}
       {...propiedadVisibilidad}

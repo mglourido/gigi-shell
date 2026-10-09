@@ -1,5 +1,5 @@
 import { Gtk } from "ags/gtk4"
-import { AjusteInterruptor, TarjetaAjustes, TituloSeccion } from "../componentes"
+import { AjusteInterruptor, TarjetaAjustes } from "../componentes"
 import LimpiezaPortapapeles from "./LimpiezaPortapapeles"
 import AppsNotificacionesOrion from "./AppsNotificacionesOrion"
 import {
@@ -16,13 +16,14 @@ type VistaFunciones = "orion" | "portapapeles"
 export default function SeccionFuncionesShell({ vista }: { vista: VistaFunciones }) {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-      <TituloSeccion titulo={textos.vistasFunciones[vista]} />
 
       {vista === "orion" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.orion} icono="󰆍">
         <AjusteInterruptor titulo={textos.orion.menu.titulo} informacion={textos.orion.menu.descripcion} activo={orionEnabled} alAlternar={() => setOrionEnabled(!orionEnabled.get())} />
         <AjusteInterruptor titulo={textos.orion.paginaInicial.titulo} informacion={textos.orion.paginaInicial.descripcion} activo={orionAppsDefault} visible={orionEnabled} alAlternar={() => setOrionAppsDefault(!orionAppsDefault.get())} />
         <AjusteInterruptor titulo={textos.orion.ultimaSeccion.titulo} informacion={textos.orion.ultimaSeccion.descripcion} activo={orionRecordarUltimaSeccion} visible={orionEnabled} alAlternar={() => setOrionRecordarUltimaSeccion(!orionRecordarUltimaSeccion.get())} />
-        <AppsNotificacionesOrion />
+        <box cssClasses={["dev-row"]} visible={orionEnabled}>
+          <AppsNotificacionesOrion />
+        </box>
       </TarjetaAjustes>}
 
       {vista === "portapapeles" && <TarjetaAjustes titulo={textos.seccionesNuevas.funcionesShell.portapapeles} icono="󰅇">

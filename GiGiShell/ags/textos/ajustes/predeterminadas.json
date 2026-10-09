@@ -75,6 +75,8 @@
   "fila": {
     "ninguna": "Sin app asignada",
     "cambiar": "Elegir otra app",
+    "buscar": "Buscar aplicación…",
+    "gestionar": "Gestionar «Abrir con»",
     "sinCandidatas": "No hay ninguna app en la lista. Añade una abajo.",
     "error": "No se pudo guardar el cambio.",
     "ayuda": "Pulsa una app para usarla por defecto.",
@@ -84,6 +86,7 @@
     "noQuitarActual": "Es la app por defecto: elige otra antes de quitarla",
     "anadirMarcador": "Añadir otra app a «Abrir con»…",
     "anadir": "Añadir a «Abrir con»",
+    "escribirBusqueda": "Escribe para buscar una aplicación instalada.",
     "sinResultados": "Ninguna app instalada coincide con la búsqueda."
   },
   "aviso": "Se guarda en ~/.config/mimeapps.list, que es lo que consultan xdg-open, Dolphin y el resto de apps KDE y GTK, Electron y los navegadores al abrir un enlace o un archivo. Vale al momento para lo que se abra a partir de ahora. Elegir la app por defecto solo cambia los formatos que esa app declara saber abrir; añadir o quitar una app de «Abrir con» afecta a todos los formatos de la categoría. Para un formato suelto, búscalo en «Todos los tipos de archivo».",

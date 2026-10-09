@@ -6,7 +6,7 @@ import Pango from "gi://Pango"
 import { createComputed, onCleanup } from "ags"
 import { InlineEditableValue } from "../../../componentes/InlineEditableValue"
 import { conectarCambioDeslizador } from "../../../utilidades/deslizador"
-import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste, TituloSeccion } from "../componentes"
+import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
 import Inactividad from "../pantalla/Inactividad"
 import textos from "../../../textos/ajustes/energia.json" with { type: "json" }
 import {
@@ -196,8 +196,8 @@ function TarjetaBotonEncendido() {
     <TarjetaAjustes titulo={textos.grupos.botonEncendido} icono="󰐥">
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand>
         <TituloAjuste label={textos.botonEncendido.titulo} halign={Gtk.Align.START} />
-        <box cssClasses={["sp-field"]} widthRequest={320} hexpand={false} halign={Gtk.Align.START}>
-          <DisplaySelect
+        <box cssClasses={["sp-field"]} hexpand>
+          <DisplaySelect compact={false}
             current={botonApagado((accion) => etiquetaAccion(accion))}
             options={botonApagado((actual) => ACCIONES_BOTON_ENCENDIDO.map((accion) => ({
               label: etiquetaAccion(accion), value: accion, active: accion === actual,
@@ -258,8 +258,8 @@ function TarjetaTapa() {
     <TarjetaAjustes titulo={textos.grupos.tapa} icono="󰌢">
       <box orientation={Gtk.Orientation.VERTICAL} spacing={6} cssClasses={["dev-row"]} hexpand>
         <TituloAjuste label={textos.tapa.titulo} halign={Gtk.Align.START} />
-        <box cssClasses={["sp-field"]} widthRequest={320} hexpand={false} halign={Gtk.Align.START}>
-          <DisplaySelect
+        <box cssClasses={["sp-field"]} hexpand>
+          <DisplaySelect compact={false}
             current={accionTapa((accion) => etiquetaAccionTapa(accion))}
             options={accionTapa((actual) => ACCIONES_TAPA.map((accion) => ({
               label: etiquetaAccionTapa(accion), value: accion, active: accion === actual,
@@ -378,8 +378,8 @@ function TarjetaRefresco() {
         visible={reduceRefreshInPowerSave}
       >
         <TituloAjuste label={textos.refresco.nivel} halign={Gtk.Align.START} />
-        <box cssClasses={["sp-field"]} widthRequest={320} hexpand={false} halign={Gtk.Align.START}>
-          <DisplaySelect
+        <box cssClasses={["sp-field"]} hexpand>
+          <DisplaySelect compact={false}
             current={powerSaveRefreshHz((hz) => formatearTexto(textos.refresco.hz, { hz }))}
             options={createComputed(() => hzDisponibles(monitors(), powerSaveRefreshHz()).map((hz) => ({
               label: formatearTexto(textos.refresco.hz, { hz }), value: String(hz), active: hz === powerSaveRefreshHz(),
@@ -411,7 +411,6 @@ export default function SeccionEnergia() {
   return (
     <overlay cssClasses={["display-select-host"]} vexpand>
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section"]} hexpand valign={Gtk.Align.START}>
-      <TituloSeccion titulo={textos.seccion.titulo} />
 
       {/* estado actual */}
       <box spacing={6} halign={Gtk.Align.START}>

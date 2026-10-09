@@ -10,7 +10,8 @@ import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { With, createState, createComputed } from "ags"
 import { settingsPanelVisible, setSettingsPanelVisible, privilegedPromptActive } from "../../estado/shell"
 import NavegacionAjustes from "./panel/NavegacionAjustes.tsx"
-import { crearContenidoSeccion, type IdSeccion } from "./panel/secciones.tsx"
+import { crearContenidoSeccion, SECCIONES_POR_ID, type IdSeccion } from "./panel/secciones.tsx"
+import TituloSeccion from "./componentes/TituloSeccion"
 import { clasesFondoShell } from "./preferences"
 import { medidasLamina, seguirGeometriaMonitor, seguirTamanoLamina } from "../../utilidades/tamanoLamina"
 
@@ -89,64 +90,60 @@ export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
         }}
       />
 
-      {/* Contenido desplazable. **La sección no participa en el tamaño del panel**: ni su
-          mínimo ni su natural suben, así que abre lo que abras el panel mide lo mismo.
-          Las dos piezas:
-
-          - políticas en EXTERNAL: con `hscrollbarPolicy` en NEVER (como estaba) GTK4 suma
-            el MÍNIMO del hijo a lo que pide este ScrolledWindow, así que cualquier sección
-            que pidiera de más ensanchaba el panel entero — y las que se pintan tarde
-            (Sistema rellena sus tarjetas cuando termina el sondeo) lo ensanchaban DESPUÉS
-            de haber salido ya con el tamaño bueno, que es el salto que se veía. EXTERNAL
-            desplaza en vez de empujar, y no dibuja barra (el CSS ya las ocultaba).
-          - `propagateNatural*` en false: lo mismo para el natural. Quien estira el panel es
-            la nav (ver el comentario de `DISENO`). */}
-      <Gtk.ScrolledWindow
-        cssClasses={["sp-content"]}
-        $={(self: Gtk.ScrolledWindow) => {
-          contenidoDesplazable = self
-          desactivarDesplazarAlFoco(self)
-        }}
-        hexpand
-        vexpand
-        propagateNaturalWidth={false}
-        propagateNaturalHeight={false}
-        hscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
-        vscrollbarPolicy={Gtk.PolicyType.EXTERNAL}
-      >
-        {/* `vexpand`: la sección se estira hasta el alto del ScrolledWindow en vez de
-            quedarse en su alto natural. No cambia nada de lo que se ve (las secciones
-            alinean su contenido arriba), pero es lo que le da alto al `Gtk.Overlay` de
-            `display-select-host`, donde se dibuja la lista desplegable de `DisplaySelect`
-            — en una sección corta el desplegable se quedaba en ~40 px. Ojo: NO toca el
-            tamaño del panel, que sigue sin propagar ni mínimo ni natural (ver arriba). */}
-        <box orientation={Gtk.Orientation.VERTICAL} hexpand vexpand>
-          {/* UN SOLO <With>, sobre `vistaActiva` (= sección, o null con el panel cerrado).
-              Gatea por VISIBILIDAD, no solo por sección: sin eso la sección por defecto
-              (Cuenta) se construía al arrancar el shell —una vez por monitor— y seguía
-              montada toda la sesión sin haber abierto Ajustes nunca, porque `panel` se
-              evalúa en el cuerpo de la función que app.ts invoca con .map() al arrancar y
-              <With> renderiza con `immediate: true`. Cerrar solo cambiaba `visible` de la
-              ventana y no desmontaba nada.
-
-              NO se puede hacer con dos <With> anidados (visibilidad → sección), que es lo
-              primero que sale: <With> devuelve un Fragment y `Fragment.append` lanza
-              "nesting Fragments are not yet supported". El error se traga en el efecto, así
-              que el panel se queda SIN CONTENIDO y además el fragment externo nunca llega a
-              tener hijos → su scope no se dispone jamás y no corre ni un onCleanup: pierdes
-              justo lo que venías a arreglar, en silencio. Medido.
-
-              Por lo mismo el caso cerrado devuelve un <box/> vacío y no `null`: <With> no
-              añade nada al fragment ante null/undefined/false/"", y el ciclo de disposición
-              cuelga de iterar los hijos del fragment. Sin hijo no hay dispose. */}
-          <With value={vistaActiva}>
-            {(s: IdSeccion | null) => {
-              if (s === null) return <box />
-              return crearContenidoSeccion(s) as any
-            }}
-          </With>
+      {/* La cabecera queda fuera del scroll. El contenido no propaga su tamaño:
+          las listas y secciones largas desplazan sin ensanchar ni estirar el panel. */}
+      <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["sp-area-contenido"]} hexpand vexpand>
+        <box cssClasses={["sp-cabecera-fija"]}>
+          <TituloSeccion titulo={seccion((id) => SECCIONES_POR_ID[id].label)} />
         </box>
-      </Gtk.ScrolledWindow>
+        <Gtk.ScrolledWindow
+          cssClasses={["sp-content"]}
+          $={(self: Gtk.ScrolledWindow) => {
+            contenidoDesplazable = self
+            desactivarDesplazarAlFoco(self)
+          }}
+          hexpand
+          vexpand
+          propagateNaturalWidth={false}
+          propagateNaturalHeight={false}
+          hscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+          vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+          overlayScrolling={false}
+        >
+          {/* `vexpand`: la sección se estira hasta el alto del ScrolledWindow en vez de
+              quedarse en su alto natural. No cambia nada de lo que se ve (las secciones
+              alinean su contenido arriba), pero es lo que le da alto al `Gtk.Overlay` de
+              `display-select-host`, donde se dibuja la lista desplegable de `DisplaySelect`
+              — en una sección corta el desplegable se quedaba en ~40 px. Ojo: NO toca el
+              tamaño del panel, que sigue sin propagar ni mínimo ni natural (ver arriba). */}
+          <box orientation={Gtk.Orientation.VERTICAL} hexpand vexpand>
+            {/* UN SOLO <With>, sobre `vistaActiva` (= sección, o null con el panel cerrado).
+                Gatea por VISIBILIDAD, no solo por sección: sin eso la sección por defecto
+                (Cuenta) se construía al arrancar el shell —una vez por monitor— y seguía
+                montada toda la sesión sin haber abierto Ajustes nunca, porque `panel` se
+                evalúa en el cuerpo de la función que app.ts invoca con .map() al arrancar y
+                <With> renderiza con `immediate: true`. Cerrar solo cambiaba `visible` de la
+                ventana y no desmontaba nada.
+
+                NO se puede hacer con dos <With> anidados (visibilidad → sección), que es lo
+                primero que sale: <With> devuelve un Fragment y `Fragment.append` lanza
+                "nesting Fragments are not yet supported". El error se traga en el efecto, así
+                que el panel se queda SIN CONTENIDO y además el fragment externo nunca llega a
+                tener hijos → su scope no se dispone jamás y no corre ni un onCleanup: pierdes
+                justo lo que venías a arreglar, en silencio. Medido.
+
+                Por lo mismo el caso cerrado devuelve un <box/> vacío y no `null`: <With> no
+                añade nada al fragment ante null/undefined/false/"", y el ciclo de disposición
+                cuelga de iterar los hijos del fragment. Sin hijo no hay dispose. */}
+            <With value={vistaActiva}>
+              {(s: IdSeccion | null) => {
+                if (s === null) return <box />
+                return crearContenidoSeccion(s) as any
+              }}
+            </With>
+          </box>
+        </Gtk.ScrolledWindow>
+      </box>
     </box>
   ) as unknown as Gtk.Widget
 

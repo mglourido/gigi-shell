@@ -16,7 +16,7 @@ import { For, createComputed, createState, onCleanup, type Accessor } from "ags"
 import { Gtk } from "ags/gtk4"
 import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
-import { BotonAjustes, TextoInformativo, TituloAjuste } from "../componentes"
+import { BotonAjustes, ListaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
 import {
   conceder, desproteger, esInterprete, ficheros, fijarCategoria, fijarPermiso, pedirHistorial,
   type EntradaHistorial, type Fichero, type Permiso,
@@ -265,7 +265,8 @@ export default function FicheroProtegido({ inicial }: { inicial: Fichero }) {
           <label cssClasses={["dev-card-icon"]} label="󰈙" valign={Gtk.Align.CENTER} />
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
             <TituloAjuste label={fichero((f) => nombreArchivo(f.ruta))} />
-            <TextoInformativo label={fichero((f) => carpetaCorta(f.ruta))} ellipsize={3} maxWidthChars={48} />
+            <TextoInformativo label={fichero((f) => carpetaCorta(f.ruta))} wrap={false}
+              ellipsize={1} maxWidthChars={48} tooltipText={ruta} />
           </box>
           <box orientation={Gtk.Orientation.VERTICAL} spacing={2} valign={Gtk.Align.CENTER}>
             <label
@@ -291,14 +292,11 @@ export default function FicheroProtegido({ inicial }: { inicial: Fichero }) {
         />
 
         <TituloAjuste label={t.fichero.permisos} />
-        <box cssClasses={["dev-row"]} visible={permisos((p) => p.length === 0)}>
-          <TextoInformativo label={t.fichero.sinPermisos} />
-        </box>
-        <box orientation={Gtk.Orientation.VERTICAL}>
+        <ListaAjustes cantidad={permisos((lista) => lista.length)} vacia={t.fichero.sinPermisos}>
           <For each={permisos} id={(p: Permiso) => p.programa}>
             {(p: Permiso) => <FilaPermiso ruta={ruta} inicial={p} permisos={permisos} />}
           </For>
-        </box>
+        </ListaAjustes>
         <DarPermiso ruta={ruta} />
 
         <box spacing={10}>
@@ -318,14 +316,11 @@ export default function FicheroProtegido({ inicial }: { inicial: Fichero }) {
             </button>
           </box>
         </box>
-        <box cssClasses={["dev-row"]} visible={filasHistorial((f) => f.length === 0)}>
-          <TextoInformativo label={t.fichero.sinHistorial} />
-        </box>
-        <box orientation={Gtk.Orientation.VERTICAL}>
+        <ListaAjustes cantidad={filasHistorial((lista) => lista.length)} vacia={t.fichero.sinHistorial}>
           <For each={filasHistorial} id={(d: FilaHistorialDatos) => d.clave}>
             {(d: FilaHistorialDatos) => <FilaHistorial ruta={ruta} datos={d} permisos={permisos} />}
           </For>
-        </box>
+        </ListaAjustes>
 
         <box cssClasses={["dev-row"]} halign={Gtk.Align.END}>
           <BotonAjustes onClicked={dejarDeProteger}>

@@ -10,7 +10,10 @@
       "titulo": "Foto de perfil",
       "descripcion": "",
       "placeholder": "~/Imágenes/perfil.png",
-      "boton": "Cambiar"
+      "boton": "Cambiar",
+      "elegir": "Elegir una imagen…",
+      "dialogo": "Elegir foto de perfil",
+      "imagenes": "Imágenes"
     }
   },
   "datosPersonales": {

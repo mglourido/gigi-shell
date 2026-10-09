@@ -28,10 +28,11 @@ export default function EncabezadoAjuste({
       orientation={Gtk.Orientation.VERTICAL}
       spacing={spacing}
       hexpand={hexpand}
+      valign={Gtk.Align.CENTER}
       {...alineacion}
     >
       <TituloAjuste label={titulo} {...propiedadesTitulo} />
-      {informacion != null
+      {informacion != null && informacion !== ""
         ? <TextoInformativo label={informacion} {...propiedadesInformacion} />
         : <box />}
     </box>

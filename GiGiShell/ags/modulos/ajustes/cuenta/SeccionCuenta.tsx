@@ -1,11 +1,12 @@
 import { Gtk } from "ags/gtk4"
-import { With, createState } from "ags"
+import { With, createState, onCleanup } from "ags"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
 import ProfileAvatar from "../ProfileAvatar"
 import { withPrivilegedPrompt } from "../../../estado/shell"
 import { importarFotoPerfil, refreshAvatar } from "./avatar"
-import { AjusteInterruptor, BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo, TituloSeccion } from "../componentes"
+import elegirFotoPerfil from "./elegirFotoPerfil"
+import { AjusteInterruptor, BotonAjustes, EntradaTextoAjustes, FilaAjuste, TarjetaAjustes, TextoInformativo } from "../componentes"
 import { RUTA_CONFIG_SDDM, aplicarAutologin, leerAutologin } from "./autologin"
 import textos from "../../../textos/ajustes/cuenta.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
@@ -132,6 +133,10 @@ export default function SeccionCuenta() {
   // SDDM cada vez que se pinta la sección, porque puede haberla cambiado el
   // instalador o un fichero ajeno desde fuera (ver autologin.ts).
   const [autologin, setAutologin] = createState(leerAutologin())
+  const [eligiendoFoto, establecerEligiendoFoto] = createState(false)
+  const cancelacionFoto = new Gio.Cancellable()
+  let seccionViva = true
+  onCleanup(() => { seccionViva = false; cancelacionFoto.cancel() })
 
   const applyAvatar = () => {
     const raw = avatarInput.get().trim()
@@ -149,6 +154,19 @@ export default function SeccionCuenta() {
       setAvatarNotice({ kind: "ok", text: textos.avisos.fotoActualizada })
     } catch (error) {
       setAvatarNotice({ kind: "error", text: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
+  const seleccionarFoto = async () => {
+    if (eligiendoFoto.get()) return
+    establecerEligiendoFoto(true)
+    try {
+      const ruta = await elegirFotoPerfil(cancelacionFoto)
+      if (ruta && seccionViva) { setAvatarInput(ruta); applyAvatar() }
+    } catch (error) {
+      if (seccionViva) setAvatarNotice({ kind: "error", text: String(error) })
+    } finally {
+      if (seccionViva) establecerEligiendoFoto(false)
     }
   }
 
@@ -214,12 +232,11 @@ export default function SeccionCuenta() {
 
   const passwordEntry = (placeholder: string, setter: (v: string) => void) => (
     <EntradaTextoAjustes placeholderText={placeholder} visibility={false}
-      onChanged={(entry) => { setter(entry.get_text()); actualizarCambios() }} hexpand />
+      onChanged={(entry) => { setter(entry.get_text()); actualizarCambios() }} />
   )
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-section", "account-section"]} hexpand>
-      <TituloSeccion titulo={textos.seccion.titulo} />
 
       <TarjetaAjustes titulo={textos.perfil.titulo} icono="󰀄" cssClasses={["account-card"]}>
         <box cssClasses={["dev-row", "account-profile-summary"]} spacing={14} valign={Gtk.Align.CENTER}>
@@ -237,15 +254,17 @@ export default function SeccionCuenta() {
         </box>
         <FilaAjuste titulo={textos.perfil.foto.titulo} informacion={textos.perfil.foto.descripcion}
           cssClasses={["account-row"]} maxCaracteresInformacion={38}>
-          <box cssClasses={["account-controls"]} orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand>
-            <box spacing={8} valign={Gtk.Align.CENTER} hexpand>
+          <box cssClasses={["account-controls"]} orientation={Gtk.Orientation.VERTICAL} spacing={6} hexpand={false}>
+            <box spacing={8} valign={Gtk.Align.CENTER}>
               <EntradaTextoAjustes cssClasses={["account-entry-compact"]} placeholderText={textos.perfil.foto.placeholder}
                 onChanged={(entry) => {
                   setAvatarInput(entry.get_text())
                   setAvatarNotice({ kind: "idle", text: "" })
                 }}
-                onActivate={applyAvatar} expandir />
+                onActivate={applyAvatar} />
               <BotonAjustes label={textos.perfil.foto.boton} onClicked={applyAvatar} />
+              <BotonAjustes label="…" tooltipText={textos.perfil.foto.elegir}
+                sensitive={eligiendoFoto((ocupado) => !ocupado)} onClicked={seleccionarFoto} />
             </box>
             <With value={avatarNotice}>{(state: Notice) => state.text
               ? <label cssClasses={["account-notice", state.kind]} label={formatearTexto(textos.avisos.formato, { mensaje: state.text })} halign={Gtk.Align.START} wrap xalign={0} hexpand />
@@ -257,16 +276,16 @@ export default function SeccionCuenta() {
       <TarjetaAjustes titulo={textos.datosPersonales.titulo} icono="󰓝" cssClasses={["account-card"]}>
         <FilaAjuste titulo={textos.datosPersonales.usuario.titulo} informacion={textos.datosPersonales.usuario.descripcion}
           cssClasses={["account-row"]} maxCaracteresInformacion={52}>
-          <box cssClasses={["account-controls"]} hexpand>
+          <box cssClasses={["account-controls"]}>
             <EntradaTextoAjustes cssClasses={["account-entry-compact"]} text={currentUser}
-              onChanged={(entry) => { setLoginName(entry.get_text()); actualizarCambios() }} expandir />
+              onChanged={(entry) => { setLoginName(entry.get_text()); actualizarCambios() }} />
           </box>
         </FilaAjuste>
         <FilaAjuste titulo={textos.datosPersonales.nombreCompleto.titulo} informacion={textos.datosPersonales.nombreCompleto.descripcion}
           cssClasses={["account-row"]} maxCaracteresInformacion={52}>
-          <box cssClasses={["account-controls"]} hexpand>
+          <box cssClasses={["account-controls"]}>
             <EntradaTextoAjustes cssClasses={["account-entry-compact"]} placeholderText={textos.datosPersonales.nombreCompleto.placeholder}
-              onChanged={(entry) => { setFullName(entry.get_text()); actualizarCambios() }} expandir />
+              onChanged={(entry) => { setFullName(entry.get_text()); actualizarCambios() }} />
           </box>
         </FilaAjuste>
       </TarjetaAjustes>

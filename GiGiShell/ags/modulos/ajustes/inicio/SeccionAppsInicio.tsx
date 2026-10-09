@@ -32,7 +32,8 @@ import { For, createState, onCleanup, type Accessor } from "ags"
 import { Gtk } from "ags/gtk4"
 import Interruptor from "../../../componentes/Interruptor"
 import {
-  BotonAjustes, TarjetaAjustes, TextoInformativo, TituloAjuste, TituloSeccion,
+  BotonAjustes, EntradaTextoAjustes, ListaAjustes, PaginacionAjustes, TarjetaAjustes,
+  TextoInformativo, TituloAjuste, usarPaginacion,
 } from "../componentes"
 import {
   ESCRITORIO_ACTIVO, ESCRITORIO_MAX,
@@ -47,9 +48,6 @@ import {
 import textos from "../../../textos/ajustes/inicio.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
 
-/** Cuántos resultados se pintan a la vez. Es una lista de ayuda, no un lanzador. */
-const MAX_RESULTADOS = 8
-
 /** Icono de la app, o un glifo genérico cuando la cadena guardada ya no resuelve. */
 function IconoApp({ icono }: { icono: string }) {
   const gicon = iconoDesdeCadena(icono)
@@ -60,11 +58,11 @@ function IconoApp({ icono }: { icono: string }) {
 
 function FilaResultado({ app, yaEsta }: { app: AppInstalada; yaEsta: Accessor<boolean> }) {
   return (
-    <box spacing={10} cssClasses={["dev-row"]} valign={Gtk.Align.CENTER}>
+    <box spacing={10} cssClasses={["dev-row", "sp-fila-compacta"]} valign={Gtk.Align.CENTER}>
       <IconoApp icono={app.icono} />
       <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
         <TituloAjuste label={app.nombre} />
-        <TextoInformativo label={app.comando} ellipsize={3} maxWidthChars={48} />
+        <TextoInformativo label={app.comando} wrap={false} ellipsize={3} maxWidthChars={48} tooltipText={app.comando} />
       </box>
       <BotonAjustes
         tooltipText={yaEsta((esta) => esta ? textos.buscador.yaEsta : textos.buscador.anadir)}
@@ -127,7 +125,8 @@ function FilaAppInicio({ inicial }: { inicial: AppInicio }) {
         <IconoApp icono={inicial.icono} />
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand>
           <TituloAjuste label={app((a) => a.nombre)} />
-          <TextoInformativo label={app((a) => a.comando)} ellipsize={3} maxWidthChars={48} />
+          <TextoInformativo label={app((a) => a.comando)} wrap={false} ellipsize={3} maxWidthChars={48}
+            tooltipText={app((a) => a.comando)} />
         </box>
         <button
           cssClasses={["account-secondary-btn"]}
@@ -173,7 +172,8 @@ function FilaAppInicio({ inicial }: { inicial: AppInicio }) {
 export default function SeccionAppsInicio() {
   const catalogo = catalogoAppsInstaladas()
   const [consulta, setConsulta] = createState("")
-  const resultados = consulta((texto) => filtrarAppsInstaladas(catalogo, texto, MAX_RESULTADOS))
+  const resultados = consulta((texto) => filtrarAppsInstaladas(catalogo, texto, catalogo.length))
+  const { pagina, paginas, visibles, irAPagina } = usarPaginacion(resultados)
 
   let campoNombre: Gtk.Entry | null = null
   let campoComando: Gtk.Entry | null = null
@@ -188,23 +188,30 @@ export default function SeccionAppsInicio() {
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-      <TituloSeccion titulo={textos.seccion.titulo} />
+
+      <TarjetaAjustes titulo={textos.grupos.lista} icono="󰐊">
+        <ListaAjustes cantidad={appsInicio((lista: AppInicio[]) => lista.length)} vacia={textos.lista.vacio}>
+          <For each={appsInicio} id={(app: AppInicio) => app.id}>
+            {(app: AppInicio) => <FilaAppInicio inicial={app} />}
+          </For>
+        </ListaAjustes>
+        <box cssClasses={["dev-row"]}>
+          <TextoInformativo label={textos.lista.aviso} wrap xalign={0} maxWidthChars={62} />
+        </box>
+      </TarjetaAjustes>
 
       <TarjetaAjustes titulo={textos.grupos.anadir} icono="󰐕">
         <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["dev-row"]}>
-          <entry
-            cssClasses={["account-entry"]}
+          <EntradaTextoAjustes
+            expandir
             placeholderText={textos.buscador.marcador}
             hexpand
-            onChanged={(self: Gtk.Entry) => setConsulta(self.get_text())}
+            onChanged={(self: Gtk.Entry) => { setConsulta(self.get_text()); irAPagina(0) }}
           />
         </box>
 
-        <box orientation={Gtk.Orientation.VERTICAL}>
-          <box cssClasses={["dev-row"]} visible={resultados((lista: AppInstalada[]) => lista.length === 0)}>
-            <TextoInformativo label={textos.buscador.sinResultados} />
-          </box>
-          <For each={resultados} id={(app: AppInstalada) => app.id}>
+        <ListaAjustes cantidad={resultados((lista) => lista.length)} vacia={textos.buscador.sinResultados} alto={192}>
+          <For each={visibles} id={(app: AppInstalada) => app.id}>
             {(app: AppInstalada) => (
               <FilaResultado
                 app={app}
@@ -212,23 +219,22 @@ export default function SeccionAppsInicio() {
               />
             )}
           </For>
-        </box>
+        </ListaAjustes>
+        <PaginacionAjustes pagina={pagina} paginas={paginas} alCambiar={irAPagina} />
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["dev-row"]}>
           <TituloAjuste label={textos.manual.titulo} />
           <TextoInformativo label={textos.manual.descripcion} wrap xalign={0} maxWidthChars={62} />
           <box spacing={6}>
-            <entry
-              cssClasses={["account-entry"]}
+            <EntradaTextoAjustes
               placeholderText={textos.manual.marcadorNombre}
-              widthRequest={150}
+              widthRequest={120}
               $={(self: Gtk.Entry) => { campoNombre = self }}
               onActivate={anadirManual}
             />
-            <entry
-              cssClasses={["account-entry"]}
+            <EntradaTextoAjustes
               placeholderText={textos.manual.marcadorComando}
-              hexpand
+              expandir
               $={(self: Gtk.Entry) => { campoComando = self }}
               onActivate={anadirManual}
             />
@@ -239,19 +245,6 @@ export default function SeccionAppsInicio() {
         </box>
       </TarjetaAjustes>
 
-      <TarjetaAjustes titulo={textos.grupos.lista} icono="󰐊">
-        <box orientation={Gtk.Orientation.VERTICAL}>
-          <box cssClasses={["dev-row"]} visible={appsInicio((lista: AppInicio[]) => lista.length === 0)}>
-            <TextoInformativo label={textos.lista.vacio} />
-          </box>
-          <For each={appsInicio} id={(app: AppInicio) => app.id}>
-            {(app: AppInicio) => <FilaAppInicio inicial={app} />}
-          </For>
-        </box>
-        <box cssClasses={["dev-row"]}>
-          <TextoInformativo label={textos.lista.aviso} wrap xalign={0} maxWidthChars={62} />
-        </box>
-      </TarjetaAjustes>
     </box>
   )
 }

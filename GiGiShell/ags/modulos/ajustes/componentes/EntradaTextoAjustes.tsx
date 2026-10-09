@@ -7,7 +7,7 @@ type PropiedadesEntradaTextoAjustes = {
   [propiedad: string]: any
 }
 
-/** Entrada de texto compacta que no se estira con la altura de su fila. */
+/** Entrada compacta: el ancho lo decide la fila, sin la reserva implícita de GTK. */
 export default function EntradaTextoAjustes({
   expandir = false,
   cssClasses = [],
@@ -16,12 +16,14 @@ export default function EntradaTextoAjustes({
 }: PropiedadesEntradaTextoAjustes) {
   return (
     <Gtk.Entry
-      {...propiedades}
-      cssClasses={["account-entry", ...cssClasses]}
-      widthRequest={180}
+      widthChars={1}
+      maxWidthChars={1}
+      widthRequest={expandir ? -1 : 180}
       heightRequest={30}
       hexpand={expandir}
-      valign={Gtk.Align.START}
+      valign={Gtk.Align.CENTER}
+      {...propiedades}
+      cssClasses={["account-entry", ...cssClasses]}
     >
       {children}
     </Gtk.Entry>

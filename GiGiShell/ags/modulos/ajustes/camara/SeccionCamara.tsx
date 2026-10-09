@@ -37,7 +37,7 @@ import { conectarCambioDeslizador } from "../../../utilidades/deslizador"
 import { crearCicloVida } from "../../../utilidades/cicloVida"
 import {
   BotonAjustes, EncabezadoAjuste, TarjetaAjustes, TextoInformativo,
-  TituloAjuste, TituloSeccion,
+  TituloAjuste,
 } from "../componentes"
 import { camaras, camaraPorClave, type Camara } from "../../../servicios/camara/dispositivos"
 import {
@@ -435,7 +435,6 @@ export default function SeccionCamara() {
         hexpand
         valign={Gtk.Align.START}
       >
-        <TituloSeccion titulo={textos.seccion.titulo} />
 
         <TarjetaAjustes titulo={textos.grupos.camaras} icono="󰄀">
           <box orientation={Gtk.Orientation.VERTICAL}>

@@ -5,7 +5,7 @@ import { conectarCambioDeslizador } from "../../../utilidades/deslizador"
 import { InlineEditableValue } from "../../../componentes/InlineEditableValue"
 import {
   AjusteInterruptor, TarjetaAjustes,
-  TextoInformativo, TituloAjuste, TituloSeccion,
+  TextoInformativo, TituloAjuste,
 } from "../componentes"
 import {
   barAutoHideEnabled, setBarAutoHideEnabled,
@@ -130,7 +130,6 @@ function UmbralAvisoBateria({ visible }: { visible: any }) {
 export default function SeccionComportamiento() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-      <TituloSeccion titulo={textos.secciones.comportamiento} />
 
       <TarjetaAjustes titulo={textosPersonalizacion.seccionesNuevas.barraEscritorios.comportamiento} icono="󰍜">
         <AjusteInterruptor

@@ -32,7 +32,7 @@
 import { For, createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
-import { BotonAjustes, TarjetaAjustes, TextoInformativo, TituloSubseccion } from "../componentes"
+import { BotonAjustes, EntradaTextoAjustes, ListaAjustes, TarjetaAjustes, TextoInformativo, TituloSubseccion } from "../componentes"
 import { esAppProhibida, nombresDeScopes } from "./scopesApps"
 import { sfAppsCongeladas, setSfAppsCongeladas } from "../../../servicios/energia/powerState.ts"
 import textos from "../../../textos/ajustes/energia.json" with { type: "json" }
@@ -111,24 +111,18 @@ export default function AppsCongeladas() {
         <TituloSubseccion label={textos.suspensionFalsa.apps.titulo} />
         <TextoInformativo label={textos.suspensionFalsa.apps.ayuda} maxWidthChars={62} />
 
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+        <ListaAjustes cantidad={sfAppsCongeladas((lista: string[]) => lista.length)} vacia={textos.suspensionFalsa.apps.vacia}>
           {/* Indexado por el propio nombre: la lista es de cadenas y el nombre es único
               (el setter deduplica), así que es la clave natural y quitar una entrada no
               reconstruye las demás. */}
           <For each={sfAppsCongeladas} id={(nombre: string) => nombre}>
             {(nombre: string) => <FilaApp nombre={nombre} />}
           </For>
-        </box>
-
-        <TextoInformativo
-          label={textos.suspensionFalsa.apps.vacia}
-          visible={sfAppsCongeladas((lista: string[]) => lista.length === 0)}
-        />
+        </ListaAjustes>
 
         <box spacing={6} valign={Gtk.Align.CENTER}>
-          <entry
-            cssClasses={["sp-num-input", "sp-clase-entrada"]}
-            hexpand
+          <EntradaTextoAjustes
+            expandir
             xalign={0}
             placeholderText={textos.suspensionFalsa.apps.placeholder}
             $={(self: Gtk.Entry) => { entrada = self }}
@@ -156,7 +150,7 @@ export default function AppsCongeladas() {
         </box>
         <TextoInformativo label={textos.suspensionFalsa.apps.candidatosAyuda} maxWidthChars={62} />
 
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+        <ListaAjustes cantidad={candidatos((lista) => lista.length)} vacia={textos.suspensionFalsa.apps.sinCandidatos}>
           <For each={candidatos} id={(nombre: string) => nombre}>
             {(nombre: string) => (
               <box spacing={5} valign={Gtk.Align.CENTER} cssClasses={["sp-rule-row"]}>
@@ -182,12 +176,7 @@ export default function AppsCongeladas() {
               </box>
             )}
           </For>
-        </box>
-
-        <TextoInformativo
-          label={textos.suspensionFalsa.apps.sinCandidatos}
-          visible={candidatos((lista: string[]) => lista.length === 0)}
-        />
+        </ListaAjustes>
       </box>
     </TarjetaAjustes>
   )

@@ -3,7 +3,7 @@ import { createState, onCleanup } from "ags"
 import { DisplaySelect } from "../../../servicios/pantalla/controls"
 import { conectarCambioDeslizador } from "../../../utilidades/deslizador"
 import Interruptor from "../../../componentes/Interruptor"
-import { EncabezadoAjuste, FilaAjuste, TarjetaAjustes, TituloSeccion } from "../componentes"
+import { EncabezadoAjuste, FilaAjuste, TarjetaAjustes } from "../componentes"
 import {
   deviceSettings, updateDeviceSettings, resetDeviceSettings,
   type DeviceSettings,
@@ -63,7 +63,7 @@ function SelectRow({ setting, label, hint, choices }: {
   return (
     <FilaAjuste titulo={label} informacion={hint}>
       <box cssClasses={["dev-select"]}>
-        <DisplaySelect current={current} options={options} onSelect={(v) => {
+        <DisplaySelect compact={false} current={current} options={options} onSelect={(v) => {
           const choice = choices.find(c => String(c.value) === v)
           if (choice) updateDeviceSettings({ [setting]: choice.value } as Partial<DeviceSettings>)
         }} />
@@ -153,7 +153,6 @@ export default function SeccionDispositivos({ vista }: { vista: VistaDispositivo
   return (
     <overlay cssClasses={["display-select-host"]} vexpand>
       <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand valign={Gtk.Align.START}>
-        <TituloSeccion titulo={textos.vistas[vista]} />
 
         {vista === "raton" && <TarjetaAjustes titulo={textos.tarjetas.raton} icono="󰍽">
           <SliderRow setting="sensitivity" label={textos.raton.velocidadPuntero.titulo} hint={textos.raton.velocidadPuntero.descripcion} min={-1} max={1} step={0.05} format={v => formatearTexto(textos.formatos.sensibilidad, { signo: v > 0 ? "+" : "", valor: v.toFixed(2) })} />

@@ -94,7 +94,7 @@
       "umbral": {
         "titulo": "Mostrar la barra por debajo de",
         "tooltip": "Editar el porcentaje de batería",
-        "descripcion": "Porcentaje propio del aviso, entre {minimo} y {maximo} %."
+        "descripcion": "Porcentaje propio del aviso, entre {{minimo}} y {{maximo}} %."
       }
     },
     "spotify": {

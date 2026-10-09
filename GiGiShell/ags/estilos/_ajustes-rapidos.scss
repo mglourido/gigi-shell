@@ -714,14 +714,14 @@ button.qs-display-select {
   }
 }
 
-scrolledwindow.qs-display-select-list {
+.qs-display-select-list {
   background-color: rgb(20, 20, 28);
   border: 1px solid rgb(45, 45, 55);
   border-radius: 8px;
   box-shadow: none;
   opacity: 1;
 
-  > viewport {
+  viewport {
     background-color: rgb(20, 20, 28);
     border-radius: 7px;
     opacity: 1;
@@ -739,6 +739,8 @@ scrolledwindow.qs-display-select-list {
     }
   }
 }
+.sp-selector-buscador { margin: 5px 5px 0; }
+.sp-selector-vacio { padding: 8px; }
 
 // La talla BASE es la de Ajustes y la variante `.compact` la de Quick Settings —
 // al revés de como estaba, cuando el único tamaño era el compacto y un select

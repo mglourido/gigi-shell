@@ -4,7 +4,7 @@ import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import {
   AjusteInterruptor, TarjetaAjustes, TextoInformativo,
-  TituloAjuste, TituloSeccion, TituloSubseccion,
+  TituloAjuste, TituloSubseccion,
 } from "../componentes"
 import {
   SECURITY_ITEMS, securityEnabled, setSecurityEnabled, type SecurityKey,
@@ -214,7 +214,7 @@ function Escaneos() {
 export default function SeccionSeguridad({ vista }: { vista: VistaProteccion }) {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={12} cssClasses={["sp-section", "dev-section"]} hexpand>
-      <TituloSeccion titulo={textos.vistas[vista]} />
+
       <TextoInformativo label={textos.descripciones[vista]} halign={Gtk.Align.START} wrap maxWidthChars={62} xalign={0} />
       {vista === "vigilancia" ? <Vigilancia /> : <Escaneos />}
     </box>

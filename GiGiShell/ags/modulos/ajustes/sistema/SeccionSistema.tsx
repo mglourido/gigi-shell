@@ -13,7 +13,7 @@
 import { Gtk } from "ags/gtk4"
 import Pango from "gi://Pango"
 import { With, createState, onCleanup } from "ags"
-import { TituloSeccion, TituloSubseccion } from "../componentes"
+import { TituloSubseccion } from "../componentes"
 import SupervisionSistema from "./SupervisionSistema"
 import textos from "../../../textos/ajustes/sistema.json" with { type: "json" }
 import {
@@ -52,7 +52,7 @@ export default function SeccionSistema({ vista }: { vista: VistaSistema }) {
   if (vista === "supervision") {
     return (
       <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-        <TituloSeccion titulo={textos.vistas.supervision} />
+
         <SupervisionSistema />
       </box>
     )
@@ -71,7 +71,7 @@ export default function SeccionSistema({ vista }: { vista: VistaSistema }) {
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "sys-section"]} hexpand>
-      <TituloSeccion titulo={textos.vistas.informacion} />
+
       <With value={snapshot}>
         {(data: SystemSnapshot) => data.groups.length
           ? <box orientation={Gtk.Orientation.VERTICAL} spacing={12}>

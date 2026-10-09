@@ -18,7 +18,7 @@ import { Gtk } from "ags/gtk4"
 import Gio from "gi://Gio"
 import { withPrivilegedPrompt } from "../../../estado/shell"
 import {
-  AjusteInterruptor, BotonAjustes, TarjetaAjustes, TextoInformativo, TituloSeccion,
+  AjusteInterruptor, BotonAjustes, ListaAjustes, TarjetaAjustes, TextoInformativo,
 } from "../componentes"
 import {
   activar, categoriasPorDefecto, conectado, denegadosSemana, desactivar, estadoServicio,
@@ -76,7 +76,6 @@ export default function SeccionProteccion() {
 
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-      <TituloSeccion titulo={t.titulo} />
 
       <TarjetaAjustes titulo={t.estado.tarjeta} icono="󰌾">
         <AjusteInterruptor
@@ -123,16 +122,12 @@ export default function SeccionProteccion() {
             <label label={t.archivos.proteger} />
           </BotonAjustes>
         </box>
-        <box
-          cssClasses={["dev-row"]}
-          visible={createComputed(() => conectado() && ficheros().length === 0)}
-        >
-          <TextoInformativo label={t.archivos.vacio} />
-        </box>
-        <box orientation={Gtk.Orientation.VERTICAL} sensitive={conectado}>
-          <For each={ficheros} id={(f: Fichero) => f.id}>
-            {(f: Fichero) => <FicheroProtegido inicial={f} />}
-          </For>
+        <box orientation={Gtk.Orientation.VERTICAL} sensitive={conectado} cssClasses={["dev-row"]}>
+          <ListaAjustes cantidad={ficheros((lista) => lista.length)} vacia={t.archivos.vacio} alto={264}>
+            <For each={ficheros} id={(f: Fichero) => f.id}>
+              {(f: Fichero) => <FicheroProtegido inicial={f} />}
+            </For>
+          </ListaAjustes>
         </box>
       </TarjetaAjustes>
     </box>

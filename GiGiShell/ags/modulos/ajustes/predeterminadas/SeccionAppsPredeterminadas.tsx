@@ -12,9 +12,8 @@
 // cambio hecho aquí se RELEE de GIO en vez de apañar la lista a mano: si GIO no
 // lo aplicó, la fila tiene que seguir enseñando lo que de verdad hay.
 //
-// ── Lista desplegable en línea, no un Gtk.DropDown ───────────────────────────
-// Ningún destino de Ajustes usa popovers: la ventana es una layer-shell OVERLAY
-// y el resto de selectores del panel son filas y botones dentro de la tarjeta.
+// El selector compartido usa el overlay de la sección para conservar el foco
+// en layer-shell. La gestión de «Abrir con» tiene sus propias listas acotadas.
 //
 // ── Dónde vive el foco ───────────────────────────────────────────────────────
 // El buscador de «añadir» está FUERA de las dos listas que se reconstruyen (la
@@ -24,7 +23,7 @@
 import { For, createComputed, createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import {
-  BotonAjustes, TarjetaAjustes, TextoInformativo, TituloAjuste, TituloSeccion,
+  BotonAjustes, EntradaTextoAjustes, ListaAjustes, TarjetaAjustes, TextoInformativo, TituloAjuste,
 } from "../componentes"
 import {
   catalogoAppsInstaladas, filtrarAppsInstaladas, iconoDesdeCadena,
@@ -38,6 +37,7 @@ import {
 } from "../../../servicios/aplicaciones/appsPredeterminadas"
 import textos from "../../../textos/ajustes/predeterminadas.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
+import { DisplaySelect } from "../../../servicios/pantalla/controls"
 
 const MAX_RESULTADOS = 5
 /** Filas de «Todos los tipos» a la vez: cada una es una fila completa con su
@@ -76,8 +76,7 @@ function TarjetaTodosLosTipos({ catalogo }: { catalogo: AppInstalada[] }) {
     <TarjetaAjustes titulo={textos.grupos.todos} icono="󰈔">
       <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["dev-row"]}>
         <TextoInformativo label={textos.todos.ayuda} />
-        <entry
-          cssClasses={["account-entry"]}
+        <EntradaTextoAjustes
           placeholderText={textos.todos.marcador}
           hexpand
           onChanged={(self: Gtk.Entry) => setConsulta(self.get_text())}
@@ -87,7 +86,7 @@ function TarjetaTodosLosTipos({ catalogo }: { catalogo: AppInstalada[] }) {
           visible={createComputed([consulta, tipos], (q, l) => !!q.trim() && l.length === 0)}
         />
       </box>
-      <box orientation={Gtk.Orientation.VERTICAL}>
+      <ListaAjustes alto={264}>
         <For each={tipos} id={(t: TipoArchivo) => t.mime}>
           {(t: TipoArchivo) => {
             const categoria = categoriaDeTipo(t.mime)
@@ -104,7 +103,7 @@ function TarjetaTodosLosTipos({ catalogo }: { catalogo: AppInstalada[] }) {
             )
           }}
         </For>
-      </box>
+      </ListaAjustes>
       <box cssClasses={["dev-row"]} visible={tipos((l) => l.length >= MAX_TIPOS)}>
         <TextoInformativo label={formatearTexto(textos.todos.limite, { n: MAX_TIPOS })} />
       </box>
@@ -172,24 +171,16 @@ function FilaPredeterminada({ titulo, descripcion, icono, leerCandidatas, leerAc
           <TituloAjuste label={titulo} />
           <TextoInformativo label={descripcion} />
         </box>
-        <BotonAjustes
-          activo={abierto}
-          valign={Gtk.Align.CENTER}
-          tooltipText={textos.fila.cambiar}
-          onClicked={() => setAbierto(!abierto.get())}
-        >
-          <box spacing={8}>
-            {/* El icono cambia con la app: ranura con `visible` y no un
-                ternario, que quedaría atado al primer valor (ver IndicadorJuegos). */}
-            <image
-              pixelSize={16}
-              gicon={actual((a) => a ? iconoDesdeCadena(a.icono) : null)}
-              visible={actual((a) => !!a && !!iconoDesdeCadena(a.icono))}
-            />
-            <label label={actual((a) => a?.nombre ?? textos.fila.ninguna)} maxWidthChars={22} ellipsize={3} />
-            <label label={abierto((v) => v ? "󰅃" : "󰅀")} />
-          </box>
-        </BotonAjustes>
+        <box cssClasses={["dev-select"]} valign={Gtk.Align.CENTER} hexpand={false}>
+          <DisplaySelect compact={false} buscador={textos.fila.buscar} anchoCaracteres={22}
+            current={actual((a) => a?.nombre ?? textos.fila.ninguna)}
+            options={createComputed(() => candidatas().map((app) => ({
+              value: app.id, label: app.nombre, active: app.id === idActual(),
+            })))}
+            onSelect={elegir} />
+        </box>
+        {edicion ? <BotonAjustes activo={abierto} label="󰒓" tooltipText={textos.fila.gestionar}
+          onClicked={() => setAbierto(!abierto.get())} /> : <box />}
       </box>
 
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4} visible={abierto} cssClasses={["pred-opciones"]}>
@@ -197,8 +188,7 @@ function FilaPredeterminada({ titulo, descripcion, icono, leerCandidatas, leerAc
           label={edicion ? textos.fila.ayudaEditable : textos.fila.ayuda}
           cssClasses={["pred-ayuda"]}
         />
-        <TextoInformativo label={textos.fila.sinCandidatas} visible={candidatas((l) => l.length === 0)} />
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+        <ListaAjustes cantidad={candidatas((lista) => lista.length)} vacia={textos.fila.sinCandidatas}>
           <For each={candidatas} id={(c: AppCandidata) => c.id}>
             {(c: AppCandidata) => (
               <box spacing={6}>
@@ -228,22 +218,18 @@ function FilaPredeterminada({ titulo, descripcion, icono, leerCandidatas, leerAc
               </box>
             )}
           </For>
-        </box>
+        </ListaAjustes>
 
         {edicion ? (
           <box orientation={Gtk.Orientation.VERTICAL} spacing={4} cssClasses={["pred-anadir"]}>
-            <entry
-              cssClasses={["account-entry"]}
+            <EntradaTextoAjustes
               placeholderText={textos.fila.anadirMarcador}
               hexpand
               $={(self: Gtk.Entry) => { campo = self }}
               onChanged={(self: Gtk.Entry) => setConsulta(self.get_text())}
             />
-            <TextoInformativo
-              label={textos.fila.sinResultados}
-              visible={createComputed([consulta, resultados], (t, r) => !!t.trim() && r.length === 0)}
-            />
-            <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
+            <ListaAjustes cantidad={resultados((lista) => lista.length)}
+              vacia={consulta((texto) => texto.trim() ? textos.fila.sinResultados : textos.fila.escribirBusqueda)}>
               <For each={resultados} id={(a: AppInstalada) => a.id}>
                 {(a: AppInstalada) => (
                   <button
@@ -251,7 +237,7 @@ function FilaPredeterminada({ titulo, descripcion, icono, leerCandidatas, leerAc
                     tooltipText={textos.fila.anadir}
                     onClicked={() => {
                       releer(edicion.anadir(a.id))
-                      // Vaciar el campo rehace `resultados` y oculta la lista.
+                      // Vaciar el campo rehace los resultados, sin mover el buscador.
                       campo?.set_text("")
                     }}
                   >
@@ -263,11 +249,11 @@ function FilaPredeterminada({ titulo, descripcion, icono, leerCandidatas, leerAc
                   </button>
                 )}
               </For>
-            </box>
+            </ListaAjustes>
           </box>
         ) : <box />}
-        <TextoInformativo label={textos.fila.error} visible={error} cssClasses={["pred-error"]} />
       </box>
+      <TextoInformativo label={textos.fila.error} visible={error} cssClasses={["pred-error"]} />
     </box>
   )
 }
@@ -278,8 +264,8 @@ export default function SeccionAppsPredeterminadas() {
   const catalogo = catalogoAppsInstaladas()
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-      <TituloSeccion titulo={textos.seccion.titulo} />
+    <overlay cssClasses={["display-select-host"]} vexpand>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand valign={Gtk.Align.START}>
 
       {GRUPOS.map((grupo) => (
         <TarjetaAjustes titulo={grupo.titulo} icono={grupo.icono}>
@@ -317,5 +303,6 @@ export default function SeccionAppsPredeterminadas() {
         <TextoInformativo label={textos.aviso} maxWidthChars={62} />
       </box>
     </box>
+    </overlay>
   )
 }

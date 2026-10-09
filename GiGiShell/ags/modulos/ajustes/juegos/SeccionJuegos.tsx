@@ -4,7 +4,6 @@ import {
   ListaClasesVentana,
   TarjetaAjustes,
   TextoInformativo,
-  TituloSeccion,
 } from "../componentes"
 import { allowTearing, applyAllowTearing } from "../../../servicios/pantalla/service"
 import {
@@ -24,7 +23,7 @@ import textos from "../../../textos/ajustes/juegos.json" with { type: "json" }
 export default function SeccionJuegos() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-      <TituloSeccion titulo={textos.seccion.titulo} />
+
       <TarjetaAjustes titulo={textos.grupos.deteccion} icono="󰺵">
         <AjusteInterruptor
           titulo={textos.deteccion.titulo}

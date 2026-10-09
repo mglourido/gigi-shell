@@ -71,8 +71,8 @@ export default function AppsTab() {
                   {(app: string) => (
                     <box orientation={Gtk.Orientation.VERTICAL} spacing={0} hexpand>
                       <box cssClasses={["ns-app-row"]} spacing={8} valign={Gtk.Align.CENTER} hexpand>
-                        <box cssClasses={["ns-app-icon-wrap"]} css={appSettings((s) => `background: rgba(${hexToRgb(resolveAppColor(app, s))}, 0.15);`)}>
-                          <label cssClasses={["ns-app-icon"]} label={getAppIcon(app)} css={appSettings((s) => `color: ${resolveAppColor(app, s)};`)} />
+                        <box cssClasses={["ns-app-icon-wrap"]} hexpand={false} css={appSettings((s) => `background: rgba(${hexToRgb(resolveAppColor(app, s))}, 0.15);`)}>
+                          <label cssClasses={["ns-app-icon"]} label={getAppIcon(app)} hexpand xalign={0.5} yalign={0.5} css={appSettings((s) => `color: ${resolveAppColor(app, s)};`)} />
                         </box>
                         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} hexpand halign={Gtk.Align.START}>
                           <label cssClasses={["ns-app-name"]} label={app} halign={Gtk.Align.START} ellipsize={3} />

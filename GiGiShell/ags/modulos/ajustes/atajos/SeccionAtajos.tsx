@@ -15,7 +15,7 @@
 import { Gtk } from "ags/gtk4"
 import Pango from "gi://Pango"
 import { For, createComputed, createState } from "ags"
-import { TarjetaAjustes, TextoInformativo, TituloSeccion } from "../componentes"
+import { EntradaTextoAjustes, ListaAjustes, TarjetaAjustes, TextoInformativo } from "../componentes"
 import { keybinds, type KeybindGroup } from "../../orion/data/keybinds"
 import textos from "../../../textos/ajustes/atajos.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear"
@@ -63,13 +63,13 @@ export default function SeccionAtajos() {
   })
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section"]} hexpand>
-      <TituloSeccion titulo={textos.seccion.titulo} />
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section", "kb-seccion"]} hexpand vexpand>
+
       <TarjetaAjustes titulo={textos.grupos.lista} icono="󰘳">
         <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["dev-row"]}>
           <TextoInformativo label={textos.lista.descripcion} wrap xalign={0} maxWidthChars={62} />
           <label cssClasses={["kb-totales"]} halign={Gtk.Align.START} label={totales} />
-          <entry
+          <EntradaTextoAjustes
             cssClasses={["account-entry", "kb-buscador"]}
             placeholderText={textos.lista.buscar}
             hexpand
@@ -77,6 +77,7 @@ export default function SeccionAtajos() {
           />
         </box>
 
+        <ListaAjustes expandir cssClasses={["kb-lista-scroll"]}>
         <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["kb-lista"]}>
           {/* `id` por fila: sin él `<For>` indexa por identidad de objeto y cada pulsación
               en el buscador reconstruiría las ~70 filas enteras — el fallo que documenta la
@@ -117,6 +118,7 @@ export default function SeccionAtajos() {
             wrap
           />
         </box>
+        </ListaAjustes>
       </TarjetaAjustes>
     </box>
   )

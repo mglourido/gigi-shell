@@ -2,7 +2,7 @@ import { Gtk } from "ags/gtk4"
 import Pango from "gi://Pango"
 
 type PropiedadesTituloSeccion = {
-  titulo: string
+  titulo: any
   cssClasses?: string[]
   halign?: Gtk.Align
   [propiedad: string]: any
@@ -18,7 +18,7 @@ export default function TituloSeccion({
   return (
     <label
       cssClasses={["sp-section-title", ...cssClasses]}
-      label={`✦ ${titulo}`}
+      label={typeof titulo === "function" ? titulo((texto: string) => `✦ ${texto}`) : `✦ ${titulo}`}
       halign={halign}
       wrap
       wrapMode={Pango.WrapMode.WORD_CHAR}
