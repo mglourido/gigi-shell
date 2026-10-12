@@ -52,5 +52,6 @@ const LAMINAS: readonly (readonly [string, string])[] = [
 export function hojaOpaca(activo: boolean): string {
   if (!activo) return ""
   const declaraciones = LAMINAS.map(([nombre, color]) => `${nombre}: ${color};`).join(" ")
-  return `${SELECTOR} { ${declaraciones} }\n`
+  // Sin filtro, GTK deja de pedir desenfoque nativo incluso en los huecos de la ventana.
+  return `${SELECTOR} { ${declaraciones} --filtro-fondo-paneles: none; }\n`
 }

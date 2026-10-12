@@ -4,8 +4,8 @@
 
 // ── Calendar Panel ────────────────────────────────────────────────────────────
 
-// La misma opacidad de Notificaciones y Ajustes rápidos deja ver el desenfoque del compositor sin
-// perder contraste. Con 0.96, incluso una regla de blur correcta parecía un fondo sólido.
+// La misma opacidad de Notificaciones y Ajustes rápidos mantiene el contraste
+// y deja una transparencia ligera sobre el desenfoque del compositor.
 $cal-bg:          lamina("--lamina-cal", rgba(8, 8, 12, 0.94));
 $cal-bg-surface:  rgba(255, 255, 255, 0.025);
 $cal-bg-surface2: rgba(255, 255, 255, 0.055);

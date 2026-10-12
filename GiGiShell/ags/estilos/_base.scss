@@ -6,6 +6,18 @@
   box-shadow: none;
 }
 
+// GTK crea un efecto de fondo nativo incluso sin región de desenfoque; Hyprland
+// 0.56 prioriza esa región vacía sobre `blur = true` de las reglas de capa.
+// Pedirlo aquí hace que GTK publique la región y evita que el texto de detrás
+// siga nítido aunque aumenten size/passes. Las reglas conservan ignore_alpha
+// para no desenfocar los huecos transparentes. El modo ahorro anula el filtro.
+window.qs-window,
+window.np-window,
+window.cal-window,
+window.Orion {
+  backdrop-filter: var(--filtro-fondo-paneles, blur(20px));
+}
+
 // ── Suelo de tamaño de los `slider` ───────────────────────────────────────────
 // El mínimo que GTK calcula para un nodo es `max(contenido, min-width/height) + borde +
 // relleno + MARGEN`, y los temas centran el tirador sobre su carril con MÁRGENES

@@ -223,6 +223,12 @@ function TarjetaMetrica({ titulo, valor, progreso, color, visible }: TarjetaMetr
           hexpand
           css={progreso(valorActual => {
             const fraccion = Math.max(0, Math.min(1, valorActual))
+            // Con backdrop-filter, GTK 4.24 puede invertir scaleX(0) al calcular
+            // la máscara de las esquinas y acabar en SIGSEGV por límites infinitos.
+            // Opacidad cero conserva la barra vacía sin una transformación singular.
+            if (!Number.isFinite(fraccion) || fraccion === 0) {
+              return ".sys-fill { opacity: 0; transform: none; }"
+            }
             return `.sys-fill { transform-origin: left center; transform: scaleX(${fraccion}); }`
           })}
         />

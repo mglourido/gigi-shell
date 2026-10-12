@@ -167,8 +167,10 @@ hl.config({
 
     blur = {
       enabled = true,
-      size    = 3,
-      passes  = 1,
+      -- Borra el detalle tras los paneles de AGS conservando el color del fondo.
+      -- La intensidad se comparte con las ventanas transparentes.
+      size    = 6,
+      passes  = 3,
     },
   },
 

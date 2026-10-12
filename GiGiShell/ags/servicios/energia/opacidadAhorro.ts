@@ -11,7 +11,9 @@
 // que se ve por debajo. Con la lámina opaca, GTK marca esa región del `wl_surface`
 // como opaca y el compositor se salta tanto el desenfoque como el pintado de lo que
 // hay detrás. `ignore_alpha = 0.1` de esas reglas NO cubría este caso: descarta los
-// píxeles casi transparentes, y una lámina al 94 % está muy por encima del umbral.
+// píxeles casi transparentes, y las láminas están muy por encima del umbral.
+// Además se anula el `backdrop-filter` nativo de GTK (estilos/_base.scss), para
+// que no solicite desenfoque en las partes transparentes de estas ventanas.
 //
 // Es la única medida del modo ahorro que ahorra mientras el usuario MIRA algo; las
 // demás recortan trabajo de reposo (sondeos, animaciones, mantenimiento).
