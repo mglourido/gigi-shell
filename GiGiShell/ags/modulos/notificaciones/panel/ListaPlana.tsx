@@ -29,7 +29,7 @@ export default function ListaPlana({
     notificaciones.slice(0, cantidad))
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
       <For each={montadas}>
         {(notificacion: StoredNotification) => (
           <box visible={activeAppFilter((filtro) =>

@@ -25,6 +25,9 @@ export default function ContenidoItemNotificacion({
   alPulsar,
   alRegistrar,
 }: PropiedadesContenidoItemNotificacion) {
+  const icono = IconoAppNotificacion({ iconoApp: notificacion.appIcon })
+  if (icono) icono.tooltip_text = notificacion.appName
+
   return (
     <button
       cssClasses={expandida((estaExpandida) => estaExpandida
@@ -34,7 +37,7 @@ export default function ContenidoItemNotificacion({
       hexpand
       $={alRegistrar}
     >
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={5} hexpand>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={3} hexpand>
         {/* El indicador solo ocupa espacio en la fila superior. */}
         <box spacing={6} hexpand>
           <label
@@ -46,13 +49,9 @@ export default function ContenidoItemNotificacion({
             valign={Gtk.Align.CENTER}
           />
           <box spacing={4} valign={Gtk.Align.CENTER} hexpand>
-            <IconoAppNotificacion iconoApp={notificacion.appIcon} />
-            {/* Sin tope, el nombre de app pedía su ancho natural entero y compartía a
-                medias el déficit con el título: dos etiquetas elipsables con el mismo
-                hueco enorme hacen que `gtk_distribute_natural_allocation` las trate por
-                igual, así que un remitente largo recortaba el asunto por la mitad aunque
-                la fila tuviera sitio. Acotado a 14 caracteres su hueco pasa a ser el más
-                pequeño, se satisface primero y el resto va entero al título. */}
+            {icono}
+            {/* Sin icono, el nombre identifica la app. Se acota para que un nombre
+                largo no compita con el título por el ancho disponible. */}
             <label
               cssClasses={["notif-app-name"]}
               label={notificacion.appName}
@@ -60,12 +59,12 @@ export default function ContenidoItemNotificacion({
               halign={Gtk.Align.START}
               ellipsize={3}
               maxWidthChars={14}
-              visible={!!notificacion.appName}
+              visible={!icono && !!notificacion.appName}
             />
             <label
               cssClasses={["notif-dot"]}
               label="·"
-              visible={!!notificacion.appName && !!notificacion.summary}
+              visible={(!!icono || !!notificacion.appName) && !!notificacion.summary}
             />
             <label
               cssClasses={["notif-summary"]}

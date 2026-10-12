@@ -47,7 +47,7 @@ export default function GrupoAplicacion({
           {(estaPlegado: boolean) => estaPlegado
             ? <box visible={false} />
             : (
-              <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
+              <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
                 {/* Sin `id`, a propósito: el almacén sustituye el objeto de una
                     notificación al marcarla leída (`markRead`), y ese cambio de
                     identidad es lo que refresca su fila — mismo contrato que

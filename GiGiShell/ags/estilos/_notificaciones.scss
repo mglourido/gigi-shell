@@ -538,7 +538,8 @@ window.np-window.csd decoration {
 
 // ── Notification Item ─────────────────────────────────────────────────────────
 .notif-item-wrapper {
-  margin-bottom: 5px;
+  // El borde separa las filas; un hueco adicional deja un halo del fondo translúcido.
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .notif-item {
@@ -585,7 +586,9 @@ window.np-window.csd decoration {
 }
 
 .np-panel .notif-item-btn {
-  padding: 7px 10px;
+  // El mínimo del tema GTK añadía altura vacía a las filas sin cuerpo.
+  min-height: 0;
+  padding: 5px 10px;
 
   &.expanded {
     background: acento(0.025);
@@ -596,6 +599,7 @@ window.np-window.csd decoration {
   margin: 0;
   padding: 0;
   opacity: 0.7;
+  transform: translateX(-2px);
 }
 
 .notif-app-name {
@@ -611,25 +615,30 @@ window.np-window.csd decoration {
   color: rgba($text, 0.35);
   font-family: $font-icon;
   margin: 0;
+
+  .notif-app-img ~ & {
+    transform: translateX(-3px);
+  }
 }
 
 .notif-timestamp {
-  font-size: 9px;
-  color: rgba($text, 0.4);
+  font-size: 10px;
+  color: rgba($text, 0.55);
   font-family: $font-icon;
   margin: 0 0 0 2px;
 }
 
 .notif-summary {
   font-size: 11px;
-  font-weight: 400;
+  font-weight: 500;
   color: rgba($text, 0.9);
   font-family: $font-icon;
   margin: 0;
+  transform: translateX(-3px);
 }
 
 .notif-body {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   color: rgba($text, 0.62);
   font-family: $font-icon;
