@@ -1,5 +1,5 @@
 import { Gtk } from "ags/gtk4"
-import { createComputed, createState, With, type Accessor } from "ags"
+import { createComputed, createState, With, onCleanup, type Accessor } from "ags"
 import GLib from "gi://GLib"
 import {
   groupByApp,
@@ -24,11 +24,46 @@ export default function ListaPanel({
 }) {
   const vacia = notifications((lista) => (lista?.length ?? 0) === 0)
   let scrollRef: Gtk.ScrolledWindow | null = null
+  const obtenerVista = (): VistaLista =>
+    !rendered.get() ? "oculta" : groupByApp.get() ? "agrupada" : "plana"
+  const [vista, setVista] = createState<VistaLista>(obtenerVista())
 
   // Montaje incremental, sin reciclado: limita el coste de apertura sin destruir
   // widgets bajo el puntero durante el desplazamiento.
   const [limite, setLimite] = createState(TAMANO_TRAMO)
-  let creciendo = false
+  // Solo se recuerda la capacidad que llenó la ventana, no los widgets ni todos
+  // los tramos que el usuario haya llegado a montar al desplazarse.
+  let limiteInicialPlano = TAMANO_TRAMO
+  let ampliacionPendiente: number | null = null
+  let comprobacionPendiente: number | null = null
+
+  function cancelarTrabajoPendiente(): void {
+    if (ampliacionPendiente !== null) {
+      GLib.source_remove(ampliacionPendiente)
+      ampliacionPendiente = null
+    }
+    if (comprobacionPendiente !== null) {
+      scrollRef?.remove_tick_callback(comprobacionPendiente)
+      comprobacionPendiente = null
+    }
+  }
+  onCleanup(cancelarTrabajoPendiente)
+
+  function comprobarTrasLayout(): void {
+    if (!scrollRef || comprobacionPendiente !== null || vista.get() === "oculta") return
+    // Los ticks preceden al layout. El segundo ya ve las medidas del contenido
+    // nuevo, incluso si GtkAdjustment no ha emitido `changed`.
+    let esperarLayout = true
+    comprobacionPendiente = scrollRef.add_tick_callback(() => {
+      if (esperarLayout) {
+        esperarLayout = false
+        return GLib.SOURCE_CONTINUE
+      }
+      comprobacionPendiente = null
+      ampliarSiNecesario()
+      return GLib.SOURCE_REMOVE
+    })
+  }
 
   /** Total montable en la vista activa: notificaciones en plana, aplicaciones en agrupada.
    *  Memoizado por identidad: `ajuste.connect("value-changed"/"changed")` dispara esto en
@@ -56,7 +91,7 @@ export default function ListaPanel({
 
   // Amplía el tramo cerca del final o cuando el tramo actual aún no llena la ventana.
   function ampliarSiNecesario(): void {
-    if (creciendo || !rendered.get()) return
+    if (ampliacionPendiente !== null || !rendered.get() || vista.get() === "oculta") return
     const ajuste = scrollRef?.get_vadjustment()
     if (!ajuste || limite.get() >= totalMontable()) return
 
@@ -68,10 +103,12 @@ export default function ListaPanel({
     if (!cercaDelFinal && !noLlena) return
 
     // Ampliar reconstruye el <For>; se difiere para salir del layout actual de GTK.
-    creciendo = true
-    GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-      setLimite(limite.get() + TAMANO_TRAMO)
-      creciendo = false
+    ampliacionPendiente = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+      const siguiente = Math.min(limite.get() + TAMANO_TRAMO, totalMontable())
+      if (noLlena && vista.get() === "plana") limiteInicialPlano = siguiente
+      setLimite(siguiente)
+      ampliacionPendiente = null
+      comprobarTrasLayout()
       return GLib.SOURCE_REMOVE
     })
   }
@@ -80,17 +117,13 @@ export default function ListaPanel({
     scrollRef = scroll
     const ajuste = scroll.get_vadjustment()
     if (!ajuste) return
-    ajuste.connect("value-changed", ampliarSiNecesario)
-    ajuste.connect("changed", ampliarSiNecesario)
+    const alDesplazar = ajuste.connect("value-changed", ampliarSiNecesario)
+    const alCambiar = ajuste.connect("changed", ampliarSiNecesario)
+    onCleanup(() => {
+      ajuste.disconnect(alDesplazar)
+      ajuste.disconnect(alCambiar)
+    })
   }
-
-  // Cada apertura y cada cambio de vista vuelven al primer tramo y al inicio.
-  const reiniciarLimite = () => {
-    setLimite(TAMANO_TRAMO)
-    scrollRef?.get_vadjustment()?.set_value(0)
-  }
-  rendered.subscribe(reiniciarLimite)
-  groupByApp.subscribe(reiniciarLimite)
 
   // Las listas reinsertan widgets al cambiar su array. Restaurar el ajuste impide
   // que GTK salte al primer elemento enfocable al marcar una notificación como leída.
@@ -107,12 +140,21 @@ export default function ListaPanel({
 
   // Un solo <With> combina visibilidad y agrupación para evitar fragments anidados,
   // no soportados por gnim. Al ocultar, se destruyen todos los widgets de elementos.
-  const obtenerVista = (): VistaLista =>
-    !rendered.get() ? "oculta" : groupByApp.get() ? "agrupada" : "plana"
-  const [vista, setVista] = createState<VistaLista>(obtenerVista())
-  const actualizarVista = () => setVista(obtenerVista())
-  rendered.subscribe(actualizarVista)
-  groupByApp.subscribe(actualizarVista)
+  const actualizarVista = () => {
+    const siguiente = obtenerVista()
+    if (siguiente === vista.get()) return
+
+    cancelarTrabajoPendiente()
+    // Desmontar antes de cambiar el límite evita reajustar la lista que se retira.
+    // Ambas escrituras ocurren en el mismo evento, sin pintar una vista vacía.
+    setVista("oculta")
+    setLimite(siguiente === "plana" ? limiteInicialPlano : TAMANO_TRAMO)
+    scrollRef?.get_vadjustment()?.set_value(0)
+    setVista(siguiente)
+    comprobarTrasLayout()
+  }
+  onCleanup(rendered.subscribe(actualizarVista))
+  onCleanup(groupByApp.subscribe(actualizarVista))
 
   const conflictoVacio = createComputed(
     [vacia, notifDaemonConflict],

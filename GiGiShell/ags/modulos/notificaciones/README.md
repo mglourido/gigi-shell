@@ -35,3 +35,17 @@ El plegado anima la flecha y la altura del grupo durante 140 ms. El
 `notify::child-revealed` con el cierre completado. No hay que desmontarlo al
 pulsar: se cortaría la animación. Al reabrir, se monta antes de iniciar el
 despliegue; GTK puede invertir una transición en curso sin reconstruir las filas.
+
+Al cambiar entre vista agrupada y plana se comprueba también el montaje
+incremental. No basta con esperar `changed` del ajuste del scroll: después de
+plegar grupos, las primeras 20 notificaciones pueden caber en el panel sin
+cambiar sus medidas. Sin esa comprobación, los siguientes tramos no se cargan y
+pueden desaparecer de la vista aplicaciones enteras cuyos avisos son más antiguos.
+
+Para que el regreso a la lista plana no aparezca por tandas, se recuerda solo el
+límite que hizo falta para llenar la ventana, sin conservar widgets ocultos ni
+los tramos adicionales cargados al desplazarse. La vista anterior se desmonta
+antes de cambiar ese límite: `For` reinserta las filas al modificar su array y
+reajustarlo justo antes de destruirlo añade trabajo innecesario. Una comprobación
+que se retira tras el layout atiende los cambios de tamaño sin depender de
+`changed`; sus callbacks pendientes se cancelan al cambiar de vista o desmontar.
