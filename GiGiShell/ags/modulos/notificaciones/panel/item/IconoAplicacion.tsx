@@ -1,39 +1,26 @@
 import { Gtk, Gdk } from "ags/gtk4"
+import Gio from "gi://Gio"
 import GLib from "gi://GLib"
-import GdkPixbuf from "gi://GdkPixbuf"
 
 type InformacionIcono =
   | { tipo: "nombre"; nombre: string }
-  | { tipo: "archivo"; ruta: string }
+  | { tipo: "archivo"; icono: Gio.FileIcon }
 
-// Los iconos se repiten entre items y vistas. Se memorizan tanto la consulta al
-// tema como la decodificación en disco para hacerlas una sola vez por sesión.
+// Los iconos se repiten entre items y vistas. Se memoriza su resolución; GTK
+// comparte su carga y adapta el archivo original al tamaño y escala de cada vista.
+// Reducir antes el archivo a un pixbuf de 18 px emborronaba los iconos con HiDPI.
 const cacheInformacionIconos = new Map<string, InformacionIcono | null>()
-const cachePixbufs = new Map<string, GdkPixbuf.Pixbuf | null>()
-
-function cargarIconoArchivo(ruta: string): GdkPixbuf.Pixbuf | null {
-  const cacheado = cachePixbufs.get(ruta)
-  if (cacheado !== undefined) return cacheado
-
-  let pixbuf: GdkPixbuf.Pixbuf | null = null
-  try {
-    pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(ruta, 18, 18, true)
-  } catch (_) {
-    pixbuf = null
-  }
-  cachePixbufs.set(ruta, pixbuf)
-  return pixbuf
-}
 
 function resolverIconoSinCache(iconoApp: string): InformacionIcono | null {
   if (!iconoApp) return null
-  if (iconoApp.startsWith("/")) {
-    return GLib.file_test(iconoApp, GLib.FileTest.EXISTS)
-      ? { tipo: "archivo", ruta: iconoApp }
-      : null
-  }
 
   try {
+    if (iconoApp.startsWith("/")) {
+      return GLib.file_test(iconoApp, GLib.FileTest.EXISTS)
+        ? { tipo: "archivo", icono: Gio.FileIcon.new(Gio.File.new_for_path(iconoApp)) }
+        : null
+    }
+
     const pantalla = Gdk.Display.get_default()
     if (!pantalla) return null
     const tema = Gtk.IconTheme.get_for_display(pantalla)
@@ -61,9 +48,7 @@ export default function IconoAppNotificacion({ iconoApp }: { iconoApp: string })
   try {
     let imagen: Gtk.Image
     if (informacion.tipo === "archivo") {
-      const pixbuf = cargarIconoArchivo(informacion.ruta)
-      if (!pixbuf) return null
-      imagen = Gtk.Image.new_from_pixbuf(pixbuf)
+      imagen = Gtk.Image.new_from_gicon(informacion.icono)
     } else {
       imagen = Gtk.Image.new_from_icon_name(informacion.nombre)
       imagen.pixel_size = 18
