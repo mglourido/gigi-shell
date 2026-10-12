@@ -269,7 +269,8 @@ window.np-window.csd decoration {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   min-width: 389px;
-  box-shadow: none;
+  // Trazo sin desenfoque: solo 1px a la izquierda, sin modificar la geometría.
+  box-shadow: -1px 0 0 rgba($white, 0.22);
   font-family: $font-icon;
   color: $text;
 
