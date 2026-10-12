@@ -311,60 +311,71 @@ window.np-window.csd decoration {
   margin: 0;
 }
 
-.np-unread-badge-btn {
-  background: acento-sobre($np-bg-opaco, 0.12);
-  border: none;
-  border-radius: $radius-pill;
-  padding: 1px 7px;
-  min-height: 18px;
-  transition: all 120ms ease;
-
-  &:hover { background: acento-sobre($np-bg-opaco, 0.22); }
-
-  label { margin: 0; }
-}
-
 .np-unread-count {
   font-size: 10px;
   font-weight: 700;
   color: acento();
   margin: 0;
+  // Compensa el margen de la fuente para centrar visualmente las cifras.
+  transform: translate(1px, 1px);
 }
 
-.np-icon-btn {
-  background: $np-bg-opaco;
+// La especificidad supera el reset de botones del panel. El contador comparte
+// esta forma; cada estado activo conserva también una respuesta propia al hover.
+.np-panel button.np-icon-btn {
+  // Mezclar con el tema actual evita que el hover se funda con el panel en gris
+  // o grafito. Conserva un fondo opaco para tapar el desenfoque de la lámina.
+  $fondo-boton: var(--bg-shell, #{$np-bg-opaco});
+
+  background: transparent;
   border: none;
   border-radius: 6px;
   min-width: 28px;
   min-height: 28px;
-  padding: 4px;
+  padding: 0;
   transition: all 120ms ease-out;
 
   &:hover {
-    background: fondo-np-opaco(rgba(255, 255, 255, 0.07));
+    // Mismo realce blanco que la pastilla de Quick Settings de la barra.
+    background: color-mix(in srgb, #{$white} #{color.alpha($bg-pill) * 100%}, #{$fondo-boton});
+    .np-btn-icon { color: rgba($text, 0.9); }
+  }
+
+  &.np-unread-badge-btn {
+    background: acento-sobre($fondo-boton, 0.12);
+    &:hover { background: acento-sobre($fondo-boton, 0.22); }
   }
 
   &.active {
-    background: acento-sobre($np-bg-opaco, 0.12);
+    background: acento-sobre($fondo-boton, 0.12);
     .np-btn-icon { color: acento(); }
+    &:hover { background: acento-sobre($fondo-boton, 0.22); }
   }
 
   &.dnd-active {
-    background: fondo-np-opaco(rgba($pink, 0.12));
+    background: color-mix(in srgb, #{$pink} 12%, #{$fondo-boton});
     .np-btn-icon { color: $pink; }
+    &:hover {
+      background: color-mix(in srgb, #{$pink} 26%, #{$fondo-boton});
+      .np-btn-icon { color: color.mix($white, $pink, 20%); }
+    }
   }
 
   &.danger {
     .np-btn-icon { color: rgba($pink, 0.45); }
 
     &:hover {
-      background: fondo-np-opaco(rgba($pink, 0.1));
-      .np-btn-icon { color: $pink; }
+      background: color-mix(in srgb, #{$pink} 26%, #{$fondo-boton});
+      .np-btn-icon { color: color.mix($white, $pink, 20%); }
     }
 
     &.confirm {
-      background: fondo-np-opaco(rgba($pink, 0.15));
+      background: color-mix(in srgb, #{$pink} 15%, #{$fondo-boton});
       .np-btn-icon { color: $pink; }
+      &:hover {
+        background: color-mix(in srgb, #{$pink} 32%, #{$fondo-boton});
+        .np-btn-icon { color: color.mix($white, $pink, 20%); }
+      }
     }
   }
 
@@ -422,20 +433,25 @@ window.np-window.csd decoration {
   padding: 0;
 }
 
-.np-filter-chip {
-  background: $np-bg-opaco;
+// El nodo button supera el reset del panel; el fondo sigue el tema como el header.
+button.np-filter-chip {
+  $fondo-filtro: var(--bg-shell, #{$np-bg-opaco});
+
+  background: $fondo-filtro;
   border: none;
   border-radius: 6px;
   padding: 3px 10px;
   transition: background 100ms ease;
 
   &.active {
-    background: acento-sobre($np-bg-opaco, 0.12);
+    background: acento-sobre($fondo-filtro, 0.12);
     .np-filter-chip-label { color: acento(); }
+    &:hover { background: acento-sobre($fondo-filtro, 0.22); }
   }
 
   &:hover:not(.active) {
-    background: fondo-np-opaco(rgba(255, 255, 255, 0.06));
+    background: color-mix(in srgb, #{$white} #{color.alpha($bg-pill) * 100%}, #{$fondo-filtro});
+    .np-filter-chip-label { color: rgba($text, 0.9); }
   }
 
   .np-filter-chip-label {
@@ -444,11 +460,6 @@ window.np-window.csd decoration {
     color: rgba($text, 0.58);
     margin: 0;
   }
-}
-
-// Sobreescribe el reset general de .np-panel button para los chips
-.np-panel .np-filter-chip {
-  padding: 3px 10px;
 }
 
 // Notification list

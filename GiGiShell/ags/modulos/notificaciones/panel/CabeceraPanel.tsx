@@ -89,8 +89,10 @@ export default function CabeceraPanel() {
         <label cssClasses={["np-title"]} label="Notificaciones" hexpand halign={Gtk.Align.START} />
 
         <button
-          cssClasses={["np-unread-badge-btn"]}
+          cssClasses={["np-icon-btn", "np-unread-badge-btn"]}
+          valign={Gtk.Align.CENTER}
           visible={noLeidas((cantidad) => cantidad > 0)}
+          tooltipText="Marcar todas como leídas"
           onClicked={markAllRead}
         >
           <label cssClasses={["np-unread-count"]} label={noLeidas((cantidad) => String(cantidad))} />
@@ -98,6 +100,7 @@ export default function CabeceraPanel() {
 
         <button
           cssClasses={["np-icon-btn"]}
+          valign={Gtk.Align.CENTER}
           visible={noLeidas((cantidad) => cantidad > 0)}
           tooltipText="Marcar todas como leídas"
           onClicked={markAllRead}
@@ -109,6 +112,7 @@ export default function CabeceraPanel() {
           cssClasses={confirmarBorrado((confirmar) => confirmar
             ? ["np-icon-btn", "danger", "confirm"]
             : ["np-icon-btn", "danger"])}
+          valign={Gtk.Align.CENTER}
           visible={hayNotificaciones}
           tooltipText={confirmarBorrado((confirmar) => confirmar
             ? "Pulsa de nuevo para confirmar"
@@ -125,6 +129,8 @@ export default function CabeceraPanel() {
           cssClasses={noMolestar((activo) => activo
             ? ["np-icon-btn", "dnd-active"]
             : ["np-icon-btn"])}
+          valign={Gtk.Align.CENTER}
+          tooltipText={noMolestar((activo) => activo ? "Desactivar no molestar" : "Activar no molestar")}
           onClicked={() => { notifd.dontDisturb = !notifd.dontDisturb }}
         >
           <label cssClasses={["np-btn-icon"]} label={noMolestar((activo) => activo ? "󰪑" : "󰂚")} />
@@ -134,6 +140,8 @@ export default function CabeceraPanel() {
           cssClasses={selectionMode((activo) => activo
             ? ["np-icon-btn", "active"]
             : ["np-icon-btn"])}
+          valign={Gtk.Align.CENTER}
+          tooltipText={selectionMode((activo) => activo ? "Salir del modo selección" : "Seleccionar notificaciones")}
           onClicked={() => {
             const siguiente = !selectionMode.get()
             setSelectionMode(siguiente)
@@ -147,6 +155,8 @@ export default function CabeceraPanel() {
           cssClasses={groupByApp((activo) => activo
             ? ["np-icon-btn", "active"]
             : ["np-icon-btn"])}
+          valign={Gtk.Align.CENTER}
+          tooltipText={groupByApp((activo) => activo ? "Mostrar sin agrupar" : "Agrupar por aplicación")}
           onClicked={() => setGroupByApp(!groupByApp.get())}
         >
           <label cssClasses={["np-btn-icon"]} label="󰉋" />
@@ -156,6 +166,8 @@ export default function CabeceraPanel() {
           cssClasses={notifSettingsVisible((visible) => visible
             ? ["np-icon-btn", "active"]
             : ["np-icon-btn"])}
+          valign={Gtk.Align.CENTER}
+          tooltipText={notifSettingsVisible((visible) => visible ? "Cerrar ajustes de notificaciones" : "Abrir ajustes de notificaciones")}
           onClicked={() => setNotifSettingsVisible(!notifSettingsVisible.get())}
         >
           <label cssClasses={["np-btn-icon"]} label="󰒓" />
