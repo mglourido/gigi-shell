@@ -1,5 +1,6 @@
 import { Gtk } from "ags/gtk4"
 import { createState, For, With, type Accessor } from "ags"
+import Pango from "gi://Pango"
 import { type StoredNotification } from "../store"
 import ItemNotificacion from "./item/ItemNotificacion"
 
@@ -16,37 +17,60 @@ export default function GrupoAplicacion({
   notificaciones: Accessor<StoredNotification[]>
 }) {
   const [plegado, setPlegado] = createState(false)
-  const noLeidas = notificaciones((lista) =>
-    lista.filter((notificacion) => !notificacion.read).length)
+  const [contenidoMontado, setContenidoMontado] = createState(true)
+
+  function alternarPlegado(): void {
+    const siguiente = !plegado.get()
+    // Montar antes de abrir permite medir la altura real del contenido.
+    if (!siguiente) setContenidoMontado(true)
+    setPlegado(siguiente)
+  }
 
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["np-app-group"]}>
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={0} cssClasses={["np-app-group"]} hexpand>
       <button
         cssClasses={["np-group-header"]}
-        onClicked={() => setPlegado(!plegado.get())}
+        onClicked={alternarPlegado}
       >
         <box spacing={6} valign={Gtk.Align.CENTER}>
-          <label label={plegado((valor) => valor ? "󰅂" : "󰅀")} cssClasses={["np-group-chevron"]} />
-          <label label={appName} cssClasses={["np-group-name"]} hexpand halign={Gtk.Align.START} />
-          {/* Ranura fija en vez de `noLeidas > 0 && …`: la insignia aparece y
-              desaparece sin que el grupo tenga que reconstruirse. */}
-          <box cssClasses={["np-group-badge"]} visible={noLeidas((cantidad) => cantidad > 0)}>
-            <label label={noLeidas((cantidad) => String(cantidad))} cssClasses={["np-group-count"]} />
-          </box>
           <label
-            label={notificaciones((lista) => `${lista.length}`)}
-            cssClasses={["np-group-total"]}
+            label="󰅂"
+            cssClasses={plegado((valor) => valor
+              ? ["np-group-chevron"]
+              : ["np-group-chevron", "expanded"])}
+            valign={Gtk.Align.CENTER}
           />
+          <label
+            label={appName}
+            cssClasses={["np-group-name"]}
+            hexpand
+            xalign={0}
+            ellipsize={Pango.EllipsizeMode.END}
+          />
+          <box cssClasses={["np-group-badge"]} valign={Gtk.Align.CENTER}>
+            <label
+              label={notificaciones((lista) => String(lista.length))}
+              cssClasses={["np-group-count"]}
+            />
+          </box>
         </box>
       </button>
 
-      {/* El contenido plegado se destruye para liberar sus widgets. La caja exterior
-          conserva el punto de inserción al volver a desplegar el grupo. */}
-      <box>
-        <With value={plegado}>
-          {(estaPlegado: boolean) => estaPlegado
-            ? <box visible={false} />
-            : (
+      {/* Desmontar solo al terminar el cierre: hacerlo al pulsar corta la animación.
+          Al invertirla, el contenido sigue montado y GTK continúa desde su altura actual. */}
+      <Gtk.Revealer
+        revealChild={plegado((valor) => !valor)}
+        transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN}
+        transitionDuration={140}
+        onNotifyChildRevealed={(self) => {
+          if (plegado.get() && !self.get_reveal_child() && !self.get_child_revealed()) {
+            setContenidoMontado(false)
+          }
+        }}
+      >
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
+          <With value={contenidoMontado}>
+            {(estaMontado: boolean) => estaMontado && (
               <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
                 {/* Sin `id`, a propósito: el almacén sustituye el objeto de una
                     notificación al marcarla leída (`markRead`), y ese cambio de
@@ -59,8 +83,9 @@ export default function GrupoAplicacion({
                 </For>
               </box>
             )}
-        </With>
-      </box>
+          </With>
+        </box>
+      </Gtk.Revealer>
     </box>
   )
 }

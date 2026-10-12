@@ -498,14 +498,20 @@ button.np-filter-chip {
   border-bottom: 0.5px solid rgba(255, 255, 255, 0.04);
 }
 
-.np-group-header {
-  background: $np-bg-opaco;
+// Supera el reset del panel y anula el tamaño y las esquinas del tema GTK.
+.np-panel button.np-group-header {
+  $fondo-grupo: var(--bg-shell, #{$np-bg-opaco});
+
+  background: $fondo-grupo;
   border: none;
+  border-radius: 0;
+  min-width: 0;
+  min-height: 0;
   padding: 6px 14px;
   transition: background 100ms ease;
 
   &:hover {
-    background: fondo-np-opaco(rgba(255, 255, 255, 0.04));
+    background: color-mix(in srgb, #{$white} 4%, #{$fondo-grupo});
   }
 }
 
@@ -514,6 +520,10 @@ button.np-filter-chip {
   font-size: 11px;
   color: rgba($text, 0.48);
   margin: 0;
+  transform: rotate(0deg);
+  transition: transform 140ms ease-out;
+
+  &.expanded { transform: rotate(90deg); }
 }
 
 .np-group-name {
@@ -524,21 +534,17 @@ button.np-filter-chip {
 }
 
 .np-group-badge {
-  background: acento-sobre($np-bg-opaco, 0.2);
-  border-radius: $radius-pill;
-  padding: 0 5px;
+  background: acento-sobre(var(--bg-shell, #{$np-bg-opaco}), 0.2);
+  border-radius: 6px;
+  min-height: 22px;
+  padding: 0 7px;
 }
 
 .np-group-count {
-  font-size: 9px;
-  font-weight: 800;
+  min-width: 14px;
+  font-size: 11px;
+  font-weight: 700;
   color: acento();
-  margin: 0;
-}
-
-.np-group-total {
-  font-size: 10px;
-  color: rgba($text, 0.4);
   margin: 0;
 }
 

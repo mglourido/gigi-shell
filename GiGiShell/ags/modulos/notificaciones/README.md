@@ -22,3 +22,16 @@ El resto del código se agrupa por responsabilidad:
 
 Si se añaden pruebas, deben permanecer junto al código que verifican. Los consumidores externos deben importar
 las fachadas de la raíz salvo que necesiten explícitamente una pieza interna concreta.
+
+Las cabeceras de los grupos muestran solo el total en una etiqueta de 22 px de
+alto, con texto de 11 px y esquinas de 6 px, a juego con los botones del panel.
+La cabecera ocupa todo el ancho y conserva las esquinas rectas. Su selector
+`.np-panel button.np-group-header` debe superar el reset `.np-panel button` para
+conservar el relleno propio. `min-height: 0` y `border-radius: 0` evitan heredar
+la altura y las esquinas del tema GTK.
+
+El plegado anima la flecha y la altura del grupo durante 140 ms. El
+`Gtk.Revealer` conserva el contenido durante el cierre y lo desmonta al recibir
+`notify::child-revealed` con el cierre completado. No hay que desmontarlo al
+pulsar: se cortaría la animación. Al reabrir, se monta antes de iniciar el
+despliegue; GTK puede invertir una transición en curso sin reconstruir las filas.
