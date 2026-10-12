@@ -18,10 +18,8 @@ const TAMANO_TRAMO = 20
 const MARGEN_CRECIMIENTO_PX = 300
 
 export default function ListaPanel({
-  maxContentHeight,
   rendered,
 }: {
-  maxContentHeight: number
   rendered: Accessor<boolean>
 }) {
   const vacia = notifications((lista) => (lista?.length ?? 0) === 0)
@@ -130,8 +128,8 @@ export default function ListaPanel({
       cssClasses={["np-list-scroll"]}
       hscrollbarPolicy={Gtk.PolicyType.NEVER}
       vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
-      propagateNaturalHeight={true}
-      maxContentHeight={maxContentHeight}
+      // La lista ocupa el espacio restante sin imponer la altura de sus filas al panel.
+      propagateNaturalHeight={false}
       vexpand
       $={observarScroll}
     >
