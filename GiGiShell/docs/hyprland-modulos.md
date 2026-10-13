@@ -836,10 +836,11 @@ guarda del `pid` de AGS, el fail-open (sin fichero, JSON corrupto, pid muerto o 
 trabaja) y el bucle de espera, que **relee ambos motivos** en cada vuelta, así que salir del ahorro
 —o desactivar el ajuste— descongela en ≤`GAMING_GATE_POLL` sin reiniciar ningún monitor.
 
-**`GAMING_GATE_SLEEP` no es decorativo.** `updates-monitor` lo pone a `blocking sleep` porque bash
-**difiere las señales** mientras espera a un hijo en primer plano: con un `sleep` normal, el `pkill`
-del toggle maestro de AGS no mataría el script hasta acabar la espera. En `oom-monitor` los
-sub-monitores ya duermen en primer plano, así que ahí `sleep` a secas es lo coherente.
+**`GAMING_GATE_SLEEP` permite atender eventos durante la pausa.** `updates-monitor` usa
+`esperar_mantenimiento`: lee su pipe de paquetes y retira avisos sin sincronizar repositorios.
+El valor predeterminado `sleep` se resuelve internamente con el builtin `read -t`, sin hijos y
+con señales inmediatas. Solo el respaldo sin vigilancia usa `blocking sleep` para evitar que
+Bash difiera el SIGTERM del interruptor maestro mientras espera a `/usr/bin/sleep`.
 
 ### Apps al inicio (`inicializador/apps-inicio.sh` + Ajustes > Apps al inicio)
 
@@ -1492,20 +1493,51 @@ temporal de pacman (eran 3 s; se subió a 20 al escalonar el arranque). El retar
 dentro del script porque el toggle maestro de AGS lo re-ejecuta en caliente, y ahí sí se quiere
 inmediato.
 
-**A package-DB watch is what makes the icon go away after you update.** Periodic re-checks alone
-left the icon stuck: `updates.json` kept advertising what you had just installed until the next
-interval elapsed. So the loop blocks on `inotifywait` over the distro's local package DB
-(`/var/lib/pacman/local`, `/var/lib/dpkg`, `/usr/lib/sysimage/rpm`→`/var/lib/rpm`) *or* the
-periodic timeout, whichever comes first. An install touches the DB hundreds of times, so an
-event is followed by a **debounce** (re-check only after 5 s of quiet). This fires whether you
-updated from the popover's button or from your own terminal. Without `inotify-tools` it degrades
-to the plain interval sleep (and, if `updatesPeriodic` is off, simply exits after one pass).
+**Los avisos se retiran también al actualizar desde una terminal u otro gestor.** Un único
+`inotifywait -m` queda activo desde antes de la primera consulta, incluso durante las consultas
+y las pausas por juego o ahorro. Los eventos viajan por un pipe anónimo, sin archivos auxiliares
+ni sondeos añadidos. Antes se recreaba el vigilante en cada espera: una instalación terminada
+durante `run_check` se perdía y dejaba `updates.json` obsoleto hasta el siguiente intervalo.
 
-Every blocking wait (`inotifywait`, `sleep`) goes through the `blocking()` helper — child in the
-background + `wait` + a `TERM` trap — **not** a plain foreground call. Bash defers signals while
-waiting on a foreground child, so a foreground `inotifywait` (which can block indefinitely) would
-make the master toggle's `pkill` a no-op: the script would survive, later notice a DB change, and
-rewrite `updates.json`, resurrecting the icons with the feature switched off.
+En Arch/CachyOS se observa el **borrado de `db.lck`** en el directorio de BD que devuelve
+`pacman-conf DBPath` (por defecto `/var/lib/pacman`). Vigilar solo `/local` y esperar cinco segundos
+de calma no garantiza el fin de la actualización: los hooks pueden tardar minutos sin tocarla.
+Debian y Fedora conservan la vigilancia de `/var/lib/dpkg` y `/usr/lib/sysimage/rpm`→`/var/lib/rpm`.
+Se agrupan los eventos hasta cinco segundos sin actividad; si entretanto comienza otra
+transacción de pacman, se espera también a que termine.
+
+El refresco por cambios locales **no sincroniza repositorios**: usa `checkupdates --nosync`
+(con respaldo `pacman -Qu` si falla la caché temporal), `dnf --cacheonly` o la caché de APT.
+El arranque y el intervalo configurado mantienen sus consultas habituales. Antes de la consulta
+inicial también se refresca localmente el estado de la sesión anterior. Un error de consulta
+conserva el último JSON en vez de confundirse con «ninguna pendiente». Sin `inotify-tools` o si
+falla la vigilancia, queda el respaldo periódico; con `updatesPeriodic` apagado, el proceso sale.
+
+La lectura del pipe y `sleep` pasan por `blocking()` (hijo en segundo plano + `wait`).
+Un `read` directo presentaba una carrera: si SIGTERM llegaba justo antes de entrar en la lectura,
+el trap podía quedar pendiente hasta otro evento. `wait` atiende también esa señal; el hijo
+lector restablece sus traps y se termina junto con el vigilante. Al salir se cierra el descriptor
+y se mata y recoge el vigilante; desactivar el monitor no deja un `inotifywait` huérfano.
+
+El gate de juego/ahorro retiene **solo la búsqueda por red**. Su durmiente
+`esperar_mantenimiento` aprovecha el mismo pipe para refrescar los avisos tras una instalación
+externa, incluso si las búsquedas permanecen pausadas. Sin esta separación, `powerSaveFreeze`
+podía conservar los avisos indefinidamente pese a haberse recibido el evento de instalación.
+
+La condición vive en `comprobar_pendientes`: antes de una consulta de red llama al gate
+compartido, que lee `runtime-state.json` (`gaming`, `gameFocused`, `lastGameFocus` y la guarda
+`pid`) y respeta `gamingFreeze`. Si toca comprobar durante una partida, la consulta queda
+pendiente hasta dejar de jugar, con la gracia y el respiro definidos en la librería. No se
+desactiva el monitor ni se cambian preferencias. El refresco local sigue atendiendo instalaciones.
+
+La generación del resultado usa **una sola ejecución de `jq`**, en lugar de cinco, incluida la
+marca de tiempo. Solo se acumulan los veinte nombres que muestra `systemSample`; el contador
+incluye todos los paquetes. Se conserva la escritura atómica y la clasificación de avisos.
+
+Regresiones sin red ni instalaciones: `python3 hypr/scripts/updates-monitor.test.py -v`.
+Cubren eventos durante las consultas, transacciones con pausas largas, transacciones seguidas,
+apagado por SIGTERM, respaldo sin vigilancia, refresco local de los avisos, generación del JSON
+y aplazamiento por juego usando el estado compartido, incluidos archivos ausentes y pids muertos.
 
 All polling is **read-only and sudo-free**, one branch per distro family detected from
 `/etc/os-release`: Arch/CachyOS → `checkupdates` (pacman-contrib; syncs a *temp* DB in the

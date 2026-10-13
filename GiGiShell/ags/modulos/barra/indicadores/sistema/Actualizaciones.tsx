@@ -151,12 +151,12 @@ export default function Actualizaciones({
       btnRef = null
     })
 
-    const titulo = data((d) => {
+    const titulo = kind === "watched" ? data((d) => {
       const names = d[kind].map((p) => p.name).join(", ")
       if (!names) return `Sin actualizaciones de ${meta.noun}`
       const tail = d.system > 0 ? ` — y ${d.system} paquete${d.system === 1 ? "" : "s"} más` : ""
       return `${meta.title}: ${names}${tail}`
-    })
+    }) : null
 
     return (
       <button
@@ -165,7 +165,7 @@ export default function Actualizaciones({
         // que un gesture primario encima no llegaría a dispararse.
         $={(self: Gtk.Widget) => {
           btnRef = self
-          tituloBarra(self, titulo)
+          if (titulo) tituloBarra(self, titulo)
         }}
         visible={list((l) => l.length > 0)}
         cssClasses={["bar-pill-btn"]}
@@ -173,8 +173,7 @@ export default function Actualizaciones({
       >
         <Gtk.EventControllerMotion onEnter={autoClose.onEnter} onLeave={autoClose.onLeave} />
         <SensorCadena cadena={cadena} indice={indice} />
-        {/* Solo el icono: el número sobraba. El detalle (qué paquetes, de qué
-            versión a cuál) está en el tooltip y en el popover. */}
+        {/* El detalle de paquetes y versiones está en el menú que se abre al pulsar. */}
         <box
           cssClasses={cadena.clases(indice, ["bar-pill", "upd-pill", kind])}
           halign={Gtk.Align.CENTER}

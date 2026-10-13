@@ -15,7 +15,7 @@
 # batteryMonitor/tempMonitor: un cambio solo surte efecto reiniciando el script (lo
 # que el setter maestro de AGS hace en caliente vía pkill+exec):
 #   updatesMonitor        (bool, ausente=true)  maestro; false => borra json y sale
-#   updatesPeriodic       (bool, ausente=true)  false => comprueba una vez y sale
+#   updatesPeriodic       (bool, ausente=true)  false => solo arranque y cambios locales
 #   updatesIntervalHours  (num,  ausente=3)     horas entre comprobaciones
 #   updatesWatchList      ([str], ausente=[])   paquetes vigilados por el usuario:
 #       en cuanto UNO de ellos aparece entre las pendientes se deja de mirar la
@@ -95,29 +95,42 @@ is_kernel() {
 # Emite por stdout líneas "nombre<TAB>versión_vieja<TAB>versión_nueva" (vieja/nueva
 # pueden ir vacías si el gestor no las expone). Va a prioridad baja para no molestar.
 collect_updates() {
+    local modo=${1:-red} out rc
     case "$mgr" in
         arch)
-            local out
-            if command -v checkupdates >/dev/null 2>&1; then
-                out=$(nice -n19 ionice -c3 checkupdates 2>/dev/null) || out=""
+            local opciones=() cache_bd="${CHECKUPDATES_DB:-${TMPDIR:-/tmp}/checkup-db-$UID}"
+            [[ "$modo" == local ]] && opciones=(--nosync)
+            if [[ "$modo" == local && ! -d "$cache_bd/sync" ]]; then
+                # /tmp puede vaciarse entre sesiones; --nosync no detecta ese error.
+                out=$(pacman -Qu 2>/dev/null) || return 1
+            elif command -v checkupdates >/dev/null 2>&1; then
+                out=$(nice -n19 ionice -c3 checkupdates "${opciones[@]}" 2>/dev/null)
+                rc=$?
+                # 2 significa que no quedan pendientes; un error no debe borrar avisos.
+                if (( rc != 0 && rc != 2 )); then
+                    [[ "$modo" == local ]] || return 1
+                    out=$(pacman -Qu 2>/dev/null) || return 1
+                fi
             else
-                out=$(pacman -Qu 2>/dev/null) || out=""
+                out=$(pacman -Qu 2>/dev/null) || return 1
             fi
             # Formato: "name oldver -> newver"
             awk 'NF>=4 && $3=="->" {print $1"\t"$2"\t"$4}' <<< "$out"
             ;;
         fedora)
-            local out
-            out=$(nice -n19 ionice -c3 dnf -q check-update 2>/dev/null)
-            # rc 100 = hay updates, 0 = ninguna, otros = error (out vacío). Líneas:
+            local opciones=()
+            [[ "$modo" == local ]] && opciones=(--cacheonly)
+            out=$(nice -n19 ionice -c3 dnf -q "${opciones[@]}" check-update 2>/dev/null)
+            rc=$?
+            (( rc == 0 || rc == 100 )) || return 1
+            # rc 100 = hay updates, 0 = ninguna; los errores conservan el JSON. Líneas:
             # "name.arch   version   repo". Saltamos cabeceras/obsoletos.
             awk 'NF==3 && $1 !~ /^(Obsoleting|Last|Security:)/ {
                      name=$1; sub(/\.(x86_64|noarch|i686|aarch64|armv7hl)$/,"",name);
                      print name"\t\t"$2 }' <<< "$out"
             ;;
         debian)
-            local out
-            out=$(nice -n19 ionice -c3 apt list --upgradable 2>/dev/null) || out=""
+            out=$(nice -n19 ionice -c3 apt list --upgradable 2>/dev/null) || return 1
             # "name/repo newver arch [upgradable from: oldver]"
             awk -F'[ /]' '/upgradable from:/ {
                      old=$0; sub(/.*upgradable from: */,"",old); sub(/].*/,"",old);
@@ -128,6 +141,8 @@ collect_updates() {
 
 # ── Una comprobación → escritura atómica de $OUT ──────────────────────────────
 run_check() {
+    local pendientes
+    pendientes=$(collect_updates "${1:-red}") || return 1
     # Tres cubos: kernel e drivers de GPU son las "importantes" (las únicas que hacen
     # aparecer el icono en la barra); el resto son actualizaciones normales de
     # paquetes/dependencias, que solo se listan al abrir el popover.
@@ -141,54 +156,51 @@ run_check() {
         while IFS=$'\t' read -r name from to; do
             [[ -z "$name" ]] && continue
             if $watching && [[ -n "${watch_set[$name]:-}" ]]; then
-                watched_tsv="${name}\t${from}\t${to}"$'\n'
+                watched_tsv="$name"$'\t'"$from"$'\t'"$to"$'\n'
                 watching=false
             elif is_gpu "$name"; then
-                gpu_tsv+="${name}\t${from}\t${to}"$'\n'
+                gpu_tsv+="$name"$'\t'"$from"$'\t'"$to"$'\n'
             elif is_kernel "$name"; then
-                kernel_tsv+="${name}\t${from}\t${to}"$'\n'
+                kernel_tsv+="$name"$'\t'"$from"$'\t'"$to"$'\n'
             else
                 sys_count=$(( sys_count + 1 ))
-                sys_names+="${name}"$'\n'
+                (( sys_count <= 20 )) && sys_names+="$name"$'\n'
             fi
-        done < <(collect_updates)
+        done <<< "$pendientes"
     fi
-
-    local gpu_json kernel_json watched_json sample_json
-    local tsv_to_json='split("\n") | map(select(length>0) | split("\t")
-                       | {name:.[0], from:(.[1]//""), to:(.[2]//"")})'
-    gpu_json=$(printf '%b' "$gpu_tsv" | jq -R -s "$tsv_to_json" 2>/dev/null) || gpu_json='[]'
-    kernel_json=$(printf '%b' "$kernel_tsv" | jq -R -s "$tsv_to_json" 2>/dev/null) || kernel_json='[]'
-    watched_json=$(printf '%b' "$watched_tsv" | jq -R -s "$tsv_to_json" 2>/dev/null) || watched_json='[]'
-    sample_json=$(printf '%b' "$sys_names" | jq -R -s '
-        split("\n") | map(select(length>0)) | .[0:20]' 2>/dev/null) || sample_json='[]'
 
     local dir tmp
     dir=$(dirname "$OUT")
     [[ -d "$dir" ]] || mkdir -p "$dir"
     tmp=$(mktemp "$dir/.updates.XXXXXX") || return
     jq -n \
-        --argjson checkedAt "$(date +%s)" \
         --arg     distro    "${mgr:-unknown}" \
         --arg     cmd       "$update_cmd" \
         --argjson system    "$sys_count" \
-        --argjson kernel    "$kernel_json" \
-        --argjson gpu       "$gpu_json" \
-        --argjson watched   "$watched_json" \
-        --argjson sample    "$sample_json" \
-        '{checkedAt:$checkedAt, distro:$distro, updateCmd:$cmd,
-          system:$system, kernel:$kernel, gpu:$gpu, watched:$watched, systemSample:$sample}' > "$tmp" 2>/dev/null \
+        --arg     kernel    "$kernel_tsv" \
+        --arg     gpu       "$gpu_tsv" \
+        --arg     watched   "$watched_tsv" \
+        --arg     sample    "$sys_names" \
+        'def paquetes: split("\n") | map(select(length>0) | split("\t")
+             | {name:.[0], from:(.[1]//""), to:(.[2]//"")});
+         {checkedAt:(now|floor), distro:$distro, updateCmd:$cmd,
+          system:$system, kernel:($kernel|paquetes), gpu:($gpu|paquetes),
+          watched:($watched|paquetes),
+          systemSample:($sample|split("\n")|map(select(length>0)))}' > "$tmp" 2>/dev/null \
         && mv -f "$tmp" "$OUT" || rm -f "$tmp"
 }
 
 # ── Vigilancia de la BD de paquetes ───────────────────────────────────────────
-# Sin esto el icono se queda pegado tras actualizar: solo recomprobábamos cada N
-# horas, así que updates.json seguía anunciando lo que ya habías instalado. Ahora
-# escuchamos la BD local de paquetes y recomprobamos en cuanto una actualización
-# termina — la lances desde el botón del popover o desde tu propia terminal.
+# La escucha permanece activa durante las comprobaciones y el gate de juego:
+# recrear inotifywait en cada espera perdía las instalaciones que acababan mientras
+# consultábamos pendientes y dejaba el aviso pegado hasta el siguiente intervalo.
 db_path=""
 case "$mgr" in
-    arch)   db_path=/var/lib/pacman/local ;;
+    arch)   db_path=/var/lib/pacman
+            if command -v pacman-conf >/dev/null 2>&1; then
+                ruta_bd=$(pacman-conf DBPath 2>/dev/null)
+                [[ -d "$ruta_bd" ]] && db_path=${ruta_bd%/}
+            fi ;;
     debian) db_path=/var/lib/dpkg ;;
     fedora) for p in /usr/lib/sysimage/rpm /var/lib/rpm; do
                 [[ -d "$p" ]] && { db_path=$p; break; }
@@ -198,16 +210,63 @@ have_inotify=false
 command -v inotifywait >/dev/null 2>&1 && [[ -n "$db_path" && -r "$db_path" ]] && have_inotify=true
 
 DB_EVENTS=(-e create,delete,close_write,moved_to)
+FILTRO_BD=()
+if [[ "$mgr" == arch ]]; then
+    # La calma de /local no implica fin de transacción: los hooks de pacman pueden
+    # tardar minutos sin tocarla. El borrado del bloqueo sí marca la salida completa.
+    DB_EVENTS=(-e delete,moved_from)
+    FILTRO_BD=(--include '/db[.]lck$')
+fi
+
+vigilante_pid=""
+eventos_fd=""
+detener_vigilancia() {
+    if [[ -n "$vigilante_pid" ]]; then
+        kill "$vigilante_pid" 2>/dev/null
+        wait "$vigilante_pid" 2>/dev/null
+        vigilante_pid=""
+    fi
+    [[ -n "$eventos_fd" ]] && exec {eventos_fd}<&-
+    eventos_fd=""
+}
+trap detener_vigilancia EXIT
+
+iniciar_vigilancia() {
+    $have_inotify || return 0
+    # Un pipe anónimo basta: no se crean archivos ni una cola persistente. La
+    # confirmación inicial evita empezar la consulta antes de instalar el watch.
+    exec {eventos_fd}< <(LC_ALL=C exec inotifywait -m --format '%f' \
+        "${DB_EVENTS[@]}" "${FILTRO_BD[@]}" "$db_path" 2>&1)
+    vigilante_pid=$!
+    if blocking confirmar_vigilancia; then
+        return 0
+    fi
+    detener_vigilancia
+    have_inotify=false
+}
+
+confirmar_vigilancia() {
+    trap - EXIT TERM INT
+    local evento
+    while IFS= read -r -u "$eventos_fd" evento; do
+        [[ "$evento" == 'Watches established.' ]] && return 0
+    done
+    return 1
+}
 
 # Bash DIFIERE las señales mientras espera a un hijo en primer plano: con un
-# `inotifywait` (que puede bloquearse indefinidamente) o un `sleep` de 3h delante,
+# `sleep` de 3h delante,
 # un SIGTERM —el `pkill` que hace el toggle maestro de AGS al desactivarlo— quedaría
 # pendiente hasta que ese hijo acabara, y el script seguiría vivo reescribiendo
 # updates.json. Lanzando el hijo en segundo plano y esperándolo con `wait`, la señal
 # se procesa al instante.
 _child=""
 _on_term() {
-    [[ -n "$_child" ]] && kill "$_child" 2>/dev/null
+    if [[ -n "$_child" ]]; then
+        kill "$_child" 2>/dev/null
+        wait "$_child" 2>/dev/null
+        _child=""
+    fi
     exit 0
 }
 trap _on_term TERM INT
@@ -221,56 +280,74 @@ blocking() {
     return $rc
 }
 
-# Espera hasta la próxima comprobación. Devuelve 0 = toca recomprobar, 1 = no hay
-# nada más que esperar (salir).
-wait_next() {
-    if ! $have_inotify; then
-        # Sin inotify-tools solo queda el sondeo periódico; si además está
-        # desactivado, no hay nada que esperar.
-        [[ "$periodic" == "false" ]] && return 1
-        blocking sleep "$(( interval_hours * 3600 ))"
-        return 0
-    fi
-
-    local timeout=()
-    [[ "$periodic" == "true" ]] && timeout=(-t "$(( interval_hours * 3600 ))")
-
-    # Bloquea (≈0% CPU) hasta un cambio en la BD o hasta que venza el intervalo.
-    blocking inotifywait -qq "${timeout[@]}" "${DB_EVENTS[@]}" "$db_path"
-    local rc=$?
-    case $rc in
-        0)  # Hubo actualización. Una instalación toca la BD cientos de veces, así
-            # que esperamos a que se calme (5s sin eventos) antes de recomprobar.
-            while blocking inotifywait -qq -t 5 "${DB_EVENTS[@]}" "$db_path"; do :; done
-            ;;
-        1)  # Error de inotify (p.ej. límite de watches): degradamos al sondeo.
-            have_inotify=false
-            [[ "$periodic" == "false" ]] && return 1
-            blocking sleep "$(( interval_hours * 3600 ))"
-            ;;
-        *)  : ;;  # 2 = venció el timeout del intervalo → recomprobación periódica
-    esac
+esperar_eventos_bd() {
+    # Se ejecuta como hijo de blocking: wait atiende incluso una señal recibida
+    # justo antes del read. El hijo no debe heredar la limpieza del vigilante.
+    trap - EXIT TERM INT
+    local evento
+    IFS= read -r "$@" -u "$eventos_fd" evento || return $?
+    while IFS= read -r -t 5 -u "$eventos_fd" evento; do :; done
     return 0
 }
 
+# Espera hasta la próxima comprobación. Los eventos usan la caché existente, sin
+# red; solo el arranque y el intervalo sincronizan los repositorios.
+modo_comprobacion=red
+wait_next() {
+    modo_comprobacion=red
+    local rc timeout espera=${1:-$(( interval_hours * 3600 ))}
+    while $have_inotify; do
+        timeout=()
+        # Si empieza otra transacción durante la calma, seguimos esperando su fin.
+        if [[ -n "${1:-}" || "$periodic" == true ]] && ! [[ "$mgr" == arch && -e "$db_path/db.lck" ]]; then
+            timeout=(-t "$espera")
+        fi
+        blocking esperar_eventos_bd "${timeout[@]}"
+        rc=$?
+        if (( rc == 0 )); then
+            [[ "$mgr" == arch && -e "$db_path/db.lck" ]] && continue
+            modo_comprobacion=local
+            return 0
+        fi
+        (( rc > 128 )) && return 0  # venció el intervalo
+        detener_vigilancia         # EOF/error: conservar el respaldo periódico
+        have_inotify=false
+    done
+    [[ -z "${1:-}" && "$periodic" == false ]] && return 1
+    blocking sleep "$espera"
+    return 0
+}
+
+esperar_mantenimiento() {
+    # El gate aplaza la búsqueda por red, pero sigue retirando avisos ya instalados.
+    # El ámbito local conserva la consulta de red pendiente en el bucle principal.
+    local modo_comprobacion=red
+    wait_next "$1" || return 0
+    [[ "$modo_comprobacion" == local ]] && run_check local
+    return 0
+}
+
+comprobar_pendientes() {
+    local modo=${1:-red}
+    # El gate compartido lee runtime-state.json y aplaza la consulta mientras juegas.
+    # Solo la búsqueda por red espera; retirar avisos ya instalados sigue siendo local.
+    [[ "$modo" == red ]] && gaming_gate_wait updates
+    run_check "$modo"
+}
+
 # ── Bucle principal ───────────────────────────────────────────────────────────
-# El gate de juego va ENTRE la espera y la comprobación, no envolviendo la espera:
-# bloqueado en `inotifywait` este script no cuesta nada, así que se le deja esperar
-# normalmente y solo se retiene el `run_check`, que es lo caro (toca RED y sincroniza
-# una BD temporal de pacman). Un evento de la BD que llegue mientras juegas no se
-# pierde: se atiende en cuanto cierras el juego. Ver lib/gaming-gate.sh.
-#
-# GAMING_GATE_SLEEP=blocking es obligatorio aquí y no un detalle: un `sleep` en
-# primer plano DIFERIRÍA el SIGTERM del toggle maestro de AGS y el script
-# sobreviviría a su propio apagado (mismo motivo que `blocking()`, arriba).
-GAMING_GATE_SLEEP="blocking sleep"
+# El gate aplaza solo la sincronización por red. Su durmiente reutiliza la escucha
+# de paquetes para atender instalaciones sin salir del ahorro ni despertar la radio.
+GAMING_GATE_SLEEP=esperar_mantenimiento
 # shellcheck source=lib/gaming-gate.sh
 if ! source "$HOME/.config/hypr/scripts/lib/gaming-gate.sh" 2>/dev/null; then
     gaming_gate_wait() { :; }   # sin la librería, el monitor sigue como siempre
 fi
 
+iniciar_vigilancia
+# Retira el estado obsoleto de una sesión anterior aunque la búsqueda esté pausada.
+[[ "$mgr" == arch && -e "$db_path/db.lck" ]] || run_check local
 while true; do
-    gaming_gate_wait updates
-    run_check
+    comprobar_pendientes "$modo_comprobacion"
     wait_next || break
 done

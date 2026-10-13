@@ -74,9 +74,8 @@ GAMING_GATE_RESUME_DELAY="${GAMING_GATE_RESUME_DELAY:-5}"
 
 # Cómo dormir. El valor por defecto `sleep` ya NO ejecuta /usr/bin/sleep: lo atiende
 # `_gg_sleep` con el builtin `read -t` (ver más abajo), que no forkea y que atiende las
-# señales al instante. updates-monitor lo pone a su helper `blocking` porque allí el
-# durmiente convive con su propio trap y su toggle maestro (ver `blocking()` en ese
-# script); cualquier valor distinto de `sleep` se respeta tal cual.
+# señales al instante. updates-monitor usa `esperar_mantenimiento` para atender su
+# pipe de paquetes durante la pausa; cualquier valor distinto de `sleep` se respeta.
 GAMING_GATE_SLEEP="${GAMING_GATE_SLEEP:-sleep}"
 
 # Durmiente sin forks y que NO difiere señales.
@@ -94,7 +93,7 @@ GAMING_GATE_SLEEP="${GAMING_GATE_SLEEP:-sleep}"
 _gg_fd=""
 _gg_sleep() {
     local _gg_void rc
-    # Un durmiente puesto por el consumidor manda (updates-monitor: `blocking sleep`).
+    # Un durmiente puesto por el consumidor manda (updates-monitor: esperar_mantenimiento).
     if [[ "$GAMING_GATE_SLEEP" != sleep ]]; then
         $GAMING_GATE_SLEEP "$1"
         return
