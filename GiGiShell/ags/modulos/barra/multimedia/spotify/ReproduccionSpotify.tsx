@@ -10,6 +10,7 @@ import { transferToThisDevice } from "../../../../servicios/spotify/SpotifyServi
 import CaratulaCompacta from "./CaratulaCompacta"
 import OndaSpotify from "./OndaSpotify"
 import type { EstadoVisibilidadBarra } from "../../../../estado/visibilidadBarra"
+import { colorBarrasSpotify } from "../../../ajustes/preferences"
 
 /** Reproductor mínimo de Spotify para el centro de la barra. */
 export default function ReproduccionSpotify({ visibilidad }: { visibilidad: EstadoVisibilidadBarra }) {
@@ -107,7 +108,9 @@ export default function ReproduccionSpotify({ visibilidad }: { visibilidad: Esta
   return (
     <box
       visible={visible}
-      cssClasses={["bar-spotify"]}
+      cssClasses={colorBarrasSpotify((color) => color === "rgb"
+        ? ["bar-spotify", "rgb"]
+        : ["bar-spotify"])}
       spacing={3}
       valign={Gtk.Align.CENTER}
     >
