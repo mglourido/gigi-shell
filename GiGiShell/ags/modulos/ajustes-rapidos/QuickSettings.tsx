@@ -48,6 +48,7 @@ import AstalHyprland from "gi://AstalHyprland"
 import { ticReloj } from "../../servicios/sistema/reloj"
 import { alReanudar } from "../../servicios/sistema/reanudacion.ts"
 import Gio from "gi://Gio"
+import Pango from "gi://Pango"
 import GdkPixbuf from "gi://GdkPixbuf"
 import {
   ACENTO_MEDIA_PREDETERMINADO, rgbToCss, tonosDeAcento, dominantPixbufColor,
@@ -133,6 +134,8 @@ import {
 import { crearCicloVida } from "../../utilidades/cicloVida"
 import { observarEstadoWifi, refrescarEstadoWifi } from "../../servicios/red/estadoWifi"
 import QsTile from "./componentes/QsTile"
+import TextoAcotadoQs from "./componentes/TextoAcotadoQs"
+import ContenedorAnchoQs from "./componentes/ContenedorAnchoQs"
 
 const WIFI_SIGNAL_BARS = 4
 
@@ -1007,7 +1010,7 @@ function QsHeader() {
     <box cssClasses={["qs-header"]} spacing={0}>
       <box orientation={Gtk.Orientation.VERTICAL} valign={Gtk.Align.CENTER} hexpand>
         <label cssClasses={["qs-clock"]} label={time} halign={Gtk.Align.START} />
-        <label cssClasses={["qs-date"]} label={date} halign={Gtk.Align.START} />
+        <TextoAcotadoQs cssClasses={["qs-date"]} label={date} />
       </box>
       <box spacing={0} valign={Gtk.Align.CENTER} halign={Gtk.Align.END} cssClasses={["qs-header-actions"]}>
         {/* Modo ahorro: fuerza el ahorro de energía (forcePowerSave), el mismo
@@ -1149,7 +1152,7 @@ function QsRowLabel({ icon, title, titleClass = "qs-wifi-name", subtitle, spacin
     <box spacing={spacing} valign={valign}>
       {icon}
       <box orientation={Gtk.Orientation.VERTICAL} hexpand>
-        <label label={title} halign={Gtk.Align.START} ellipsize={3} cssClasses={[titleClass]} />
+        <TextoAcotadoQs label={title} cssClasses={[titleClass]} />
         {subtitle}
       </box>
     </box>
@@ -1305,7 +1308,6 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           }
           label={netTile((t) => t.label)}
           subtitle={netSpeed((s) => `󰇚${s.down} 󰕒${s.up}`)}
-          subtitleWidthRequest={96}
           active={netTile((t) => t.active)}
           onToggle={onWifiClick}
           onRightClick={() => wifi && execAsync(["nmcli", "radio", "wifi", wifi.enabled ? "off" : "on"])
@@ -1358,9 +1360,6 @@ function QsTiles({ onWifiClick, onBluetoothClick, onDisplayClick, onAudioClick, 
           icon={infoCamara((i) => i.icono)}
           label="Cámara"
           subtitle={infoCamara((i) => i.subtitulo)}
-          // El nombre de una webcam es largo ("HP True Vision FHD Camera: HP T")
-          // y sin tope ensancharía la rejilla y con ella todo el panel.
-          subtitleMaxWidthChars={16}
           active={infoCamara((i) => i.activo)}
           avisoActivo={infoCamara((i) => i.enUso)}
           claseActiva="qs-tile-camara-uso"
@@ -2949,13 +2948,11 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                           onPressed={activate}
                         />
                         <box orientation={Gtk.Orientation.VERTICAL} hexpand>
-                          <label cssClasses={["qs-audio-name"]} label={etiqueta.titulo} ellipsize={3} halign={Gtk.Align.START} />
-                          <label
+                          <TextoAcotadoQs cssClasses={["qs-audio-name"]} label={etiqueta.titulo} />
+                          <TextoAcotadoQs
                             cssClasses={["qs-audio-sub"]}
                             label={etiqueta.subtitulo}
                             visible={etiqueta.subtitulo !== ""}
-                            ellipsize={3}
-                            halign={Gtk.Align.START}
                           />
                         </box>
                       </box>
@@ -3027,13 +3024,11 @@ function QsAudioMenuBase({ kind, onBack }: { kind: QsAudioKind; onBack: () => vo
                             descubrible para quien no sepa que existe. */}
                         <Gtk.GestureClick button={Gdk.BUTTON_SECONDARY} onPressed={restaurar} />
                         <box orientation={Gtk.Orientation.VERTICAL} hexpand>
-                          <label cssClasses={["qs-audio-name"]} label={etiqueta.titulo} ellipsize={3} halign={Gtk.Align.START} />
-                          <label
+                          <TextoAcotadoQs cssClasses={["qs-audio-name"]} label={etiqueta.titulo} />
+                          <TextoAcotadoQs
                             cssClasses={["qs-audio-sub"]}
                             label={etiqueta.subtitulo}
                             visible={etiqueta.subtitulo !== ""}
-                            ellipsize={3}
-                            halign={Gtk.Align.START}
                           />
                         </box>
                         <button
@@ -3703,12 +3698,9 @@ function QsCamaraMenu({ onBack }: { onBack: () => void }) {
 
     const cabecera = (clases: string[]) => (
       <box spacing={6} hexpand>
-        <label
+        <TextoAcotadoQs
           cssClasses={clases}
           label={etiquetaControl(nombre)}
-          hexpand
-          halign={Gtk.Align.START}
-          ellipsize={3}
         />
         {/* Por qué está apagado, dicho donde se ve. Sin esto el mando parece roto. */}
         <label
@@ -3875,12 +3867,9 @@ function QsCamaraMenu({ onBack }: { onBack: () => void }) {
       {/* Aviso discreto de privacidad: quién la tiene abierta. */}
       <box cssClasses={["qs-camara-aviso"]} spacing={6} visible={camaraEnUso}>
         <label cssClasses={["qs-camara-aviso-icono"]} label="󰄉" />
-        <label
+        <TextoAcotadoQs
           cssClasses={["qs-camara-aviso-texto"]}
           label={usoCamara((u) => descripcionUso(u))}
-          hexpand
-          halign={Gtk.Align.START}
-          ellipsize={3}
         />
       </box>
 
@@ -4009,7 +3998,7 @@ function QsFooter() {
 
   return (
     <box cssClasses={["qs-footer"]} spacing={10}>
-      <box cssClasses={["qs-user-block"]} spacing={10} hexpand halign={Gtk.Align.START}>
+      <box cssClasses={["qs-user-block"]} spacing={10} hexpand>
         <ProfileAvatar
           size={30}
           fallbackLabel={initials}
@@ -4017,9 +4006,9 @@ function QsFooter() {
           borderWidth={1}
           borderRgba={[139 / 255, 120 / 255, 1, 0.3]}
         />
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={1} valign={Gtk.Align.CENTER}>
-          <label cssClasses={["qs-username"]} label={user} halign={Gtk.Align.START} />
-          <label cssClasses={["qs-hostname"]} label={`@${host}`} halign={Gtk.Align.START} />
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={1} valign={Gtk.Align.CENTER} hexpand>
+          <TextoAcotadoQs cssClasses={["qs-username"]} label={user} />
+          <TextoAcotadoQs cssClasses={["qs-hostname"]} label={`@${host}`} />
         </box>
       </box>
 
@@ -4373,6 +4362,8 @@ function QsBluetoothMenu({ onBack }: { onBack: () => void }) {
   })
 
   const searchEntry = new Gtk.Entry()
+  searchEntry.set_width_chars(1)
+  searchEntry.set_max_width_chars(1)
   searchEntry.set_css_classes(["qs-wifi-search-entry"])
   searchEntry.set_placeholder_text("Buscar dispositivos")
   searchEntry.set_hexpand(true)
@@ -4526,11 +4517,11 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
             onClicked={abrirEditorConexiones}
           ><label label="󰒓" /></button>
         </QsMenuHeader>
-        <label
+        <TextoAcotadoQs
           label={wiredInfo((info) => info.active
             ? `Conexión Ethernet activa · ${info.name}`
             : "No se encontró ningún dispositivo Wi-Fi")}
-          halign={Gtk.Align.CENTER}
+          xalign={0.5}
         />
       </box>
     )
@@ -4772,6 +4763,8 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
 
   const wifiEnabled = createBinding(wifi, "enabled")
   const searchEntry = new Gtk.Entry()
+  searchEntry.set_width_chars(1)
+  searchEntry.set_max_width_chars(1)
   searchEntry.set_css_classes(["qs-wifi-search-entry"])
   searchEntry.set_placeholder_text("Buscar redes")
   searchEntry.set_hexpand(true)
@@ -4827,8 +4820,12 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
         label={passwordError((err) => err
           ? `No se pudo conectar a ${target}. Comprueba la contraseña, la señal o la configuración e inténtalo de nuevo.`
           : `Contraseña para ${target}`)}
-        halign={Gtk.Align.START}
+        halign={Gtk.Align.FILL}
         wrap
+        wrapMode={Pango.WrapMode.WORD_CHAR}
+        maxWidthChars={1}
+        hexpand
+        xalign={0}
         cssClasses={passwordError((err) => err
           ? ["qs-wifi-password-label", "error"]
           : ["qs-wifi-password-label"])}
@@ -4850,6 +4847,8 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
           }}
           placeholderText="Escribe y presiona Enter"
           visibility={false}
+          widthChars={1}
+          maxWidthChars={1}
           hexpand
           text={passwordStr()}
           onChanged={(self) => setPasswordStr(self.text)}
@@ -4910,7 +4909,11 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
         label={wifiNotice}
         visible={wifiNotice((notice) => !!notice)}
         wrap
-        halign={Gtk.Align.START}
+        wrapMode={Pango.WrapMode.WORD_CHAR}
+        maxWidthChars={1}
+        hexpand
+        halign={Gtk.Align.FILL}
+        xalign={0}
         cssClasses={["qs-wifi-password-label", "error"]}
       />
 
@@ -5382,6 +5385,9 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
         }}
       >
       <box cssClasses={["qs-bar-connector"]} valign={Gtk.Align.START} />
+      {/* Los 330 px de contenido y los 20 px de padding conservan el ancho
+          de diseño. widthRequest y min-width por sí solos solo fijan mínimos. */}
+      <ContenedorAnchoQs ancho={PANEL_PANEL_WIDTH + 20}>
       <box
         cssClasses={["qs-panel"]}
         orientation={Gtk.Orientation.VERTICAL}
@@ -5447,6 +5453,7 @@ export default function QuickSettings(gdkmonitor: Gdk.Monitor) {
           <QsCamaraMenu onBack={() => setQsView("main")} />
         </box>
       </box>
+      </ContenedorAnchoQs>
       </box>
     </window>
 
