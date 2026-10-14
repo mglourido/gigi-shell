@@ -80,6 +80,8 @@ function CircularAvatarImage({
  * directo de una caja con más widgets, GTK lo añade al final y cambia el orden
  * visual. Este contenedor hace que la sustitución ocurra dentro de un slot que
  * nunca cambia de posición.
+ * La expansión de las iniciales se contiene aquí para conservar el espacio
+ * entre el avatar y los widgets vecinos.
  */
 export default function ProfileAvatar({
   size,
@@ -88,22 +90,33 @@ export default function ProfileAvatar({
   borderWidth,
   borderRgba,
 }: ProfileAvatarProps) {
-  const fallback = () => <label
-    cssClasses={fallbackCssClasses}
-    label={fallbackLabel}
-    widthRequest={size}
-    heightRequest={size}
-    halign={Gtk.Align.CENTER}
-    valign={Gtk.Align.CENTER}
-    overflow={Gtk.Overflow.HIDDEN}
-    xalign={0.5}
-    yalign={0.5}
-  />
+  // En una caja horizontal, hexpand reparte el ancho sobrante al hijo;
+  // halign=CENTER por sí solo lo deja en un hueco de su ancho natural.
+  const fallback = () => (
+    <box
+      cssClasses={fallbackCssClasses}
+      widthRequest={size}
+      heightRequest={size}
+      halign={Gtk.Align.CENTER}
+      valign={Gtk.Align.CENTER}
+      overflow={Gtk.Overflow.HIDDEN}
+    >
+      <label
+        label={fallbackLabel}
+        hexpand
+        halign={Gtk.Align.FILL}
+        valign={Gtk.Align.FILL}
+        xalign={0.5}
+        yalign={0.5}
+      />
+    </box>
+  )
 
   return (
     <box
       widthRequest={size}
       heightRequest={size}
+      hexpand={false}
       halign={Gtk.Align.START}
       valign={Gtk.Align.CENTER}
     >
