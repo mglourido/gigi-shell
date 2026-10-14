@@ -158,9 +158,11 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
       // que existe para dar forma a un espectro inventado, no para corregir uno medido.
       const real = niveles ? (niveles[indice] ?? 0) : 0
       const pico = soloReal ? real : sintetico + (real - sintetico) * mezcla
-      const alturaAnterior = banda.nivel * energiaAnterior
+      const nivelAnterior = banda.nivel
       banda.nivel += (pico - banda.nivel) * (pico > banda.nivel ? factorAtaque : factorCaida)
-      if (rgb && reproduciendo) actualizarColorBanda(banda, alturaAnterior, banda.nivel * energia)
+      if (rgb && reproduciendo) {
+        actualizarColorBanda(banda, nivelAnterior * energiaAnterior, banda.nivel * energia)
+      }
     }
 
     onda.queue_draw()
