@@ -903,6 +903,7 @@ popover.tray-overflow-popover.closing > contents {
 // transparentes y las cajas internas (barras de red, cuerpo de batería) llevan
 // su propio `valign` centrado, así que no se descuelgan.
 .qs-system-pill {
+  .bar-modo,
   .wakeup-indicator,
   .bluetooth-ind,
   .mic-indicator,
@@ -1047,6 +1048,15 @@ popover.tray-overflow-popover.closing > contents {
     font-size: 16px;
     color: acento-teal();
   }
+}
+
+.bar-modo {
+  padding: 0 4px;
+  font-family: $font-icon;
+  font-size: 16px;
+
+  &.bar-modo-ahorro { color: #a6e3a1; }
+  &.bar-modo-juego { color: acento(); }
 }
 
 // Micro en uso pero silenciado: se sigue mostrando, pero sin el rojo

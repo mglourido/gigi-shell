@@ -24,10 +24,13 @@ import Actualizaciones from "./indicadores/sistema/Actualizaciones"
 import BotonMenuEnergia from "./controles/BotonMenuEnergia"
 import ReproduccionSpotify from "./multimedia/spotify/ReproduccionSpotify"
 import RanuraCondicionalBarra from "./componentes/RanuraCondicionalBarra"
+import IndicadorModo from "./componentes/IndicadorModo"
 import { crearCadenaEstado, JuntaCadena } from "./componentes/cadenaEstado"
 import { obtenerControlVisibilidadBarra } from "../../estado/visibilidadBarra"
 import { suscribirPantallaCompleta } from "../../servicios/escritorios/pantallaCompleta"
-import { spotifyBarSuspended } from "../../servicios/energia/powerState"
+import { desactivarAhorroHastaReinicio, powerSaveActive, spotifyBarSuspended } from "../../servicios/energia/powerState"
+import { gamemodeActive, toggleGamemode } from "../../servicios/energia/gamemode"
+import { GLIFO_JUEGO } from "../../servicios/juegos/iconos"
 import { barAutoHideEnabled, batteryBarEnabled, fondoShell, micIndicatorEnabled, networkBarEnabled, notificationBarEnabled, screencastIndicatorEnabled, spotifyBarEnabled, trayBarEnabled, workspacesBarEnabled, updatesMonitorEnabled } from "../ajustes/preferences"
 import { camaraEnUso } from "../../servicios/camara/uso"
 import { gestosActivos } from "../../servicios/gestos/estado"
@@ -416,6 +419,20 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
             onClicked={alternarQuickSettings}
           >
             <box cssClasses={["bar-pill", "qs-system-pill"]}>
+              <IndicadorModo
+                activo={powerSaveActive}
+                icono="󰌪"
+                clase="bar-modo-ahorro"
+                titulo="Modo ahorro"
+                alDesactivar={desactivarAhorroHastaReinicio}
+              />
+              <IndicadorModo
+                activo={gamemodeActive}
+                icono={GLIFO_JUEGO}
+                clase="bar-modo-juego"
+                titulo="Modo gaming"
+                alDesactivar={() => toggleGamemode()}
+              />
               {/* Wake up: montado siempre y escondido con `visible`, no con un <With>.
                   No es una preferencia que se pueda apagar, así que no hay remontaje en
                   caliente del que protegerse con una caja propia. Vive DENTRO de la

@@ -17,8 +17,9 @@
 //
 // ── EL ESTADO VIVE EN RAM, Y ESO ES EL DISEÑO ─────────────────────────────────────────
 // La tentación evidente es encender `forcePowerSave` y dejar que el modo ahorro haga el
-// resto. NO: ese ajuste está PERSISTIDO, así que un AGS que muera aquí dejaría al usuario
-// en ahorro forzado permanente —brillo bajo, paneles opacos— sin ninguna pista de por qué.
+// resto. Ese interruptor es manual y se desactiva al arrancar AGS; la suspensión falsa
+// necesita su propio ciclo de vida y aplicar sus medidas aunque los ajustes de ahorro
+// estén apagados, sin alterar lo que el usuario haya activado a mano.
 // Con el estado en RAM, un crash devuelve el escritorio a su sitio, que es el modo de fallo
 // que se quiere. Las dos excepciones son las que dejan residuo FÍSICO (el brillo, que por
 // DDC se graba en la firmware del monitor, y el perfil TLP, que escribe /etc): esas ya

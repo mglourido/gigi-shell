@@ -249,10 +249,15 @@ function leerListaApps(bruto: any): string[] {
 }
 
 const initial = loadConfig()
+// El clic derecho en la barra puede apagar también el ahorro automático.
+// Esta excepción dura hasta reiniciar AGS o activar el ahorro manualmente.
+let ahorroDesactivadoHastaReinicio = false
 
 // ── Persisted user settings ────────────────────────────────────────────────────
 export const [powerSaveThreshold, _setThreshold] = createState(initial.thresholdPct)
-export const [forcePowerSave, _setForcePowerSave] = createState(initial.forcePowerSave)
+// El ahorro forzado dura hasta el próximo arranque de AGS. Nace apagado antes de
+// calcular los estados derivados para que ningún consumidor adopte el valor anterior.
+export const [forcePowerSave, _setForcePowerSave] = createState(false)
 export const [suspendNotifFilters, _setSuspend] = createState(initial.suspendNotifFilters)
 export const [pauseWsPreviewInPowerSave, _setPauseWsPreview] = createState(initial.pauseWsPreview)
 export const [hideSpotifyBarInPowerSave, _setHideSpotifyBar] = createState(initial.hideSpotifyBar)
@@ -363,7 +368,14 @@ export function setPowerSaveThreshold(v: number) {
   persist()
 }
 export function setForcePowerSave(v: boolean) {
+  if (v) ahorroDesactivadoHastaReinicio = false
   _setForcePowerSave(v)
+  recompute()
+  persist()
+}
+export function desactivarAhorroHastaReinicio(): void {
+  ahorroDesactivadoHastaReinicio = true
+  _setForcePowerSave(false)
   recompute()
   persist()
 }
@@ -573,9 +585,8 @@ const bat = (() => { try { return AstalBattery.get_default() } catch { return nu
 // Es una variable suelta y no un `createState` importado de `suspensionFalsa.ts` para no
 // cerrar un ciclo de importación (aquel módulo lee los ajustes `sf*` de este). Vive en
 // RAM y solo en RAM, que es el diseño: ver «NO reusar forcePowerSave» en
-// docs/suspension-falsa.md — un crash de AGS tiene que devolver el escritorio a su sitio,
-// y un ajuste persistido dejaría al usuario en ahorro forzado permanente sin UI donde
-// apagarlo.
+// docs/suspension-falsa.md. Su ciclo de vida es independiente del interruptor manual
+// de ahorro, que se desactiva al arrancar AGS.
 let motivoSuspensionFalsa = false
 export function fijarMotivoSuspensionFalsa(v: boolean): void {
   if (motivoSuspensionFalsa === v) return
@@ -597,7 +608,8 @@ function recompute() {
   // pct > 0 guards against a transient 0 read before the proxy has the real value.
   // forcePowerSave overrides the battery-derived condition: it turns power-save ON regardless
   // of level/charging/presence, so it also works on a desktop with no battery.
-  const active = forcePowerSave.get() || (present && !charging && pct > 0 && pct <= powerSaveThreshold.get())
+  const active = !ahorroDesactivadoHastaReinicio
+    && (forcePowerSave.get() || (present && !charging && pct > 0 && pct <= powerSaveThreshold.get()))
   _setPowerSaveActive(active)
   _setSuspended(active && suspendNotifFilters.get())
   // La suspensión falsa enciende TODAS estas sin mirar los interruptores del ahorro, y no
@@ -625,4 +637,7 @@ if (bat) {
   bat.connect("notify::charging", recompute)
   bat.connect("notify::is-present", recompute)
 }
+// Limpia también el valor guardado, una sola vez y solo si estaba activado.
+// Conserva los demás ajustes y el apunte de brillo pendiente de restauración.
+if (initial.forcePowerSave) persistAhora()
 recompute()

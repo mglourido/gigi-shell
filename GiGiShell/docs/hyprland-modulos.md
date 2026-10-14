@@ -3057,7 +3057,16 @@ inicial sale de leer `/etc/gigishell/tlp/active` directamente. `tlpBusy` bloquea
 helper corre (evita dos `tlp start` a la vez). Es un **selector manual e independiente** del "Forzar
 modo ahorro" y del umbral de batería. **Forzar modo ahorro** (`forcePowerSave` en
 `~/.config/power-save/config.json`) es lo otro nuevo: hace `powerSaveActive` verdadero ignorando
-nivel/carga/presencia de batería, así que también funciona en un sobremesa.
+nivel/carga/presencia de batería, así que también funciona en un sobremesa. Se desactiva en cada
+arranque de AGS, también al recargar el shell: el interruptor nace apagado y, si el valor guardado
+estaba activado, se guarda desactivado conservando los demás ajustes y el apunte de brillo.
+
+La pastilla de Quick Settings en la barra muestra los iconos de ahorro y GameMode cuando
+están activos, antes de Wake up y Bluetooth, con los títulos «Modo ahorro» y «Modo gaming»
+al pasar el cursor. El clic derecho desactiva el modo
+correspondiente. En el ahorro, desactiva también la activación automática por batería baja
+hasta el próximo arranque de AGS; activar el ahorro manualmente desde el panel retira esa
+excepción. La excepción vive solo en RAM y conserva el umbral y las medidas configuradas.
 
 ### Security monitor (`oom-monitor.sh`) + sandboxed launcher (`run-untrusted.sh`)
 
