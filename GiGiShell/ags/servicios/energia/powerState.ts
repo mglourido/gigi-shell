@@ -255,9 +255,9 @@ let ahorroDesactivadoHastaReinicio = false
 
 // ── Persisted user settings ────────────────────────────────────────────────────
 export const [powerSaveThreshold, _setThreshold] = createState(initial.thresholdPct)
-// El ahorro forzado dura hasta el próximo arranque de AGS. Nace apagado antes de
-// calcular los estados derivados para que ningún consumidor adopte el valor anterior.
-export const [forcePowerSave, _setForcePowerSave] = createState(false)
+// Hyprland limpia este valor antes de lanzar el shell desde su autostart.
+// AGS lo restaura tal cual para conservar el ahorro al recargar solo la interfaz.
+export const [forcePowerSave, _setForcePowerSave] = createState(initial.forcePowerSave)
 export const [suspendNotifFilters, _setSuspend] = createState(initial.suspendNotifFilters)
 export const [pauseWsPreviewInPowerSave, _setPauseWsPreview] = createState(initial.pauseWsPreview)
 export const [hideSpotifyBarInPowerSave, _setHideSpotifyBar] = createState(initial.hideSpotifyBar)
@@ -586,7 +586,7 @@ const bat = (() => { try { return AstalBattery.get_default() } catch { return nu
 // cerrar un ciclo de importación (aquel módulo lee los ajustes `sf*` de este). Vive en
 // RAM y solo en RAM, que es el diseño: ver «NO reusar forcePowerSave» en
 // docs/suspension-falsa.md. Su ciclo de vida es independiente del interruptor manual
-// de ahorro, que se desactiva al arrancar AGS.
+// de ahorro, que Hyprland desactiva desde su autostart.
 let motivoSuspensionFalsa = false
 export function fijarMotivoSuspensionFalsa(v: boolean): void {
   if (motivoSuspensionFalsa === v) return
@@ -637,7 +637,4 @@ if (bat) {
   bat.connect("notify::charging", recompute)
   bat.connect("notify::is-present", recompute)
 }
-// Limpia también el valor guardado, una sola vez y solo si estaba activado.
-// Conserva los demás ajustes y el apunte de brillo pendiente de restauración.
-if (initial.forcePowerSave) persistAhora()
 recompute()

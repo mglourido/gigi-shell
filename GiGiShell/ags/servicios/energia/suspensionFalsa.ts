@@ -17,7 +17,7 @@
 //
 // ── EL ESTADO VIVE EN RAM, Y ESO ES EL DISEÑO ─────────────────────────────────────────
 // La tentación evidente es encender `forcePowerSave` y dejar que el modo ahorro haga el
-// resto. Ese interruptor es manual y se desactiva al arrancar AGS; la suspensión falsa
+// resto. Ese interruptor es manual y lo desactiva el autostart de Hyprland; la suspensión falsa
 // necesita su propio ciclo de vida y aplicar sus medidas aunque los ajustes de ahorro
 // estén apagados, sin alterar lo que el usuario haya activado a mano.
 // Con el estado en RAM, un crash devuelve el escritorio a su sitio, que es el modo de fallo

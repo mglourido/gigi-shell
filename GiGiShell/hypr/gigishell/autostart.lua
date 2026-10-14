@@ -117,7 +117,11 @@ hl.on("hyprland.start", function()
   -- `compilar-css.sh` va delante porque out.css es una caché fuera del repo
   -- (~/.cache/gigishell/out.css, que app.ts carga por ruta): lo recompila solo si
   -- falta o algún .scss es más nuevo (si no, es un `find`).
-  hl.exec_cmd([[~/.config/ags/scripts/compilar-css.sh; timeout 2 ags quit 2>/dev/null; pkill -f "ags\.js$" 2>/dev/null && sleep 0.3; ags run ~/.config/ags/]])
+  -- El ahorro forzado se limpia al arrancar Hyprland, después de detener el
+  -- AGS anterior y antes de que el nuevo lea su configuración. Va en la misma
+  -- cadena para evitar una carrera entre dos exec_cmd independientes. Recargar
+  -- solo AGS conserva el modo; una recarga normal de Hyprland no repite esto.
+  hl.exec_cmd([[~/.config/ags/scripts/compilar-css.sh; timeout 2 ags quit 2>/dev/null; pkill -f "ags\.js$" 2>/dev/null && sleep 0.3; ~/.config/inicializador/desactivar-ahorro.sh; ags run ~/.config/ags/]])
 
   -- hypridle entra por su script, nunca a pelo: el script traduce los tiempos de
   -- ~/.config/gigishell/inactividad.json a las variables de hypridle.conf (que es

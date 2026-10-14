@@ -163,7 +163,8 @@ varios motivos y ese es su tercero.
 
 La tentación evidente es encender `forcePowerSave` y dejar que todo el modo ahorro se dispare
 solo. `forcePowerSave` es el interruptor manual guardado en `~/.config/power-save/config.json` y
-se desactiva en cada arranque de AGS, también al recargar el shell. La suspensión falsa necesita
+lo desactiva el autostart de Hyprland antes de lanzar AGS. Recargar solo AGS conserva su valor.
+La suspensión falsa necesita
 su propio ciclo de vida y aplicar sus medidas aunque los ajustes de ahorro estén apagados,
 sin alterar lo que el usuario haya activado a mano.
 

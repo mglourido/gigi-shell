@@ -3057,9 +3057,13 @@ inicial sale de leer `/etc/gigishell/tlp/active` directamente. `tlpBusy` bloquea
 helper corre (evita dos `tlp start` a la vez). Es un **selector manual e independiente** del "Forzar
 modo ahorro" y del umbral de batería. **Forzar modo ahorro** (`forcePowerSave` en
 `~/.config/power-save/config.json`) es lo otro nuevo: hace `powerSaveActive` verdadero ignorando
-nivel/carga/presencia de batería, así que también funciona en un sobremesa. Se desactiva en cada
-arranque de AGS, también al recargar el shell: el interruptor nace apagado y, si el valor guardado
-estaba activado, se guarda desactivado conservando los demás ajustes y el apunte de brillo.
+nivel/carga/presencia de batería, así que también funciona en un sobremesa. Lo desactiva
+`inicializador/desactivar-ahorro.sh`, llamado desde el autostart de Hyprland después de detener
+el AGS anterior y antes de lanzar el nuevo, en la misma cadena de comandos para evitar carreras.
+El script solo escribe si estaba activado y conserva los demás ajustes, el apunte de brillo y
+los permisos del fichero; lo reemplaza de forma atómica. AGS restaura el valor guardado sin
+limpiarlo: recargar solo AGS conserva el ahorro forzado. Una recarga normal de Hyprland tampoco
+lo desactiva; `hyprctl reload full-reset` repite el autostart y sí lo desactiva.
 
 La pastilla de Quick Settings en la barra muestra los iconos de ahorro y GameMode cuando
 están activos, antes de Wake up y Bluetooth, con los títulos «Modo ahorro» y «Modo gaming»
