@@ -1771,7 +1771,7 @@ button.qs-user-settings-btn {
   background-image:
     radial-gradient(circle at 100% 100%, transparent 6.4px, transparent 7.1px),
     radial-gradient(circle at 100% 0%, transparent 6.4px, transparent 7.1px);
-  transition: background-image 140ms ease;
+  transition: background-image 200ms ease;
 }
 
 // El arco arranca 0,6 px DENTRO del radio nominal (6,4 en vez de 7): el borde
@@ -1833,6 +1833,10 @@ button.qs-user-settings-btn {
   .bar-pill.upd-pill,
   .bar-pill.sc-pill {
     border: none;
+    // Al pasar al siguiente eslabón, la esquina reaparece al mismo ritmo que
+    // se apaga el fondo del anterior. Sin esta transición, el radio saltaba
+    // de 0 a 7 px mientras el realce aún se estaba apagando.
+    transition: background-color 200ms ease, border-radius 200ms ease, color 200ms ease;
   }
 }
 
