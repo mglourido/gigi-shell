@@ -129,7 +129,7 @@ export default function OndaSpotify({ visibilidad, alAnimar }: {
     const energiaAnterior = energia
     energia += (objetivo - energia) * (1 - Math.exp(-delta / (reproduciendo ? 0.20 : 0.28)))
     // El espectro real solo manda si cava está entregando audio de verdad. Con la
-    // reproducción en el móvil el sink local está mudo, así que aquí vuelve el algoritmo.
+    // reproducción en el móvil el stream local está mudo, así que aquí vuelve el algoritmo.
     const objetivoMezcla = liberarEspectro !== null && espectroConSenal.get() ? 1 : 0
     mezcla += (objetivoMezcla - mezcla) * (1 - Math.exp(-delta / CRUCE))
     const niveles = mezcla > 0.001 ? nivelesEspectro.get() : null

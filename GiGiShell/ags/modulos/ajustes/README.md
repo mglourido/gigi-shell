@@ -39,6 +39,25 @@ el contraste excesivo del arcoíris saturado. Cada barra cambia solo al pasar de
 bajar a subir y mantiene su color durante ambas fases. Reutiliza el reloj existente
 y se detiene con la animación; no añade temporizadores.
 
+Las alturas reales provienen exclusivamente del stream local de Spotify: AstalWp
+lo identifica con las mismas reglas que el volumen por reproductor de Orion.
+CAVA captura su `object.serial` mediante PipeWire, con `active=0` y sin permitir
+reconexión, cambio de destino ni retorno a la salida general o al micrófono.
+Se comparte un solo proceso entre monitores y se analiza a 30 Hz; el dibujo
+conserva su reloj y suavizado de 60 FPS (24 FPS en ahorro). Las altas, bajas y
+transiciones del stream se atienden por señales mientras se necesita el espectro;
+al ocultar la barra, pausar, entrar en un juego o desactivar el análisis en ahorro,
+se liberan el proceso y sus suscripciones cuando ya no hay consumidores.
+Sin stream local o ante un fallo se conserva la animación procedimental existente.
+
+No hay que exigir `RUNNING` a un nodo que Astal acaba de adoptar: su estado inicial
+puede seguir en `CREATING` aunque PipeWire ya lo tenga reproduciendo. Se admite
+ese estado desconocido con captura pasiva y se escuchan las transiciones posteriores;
+`IDLE` y `SUSPENDED` detienen el análisis. Esta excepción evita romper la onda al
+recargar AGS mientras suena Spotify. Se mantiene CAVA separado porque AstalCava
+ejecuta la FFT desde un temporizador del bucle principal y su limpieza espera al
+hilo de captura; integrarlo introduciría trabajo y posibles bloqueos en el shell.
+
 La misma tarjeta incluye `bordeRgbCaratulaSpotify`, desactivado por defecto e
 independiente del color de las barras. Añade un contorno interior de 1 px a la
 portada con la misma paleta; el degradado gira una vuelta cada 8 segundos.
