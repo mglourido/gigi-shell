@@ -89,11 +89,38 @@ fn leer_json(ruta: &Path) -> Option<serde_json::Value> {
     serde_json::from_str(&fs::read_to_string(ruta).ok()?).ok()
 }
 
+fn directorio_configuracion() -> PathBuf {
+    std::env::var_os("XDG_CONFIG_HOME")
+        .filter(|ruta| !ruta.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".config"))
+}
+
+fn leer_estado_sesion() -> Option<serde_json::Value> {
+    leer_json(&directorio_configuracion().join("gigishell/runtime-state.json"))
+}
+
+/// Guarda compartida: un JSON abandonado por AGS no debe pausar mantenimiento.
+fn estado_sesion_vigente(estado: &serde_json::Value) -> bool {
+    estado.get("pid").and_then(|v| v.as_u64())
+        .is_some_and(|pid| Path::new("/proc").join(pid.to_string()).exists())
+}
+
+fn hay_juegos_en(estado: &serde_json::Value) -> bool {
+    estado_sesion_vigente(estado)
+        && estado.get("gaming") == Some(&serde_json::Value::Bool(true))
+}
+
+/// Juego abierto, independientemente del foco, la gracia y gamingFreeze.
+/// Sin fichero utilizable o con AGS muerto devuelve false.
+pub fn hay_juegos_abiertos() -> bool {
+    leer_estado_sesion().is_some_and(|estado| hay_juegos_en(&estado))
+}
+
 /// `Some(espera)` si ahora toca congelar; la espera alarga el sondeo hasta que vence
 /// la gracia de foco, para no despertar cada 10 s con un juego aparcado.
 pub fn congelar_ahora(estado: &serde_json::Value, congelar_al_jugar: bool, ahora_epoch: u64) -> Option<Duration> {
-    let pid = estado.get("pid")?.as_u64()?;
-    if !Path::new("/proc").join(pid.to_string()).exists() {
+    if !estado_sesion_vigente(estado) {
         return None;
     }
     let es = |k: &str| estado.get(k) == Some(&serde_json::Value::Bool(true));
@@ -114,8 +141,8 @@ pub fn congelar_ahora(estado: &serde_json::Value, congelar_al_jugar: bool, ahora
 }
 
 fn congelar_segun_disco() -> Option<Duration> {
-    let h = home().join(".config/gigishell");
-    let estado = leer_json(&h.join("runtime-state.json"))?;
+    let h = directorio_configuracion().join("gigishell");
+    let estado = leer_estado_sesion()?;
     // Solo un `false` explícito apaga la congelación al jugar.
     let al_jugar = leer_json(&h.join("preferences.json"))
         .and_then(|p| p.get("gamingFreeze").cloned())
@@ -325,6 +352,25 @@ mod tests {
         assert!(congelar_ahora(&e(r#"{"pid":PID,"powerSaveFreeze":true}"#), false, t).is_some());
         // AGS muerto → fail-open.
         assert!(congelar_ahora(&e(r#"{"pid":999999999,"gaming":true,"gameFocused":true}"#), true, t).is_none());
+    }
+
+    #[test]
+    fn juego_abierto_no_depende_de_foco_pero_si_de_ags_vivo() {
+        let estado = serde_json::json!({
+            "pid": std::process::id(), "gaming": true,
+            "gameFocused": false, "lastGameFocus": 1,
+        });
+        assert!(hay_juegos_en(&estado));
+        assert!(congelar_ahora(&estado, true, 10_000).is_none());
+        for cambio in [
+            serde_json::json!({"pid": 999999999, "gaming": true}),
+            serde_json::json!({"gaming": true}),
+            serde_json::json!({"pid": std::process::id(), "gaming": false}),
+            serde_json::json!({"pid": std::process::id(), "gaming": "true"}),
+            serde_json::Value::Null,
+        ] {
+            assert!(!hay_juegos_en(&cambio));
+        }
     }
 
     #[test]

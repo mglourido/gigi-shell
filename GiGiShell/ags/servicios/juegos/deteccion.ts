@@ -83,16 +83,9 @@ const TITULO_INSTALADOR =
   /(^|\s)(instalar|instalaci[oó]n|install|installing|installer|setup|uninstall|desinstalar)(\s|$|[:\-–—])/i
 const COMANDO_INSTALADOR = /installer|setup\.exe|unins\d*\.exe|\\temp\\/i
 
-function pareceInstalador(c: ClienteJuegoLike, ev?: EvidenciaJuego | null): boolean {
-  const titulo = c.title ?? ""
-  if (titulo && TITULO_INSTALADOR.test(titulo)) return true
-  const comando = ev?.cmdline ?? ""
-  return !!comando && COMANDO_INSTALADOR.test(comando)
-}
-
 export function esJuego(
   cliente: ClienteJuegoLike | null | undefined,
-  evidencia?: EvidenciaJuego | null,
+  evidencia?: EvidenciaJuego | null | ((cliente: ClienteJuegoLike) => EvidenciaJuego),
 ): boolean {
   if (!cliente) return false
 
@@ -108,15 +101,23 @@ export function esJuego(
 
   if (estaEnLista(clase, CLASES_LANZADOR) || estaEnLista(claseInicial, CLASES_LANZADOR)) return false
   if (estaEnLista(clase, CLASES_NO_JUEGO) || estaEnLista(claseInicial, CLASES_NO_JUEGO)) return false
-  if (pareceInstalador(cliente, evidencia)) return false
+  if (TITULO_INSTALADOR.test(cliente.title ?? "")) return false
+
+  // Los descartes anteriores usan solo datos ya recibidos de Hyprland. Recoger
+  // evidencia después evita leer /proc o consultar .desktop en cada cambio de
+  // título de navegadores, terminales, lanzadores y menús, aunque no haya juegos.
+  const datos = typeof evidencia === "function" ? evidencia(cliente) : evidencia
+  // No adelantar las señales fuertes de clase: un instalador Proton también las
+  // tiene y a veces solo se delata por el comando, con el título aún sin llegar.
+  if (COMANDO_INSTALADOR.test(datos?.cmdline ?? "")) return false
   if (senalClase(clase) || senalClase(claseInicial)) return true
 
   // Un argumento suelto terminado en .exe o una ruta genérica ya no bastan: deben
   // pertenecer a un árbol inequívoco de Steam/Lutris/Heroic/juegos.
-  if (contieneRuta(evidencia?.exe, [...RUTAS_FUERTES_COMUNES, "/games/"])) return true
-  if (contieneRuta(evidencia?.cmdline, RUTAS_FUERTES_COMUNES)) return true
+  if (contieneRuta(datos?.exe, [...RUTAS_FUERTES_COMUNES, "/games/"])) return true
+  if (contieneRuta(datos?.cmdline, RUTAS_FUERTES_COMUNES)) return true
 
-  const categorias = evidencia?.categories
+  const categorias = datos?.categories
   if (categorias && categorias.length > 0) {
     return categorias.some((categoria) => categoria.toLowerCase() === "game")
   }

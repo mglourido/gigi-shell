@@ -81,11 +81,10 @@ RUN_UNTRUSTED="$HOME/.config/hypr/scripts/run-untrusted.sh"
 SCAN_FILE="$HOME/.config/hypr/scripts/scan-file.sh"
 # Actualización de firmas que dispara el botón del aviso "sin base de firmas".
 UPDATE_SIGS="$HOME/.config/hypr/scripts/actualizar-firmas.sh"
-# Estado "jugando" que escribe AGS (servicios/energia/gamingState.ts) y umbral de ahorro.
-RUNTIME_STATE="$HOME/.config/gigishell/runtime-state.json"
+# Umbral de ahorro. El estado de juegos se consulta mediante la librería compartida.
 POWER_CONFIG="$HOME/.config/power-save/config.json"
 
-# Gate compartido de "estoy jugando" (lee ese mismo RUNTIME_STATE). Lo usan los dos
+# Gate compartido de "estoy jugando". Lo usan los dos
 # sub-monitores de SONDEO —monitor_smart y monitor_units— para no competir con un
 # juego. Los tres SEGUIDORES de eventos (kernel/system/files) NO lo usan a propósito:
 # congelarlos dejaría una ventana ciega de seguridad y no ahorraría nada, porque
@@ -94,6 +93,7 @@ POWER_CONFIG="$HOME/.config/power-save/config.json"
 # Ver lib/gaming-gate.sh para el razonamiento completo.
 if ! source "$HOME/.config/hypr/scripts/lib/gaming-gate.sh" 2>/dev/null; then
     gaming_gate_wait() { :; }   # sin la librería, los monitores siguen como siempre
+    hay_juegos_abiertos() { return 1; }
 fi
 
 # Identidad por aviso: cada `notificar <id>` declara CUÁL de los ~30 avisos de este
@@ -225,10 +225,10 @@ _dl_leer() {   # $1 = ruta; imprime el contenido (vacío si no se puede leer)
 }
 _dl_paused() {
     local _js
-    # Juego: flag que escribe AGS.
-    if [[ "${dl_pause_juego:-false}" == true ]]; then
-        _js=$(_dl_leer "$RUNTIME_STATE")
-        [[ "$_js" =~ \"gaming\"[[:space:]]*:[[:space:]]*true ]] && return 0
+    # Descargas: juego abierto, aunque lleve tiempo sin foco. Sin subshell ni lectura
+    # duplicada del JSON; la consulta compartida comprueba además que AGS siga vivo.
+    if [[ "${dl_pause_juego:-false}" == true ]] && hay_juegos_abiertos; then
+        return 0
     fi
     # Batería / ahorro: solo tiene sentido si estás desenchufado.
     if [[ "${dl_pause_bateria:-false}" == true || "${dl_pause_ahorro:-false}" == true ]] && _on_battery; then

@@ -286,8 +286,8 @@ app.start({
     // dueño del nombre de notificaciones aún se está resolviendo).
     //
     // Sobre initGamingState: escribe runtime-state.json para que bash lo lea. Su
-    // único consumidor es la pausa del escáner de descargas de oom-monitor.sh, que
-    // ahora ni siquiera barre hasta el segundo 60 — el flag lleva ahí mucho antes.
+    // estado lo consumen las pausas de descargas y mantenimiento (bash/eventd), que
+    // no empiezan sus sondeos hasta más tarde — el flag lleva ahí mucho antes.
     setTimeout(() => {
       startCleanupEngine()
       runAppSettingsMigration()

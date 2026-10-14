@@ -3,8 +3,9 @@
 # fondo PRESCINDIBLE mientras hay un juego delante. Se SOURCEA, no se ejecuta.
 #
 # Reutiliza el flag que ya existe: ~/.config/gigishell/runtime-state.json, escrito por
-# AGS (servicios/energia/gamingState.ts) reusando a su vez la detección `isGameClient`
-# de la barra. Aquí NO se vuelve a detectar nada — bash no sabría hacerlo mejor.
+# AGS (servicios/energia/gamingState.ts) a partir de servicios/juegos/registro.ts.
+# Las consultas públicas también sirven sin esperar ni congelar trabajo; ver
+# docs/deteccion-juegos.md y scripts/estado-juegos.sh.
 #
 # QUÉ SE CONGELA Y QUÉ NO — la lista corta, porque la asimetría es el diseño:
 #
@@ -52,8 +53,8 @@
 # no se pierde. Por eso va justo ANTES del cuerpo del sondeo y DESPUÉS de la espera
 # (así updates-monitor sigue bloqueado en su inotify, que no cuesta nada).
 
-GAMING_STATE_FILE="${GAMING_STATE_FILE:-$HOME/.config/gigishell/runtime-state.json}"
-GAMING_PREFS_FILE="${GAMING_PREFS_FILE:-$HOME/.config/gigishell/preferences.json}"
+GAMING_STATE_FILE="${GAMING_STATE_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/runtime-state.json}"
+GAMING_PREFS_FILE="${GAMING_PREFS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/gigishell/preferences.json}"
 
 # Cada cuánto se vuelve a mirar el flag mientras el gate retiene trabajo. Es un SUELO,
 # no un periodo fijo: con el juego aparcado la espera se estira hasta el vencimiento de
@@ -199,6 +200,27 @@ _gg_gaming_from() {
 }
 
 # ── API ───────────────────────────────────────────────────────────────────────
+
+# Consultas sin preferencias de congelación ni gracia de foco. 0 = sí, 1 = no.
+# Todas descartan el estado huérfano cuando el proceso AGS ya no existe.
+hay_juegos_abiertos() {
+    local raw
+    _gg_read_state raw || return 1
+    [[ "$raw" =~ \"gaming\"[[:space:]]*:[[:space:]]*true ]]
+}
+
+juego_en_foco() {
+    local raw
+    _gg_read_state raw || return 1
+    [[ "$raw" =~ \"gaming\"[[:space:]]*:[[:space:]]*true ]] &&
+        [[ "$raw" =~ \"gameFocused\"[[:space:]]*:[[:space:]]*true ]]
+}
+
+escaner_juegos_activo() {
+    local raw
+    _gg_read_state raw || return 1
+    [[ "$raw" =~ \"gameScanner\"[[:space:]]*:[[:space:]]*true ]]
+}
 
 # ¿Está el modo ahorro pidiendo congelar AHORA? 0 = sí.
 #

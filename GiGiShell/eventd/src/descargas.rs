@@ -28,7 +28,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime};
 
 use crate::notif::{aviso_con_boton, formatear, log, notificar, recortar, Grupo, Salida};
-use crate::sistema::{en_path, home, Config};
+use crate::sistema::{en_path, hay_juegos_abiertos, home, Config};
 
 const DELAY: Duration = Duration::from_secs(60);
 const SETTLE: u64 = 15;
@@ -179,9 +179,7 @@ fn leer_json(p: &Path) -> serde_json::Value {
 /// hacía `_dl_paused` y tiene su propio interruptor en la UI.
 fn pausado(a: &AjustesDl) -> bool {
     let h = home();
-    if a.pausa_juego
-        && leer_json(&h.join(".config/gigishell/runtime-state.json")).get("gaming") == Some(&serde_json::Value::Bool(true))
-    {
+    if a.pausa_juego && hay_juegos_abiertos() {
         return true;
     }
     if (a.pausa_bateria || a.pausa_ahorro) && con_bateria() {

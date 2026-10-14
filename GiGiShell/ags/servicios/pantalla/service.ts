@@ -19,7 +19,7 @@ import {
   nightLightTemp, setNightLightTemp,
 } from "../../estado/shell"
 import AstalHyprland from "gi://AstalHyprland"
-import { clientesJuego, revisionVentanas } from "../juegos/registro"
+import { hayJuegosAbiertos, revisionVentanas } from "../juegos/registro"
 import { algunaVentanaCoincide } from "../ventanas/coincidenciaClases"
 import { pausaLuzNocturnaApps, pausaLuzNocturnaJuegos } from "../../modulos/ajustes/preferences"
 
@@ -364,7 +364,7 @@ export const [luzPausadaPorJuego, setLuzPausadaPorJuego] = createState(false)
 let pausaJuegoIgnorada = false
 
 function hayJuegoAbierto(): boolean {
-  return clientesJuego.get().length > 0
+  return hayJuegosAbiertos.get()
 }
 
 // La mitad MANUAL: clases apuntadas a mano en Ajustes (`pausaLuzNocturnaApps`), para lo
@@ -627,7 +627,7 @@ export function initDisplayService() {
   // lo arrancan initAutoDnd/initGamingState y su primera publicación llega aquí. El único
   // hueco es iniciar sesión con un juego YA abierto —imposible en la práctica— y se cierra
   // solo a los 4 s.
-  clientesJuego.subscribe(() => applyNight())
+  hayJuegosAbiertos.subscribe(() => applyNight())
   pausaLuzNocturnaJuegos.subscribe(() => applyNight())
   // La mitad manual necesita otro disparador: una app de la lista que no sea un juego no
   // mueve `clientesJuego`. `revisionVentanas` sí (el registro lo emite en cada alta, baja,

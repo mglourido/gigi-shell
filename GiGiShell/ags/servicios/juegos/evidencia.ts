@@ -82,5 +82,5 @@ export function recogerEvidenciaJuego(
 }
 
 export function esClienteJuego(cliente: ClienteConProceso | null | undefined): boolean {
-  return !!cliente && esJuego(cliente, recogerEvidenciaJuego(cliente))
+  return esJuego(cliente, recogerEvidenciaJuego)
 }
