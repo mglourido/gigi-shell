@@ -12,7 +12,7 @@ const ANCHO = 40
 const ALTO = 30
 
 /** Carátula limitada al tamaño de la pastilla, sin propagar el tamaño natural. */
-export default function CaratulaCompacta({ ruta }: { ruta: FuenteCaratula }) {
+export default function CaratulaCompacta({ ruta, borde }: { ruta: FuenteCaratula, borde?: Gtk.Widget }) {
   const imagen = new Gtk.Picture({
     contentFit: Gtk.ContentFit.COVER,
     canShrink: true,
@@ -99,6 +99,7 @@ export default function CaratulaCompacta({ ruta }: { ruta: FuenteCaratula }) {
       <Gtk.Overlay $={(overlay: Gtk.Overlay) => {
         overlay.set_child(<label label="󰓇" cssClasses={["bar-spotify-placeholder"]} /> as Gtk.Widget)
         overlay.add_overlay(limite)
+        if (borde) overlay.add_overlay(borde)
       }} />
     </box>
   )

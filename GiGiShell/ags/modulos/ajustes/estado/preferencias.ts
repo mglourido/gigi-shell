@@ -53,6 +53,10 @@ export type ColorBarrasSpotify = "rgb" | "blanco"
 const [colorBarrasSpotify, _setColorBarrasSpotify] = createState<ColorBarrasSpotify>("blanco")
 export { colorBarrasSpotify }
 
+// Borde independiente del color de las barras; solo aparece al reproducir.
+const [bordeRgbCaratulaSpotify, _setBordeRgbCaratulaSpotify] = createState(false)
+export { bordeRgbCaratulaSpotify }
+
 // Batería de la barra. Si se desactiva, el widget no se monta y por tanto no
 // inicializa AstalBattery ni sus señales. Si se deja activa, Bateria.tsx oculta
 // el indicador automáticamente cuando el equipo no expone una batería.
@@ -529,6 +533,8 @@ function load() {
     if (typeof saved.spotifyBar === "boolean") _setSpotifyBarEnabled(saved.spotifyBar)
     if (saved.colorBarrasSpotify === "rgb" || saved.colorBarrasSpotify === "blanco")
       _setColorBarrasSpotify(saved.colorBarrasSpotify)
+    if (typeof saved.bordeRgbCaratulaSpotify === "boolean")
+      _setBordeRgbCaratulaSpotify(saved.bordeRgbCaratulaSpotify)
     if (typeof saved.batteryBar === "boolean") _setBatteryBarEnabled(saved.batteryBar)
     if (typeof saved.networkBar === "boolean") _setNetworkBarEnabled(saved.networkBar)
     if (typeof saved.micIndicator === "boolean") _setMicIndicatorEnabled(saved.micIndicator)
@@ -654,6 +660,7 @@ function save() {
       workspacePreview: wsPreviewEnabled.get(),
       spotifyBar: spotifyBarEnabled.get(),
       colorBarrasSpotify: colorBarrasSpotify.get(),
+      bordeRgbCaratulaSpotify: bordeRgbCaratulaSpotify.get(),
       batteryBar: batteryBarEnabled.get(),
       networkBar: networkBarEnabled.get(),
       micIndicator: micIndicatorEnabled.get(),
@@ -732,6 +739,11 @@ export function setColorBarrasSpotify(color: ColorBarrasSpotify) {
   if (color !== "rgb" && color !== "blanco") return
   if (colorBarrasSpotify.get() === color) return
   _setColorBarrasSpotify(color)
+  save()
+}
+export function setBordeRgbCaratulaSpotify(activo: boolean) {
+  if (bordeRgbCaratulaSpotify.get() === activo) return
+  _setBordeRgbCaratulaSpotify(activo)
   save()
 }
 export function setBatteryBarEnabled(on: boolean) {

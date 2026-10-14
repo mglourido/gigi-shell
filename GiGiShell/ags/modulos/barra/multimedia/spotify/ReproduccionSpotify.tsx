@@ -8,6 +8,7 @@ import { estadoSpotify } from "../../../../servicios/multimedia/mpris"
 import { parseTrackId } from "../../../../servicios/spotify/parse"
 import { transferToThisDevice } from "../../../../servicios/spotify/SpotifyService"
 import CaratulaCompacta from "./CaratulaCompacta"
+import { crearBordeCaratulaSpotify } from "./BordeCaratulaSpotify"
 import OndaSpotify from "./OndaSpotify"
 import type { EstadoVisibilidadBarra } from "../../../../estado/visibilidadBarra"
 import { colorBarrasSpotify } from "../../../ajustes/preferences"
@@ -25,6 +26,7 @@ export default function ReproduccionSpotify({ visibilidad }: { visibilidad: Esta
   const titulo = estadoSpotify((estado) => estado?.titulo ?? "")
   const artista = estadoSpotify((estado) => estado?.artista ?? "")
   const caratula = estadoSpotify((estado) => estado?.caratula ?? "")
+  const borde = crearBordeCaratulaSpotify(visibilidad)
 
   /**
    * MPRIS no distingue si Spotify Connect reproduce aquí o en otro equipo.
@@ -115,7 +117,7 @@ export default function ReproduccionSpotify({ visibilidad }: { visibilidad: Esta
       valign={Gtk.Align.CENTER}
     >
       <box spacing={7}>
-        <CaratulaCompacta ruta={caratula} />
+        <CaratulaCompacta ruta={caratula} borde={borde.widget} />
         <box
           orientation={Gtk.Orientation.VERTICAL}
           valign={Gtk.Align.CENTER}
@@ -137,7 +139,7 @@ export default function ReproduccionSpotify({ visibilidad }: { visibilidad: Esta
           />
         </box>
       </box>
-      <OndaSpotify visibilidad={visibilidad} />
+      <OndaSpotify visibilidad={visibilidad} alAnimar={borde.animar} />
       <Gtk.GestureClick
         button={1}
         onReleased={() => {

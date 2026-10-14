@@ -12,6 +12,7 @@ import {
 } from "../componentes"
 import {
   acentoAdaptativoEnabled, setAcentoAdaptativoEnabled,
+  bordeRgbCaratulaSpotify, setBordeRgbCaratulaSpotify,
   spotifyBarEnabled, setSpotifyBarEnabled,
   batteryBarEnabled, setBatteryBarEnabled,
   networkBarEnabled, setNetworkBarEnabled,
@@ -84,6 +85,7 @@ export default function SeccionDiseno() {
         <SelectorFondoShell />
         <AjusteInterruptor titulo={textosPersonalizacion.apariencia.acento.titulo} informacion={textosPersonalizacion.apariencia.acento.descripcion} activo={acentoAdaptativoEnabled} alAlternar={() => setAcentoAdaptativoEnabled(!acentoAdaptativoEnabled.get())} />
         <SelectorColorBarrasSpotify />
+        <AjusteInterruptor titulo={textosPersonalizacion.apariencia.bordeCaratulaSpotify.titulo} informacion={textosPersonalizacion.apariencia.bordeCaratulaSpotify.descripcion} activo={bordeRgbCaratulaSpotify} alAlternar={() => setBordeRgbCaratulaSpotify(!bordeRgbCaratulaSpotify.get())} />
       </TarjetaAjustes>
 
       <TarjetaAjustes titulo={textosPersonalizacion.seccionesNuevas.barraEscritorios.elementos} icono="󰕰">

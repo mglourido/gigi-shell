@@ -63,7 +63,10 @@ function crearBandas(): Banda[] {
 }
 
 /** Único estado que permanece por monitor: la animación depende de su visibilidad. */
-export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibilidadBarra }) {
+export default function OndaSpotify({ visibilidad, alAnimar }: {
+  visibilidad: EstadoVisibilidadBarra
+  alAnimar?: (delta: number) => void
+}) {
   const bandas = crearBandas()
   let energia = 0
   let tiempo = 0
@@ -166,6 +169,7 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
     }
 
     onda.queue_draw()
+    alAnimar?.(delta)
     if (!reproduciendo && energia < 0.004) {
       reposar()
       onda.queue_draw()

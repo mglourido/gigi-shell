@@ -39,6 +39,15 @@ el contraste excesivo del arcoíris saturado. Cada barra cambia solo al pasar de
 bajar a subir y mantiene su color durante ambas fases. Reutiliza el reloj existente
 y se detiene con la animación; no añade temporizadores.
 
+La misma tarjeta incluye `bordeRgbCaratulaSpotify`, desactivado por defecto e
+independiente del color de las barras. Añade un contorno interior de 1 px a la
+portada con la misma paleta; el degradado gira una vuelta cada 8 segundos.
+Solo aparece durante la reproducción y se oculta al pausar. Comparte el reloj
+de `OndaSpotify`, limita el repintado a 30 FPS y se detiene con la barra oculta
+o desmontada; en ahorro respeta la cadencia reducida de la onda. No usa una
+animación CSS infinita: la barra autoocultada sigue mapeada y podría mantenerla
+repintando fuera de pantalla.
+
 El título de sección pertenece a `SettingsPanel.tsx` y queda fuera del scroll.
 Las secciones solo devuelven su contenido. Usa los controles de `componentes/`
 para mantener alturas, alineación y texto informativo comunes; las propiedades
