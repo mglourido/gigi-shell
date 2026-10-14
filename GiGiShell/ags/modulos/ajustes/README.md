@@ -50,6 +50,20 @@ al ocultar la barra, pausar, entrar en un juego o desactivar el análisis en aho
 se liberan el proceso y sus suscripciones cuando ya no hay consumidores.
 Sin stream local o ante un fallo se conserva la animación procedimental existente.
 
+El volumen de escucha no cambia las alturas: se captura a 32 bits, con suficiente
+precisión de transporte para el 1 %, y se compensa la ganancia del stream antes de
+normalizar las 13 bandas. CAVA tiene `autosens=0` y no acumula suavizado propio;
+la referencia de pico sigue la música con caída gradual y un margen del 10 %,
+mientras GTK conserva el ataque y la caída visuales existentes. El 0 % o mute
+de Spotify o de su salida detiene CAVA y deja las ondas simuladas. Los cambios
+llegan por señales; arrastrar el volumen no reinicia el proceso ni añade relojes.
+Durante 220 ms tras cambiar la ganancia se conserva la última muestra para
+descartar la mezcla de audio anterior y nuevo en la ventana de FFT. Dividir por
+el volumen después de recibir alturas recortadas no resolvería la saturación;
+tampoco basta con elevar la sensibilidad de una captura de 16 bits que ya haya
+perdido la señal al 1 %. El volumen de salida solo se usa para detectar silencio,
+porque la captura directa de Spotify no incluye esa ganancia del dispositivo.
+
 No hay que exigir `RUNNING` a un nodo que Astal acaba de adoptar: su estado inicial
 puede seguir en `CREATING` aunque PipeWire ya lo tenga reproduciendo. Se admite
 ese estado desconocido con captura pasiva y se escuchan las transiciones posteriores;

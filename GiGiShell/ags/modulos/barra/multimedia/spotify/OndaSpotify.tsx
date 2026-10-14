@@ -157,7 +157,7 @@ export default function OndaSpotify({ visibilidad, alAnimar }: {
         const perfil = normalizado * normalizado * (3 - 2 * normalizado)
         sintetico = Math.min(1, banda.ganancia * (0.06 + 0.94 * perfil) + 0.5 * bombo * banda.grave)
       }
-      // El valor de cava ya viene normalizado por su autosens: no se le aplica `ganancia`,
+      // El servicio ya normaliza el espectro sin el volumen del usuario: no se aplica `ganancia`,
       // que existe para dar forma a un espectro inventado, no para corregir uno medido.
       const real = niveles ? (niveles[indice] ?? 0) : 0
       const pico = soloReal ? real : sintetico + (real - sintetico) * mezcla

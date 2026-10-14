@@ -34,6 +34,7 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createState } from "ags"
 import { observarFuenteEspectroSpotify } from "./fuenteEspectroSpotify"
+import { ESCALA_ESPECTRO, NormalizadorEspectro } from "./normalizarEspectro"
 
 /** Número de barras. Es el contrato con cava (`bars`) y con el widget. */
 export const BANDAS = 13
@@ -50,6 +51,8 @@ const SUELO_SENAL = 0.02
  * la fuente de datos.
  */
 const GRACIA_SENAL_MS = 1500
+/** Vacía la ventana de FFT (8192 muestras / 48 kHz) tras un cambio de ganancia. */
+const TRANSICION_VOLUMEN_US = 220_000
 
 /** ¿Está instalado `cava`? Sin él todo esto queda inerte y manda el algoritmo procedimental. */
 export const espectroDisponible = GLib.find_program_in_path("cava") !== null
@@ -72,22 +75,24 @@ const configuracion = (serial: number) => `
 [general]
 framerate = ${FPS}
 bars = ${BANDAS}
-autosens = 1
+autosens = 0
 
 [input]
 method = pipewire
 source = ${serial}.monitor
 active = 0
+sample_rate = 48000
+sample_bits = 32
 
 [output]
 method = raw
 raw_target = /dev/stdout
 data_format = ascii
-ascii_max_range = 100
+ascii_max_range = ${ESCALA_ESPECTRO}
 channels = mono
 
 [smoothing]
-noise_reduction = 60
+noise_reduction = 0
 `.trimStart()
 
 let usuarios = 0
@@ -96,6 +101,9 @@ let cancelador: Gio.Cancellable | null = null
 let ultimaSenalUs = 0
 let idGracia: number | null = null
 let cancelarFuente: (() => void) | null = null
+let ganancia = 1
+let ignorarHastaUs = 0
+const normalizador = new NormalizadorEspectro()
 
 const ceros = () => new Array(BANDAS).fill(0)
 
@@ -124,7 +132,7 @@ function parsear(linea: string): number[] | null {
     if (trozo === "") continue
     const numero = Number(trozo)
     if (!Number.isFinite(numero)) return null
-    valores.push(Math.min(1, Math.max(0, numero / 100)))
+    valores.push(Math.min(1, Math.max(0, numero / ESCALA_ESPECTRO)))
   }
   return valores.length === BANDAS ? valores : null
 }
@@ -159,12 +167,17 @@ function leer(flujo: Gio.DataInputStream, propio: Gio.Subprocess): void {
     if (linea === null) { detener(); return }   // EOF: cava se ha ido
 
     const valores = parsear(linea)
-    if (valores) {
+    const ahoraUs = GLib.get_monotonic_time()
+    if (valores && ganancia > 0 && ahoraUs < ignorarHastaUs && espectroConSenal.get()) {
+      // Arrastrar durante más que la gracia no debe conmutar a las ondas simuladas.
+      ultimaSenalUs = ahoraUs
+    } else if (valores && ganancia > 0 && ahoraUs >= ignorarHastaUs) {
+      normalizador.normalizar(valores, ganancia, ahoraUs / 1e6)
       _setNiveles(valores)
       let maximo = 0
       for (const valor of valores) if (valor > maximo) maximo = valor
       if (maximo > SUELO_SENAL) {
-        ultimaSenalUs = GLib.get_monotonic_time()
+        ultimaSenalUs = ahoraUs
         if (!espectroConSenal.get()) _setConSenal(true)
       }
     }
@@ -201,6 +214,7 @@ function arrancar(serial: number): void {
 }
 
 function detener(): void {
+  normalizador.reiniciar()
   if (idGracia !== null) { GLib.source_remove(idGracia); idGracia = null }
   cancelador?.cancel()
   cancelador = null
@@ -224,6 +238,12 @@ export function adquirirEspectro(): () => void {
     cancelarFuente = observarFuenteEspectroSpotify((serial) => {
       detener()
       if (serial !== null && usuarios > 0) arrancar(serial)
+    }, (nuevaGanancia) => {
+      if (ganancia === nuevaGanancia) return
+      ganancia = nuevaGanancia
+      // Conserva la última altura durante la mezcla de muestras antiguas y nuevas. Se
+      // consume desde la lectura existente; no crea relojes ni reinicia CAVA al arrastrar.
+      ignorarHastaUs = GLib.get_monotonic_time() + TRANSICION_VOLUMEN_US
     })
   }
   return () => {
