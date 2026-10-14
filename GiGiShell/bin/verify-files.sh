@@ -107,9 +107,112 @@ if ((${#sospechosos[@]})); then
   exit 1
 fi
 
+# El push arranca un clamd temporal para poder repartir los archivos entre
+# trabajadores sin dejar un daemon residente durante el resto de la sesión.
+clamd_pid=""
+clamd_dir=""
+
+limpiar_clamd_temporal() {
+  if [[ -n "$clamd_pid" ]]; then
+    kill "$clamd_pid" 2>/dev/null || true
+    wait "$clamd_pid" 2>/dev/null || true
+    clamd_pid=""
+  fi
+  if [[ -n "$clamd_dir" ]]; then
+    rm -rf -- "$clamd_dir"
+    clamd_dir=""
+  fi
+}
+
+trap limpiar_clamd_temporal EXIT
+
+escanear_con_clamav() {
+  local hilos rc runtime_dir config socket log
+  local -a baja_prioridad=()
+
+  # Para lotes pequeños, el coste de arrancar el daemon temporal no compensa.
+  if (($# < 300)) && command -v clamscan >/dev/null 2>&1; then
+    echo "verify-files: ClamAV usa el modo normal para este lote (<300 archivos)."
+    clamscan --infected --no-summary -- "$@"
+    return $?
+  fi
+
+  # clamdscan solo aporta paralelismo cuando el daemon está vivo. Si falta
+  # alguna herramienta, conservamos el escaneo standalone anterior.
+  if ! command -v clamd >/dev/null 2>&1 || ! command -v clamdscan >/dev/null 2>&1; then
+    clamscan --infected --no-summary -- "$@"
+    return $?
+  fi
+
+  hilos="$(nproc 2>/dev/null || printf '1')"
+  [[ "$hilos" =~ ^[1-9][0-9]*$ ]] || hilos=1
+  echo "verify-files: ClamAV usa el daemon temporal multihilo ($hilos hilos)."
+  runtime_dir="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
+  clamd_dir="$(mktemp -d "$runtime_dir/gigishell-clamav.XXXXXX")" || {
+    echo "verify-files: no se pudo crear el espacio temporal de ClamAV; usando clamscan." >&2
+    clamscan --infected --no-summary -- "$@"
+    return $?
+  }
+
+  config="$clamd_dir/clamd.conf"
+  socket="$clamd_dir/clamd.sock"
+  log="$clamd_dir/clamd.log"
+  cat > "$config" <<EOF
+DatabaseDirectory /var/lib/clamav
+LocalSocket $socket
+LocalSocketMode 600
+Foreground yes
+MaxThreads $hilos
+EOF
+
+  command -v nice >/dev/null 2>&1 && baja_prioridad+=(nice -n 19)
+  command -v ionice >/dev/null 2>&1 && baja_prioridad+=(ionice -c 3)
+  "${baja_prioridad[@]}" clamd --foreground --config-file="$config" > "$log" 2>&1 &
+  clamd_pid=$!
+
+  # La carga de firmas ocurre al arrancar. Esperamos hasta 3 minutos y
+  # verificamos que el daemon siga vivo antes de enviar el lote.
+  for ((rc = 0; rc < 180; rc++)); do
+    if ! kill -0 "$clamd_pid" 2>/dev/null; then
+      break
+    fi
+    if clamdscan --config-file="$config" --ping=1 >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+
+  if ! clamdscan --config-file="$config" --ping=1 >/dev/null 2>&1; then
+    echo "verify-files: el clamd temporal no inició; usando clamscan." >&2
+    cat "$log" >&2
+    limpiar_clamd_temporal
+    clamscan --infected --no-summary -- "$@"
+    return $?
+  fi
+
+  if clamdscan --config-file="$config" --fdpass --multiscan \
+      --infected --no-summary -- "$@"; then
+    rc=0
+  else
+    rc=$?
+  fi
+  limpiar_clamd_temporal
+
+  # Un fallo del daemon no debe convertir el lote en limpio: reintentamos con
+  # el motor standalone, igual que antes de habilitar el modo multihilo.
+  if ((rc >= 2)); then
+    echo "verify-files: falló el clamd temporal; reintentando con clamscan." >&2
+    clamscan --infected --no-summary -- "$@"
+    return $?
+  fi
+  return "$rc"
+}
+
 # Si está disponible, ClamAV bloquea hallazgos, pero un motor sin firmas no
 # convierte un problema de instalación en un push imposible.
-if command -v clamscan >/dev/null 2>&1; then
+if command -v clamscan >/dev/null 2>&1 || {
+  command -v clamd >/dev/null 2>&1 && command -v clamdscan >/dev/null 2>&1;
+}; then
   existentes=()
   for archivo in "${files[@]}"; do
     [[ -f "$archivo" ]] && existentes+=("$archivo")
@@ -162,7 +265,7 @@ if command -v clamscan >/dev/null 2>&1; then
       else
         echo "verify-files: escaneando con ClamAV (${#archivos_nuevos[@]} archivos nuevos o modificados)..."
         set +e
-        clamscan --infected --no-summary "${archivos_nuevos[@]}"
+        escanear_con_clamav "${archivos_nuevos[@]}"
         clam_status=$?
         set -e
 
@@ -199,7 +302,7 @@ if command -v clamscan >/dev/null 2>&1; then
       rm -f -- "$hashes_temporal"
       echo "verify-files: no se pudieron calcular hashes; escaneando todos los archivos." >&2
       set +e
-      clamscan --infected --no-summary "${existentes[@]}"
+      escanear_con_clamav "${existentes[@]}"
       clam_status=$?
       set -e
       if ((clam_status == 1)); then
