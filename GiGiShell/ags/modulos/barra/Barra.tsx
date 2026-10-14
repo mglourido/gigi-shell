@@ -396,7 +396,10 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
           estado={trayBarEnabled}
           construir={() => <BandejaSistema visibilidad={visibilidad} />}
         />
-        <box cssClasses={["bar-status-pair"]} spacing={0}>
+        {/* Centrar la cadena completa evita que quicksettings y su junta se
+            estiren si otro elemento (por ejemplo, juegos) aumenta el alto de la
+            barra, mientras las pastillas de los indicadores siguen centradas. */}
+        <box cssClasses={["bar-status-pair"]} spacing={0} valign={Gtk.Align.CENTER}>
           <RanuraCondicionalBarra
             estado={updatesMonitorEnabled}
             construir={() => <Actualizaciones visibilidad={visibilidad} cadena={cadena} />}
