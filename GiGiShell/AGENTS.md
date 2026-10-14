@@ -12,12 +12,12 @@ GiGiShell es un árbol personal de dotfiles para Hyprland/Wayland. Los archivos 
 - `ags quit` seguido de `ags run ~/.config/ags/app.ts`: detiene primero cualquier instancia de AGS y después lanza o recarga el shell tras cambios en la interfaz.
 - `hyprctl reload`: aplica cambios de configuración de Hyprland sin reiniciar los `exec-once`.
 - `hyprctl reload full-reset`: reinicia Hyprland correctamente y vuelve a ejecutar el autostart de `hypr/gigishell/autostart.lua`; usarlo cuando haya que actualizar el autostart o reiniciar el compositor.
-- Actualmente no hay archivos `*.test.ts` en `ags/`, así que no existe una suite TypeScript ejecutable en este checkout. Si se añade una prueba pura, ejecútala con `node --test ruta/al/archivo.test.ts`.
+- Los archivos de pruebas no se versionan y pueden existir solo en la máquina de desarrollo. Si se añade una prueba pura local, ejecútala con `node --test ruta/al/archivo.test.ts`.
 
 ## Control de versiones
 
 Antes de terminar un trabajo que añada archivos nuevos, verifica que queden rastreados en el flujo de trabajo del repositorio activo. Este árbol normalmente se gestiona mediante el repositorio bare `~/.gigishell` (alias `gigishell`), así que allí hay que preparar los archivos nuevos con `gigishell add`; si alguna vez el árbol fuera un clon normal de git, usa `git add` en las rutas correspondientes. No dejes archivos nuevos sin rastrear cuando deban subirse.
-Aplica esto también a los archivos de pruebas cuando formen parte del cambio. No incluyas archivos temporales, cachés de trabajo ni otros artefactos generados que no deban versionarse.
+Los archivos de pruebas (`*.test.*`, `*.spec.*` y los demás patrones de `.gitignore`) se conservan solo localmente y no se versionan, aunque formen parte de la validación del cambio. No uses `git add -f` para incluirlos: el hook de pre-push los rechaza. No incluyas archivos temporales, cachés de trabajo ni otros artefactos generados que no deban versionarse.
 
 ## Estilo de código y convenciones de nombres
 
