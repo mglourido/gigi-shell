@@ -69,7 +69,7 @@
   padding: 0 7px 0 0;
   border-radius: 8px;
   background: transparent;
-  background-image: linear-gradient(100deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0));
+  background-image: linear-gradient(100deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.03));
   // El contorno interior no modifica las dimensiones de la pastilla.
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0);
   color: $text;
@@ -86,7 +86,7 @@
 
   &.rgb {
     // Extremos de la paleta suave de coloresOnda.ts; el degradado es estático.
-    background-image: linear-gradient(100deg, rgba(184, 161, 217, 0), rgba(135, 196, 186, 0));
+    background-image: linear-gradient(100deg, rgba(184, 161, 217, 0.01), rgba(135, 196, 186, 0.03));
 
     &:hover {
       background-image: linear-gradient(100deg, rgba(184, 161, 217, 0.06), rgba(135, 196, 186, 0.12));
