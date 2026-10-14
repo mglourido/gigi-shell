@@ -883,7 +883,11 @@ GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
 // ── Utilities ──────────────────────────────────────────────────────────────────
 
 function getTime() { return GLib.DateTime.new_now_local().format("%H:%M") ?? "" }
-function getDate() { return GLib.DateTime.new_now_local().format("%A, %-d %B") ?? "" }
+// GLib puede devolver nombres en inglés aunque la sesión esté configurada en español.
+const formatoFecha = new Intl.DateTimeFormat("es-ES", {
+  weekday: "long", day: "numeric", month: "long",
+})
+function obtenerFecha() { return formatoFecha.format(new Date()) }
 function clamp(v: number, lo = 0, hi = 1) { return Math.max(lo, Math.min(hi, v)) }
 
 function toDb(v: number) {
@@ -991,7 +995,7 @@ function makeScale(
 function QsHeader() {
   const notifd = AstalNotifd.get_default()
   const [time, setTime] = createState(getTime())
-  const [date, setDate] = createState(getDate())
+  const [date, setDate] = createState(obtenerFecha())
   const notifs = createBinding(notifd, "notifications")
   const dnd = createBinding(notifd, "dontDisturb")
 
@@ -1003,7 +1007,7 @@ function QsHeader() {
   // suscribirse, sin timer propio que abrir y cerrar con la visibilidad del panel.
   ticReloj.subscribe(() => {
     setTime(getTime())
-    setDate(getDate())
+    setDate(obtenerFecha())
   })
 
   return (
