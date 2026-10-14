@@ -48,6 +48,11 @@ export { wsPreviewEnabled }
 const [spotifyBarEnabled, _setSpotifyBarEnabled] = createState(true)
 export { spotifyBarEnabled }
 
+export type ColorBarrasSpotify = "rgb" | "blanco"
+// Independiente del acento del fondo: OndaSpotify pinta su propia paleta.
+const [colorBarrasSpotify, _setColorBarrasSpotify] = createState<ColorBarrasSpotify>("blanco")
+export { colorBarrasSpotify }
+
 // Batería de la barra. Si se desactiva, el widget no se monta y por tanto no
 // inicializa AstalBattery ni sus señales. Si se deja activa, Bateria.tsx oculta
 // el indicador automáticamente cuando el equipo no expone una batería.
@@ -522,6 +527,8 @@ function load() {
     const saved = JSON.parse(new TextDecoder().decode(content))
     if (typeof saved.workspacePreview === "boolean") _setWsPreviewEnabled(saved.workspacePreview)
     if (typeof saved.spotifyBar === "boolean") _setSpotifyBarEnabled(saved.spotifyBar)
+    if (saved.colorBarrasSpotify === "rgb" || saved.colorBarrasSpotify === "blanco")
+      _setColorBarrasSpotify(saved.colorBarrasSpotify)
     if (typeof saved.batteryBar === "boolean") _setBatteryBarEnabled(saved.batteryBar)
     if (typeof saved.networkBar === "boolean") _setNetworkBarEnabled(saved.networkBar)
     if (typeof saved.micIndicator === "boolean") _setMicIndicatorEnabled(saved.micIndicator)
@@ -646,6 +653,7 @@ function save() {
     const config = {
       workspacePreview: wsPreviewEnabled.get(),
       spotifyBar: spotifyBarEnabled.get(),
+      colorBarrasSpotify: colorBarrasSpotify.get(),
       batteryBar: batteryBarEnabled.get(),
       networkBar: networkBarEnabled.get(),
       micIndicator: micIndicatorEnabled.get(),
@@ -718,6 +726,12 @@ export function setWsPreviewEnabled(on: boolean) {
 }
 export function setSpotifyBarEnabled(on: boolean) {
   _setSpotifyBarEnabled(on)
+  save()
+}
+export function setColorBarrasSpotify(color: ColorBarrasSpotify) {
+  if (color !== "rgb" && color !== "blanco") return
+  if (colorBarrasSpotify.get() === color) return
+  _setColorBarrasSpotify(color)
   save()
 }
 export function setBatteryBarEnabled(on: boolean) {

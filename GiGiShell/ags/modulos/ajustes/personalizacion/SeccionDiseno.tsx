@@ -5,6 +5,7 @@ import Interruptor from "../../../componentes/Interruptor"
 import CapturasMicrofono from "../barra/CapturasMicrofono"
 import OpcionDaltonismo from "../accesibilidad/OpcionDaltonismo"
 import SelectorFondoShell from "./SelectorFondoShell"
+import SelectorColorBarrasSpotify from "./SelectorColorBarrasSpotify"
 import {
   AjusteInterruptor, FilaAjuste, TarjetaAjustes,
   ListaAjustes, TextoInformativo,
@@ -82,6 +83,7 @@ export default function SeccionDiseno() {
       <TarjetaAjustes titulo={textosPersonalizacion.seccionesNuevas.funcionesShell.apariencia} icono="󰏘">
         <SelectorFondoShell />
         <AjusteInterruptor titulo={textosPersonalizacion.apariencia.acento.titulo} informacion={textosPersonalizacion.apariencia.acento.descripcion} activo={acentoAdaptativoEnabled} alAlternar={() => setAcentoAdaptativoEnabled(!acentoAdaptativoEnabled.get())} />
+        <SelectorColorBarrasSpotify />
       </TarjetaAjustes>
 
       <TarjetaAjustes titulo={textosPersonalizacion.seccionesNuevas.barraEscritorios.elementos} icono="󰕰">

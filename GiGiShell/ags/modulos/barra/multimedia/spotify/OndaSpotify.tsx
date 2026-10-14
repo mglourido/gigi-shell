@@ -12,6 +12,8 @@ import {
   nivelesEspectro,
 } from "../../../../servicios/multimedia/espectro"
 import type { EstadoVisibilidadBarra } from "../../../../estado/visibilidadBarra"
+import { colorBarrasSpotify } from "../../../ajustes/preferences"
+import { actualizarColorBanda, COLORES_ONDA_RGB, type EstadoColorBanda } from "./coloresOnda"
 
 const BARRAS = BANDAS
 const TRAZO = 2.4
@@ -33,7 +35,7 @@ function ruidoDeterminista(numero: number): number {
   return seno - Math.floor(seno)
 }
 
-type Banda = {
+type Banda = EstadoColorBanda & {
   ganancia: number
   velocidad: number
   grave: number
@@ -54,6 +56,8 @@ function crearBandas(): Banda[] {
         ruidoDeterminista(indice + 91) * 6.283,
       ],
       nivel: 0,
+      color: indice % COLORES_ONDA_RGB.length,
+      bajando: false,
     }
   })
 }
@@ -68,6 +72,7 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
   let idTick: number | null = null
   let barraVisible = visibilidad.visible.get()
   let reproduciendo = estadoSpotify.get()?.reproduciendo ?? false
+  let rgb = colorBarrasSpotify.get() === "rgb"
   // 0 = manda el algoritmo procedimental, 1 = manda el espectro real. Se cruza, no se conmuta.
   let mezcla = 0
   let liberarEspectro: (() => void) | null = null
@@ -88,7 +93,12 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
       const nivel = bandas[indice].nivel * energia
       const altura = MINIMO + (recorrido - MINIMO) * nivel
       const x = separacion * (indice + 1)
-      cr.setSourceRGBA(0.88, 0.88, 0.86, 0.5 + 0.45 * nivel)
+      if (rgb) {
+        const color = COLORES_ONDA_RGB[bandas[indice].color]
+        cr.setSourceRGBA(color[0], color[1], color[2], 0.5 + 0.45 * nivel)
+      } else {
+        cr.setSourceRGBA(0.88, 0.88, 0.86, 0.5 + 0.45 * nivel)
+      }
       cr.moveTo(x, (alto - altura) / 2)
       cr.lineTo(x, (alto + altura) / 2)
       cr.stroke()
@@ -99,7 +109,7 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
     energia = 0
     acumulado = 0
     mezcla = 0
-    bandas.forEach((banda) => { banda.nivel = 0 })
+    bandas.forEach((banda) => { banda.nivel = 0; banda.bajando = false })
   }
 
   const frame = (_widget: any, reloj: any): boolean => {
@@ -113,6 +123,7 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
     tiempo += delta
 
     const objetivo = reproduciendo ? 1 : 0
+    const energiaAnterior = energia
     energia += (objetivo - energia) * (1 - Math.exp(-delta / (reproduciendo ? 0.20 : 0.28)))
     // El espectro real solo manda si cava está entregando audio de verdad. Con la
     // reproducción en el móvil el sink local está mudo, así que aquí vuelve el algoritmo.
@@ -147,7 +158,9 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
       // que existe para dar forma a un espectro inventado, no para corregir uno medido.
       const real = niveles ? (niveles[indice] ?? 0) : 0
       const pico = soloReal ? real : sintetico + (real - sintetico) * mezcla
+      const alturaAnterior = banda.nivel * energiaAnterior
       banda.nivel += (pico - banda.nivel) * (pico > banda.nivel ? factorAtaque : factorCaida)
+      if (rgb && reproduciendo) actualizarColorBanda(banda, alturaAnterior, banda.nivel * energia)
     }
 
     onda.queue_draw()
@@ -212,6 +225,11 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
   })
   const cancelarAhorro = spectrumSuspended.subscribe(sincronizar)
   const cancelarJuego = clienteJuegoEnFoco.subscribe(sincronizar)
+  const cancelarColor = colorBarrasSpotify.subscribe(() => {
+    rgb = colorBarrasSpotify.get() === "rgb"
+    bandas.forEach((banda) => { banda.bajando = false })
+    onda.queue_draw()
+  })
   sincronizar()
 
   onCleanup(() => {
@@ -219,6 +237,7 @@ export default function OndaSpotify({ visibilidad }: { visibilidad: EstadoVisibi
     cancelarVisibilidad()
     cancelarAhorro()
     cancelarJuego()
+    cancelarColor()
     liberarEspectro?.()
     liberarEspectro = null
     if (idTick !== null) onda.remove_tick_callback(idTick)

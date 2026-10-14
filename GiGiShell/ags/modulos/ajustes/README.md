@@ -31,6 +31,14 @@ ajustes de cámara guardados.
 
 ## Disposición y listas
 
+Personalización → Diseño → Apariencia incluye `colorBarrasSpotify` (`rgb` o
+`blanco`), persistido en las preferencias y aplicado al instante. El RGB de
+`OndaSpotify` es independiente del acento adaptativo del fondo y de la carátula:
+usa una paleta suave de violeta, azul y turquesa con pasos intermedios para evitar
+el contraste excesivo del arcoíris saturado. Cada barra cambia solo al pasar de
+bajar a subir y mantiene su color durante ambas fases. Reutiliza el reloj existente
+y se detiene con la animación; no añade temporizadores.
+
 El título de sección pertenece a `SettingsPanel.tsx` y queda fuera del scroll.
 Las secciones solo devuelven su contenido. Usa los controles de `componentes/`
 para mantener alturas, alineación y texto informativo comunes; las propiedades

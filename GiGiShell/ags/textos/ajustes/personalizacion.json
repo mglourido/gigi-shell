@@ -36,6 +36,14 @@
         "gris": "Gris"
       }
     },
+    "barrasSpotify": {
+      "titulo": "Color de las barras de Spotify",
+      "descripcion": "En RGB, usa tonos suaves de violeta, azul y turquesa.\nCada barra cambia de color al pasar de bajar a subir.\nIndependiente de «Enfatizar fondo de escritorio».",
+      "opciones": {
+        "rgb": "RGB",
+        "blanco": "Blanco"
+      }
+    },
     "acento": {
       "titulo": "Enfatizar fondo de escritorio",
       "descripcion": "Saca del fondo de escritorio los colores para el Shell y los cambia con él.\nLos avisos conservan su color: verde correcto, ámbar aviso, rojo error.\nSi el fondo no tiene color del que sacarlos, se conserva la paleta del tema."
