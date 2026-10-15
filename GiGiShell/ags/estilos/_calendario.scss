@@ -78,7 +78,10 @@ window.cal-window.csd decoration {
 
 .cal-superficie {
   background-color: $cal-bg;
-  border-right: 1px solid $cal-border;
+  // El borde transparente separaba el filo interior del límite del panel y
+  // parecía un doble trazo. Reservar ese píxel como relleno mantiene el contenido.
+  border: none;
+  padding-right: 1px;
 }
 
 .cal-panel {

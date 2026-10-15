@@ -10,7 +10,7 @@
      pantalla del monitor. Un mínimo en CSS es un suelo que GTK nunca baja, así que
      aquí reintroducirlo vuelve a sacar el panel de una pantalla pequeña. */
   background: #08080c;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid transparent;
   border-radius: 16px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
 }
@@ -678,7 +678,7 @@ progressbar.alm-barra {
      que GTK nunca baja, así que reintroducirlo vuelve a sacar la ventana de una
      pantalla pequeña. */
   background: #08080c;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid transparent;
   border-radius: 16px;
   padding: 16px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);

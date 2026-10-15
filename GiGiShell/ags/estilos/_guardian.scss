@@ -16,11 +16,10 @@ window.guardian-ventana {
   padding: 12px 14px;
   border-radius: 14px;
   background: var(--bg-shell, #{$bg-bar});
-  border: 1px solid $borde-menu;
+  border: 1px solid transparent;
   color: $text;
 
   &.denegado {
-    border-color: rgba($red, 0.55);
     background: color.mix($red, $bg-bar, 14%);
     .guardian-icono, .guardian-titulo { color: color.adjust($red, $lightness: 12%); }
   }

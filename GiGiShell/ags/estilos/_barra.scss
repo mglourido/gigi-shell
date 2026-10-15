@@ -22,6 +22,8 @@
 // ── Ventana ───────────────────────────────────────────────────────────────────
 .Bar {
   background-color: $bg-bar;
+  // Filo de medio píxel sin alterar los 38px que usa el auto-ocultado.
+  box-shadow: inset 0 -0.5px 0 0 $borde-menu;
   color: $text;
   font-family: $font-icon, monospace;
   font-size: 17px;
@@ -561,7 +563,7 @@ popover.cpuram-popover {
 // defina —tema "negro"— cae en $bg-bar.
 .fn-menu {
   background: var(--bg-shell, #{$bg-bar});
-  border: 1px solid $borde-menu;
+  border: 1px solid transparent;
   border-radius: 4px;
   padding: 4px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
