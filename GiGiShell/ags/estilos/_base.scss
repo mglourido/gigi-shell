@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use 'colores' as *;
 
 // Quita el fondo/borde/sombra por defecto del tema GTK de un nodo (botón,
@@ -5,6 +6,33 @@
 %chrome-reset {
   background: transparent;
   border: none;
+  box-shadow: none;
+}
+
+// Las cajas de 18 px se solapan 1 px con el panel y la barra: el arco útil tiene
+// radio 17 px. Una sola capa mantiene relleno y filo concéntricos y tangentes a
+// los bordes rectos; desplazarlos por separado producía saltos en los extremos.
+@mixin curva-con-borde($fondo, $centro) {
+  $radio: 17px;
+  $filo: color-mix(in srgb, #{color.change($borde-menu, $alpha: 1)} #{color.alpha($borde-menu) * 100%}, $fondo);
+  background-image: radial-gradient(circle at #{$centro}, transparent ($radio - 0.25px), $filo ($radio + 0.25px), $fondo ($radio + 0.75px));
+  background-repeat: no-repeat;
+}
+
+// Recorta el lateral que continúa por la curva de unión con la barra.
+@mixin bordes-panel-unido(
+  $inicio-izquierdo,
+  $inicio-derecho,
+  $grosor-izquierdo: 0.5px,
+  $grosor-derecho: 0.5px
+) {
+  background-image:
+    linear-gradient(to bottom, transparent $inicio-izquierdo, $borde-menu $inicio-izquierdo),
+    linear-gradient(to bottom, transparent $inicio-derecho, $borde-menu $inicio-derecho),
+    linear-gradient($borde-menu, $borde-menu);
+  background-size: $grosor-izquierdo 100%, $grosor-derecho 100%, 100% 0.5px;
+  background-position: left top, right top, left bottom;
+  background-repeat: no-repeat;
   box-shadow: none;
 }
 
@@ -21,16 +49,18 @@
   outline-offset: -0.5px;
 }
 
-// Los paneles unidos a la barra quedan abiertos por arriba; Orion, por abajo.
-// Trazos interiores sin desenfoque: conservan las medidas y evitan una costura
-// en el lado de unión. La ventana da prioridad frente al reset de cada módulo.
-window.qs-window .qs-panel,
-window.np-window .np-panel,
+// Los paneles unidos a la barra quedan abiertos por arriba y reservan los 18 px
+// de su curva. La ventana da prioridad frente al reset de cada módulo.
+window.qs-window .qs-panel {
+  @include bordes-panel-unido(18px, 0px);
+}
+
+window.np-window .np-panel {
+  @include bordes-panel-unido(18px, 0px, $grosor-derecho: 0);
+}
+
 window.cal-window .cal-panel {
-  box-shadow:
-    inset 0.5px 0 0 $borde-menu,
-    inset -0.5px 0 0 $borde-menu,
-    inset 0 -0.5px 0 $borde-menu;
+  @include bordes-panel-unido(0px, 18px, $grosor-izquierdo: 0);
 }
 
 window.Orion .orion-panel {

@@ -85,6 +85,7 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 
 // Las curvas se solapan horizontalmente 1 px con el panel para que el antialiasing de su borde
 // recto no deje una costura. El desplazamiento no altera su altura ni las acerca al borde inferior.
+.orion-curva-lateral { color: c.$borde-menu; }
 .orion-curva-lateral.izquierda { transform: translateX(1px); }
 .orion-curva-lateral.derecha { transform: translateX(-1px); }
 

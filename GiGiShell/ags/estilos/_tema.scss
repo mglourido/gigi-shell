@@ -34,7 +34,7 @@
 
   window.qs-window.fondo-shell-#{$clase} {
     .qs-bar-connector {
-      background-image: radial-gradient(circle at 0% 100%, transparent 18px, #{$translucido} 18.5px);
+      @include curva-con-borde($translucido, 0% 100%);
     }
 
     .qs-panel { background-color: $translucido; }
@@ -79,14 +79,14 @@
 
   window.np-window.fondo-shell-#{$clase} {
     .np-bar-connector {
-      background-image: radial-gradient(circle at 0% 100%, transparent 18px, #{$translucido} 18.5px);
+      @include curva-con-borde($translucido, 0% 100%);
     }
-    .np-panel { background: $translucido; }
+    .np-panel { background-color: $translucido; }
   }
 
   window.cal-window.fondo-shell-#{$clase} {
     .cal-bar-connector {
-      background-image: radial-gradient(circle at 100% 100%, transparent 18px, #{$translucido} 18.5px);
+      @include curva-con-borde($translucido, 100% 100%);
     }
     .cal-superficie,
     .cal-panel { background-color: $translucido; }

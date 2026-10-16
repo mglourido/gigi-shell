@@ -71,7 +71,7 @@ window.qs-window > box,
 
 .qs-bar-connector {
   background-color: transparent;
-  background-image: radial-gradient(circle at 0% 100%, transparent 18px, $qs-bg 18.5px);
+  @include curva-con-borde($qs-bg, 0% 100%);
   min-width: 18px;
   min-height: 18px;
   transform: translateX(1px);
