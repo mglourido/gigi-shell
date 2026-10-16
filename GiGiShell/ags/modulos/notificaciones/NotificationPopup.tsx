@@ -9,6 +9,7 @@ import { Astal, Gdk, Gtk } from "ags/gtk4"
 import app from "ags/gtk4/app"
 import GLib from "gi://GLib"
 import AstalNotifd from "gi://AstalNotifd"
+import { clipWindowInputToContent } from "../../utilidades/inputRegion"
 import { quickSettingsVisible } from "../../estado/shell"
 import {
   obtenerControlVisibilidadBarra,
@@ -168,7 +169,7 @@ export default function NotificationPopup(monitor: Gdk.Monitor) {
 
   configurarPilaPopups(contenedor, monitor, margenInicial)
 
-  return (
+  const ventana = (
     <window
       name="notification-popups"
       namespace="notification-popups"
@@ -185,5 +186,23 @@ export default function NotificationPopup(monitor: Gdk.Monitor) {
     >
       {contenedor}
     </window>
-  )
+  ) as Astal.Window
+
+  // GTK conserva el tamaño anterior de la ventana al reducirse la pila. Recortar
+  // por tarjeta retira esa entrada sobrante, los huecos y las esquinas; seguir el
+  // layout mantiene la silueta durante los transforms y la recolocación.
+  clipWindowInputToContent(ventana, () => {
+    const tarjetas: Gtk.Widget[] = []
+    for (let tarjeta = contenedor.get_first_child(); tarjeta; tarjeta = tarjeta.get_next_sibling()) {
+      tarjetas.push(tarjeta)
+    }
+    return tarjetas
+  }, {
+    radioEsquinas: (tarjeta) => tarjeta.has_css_class("dunst") ? 0 : 10,
+    vaciarAlMapear: true,
+    vaciarSinContenido: true,
+    seguirAsignacion: "antes-de-pintar",
+  })
+
+  return ventana
 }

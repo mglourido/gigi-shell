@@ -392,6 +392,10 @@ export default function Orion(gdkmonitor: Gdk.Monitor) {
 
   recalcularRegionEntrada = clipWindowInputToContent(win, panelInner, {
     radioCurvasInferioresLaterales: RADIO_CURVAS_LATERALES,
+    // Abrir el panel contextual durante la entrada puede medir el transform
+    // a mitad de recorrido. Seguir el layout pintado evita retener ese recorte
+    // y conserva fuera de la entrada las reservas laterales transparentes.
+    seguirAsignacion: true,
   })
   // El panel contextual cambia la anchura de `.orion-panel`, pero sustituye una
   // reserva exterior de igual tamaño y no redimensiona la superficie de Orion.

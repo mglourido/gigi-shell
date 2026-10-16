@@ -86,9 +86,15 @@ function escribirSincrono(path: string, datos: unknown) {
 }
 
 function cargarEstado() {
+  // Una aplicación anterior puede publicar mientras ya se está preparando la
+  // última selección. La cola relee al terminar, sin deshacer su resaltado/acento.
+  if (aplicacionEnCurso !== null) return
   const cfg = leerJson(ESTADO_PATH)
+  if (cfg === null || typeof cfg !== "object") return
   if (typeof cfg.randomOnStart === "boolean") _setRandomOnStart(cfg.randomOnStart)
-  _setCurrentWallpaper(typeof cfg.current === "string" ? cfg.current : "")
+  // Una lectura incompleta no significa que haya desaparecido el fondo real.
+  if (typeof cfg.current !== "string" || cfg.current === "") return
+  _setCurrentWallpaper(cfg.current)
   _setCurrentGroup(typeof cfg.currentGroup === "string" ? cfg.currentGroup : "")
 }
 
@@ -164,18 +170,43 @@ export function entidadesAhora(): Entidad[] {
 
 // ── Acciones sobre el fondo ───────────────────────────────────────────────────
 
+let argumentosPendientes: string[] | null = null
+let aplicacionEnCurso: Promise<void> | null = null
+
 /**
- * Ejecuta `wallpaper.sh` y, AL TERMINAR, relee el estado.
+ * Ejecuta una sola aplicación cada vez y, AL TERMINAR, relee el estado.
  *
- * Es una guarda, no el camino normal: lo normal es que el FileMonitor de
- * `wallpaper.json` avise. Pero de ese aviso cuelgan el resaltado de la rejilla y
- * el acento adaptativo (`servicios/fondos/acento.ts`), y un evento perdido deja
- * el shell con los colores del fondo anterior sin ningún error. Releer aquí no
- * cuesta nada: si el monitor ya lo trajo, `createState` no notifica un valor
- * igual y el acento no vuelve a calcular.
+ * Antes cada clic lanzaba otro proceso: uno antiguo podía terminar el último y
+ * publicar su fondo sobre la selección nueva. Si no tenía paleta, se perdía la
+ * enfatización aunque el extractor de la selección nueva hubiera ido bien.
+ * Solo se retiene la última petición pendiente para no encadenar transiciones y
+ * extracciones de fondos que el usuario ya ha descartado. El planificador usa
+ * esta misma cola a través de `reevaluar()`.
+ *
+ * Releer al final cubre también un aviso perdido del FileMonitor. Si ya trajo el
+ * fondo correcto, `createState` no notifica el mismo valor ni repite el cálculo.
  */
-function ejecutarWallpaper(args: string[]) {
-  execAsync([WALLPAPER_SH, ...args]).catch(() => {}).finally(cargarEstado)
+function ejecutarWallpaper(args: string[]): Promise<void> {
+  argumentosPendientes = args
+  if (aplicacionEnCurso !== null) return aplicacionEnCurso
+
+  aplicacionEnCurso = Promise.resolve().then(async () => {
+    try {
+      while (argumentosPendientes !== null) {
+        const argumentos = argumentosPendientes
+        argumentosPendientes = null
+        try {
+          await execAsync([WALLPAPER_SH, ...argumentos])
+        } catch (error) {
+          console.error("[fondos] No se pudo aplicar el fondo:", error)
+        }
+      }
+    } finally {
+      aplicacionEnCurso = null
+      cargarEstado()
+    }
+  })
+  return aplicacionEnCurso
 }
 
 export function setRandomOnStart(on: boolean) {
@@ -214,7 +245,7 @@ export function applyRandom() {
  * de en el próximo límite horario.
  */
 export function reevaluar() {
-  ejecutarWallpaper(["--auto"])
+  return ejecutarWallpaper(["--auto"])
 }
 
 // ── Acciones sobre las franjas globales ───────────────────────────────────────
@@ -371,7 +402,10 @@ function vigilar(path: string, alCambiar: () => void) {
 }
 const monitores: Gio.FileMonitor[] = []
 
-cargarEstado()
-cargarConfig()
+// Vigilar ANTES de leer: wallpaper.sh puede publicar el fondo automático
+// durante el arranque. Leer primero dejaba un intervalo sin vigilancia y Orion
+// conservaba el tema anterior si el script escribía justo dentro de él.
 vigilar(ESTADO_PATH, cargarEstado)
 vigilar(CONFIG_PATH, cargarConfig)
+cargarEstado()
+cargarConfig()

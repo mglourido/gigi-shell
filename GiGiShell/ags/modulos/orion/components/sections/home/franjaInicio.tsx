@@ -19,7 +19,7 @@
 // la franja ya se ha mostrado alguna vez: `NavSections` monta Inicio en cada
 // monitor al arrancar el shell, aunque Orion no se abra nunca.
 
-import { Gtk } from "ags/gtk4"
+import { Gtk, Gdk } from "ags/gtk4"
 import Gio from "gi://Gio"
 import GioUnix from "gi://GioUnix?version=2.0"
 import GLib from "gi://GLib"
@@ -642,8 +642,8 @@ function PaginaAbiertas(): Gtk.Widget {
   // Desplazable, pero la rueda NO se la queda en los bordes: con la barra en modo
   // EXTERNAL el ScrolledWindow no atiende la rueda él mismo, y este controlador
   // solo la consume mientras la lista puede moverse en ese sentido. Arriba del
-  // todo o abajo del todo la deja pasar al carrusel, que cambia de página: así la
-  // rueda sigue sirviendo para navegar entre páginas también aquí.
+  // todo o abajo del todo la deja pasar al carrusel, que permite cambiar de
+  // página con touchpad. La rueda del ratón solo cambia desde la cabecera.
   const desplazable = new Gtk.ScrolledWindow({ vexpand: true, hexpand: true })
   desplazable.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.EXTERNAL)
   desplazable.set_propagate_natural_height(false)
@@ -1196,9 +1196,11 @@ function Carrusel(paginas: PaginaCarrusel[]): Gtk.Widget {
   const iconoAccion = new Gtk.Image({ pixelSize: 11 })
   accion.set_child(iconoAccion)
   cabecera.append(titulo)
-  cabecera.append(puntos)
   cabecera.append(accion)
+  cabecera.append(puntos)
   raiz.append(cabecera)
+  const hoverCabecera = new Gtk.EventControllerMotion()
+  cabecera.add_controller(hoverCabecera)
 
   const pila = new Gtk.Stack({ vexpand: true })
   pila.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
@@ -1259,13 +1261,47 @@ function Carrusel(paginas: PaginaCarrusel[]): Gtk.Widget {
     ir(vis[(i + delta + vis.length) % vis.length].id)
   }
 
+  const PAUSA_TOUCHPAD_US = 500_000
+  let ultimoSentidoTouchpad = 0
+  let instanteUltimoCambioTouchpad = 0
+  let ejeTouchpad: "horizontal" | "vertical" | null = null
   const rueda = new Gtk.EventControllerScroll({
     flags: Gtk.EventControllerScrollFlags.BOTH_AXES | Gtk.EventControllerScrollFlags.DISCRETE,
   })
-  rueda.connect("scroll", (_c, dx, dy) => {
-    const d = Math.abs(dx) > Math.abs(dy) ? dx : dy
+  rueda.connect("scroll-begin", () => {
+    ultimoSentidoTouchpad = 0
+    ejeTouchpad = null
+  })
+  rueda.connect("scroll", (controlador, dx, dy) => {
+    // Consultar el evento original: DISCRETE convierte también el touchpad en
+    // pasos de rueda en el controlador. Fuera de la cabecera, el ratón debe
+    // seguir desplazando la lista sin saltar de página al alcanzar un borde.
+    const evento = controlador.get_current_event() as Gdk.ScrollEvent | null
+    const unidad = evento?.get_unit()
+    if (unidad === Gdk.ScrollUnit.WHEEL && !hoverCabecera.contains_pointer()) return false
+    let d = Math.abs(dx) > Math.abs(dy) ? dx : dy
+    if (evento && unidad === Gdk.ScrollUnit.SURFACE) {
+      // Fijar el eje por gesto: alternarlo entre eventos de una diagonal puede
+      // invertir el sentido y devolvernos a la página anterior saltando la pausa.
+      // Elegirlo con los deltas originales evita los empates de DISCRETE.
+      if (ejeTouchpad === null) {
+        const [deltaX, deltaY] = evento.get_deltas()
+        ejeTouchpad = Math.abs(deltaX) > Math.abs(deltaY) ? "horizontal" : "vertical"
+      }
+      d = ejeTouchpad === "horizontal" ? dx : dy
+    }
     if (d === 0 || visibles().length < 2) return false
-    paso(d > 0 ? 1 : -1)
+    const sentido = d > 0 ? 1 : -1
+    if (unidad === Gdk.ScrollUnit.SURFACE) {
+      // Un gesto continuo genera muchos eventos: limitar los cambios en el
+      // mismo sentido sin temporizadores ni exigir que se levanten los dedos.
+      // Invertir el sentido o comenzar otro gesto permite cambiar de inmediato.
+      const ahora = GLib.get_monotonic_time()
+      if (sentido === ultimoSentidoTouchpad && ahora - instanteUltimoCambioTouchpad < PAUSA_TOUCHPAD_US) return true
+      ultimoSentidoTouchpad = sentido
+      instanteUltimoCambioTouchpad = ahora
+    }
+    paso(sentido)
     return true
   })
   raiz.add_controller(rueda)

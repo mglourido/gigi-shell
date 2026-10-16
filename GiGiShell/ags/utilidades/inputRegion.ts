@@ -7,7 +7,9 @@ import cairo from "gi://cairo"
 interface OpcionesRecorteEntrada {
   /** Recorta cada contenido como un rectángulo redondeado en vez de conservar
    * las esquinas transparentes de su caja de asignación. */
-  radioEsquinas?: number
+  radioEsquinas?: number | ((contenido: any) => number)
+  /** Aplica una región vacía al retirar el último contenido de una pila dinámica. */
+  vaciarSinContenido?: boolean
   /** Deja la superficie sin entrada desde el mismo `map` hasta que GTK haya
    * asignado el contenido y pueda aplicarse su silueta definitiva. Evita que
    * aflore durante el primer frame el rectángulo predeterminado de la ventana. */
@@ -28,9 +30,10 @@ interface OpcionesRecorteEntrada {
    * tick+idle mide la asignación vieja, aplica una región corta y nada vuelve a
    * medir — la franja nueva de abajo se queda sin entrada. `after-paint` corre
    * con el layout ya hecho, y sin frames no corre: con la ventana quieta no cuesta
-   * nada. Es opt-in porque un contenido que se mueve cada frame (el lagarto)
-   * reaplicaría la región en cada uno. */
-  seguirAsignacion?: boolean
+   * nada. `antes-de-pintar` mide al terminar el layout para enviar la región
+   * con el mismo frame de la animación. Es opt-in porque un contenido que se
+   * mueve cada frame (el lagarto) reaplicaría la región en cada uno. */
+  seguirAsignacion?: boolean | "antes-de-pintar"
 }
 
 function anadirRectanguloRedondeado(
@@ -110,6 +113,7 @@ function anadirCurvasInferioresLaterales(
 // Devuelve una función para volver a medir y aplicar la región. Hay que llamarla
 // al terminar una animación CSS con `transform`: `compute_bounds()` devuelve la
 // posición transformada y, sin esa segunda medición, el recorte quedaría desplazado.
+// `contenido` admite un widget, una lista o una función que devuelve la lista actual.
 // Los cambios de tamaño de la superficie y de visibilidad de los contenidos se
 // observan automáticamente más abajo. Si cambia la geometría interna sin cambiar
 // la superficie, el llamador debe invocar la función devuelta — o pedir
@@ -122,7 +126,11 @@ export function clipWindowInputToContent(
   let surfaceHandlers: { surface: any; ids: number[] } | null = null
   let framePendiente: number | null = null
   let aplicacionPendiente: number | null = null
-  const contenidos = Array.isArray(contenido) ? contenido : [contenido]
+  // Una pila puede añadir y retirar widgets conservando la misma superficie.
+  const contenidosFijos = typeof contenido === "function"
+    ? null
+    : Array.isArray(contenido) ? contenido : [contenido]
+  const obtenerContenidos = () => contenidosFijos ?? contenido()
 
   const vaciarRegionEntrada = (surface: any) => {
     if (!opciones.vaciarAlMapear || !surface) return
@@ -134,8 +142,8 @@ export function clipWindowInputToContent(
   let ultimaFirma: string | null = null
 
   const medirContenidos = () => {
-    const rectangulos: { x: number; y: number; width: number; height: number }[] = []
-    for (const contenido of contenidos) {
+    const rectangulos: { x: number; y: number; width: number; height: number; radio: number }[] = []
+    for (const contenido of obtenerContenidos()) {
       if (!contenido || contenido.get_visible?.() === false) continue
       const res = contenido.compute_bounds(win)
       // gjs devuelve [ok, Graphene.Rect].
@@ -147,13 +155,16 @@ export function clipWindowInputToContent(
       const w = Math.ceil(rect.size.width)
       const h = Math.ceil(rect.size.height)
       if (w <= 0 || h <= 0) continue
-      rectangulos.push({ x, y, width: w, height: h })
+      const radio = typeof opciones.radioEsquinas === "function"
+        ? opciones.radioEsquinas(contenido)
+        : opciones.radioEsquinas ?? 0
+      rectangulos.push({ x, y, width: w, height: h, radio })
     }
     return rectangulos
   }
 
-  const firmaDe = (rectangulos: { x: number; y: number; width: number; height: number }[]) =>
-    rectangulos.map((r) => `${r.x},${r.y},${r.width},${r.height}`).join(";")
+  const firmaDe = (rectangulos: { x: number; y: number; width: number; height: number; radio: number }[]) =>
+    rectangulos.map((r) => `${r.x},${r.y},${r.width},${r.height},${r.radio}`).join(";")
 
   const apply = () => {
     try {
@@ -169,21 +180,22 @@ export function clipWindowInputToContent(
         const completa = new (cairo as any).Region()
         completa.unionRectangle({ x: 0, y: 0, width: ancho, height: alto })
         surface.set_input_region(completa)
+        win.queue_draw()
         ultimaFirma = null
         return
       }
 
       const rectangulos = medirContenidos()
-      // No sustituir una región anterior por una vacía durante el desmontaje de
-      // la ventana; el siguiente map volverá a medir todos los contenidos.
-      if (rectangulos.length === 0) return
+      // Una pila dinámica sí debe retirar su región al quedarse sin contenidos.
+      // En el resto se conserva la región durante el desmontaje de la ventana.
+      if (rectangulos.length === 0 && !opciones.vaciarSinContenido) return
 
       const region = new (cairo as any).Region()
       for (const rectangulo of rectangulos) {
-        if (opciones.radioEsquinas) {
-          anadirRectanguloRedondeado(region, rectangulo, opciones.radioEsquinas)
+        if (rectangulo.radio) {
+          anadirRectanguloRedondeado(region, rectangulo, rectangulo.radio)
         } else {
-          region.unionRectangle(rectangulo)
+          region.unionRectangle({ x: rectangulo.x, y: rectangulo.y, width: rectangulo.width, height: rectangulo.height })
         }
         if (opciones.radioCurvasInferioresLaterales) {
           anadirCurvasInferioresLaterales(
@@ -194,6 +206,10 @@ export function clipWindowInputToContent(
         }
       }
       surface.set_input_region(region)
+      // En Wayland la región viaja con el siguiente commit de la superficie.
+      // El idle puede llegar después del último frame de una animación: pedir
+      // otro evita conservar el recorte anterior hasta que se mueva el ratón.
+      win.queue_draw()
       ultimaFirma = firmaDe(rectangulos)
     } catch (e) {
       // Si algo no está disponible, se conserva de forma segura la región predeterminada.
@@ -201,19 +217,18 @@ export function clipWindowInputToContent(
     }
   }
 
-  // `seguirAsignacion`: tras cada frame pintado el layout ya es el definitivo.
-  // Si la silueta difiere de la aplicada se reaplica, y se pide un frame más para
-  // que la región nueva viaje en un commit sin esperar a que otra cosa repinte.
+  // El seguimiento compara el layout definitivo con la última región aplicada.
+  // Pide un repintado solo al cambiar, sin mantener el reloj activo en reposo.
   const alPintar = () => {
     if (opciones.superficieCompletaMientras?.()) return
     try {
       const rectangulos = medirContenidos()
-      if (rectangulos.length === 0 || firmaDe(rectangulos) === ultimaFirma) return
+      if ((rectangulos.length === 0 && !opciones.vaciarSinContenido)
+        || firmaDe(rectangulos) === ultimaFirma) return
     } catch (_) {
       return
     }
     apply()
-    try { win.queue_draw?.() } catch (_) {}
   }
 
   let relojHandler: { reloj: any; id: number } | null = null
@@ -224,7 +239,13 @@ export function clipWindowInputToContent(
     if (relojHandler) {
       try { relojHandler.reloj.disconnect(relojHandler.id) } catch (_) {}
     }
-    relojHandler = { reloj, id: reloj.connect("after-paint", alPintar) }
+    // Las tarjetas animadas necesitan enviar la región con el mismo frame que
+    // las mueve: al terminar el layout, antes del commit de pintado. Los demás
+    // consumidores conservan el seguimiento tras pintar.
+    const id = opciones.seguirAsignacion === "antes-de-pintar"
+      ? reloj.connect_after("layout", alPintar)
+      : reloj.connect("after-paint", alPintar)
+    relojHandler = { reloj, id }
   }
 
   function programarAplicacionIdle(): void {
@@ -249,8 +270,16 @@ export function clipWindowInputToContent(
   // animación, y esa sería la región que queda fija hasta el reclip final.
   const scheduleApply = (inmediato = false) => {
     if (inmediato) {
-      framePendiente = null
-      aplicacionPendiente = null
+      // Sustituir también el trabajo encolado: borrar solo sus identificadores
+      // dejaba callbacks vivos que volvían a medir durante el transform.
+      if (framePendiente !== null) {
+        win.remove_tick_callback(framePendiente)
+        framePendiente = null
+      }
+      if (aplicacionPendiente !== null) {
+        GLib.source_remove(aplicacionPendiente)
+        aplicacionPendiente = null
+      }
       apply()
       return
     }
@@ -270,7 +299,7 @@ export function clipWindowInputToContent(
   // Gtk.Widget no publica la asignación como `notify::width/height` en GTK4.
   // La visibilidad sí es una propiedad observable y debe retirar o añadir el
   // widget a la región cuando el helper recibe varios contenidos.
-  for (const elemento of contenidos) {
+  for (const elemento of obtenerContenidos()) {
     if (!elemento?.connect) continue
     try { elemento.connect("notify::visible", () => scheduleApply()) } catch (_) {}
   }

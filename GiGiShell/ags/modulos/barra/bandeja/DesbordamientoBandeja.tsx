@@ -65,7 +65,7 @@ export default function DesbordamientoBandeja({
   const filas = elementos((lista) => agruparEnFilas(lista, 4))
   const rejilla = (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={2} cssClasses={["tray-overflow-grid"]}>
-      <Gtk.EventControllerMotion onEnter={entrar} onLeave={salir} />
+      <Gtk.EventControllerMotion onEnter={entrar} onMotion={entrar} onLeave={salir} />
       <For each={filas}>
         {(elementosFila) => (
           <box spacing={2}>
@@ -124,7 +124,7 @@ export default function DesbordamientoBandeja({
         )
       }}
     >
-      <Gtk.EventControllerMotion onEnter={entrar} onLeave={salir} />
+      <Gtk.EventControllerMotion onEnter={entrar} onMotion={entrar} onLeave={salir} />
       <Gtk.GestureClick
         $={(gesture: Gtk.GestureClick) => gesture.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)}
         onPressed={(gesture: Gtk.GestureClick) => {

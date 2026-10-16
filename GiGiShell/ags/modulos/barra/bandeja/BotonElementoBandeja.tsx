@@ -1,4 +1,5 @@
 import AstalTray from "gi://AstalTray"
+import type Gio from "gi://Gio"
 import { createBinding } from "ags"
 import { Gtk } from "ags/gtk4"
 
@@ -29,12 +30,18 @@ export default function BotonElementoBandeja({
   let boton: Gtk.MenuButton | null = null
   let popoverConfigurado: Gtk.Popover | null = null
   let limpiarLimites: (() => void) | null = null
+  let grupoAccionesAplicado: Gio.ActionGroup | null | undefined
 
   const autoCierre = panelAutoClose(() => boton?.get_popover()?.popdown(), 250)
 
   const aplicarGrupoAcciones = (destino: Gtk.MenuButton) => {
     const grupo = elemento.actionGroup ?? null
-    for (const nombre of NOMBRES_GRUPO_ACCIONES) destino.insert_action_group(nombre, grupo)
+    if (grupo === grupoAccionesAplicado) return
+    grupoAccionesAplicado = grupo
+    for (const nombre of NOMBRES_GRUPO_ACCIONES) {
+      destino.insert_action_group(nombre, grupo)
+      destino.get_popover()?.insert_action_group(nombre, grupo)
+    }
   }
 
   const configurarPopover = (destino: Gtk.MenuButton) => {
@@ -52,6 +59,9 @@ export default function BotonElementoBandeja({
     popoverConfigurado = popover
     const movimiento = new Gtk.EventControllerMotion()
     movimiento.connect("enter", autoCierre.onEnter)
+    // Al remapear, GTK puede conservar el hover y enviar motion sin otro enter.
+    // También debe cancelar el cierre pendiente al salir del icono hacia el menú.
+    movimiento.connect("motion", autoCierre.onEnter)
     movimiento.connect("leave", autoCierre.onLeave)
     popover.add_controller(movimiento)
     popover.connect("closed", () => {
@@ -70,6 +80,7 @@ export default function BotonElementoBandeja({
     limpiarLimites?.()
     limpiarLimites = null
     popoverConfigurado = null
+    grupoAccionesAplicado = undefined
     boton = null
   })
 
@@ -78,12 +89,16 @@ export default function BotonElementoBandeja({
       cssClasses={["icon-bare", "tray-item"]}
       focusable={false}
       valign={Gtk.Align.CENTER}
-      menuModel={createBinding(elemento, "menuModel")}
+      sensitive={createBinding(elemento, "menuModel")((modelo) => modelo !== null)}
       $={(self: Gtk.MenuButton) => {
         boton = self
         aplicarGrupoAcciones(self)
         configurarPopover(self)
+        cicloVida.conectarSenales(elemento, ["notify::action-group"], () => {
+          aplicarGrupoAcciones(self)
+        })
         cicloVida.conectarSenales(self, ["notify::active"], () => {
+          autoCierre.cancel()
           if (!self.active) {
             controlMenu.cerrar()
             return
@@ -95,7 +110,11 @@ export default function BotonElementoBandeja({
         })
       }}
     >
-      <Gtk.EventControllerMotion onEnter={autoCierre.onEnter} onLeave={autoCierre.onLeave} />
+      <Gtk.EventControllerMotion
+        onEnter={autoCierre.onEnter}
+        onMotion={autoCierre.onEnter}
+        onLeave={autoCierre.onLeave}
+      />
       {/* El menubutton abre su popover él solo, y `notify::active` llega DESPUÉS del
           popup: el ancla se recalcula aquí, en CAPTURE, antes del toggle. No reclama. */}
       <Gtk.GestureClick
@@ -105,6 +124,11 @@ export default function BotonElementoBandeja({
           if (popover && !popover.get_visible()) colgarDeBarra(popover)
         }}
       />
+      {/* Gtk.MenuButton sustituye su popover al cambiar menuModel y puede abrir el
+          nuevo sin otro notify::active: se pierden los controladores y las acciones
+          quedan ligadas al proveedor anterior. El popover conserva su superficie;
+          GTK actualiza las filas y el tamaño al cambiar el modelo remoto. */}
+      <Gtk.PopoverMenu menuModel={createBinding(elemento, "menuModel")} />
       <image gicon={createBinding(elemento, "gicon")} pixelSize={17} />
     </menubutton>
   )

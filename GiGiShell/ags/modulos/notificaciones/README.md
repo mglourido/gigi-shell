@@ -23,6 +23,35 @@ El resto del código se agrupa por responsabilidad:
 Si se añaden pruebas, deben permanecer junto al código que verifican. Los consumidores externos deben importar
 las fachadas de la raíz salvo que necesiten explícitamente una pieza interna concreta.
 
+Los popups recortan la entrada por tarjeta, con esquinas redondeadas en el estilo
+normal y rectas en dunst. GTK puede conservar el alto anterior de su ventana al
+retirar una tarjeta: sin recorte, el espacio que queda debajo sigue interceptando
+clics aunque ya sea transparente, igual que los huecos entre avisos. La lista de
+contenidos se consulta en cada layout y su región se aplica antes de pintar, para
+seguir los `transform` de entrada y salida en el mismo fotograma. Medir después de
+pintar dejaba un frame de desfase. Al no quedar contenidos se permite vaciar la
+región; al remapear se vacía antes de medir para no reutilizar la silueta anterior.
+
+Cada tarjeta conserva y cancela su temporizador de salida al retirarse de la pila.
+El descarte es idempotente: varios gestos o la caducidad no programan salidas
+duplicadas. Así, una salida antigua no elimina un popup nuevo que reutilice el
+mismo ID durante la animación ni deja callbacks pendientes tras cerrar la pila.
+
+La región de entrada del panel abarca la superficie durante la animación de
+apertura y recupera la silueta del contenido tras el layout. No debe medirse
+como definitiva con `np-preparing`: su `translateX(220px)` también desplaza el
+resultado de `compute_bounds()`. El helper de recorte pide un repintado al
+aplicar cada región para enviarla al compositor: sin ese frame, el recálculo
+final podía quedarse pendiente y el panel solo recuperaba la hitbox al mover
+el ratón o volver a abrirlo. Las aplicaciones inmediatas cancelan el tick o
+idle anterior para que no vuelva a medir una posición de mitad de animación.
+
+Quick Settings y Calendario usan la misma cobertura durante la entrada y el
+seguimiento tras el layout. Orion sigue su silueta pintada, incluidas las curvas
+inferiores, para conservar las reservas laterales transparentes. Ese seguimiento
+también corrige el recorte al abrir su panel contextual mientras se desliza; un
+recálculo aislado podía dejar la franja superior visible sin entrada.
+
 Las cabeceras de los grupos muestran solo el total en una etiqueta de 22 px de
 alto, con texto de 11 px y esquinas de 6 px, a juego con los botones del panel.
 La cabecera ocupa todo el ancho y conserva las esquinas rectas. Su selector

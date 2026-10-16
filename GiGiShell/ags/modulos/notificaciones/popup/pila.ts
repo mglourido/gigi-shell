@@ -23,7 +23,7 @@ let margenSuperior = 16
 const widgets = new Map<number, Gtk.Widget>()
 const alturas = new Map<number, number>()
 const temporizadores = new Map<number, number>()
-const callbacksDescarte = new Map<number, () => void>()
+const callbacksDescarte = new Map<number, { descartar: () => void; cancelar: () => void }>()
 const pendientes: StoredNotification[] = []
 
 function cancelarTemporizador(id: number): void {
@@ -35,6 +35,9 @@ function cancelarTemporizador(id: number): void {
 
 function eliminarInmediatamente(id: number, rellenar = true): void {
   cancelarTemporizador(id)
+  // La salida pertenece al widget retirado: no puede borrar su sustituto si
+  // llega otra notificación con el mismo ID antes de terminar la animación.
+  callbacksDescarte.get(id)?.cancelar()
   callbacksDescarte.delete(id)
 
   const widget = widgets.get(id)
@@ -56,7 +59,7 @@ function eliminarInmediatamente(id: number, rellenar = true): void {
 function iniciarDescarte(id: number): void {
   cancelarTemporizador(id)
   const descartar = callbacksDescarte.get(id)
-  if (descartar) descartar()
+  if (descartar) descartar.descartar()
   else eliminarInmediatamente(id)
 }
 
@@ -97,7 +100,7 @@ function drenarCola(): void {
     const elemento = ElementoPopup({
       notificacion,
       alDescartar: () => eliminarInmediatamente(notificacion.id),
-      registrarDescarte: (callback) => callbacksDescarte.set(notificacion.id, callback),
+      registrarDescarte: (descartar, cancelar) => callbacksDescarte.set(notificacion.id, { descartar, cancelar }),
     }) as Gtk.Widget
 
     try {

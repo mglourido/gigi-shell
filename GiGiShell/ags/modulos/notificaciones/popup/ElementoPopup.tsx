@@ -21,7 +21,7 @@ const MAXIMO_CARACTERES_BOTON = 14
 interface PropiedadesElementoPopup {
   notificacion: StoredNotification
   alDescartar: () => void
-  registrarDescarte: (callback: () => void) => void
+  registrarDescarte: (descartar: () => void, cancelar: () => void) => void
 }
 
 function enfocarVentanaAplicacion(nombreAplicacion: string): void {
@@ -157,15 +157,27 @@ export default function ElementoPopup({
     </box>
   ) as Gtk.Box
 
+  let temporizadorSalida: number | null = null
+  let descartado = false
+
+  function cancelarDescarte(): void {
+    descartado = true
+    if (temporizadorSalida !== null) GLib.source_remove(temporizadorSalida)
+    temporizadorSalida = null
+  }
+
   function descartar(): void {
+    if (descartado || temporizadorSalida !== null) return
     caja.add_css_class("leaving")
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT, DURACION_ANIMACION_SALIDA_MS, () => {
+    temporizadorSalida = GLib.timeout_add(GLib.PRIORITY_DEFAULT, DURACION_ANIMACION_SALIDA_MS, () => {
+      temporizadorSalida = null
+      descartado = true
       alDescartar()
       return GLib.SOURCE_REMOVE
     })
   }
 
-  registrarDescarte(descartar)
+  registrarDescarte(descartar, cancelarDescarte)
 
   const clicAbrir = new Gtk.GestureClick({ button: 1 })
   clicAbrir.connect("pressed", () => {

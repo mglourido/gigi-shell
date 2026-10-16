@@ -39,6 +39,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   let enterTickId: number | null = null
   let enterCapTimer: number | null = null
   let entrancePending = false
+  let entradaActiva = false
   // Entrada y salida son excluyentes; comparten un único temporizador de finalización.
   let temporizadorAnimacion: number | null = null
   let hoverCloseTimer: number | null = null
@@ -92,6 +93,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
   }
 
   function cancelarAnimacion(): void {
+    entradaActiva = false
     entrancePending = false
     cancelPrepare()
     if (temporizadorAnimacion !== null) {
@@ -105,9 +107,8 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
     if (!entrancePending) return
     entrancePending = false
     cancelPrepare()
-    // Medir ANTES de añadir la clase que dispara el transform: la región queda
-    // fija en su posición final desde el primer frame, no desplazada hasta el
-    // reclip de abajo. Ver utilidades/inputRegion.ts.
+    // `np-preparing` ya desplaza 220 px el contenido. Durante la entrada se
+    // conserva la superficie completa, como en QS, sin medir ese transform.
     reclipInput?.(true)
     animationRef?.remove_css_class("np-preparing")
     animationRef?.add_css_class("np-entering")
@@ -115,6 +116,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
     // de entrada, por si algo cambió de tamaño durante la animación.
     temporizadorAnimacion = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PANEL_ENTER_MS, () => {
       temporizadorAnimacion = null
+      entradaActiva = false
       reclipInput?.()
       return GLib.SOURCE_REMOVE
     })
@@ -122,6 +124,7 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
 
   function beginEntrance(): void {
     cancelarAnimacion()
+    entradaActiva = true
     animationRef?.remove_css_class("np-leaving")
     animationRef?.remove_css_class("np-entering")
     animationRef?.add_css_class("np-preparing")
@@ -239,7 +242,12 @@ export default function NotificationPanel(gdkmonitor: Gdk.Monitor) {
     </window>
   )
 
-  reclipInput = clipWindowInputToContent(win, panelRef)
+  reclipInput = clipWindowInputToContent(win, panelRef, {
+    superficieCompletaMientras: () => entradaActiva,
+    // El temporizador y el último frame CSS pueden terminar en distinto orden.
+    // Tras el layout se corrige la silueta; en reposo no se piden más frames.
+    seguirAsignacion: true,
+  })
   if (notifPanelVisible.get()) beginEntrance()
   return win
 }

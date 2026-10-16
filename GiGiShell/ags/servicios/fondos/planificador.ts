@@ -46,9 +46,9 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { execAsync } from "ags/process"
 import { alReanudar } from "../sistema/reanudacion.ts"
+import { reevaluar } from "../../modulos/orion/data/wallpaperConfig"
 
 const SCRIPTS      = `${GLib.get_user_config_dir()}/hypr/scripts`
-const WALLPAPER_SH = `${SCRIPTS}/wallpaper.sh`
 const SELECT_PY    = `${SCRIPTS}/wallpaper-select.py`
 const CONFIG_PATH  = `${GLib.get_user_config_dir()}/gigishell/wallpapers.json`
 const ESTADO_PATH  = `${GLib.get_user_config_dir()}/gigishell/wallpaper.json`
@@ -102,7 +102,7 @@ async function ciclo() {
   // `--auto` es idempotente y no imprime —ni aplica— nada si el fondo que toca ya
   // es el que está puesto, así que reevaluar de más (al volver de una suspensión,
   // al editar la config) no produce ni un parpadeo.
-  try { await execAsync([WALLPAPER_SH, "--auto"]) } catch (_) { /* fail-open */ }
+  try { await reevaluar() } catch (_) { /* fail-open */ }
   await rearmar()
 }
 

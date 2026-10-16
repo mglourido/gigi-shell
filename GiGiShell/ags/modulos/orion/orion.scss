@@ -393,7 +393,8 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 }
 
 // Carrusel
-.fc-cabecera { padding: 0 0 2px 2px; }
+// Reservar la altura de la acción aunque la página no tenga botón de cabecera.
+.fc-cabecera { min-height: 18px; padding: 0 0 2px 2px; }
 .Orion .fc-punto {
   min-width: 5px;
   min-height: 5px;

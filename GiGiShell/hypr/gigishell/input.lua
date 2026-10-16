@@ -44,6 +44,19 @@ hl.config({
 -- Se mantiene aquí (y no en gigishell/dispositivos) para no registrarlo dos veces.
 hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
 
+-- Super + tres dedos: ancho y alto inmediatos, sin mantener ningún botón.
+-- Solo touchpad; los binds del ratón siguen en keybinds.lua. Los gestos sin
+-- Super conservan sus acciones (Hyprland compara los modificadores exactos).
+local redimensionado = require("gigishell.util").carga("gigishell.redimensionar-touchpad")
+if redimensionado then
+  hl.gesture({
+    fingers = 3,
+    direction = "swipe",
+    mods = require("gigishell.variables").mainMod,
+    action = redimensionado,
+  })
+end
+
 -- Tres dedos arriba: maximizar ↔ restaurar. Tres dedos abajo: flotante ↔
 -- mosaico. Siempre sobre la ventana con foco.
 --

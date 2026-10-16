@@ -131,6 +131,7 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
   let temporizadorAsentamiento: number | null = null
   let temporizadorSalida: number | null = null
   let entradaPendiente = false
+  let entradaActiva = false
   let recalcularRegionEntrada: ((inmediato?: boolean) => void) | null = null
 
   function cancelarPreparacion(): void {
@@ -148,10 +149,9 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
     if (!entradaPendiente) return
     entradaPendiente = false
     cancelarPreparacion()
-    // Medir ANTES de añadir la clase que dispara el transform: si se mide
-    // después, `compute_bounds()` devuelve la posición ya desplazada y esa es
-    // la región que queda fija durante toda la animación. Midiendo aquí la
-    // región clicable queda en su sitio final desde el primer frame.
+    // `cal-preparing` ya desplaza el contenido 220 px a la izquierda. Durante
+    // la entrada se cubre la superficie, como en Notificaciones y QS, sin fijar
+    // ese desplazamiento como región definitiva.
     recalcularRegionEntrada?.(true)
     envoltorioAnimado?.remove_css_class("cal-preparing")
     envoltorioAnimado?.add_css_class("cal-entering")
@@ -160,6 +160,7 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
       GLib.PRIORITY_DEFAULT,
       DURACION_ENTRADA_MS,
       () => {
+        entradaActiva = false
         recalcularRegionEntrada?.()
         temporizadorAsentamiento = null
         return GLib.SOURCE_REMOVE
@@ -168,6 +169,7 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
   }
 
   function prepararEntrada(): void {
+    entradaActiva = true
     entradaPendiente = false
     cancelarPreparacion()
     if (temporizadorAsentamiento !== null) {
@@ -218,6 +220,7 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
     // Cerrar el panel cancela una edición a medias. Dejarla viva reabriría el formulario con datos
     // de hace media hora encima de lo que el usuario venga a hacer.
     cerrarEdicion()
+    entradaActiva = false
     entradaPendiente = false
     cancelarPreparacion()
     if (temporizadorAsentamiento !== null) {
@@ -238,6 +241,7 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
 
   onCleanup(() => {
     if (typeof bajaVisibilidad === "function") bajaVisibilidad()
+    entradaActiva = false
     entradaPendiente = false
     cancelarPreparacion()
     for (const temporizador of [temporizadorAsentamiento, temporizadorSalida]) {
@@ -320,6 +324,11 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
 
   // El conector solo pinta su curva superior. El resto de sus 18 px es transparente y debe dejar
   // pasar los clics, igual que en los paneles de Notificaciones y Ajustes rápidos.
-  recalcularRegionEntrada = clipWindowInputToContent(ventana, superficiePanel)
+  recalcularRegionEntrada = clipWindowInputToContent(ventana, superficiePanel, {
+    superficieCompletaMientras: () => entradaActiva,
+    // El temporizador puede vencer antes del último layout CSS. La silueta
+    // pintada manda; sin frames no hay mediciones ni trabajo repetido.
+    seguirAsignacion: true,
+  })
   return ventana
 }

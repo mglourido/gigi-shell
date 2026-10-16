@@ -54,7 +54,7 @@ error de Lua sin capturar deja la sesión sin atajos.
 | 1 | `gigishell/env.lua` | Variables de entorno del sistema (cursor, Qt, `LC_TIME`) | a mano — **el idioma lo LEE** de `datetime.json` |
 | 2 | `gigishell/monitores.lua` | Regla comodín: preferido, escala 1 (fallback) | a mano |
 | 3 | `gigishell/pantalla.lua` | Resolución/Hz/escala/VRR por monitor concreto (`desc:`) | a mano — **el dato** lo escribe AGS en `display.json` |
-| 4 | `gigishell/input.lua` | Teclado, ratón, touchpad y gestos (valores base) | a mano |
+| 4 | `gigishell/input.lua` | Teclado, ratón, touchpad y gestos (valores base); `redimensionar-touchpad.lua` controla ancho y alto con Super + tres dedos sin interpolación durante el gesto | a mano |
 | 5 | `gigishell/ventanas.lua` | Gaps, bordes, sombras, blur, opacidad, `layout` + `sin_smart_split()`, el envoltorio que usan los cuatro caminos que mueven ventanas entre escritorios, y `opacidad_ahorro()` | a mano — **la opacidad forzada del modo ahorro** la escribe AGS en `opacidad-ventanas.json` |
 | 6 | `gigishell/animaciones.lua` | Curvas y animaciones | a mano |
 | 7 | `gigishell/reglas.lua` | Reglas de ventana y de capa | a mano |
