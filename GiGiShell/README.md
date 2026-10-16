@@ -160,7 +160,7 @@ A couple of one-time, per-machine choices that are intentionally **not** version
 state, not code — see `docs/anadir-perfiles-por-equipo.md`):
 
 - **GPU profile**: the installer detects it and writes `~/.config/gigishell/gpu-perfil` for you
-  (`laptop-hibrida`, `sobremesa-nvidia`, or `integrada` for plain Intel/AMD). It never
+  (`laptop-hibrida`, `sobremesa-nvidia`, `sobremesa-amd`, or `integrada`). It never
   overwrites a file you already wrote, so override it by hand whenever the guess is wrong.
 - **Region/locale**: set once from Settings → Region (nothing is assumed on your behalf).
 - **Cursor theme**: set once from Settings → Devices → Pointer, if you want a specific one.

@@ -25,6 +25,7 @@ hypr/                       (symlink: ~/.config/hypr)
 │   └── gpu/                 un módulo por hardware; lo elige un fichero local
 │       ├── laptop-hibrida.lua
 │       ├── sobremesa-nvidia.lua
+│       ├── sobremesa-amd.lua
 │       └── integrada.lua
 │   ├── pantalla.lua         lee display.json (Ajustes > Pantalla)
 │   ├── dispositivos.lua     lee devices.json (Ajustes > Dispositivos)
@@ -128,7 +129,7 @@ que el usuario vea cuántos caracteres se registraron.
 
 ## Perfiles de GPU: `gigishell/gpu/`
 
-Tres módulos, uno por hardware. **Ya no se descomenta una línea**: el perfil de
+Cuatro módulos, uno por hardware. **Ya no se descomenta una línea**: el perfil de
 cada máquina lo dice `~/.config/gigishell/gpu-perfil`, un fichero local de una línea
 **fuera del repo** (la elección de máquina es estado local, como manda
 [`anadir-perfiles-por-equipo.md`](anadir-perfiles-por-equipo.md)):
@@ -145,6 +146,16 @@ instalador respeta tu elección en las siguientes pasadas.
 máquina es Intel o AMD sola, no hay nada que ajustar». Antes eso se decía dejando el
 fichero ausente, y `gpu.lua` no puede distinguir «todavía no lo he elegido» de «lo elegí
 y es que no hace falta»: avisaba en pantalla en CADA inicio de sesión, para siempre.
+
+`sobremesa-amd.lua` usa amdgpu y la selección automática de Mesa/radeonsi/RADV,
+con cursor por hardware. El instalador lo selecciona cuando detecta AMD sin NVIDIA
+y sin batería del sistema; los portátiles AMD conservan `integrada`. Se reutiliza
+el selector local de GPU existente porque distingue fabricantes y equipos híbridos,
+algo que el selector `laptop|desktop` de Kitty y Firefox no representa.
+
+Después de sustituir una NVIDIA por AMD, cambia el fichero a `sobremesa-amd` y
+vuelve a iniciar sesión: una recarga no elimina las variables NVIDIA que ya
+heredaron el compositor y sus aplicaciones. Ver [SETUP.md §9](SETUP.md#9-elegir-la-configuración-de-gpu-correcta).
 
 Ausente o con un nombre inválido = no se aplica ningún perfil y sale un aviso en
 pantalla; el compositor arranca igual (fail-open).

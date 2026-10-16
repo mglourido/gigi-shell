@@ -16,6 +16,7 @@ local util = require("gigishell.util")
 local VALIDOS = {
   ["laptop-hibrida"] = true,
   ["sobremesa-nvidia"] = true,
+  ["sobremesa-amd"] = true,
   -- "no hay nada que configurar" también es una elección: sin este nombre, la
   -- única forma de decirlo era dejar el fichero ausente, y eso avisaba en cada
   -- inicio de sesión en cualquier máquina Intel/AMD. Ver gpu/integrada.lua.
@@ -27,7 +28,7 @@ local nombre = (util.leer_fichero(ruta) or ""):gsub("%s+", "")
 
 if nombre == "" then
   util.notificar("sin perfil de GPU: escribe uno en ~/.config/gigishell/gpu-perfil "
-    .. "(laptop-hibrida | sobremesa-nvidia | integrada)")
+    .. "(laptop-hibrida | sobremesa-nvidia | sobremesa-amd | integrada)")
 elseif not VALIDOS[nombre] then
   util.notificar("perfil de GPU desconocido: '" .. nombre .. "' (gpu-perfil)")
 else

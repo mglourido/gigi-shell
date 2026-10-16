@@ -598,22 +598,66 @@ garantizado. La regla es:
 | ------------------------------------- | ------------------ |
 | NVIDIA + iGPU (Intel/AMD) **y batería** | `laptop-hibrida`   |
 | NVIDIA sin iGPU, o NVIDIA sin batería   | `sobremesa-nvidia` |
-| Solo Intel o solo AMD                   | `integrada`        |
+| AMD sin NVIDIA y sin batería del sistema | `sobremesa-amd`   |
+| Intel sin NVIDIA, o AMD con batería      | `integrada`        |
 
 - **Portátil Intel + NVIDIA para offload:** `laptop-hibrida`. Hyprland y la pantalla
   funcionan sobre Intel; los juegos pesados se lanzan con `prime-run`.
 - **Sobremesa NVIDIA:** `sobremesa-nvidia`.
-- **Solo AMD o solo Intel:** `integrada`. Ese módulo **no configura nada**, y ese es su
+- **Sobremesa AMD Radeon:** `sobremesa-amd`. Usa `amdgpu` en el kernel,
+  Mesa/radeonsi para OpenGL y VA-API, y RADV para Vulkan. Mantiene el cursor por
+  hardware y deja que aquamarine seleccione la GPU que maneja la pantalla.
+  libva ya selecciona `radeonsi` al detectar `amdgpu`; no hace falta forzar un
+  controlador con variables globales. También sirve para las RX 9070 / RDNA 4.
+- **Intel o portátil AMD sin NVIDIA:** `integrada`. Ese módulo **no configura nada**, y ese es su
   cometido: Mesa y aquamarine ya eligen bien cuando hay una sola GPU, y las variables de
   los perfiles NVIDIA sobre Mesa rompen la aceleración de vídeo en vez de mejorarla.
   Existe para que «no hay nada que configurar» sea una respuesta y no un hueco — con el
   fichero ausente, `gpu.lua` no puede distinguirlo de «todavía no lo he elegido» y avisa
   en pantalla en **cada inicio de sesión**.
 
-Los tres perfiles están versionados. El instalador **no pisa** un `gpu-perfil` que ya
+Los cuatro perfiles están versionados. El instalador **no pisa** un `gpu-perfil` que ya
 exista, así que tu elección manual gana siempre. Sin fichero (o con un nombre que no
 exista) no se aplica ninguno y sale un aviso en pantalla, pero el compositor arranca
 igual: el primer arranque es portable.
+
+### Cambiar de NVIDIA a AMD Radeon
+
+El perfil anterior se conserva aunque cambies físicamente la tarjeta. Si sigue
+siendo `sobremesa-nvidia`, fuerza GBM/GLX/VA-API de NVIDIA sobre la Radeon y puede
+romper la aceleración de las aplicaciones. Selecciona el nuevo perfil:
+
+```sh
+printf '%s\n' sobremesa-amd > ~/.config/gigishell/gpu-perfil
+```
+
+Después **cierra sesión y vuelve a entrar**. `hyprctl reload` aplica las opciones
+de Hyprland, pero quitar un `hl.env` no borra la variable del compositor ni del
+entorno de las aplicaciones que ya estaban abiertas. Tampoco basta con abrir
+otra terminal desde una aplicación que heredó el entorno antiguo.
+
+El instalador añade `mesa`, `vulkan-radeon` y `linux-firmware-amdgpu` cuando el
+perfil elegido es `sobremesa-amd`. En Arch/CachyOS actual, Mesa incluye el driver
+VA-API `radeonsi`. Para Steam/Proton de 32 bits se necesitan además `lib32-mesa` y
+`lib32-vulkan-radeon` del repositorio `multilib`, si usas esas aplicaciones.
+El perfil no añade procesos, sondeos, cachés ni escrituras persistentes.
+
+FreeSync/VRR y HDR se eligen según el monitor y las preferencias del usuario. El
+perfil de GPU conserva sus ajustes existentes. Evita copiar ajustes experimentales
+`RADV_PERFTEST` o desactivar V-Sync globalmente como receta para RDNA 4: Mesa ya
+habilita las optimizaciones compatibles por defecto.
+
+Fuentes: [RADV y amdgpu en Mesa](https://docs.mesa3d.org/drivers/radv.html),
+[selección automática VA-API en libva](https://github.com/intel/libva/blob/master/va/drm/va_drm_utils.c),
+[variables exclusivas de NVIDIA en Hyprland](https://wiki.hypr.land/Configuring/Advanced-and-Cool/Environment-variables/#nvidia-specific).
+
+Tras volver a entrar, comprueba el perfil y los errores:
+
+```sh
+cat ~/.config/gigishell/gpu-perfil
+hyprctl configerrors
+hyprctl systeminfo
+```
 
 `gigishell/env-firefox.lua` solo activa Wayland/EGL y no fuerza un driver VA-API ni desactiva el
 sandbox multimedia. Los ajustes exclusivos de NVIDIA están aislados en el perfil de

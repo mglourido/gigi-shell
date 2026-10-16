@@ -54,7 +54,7 @@ required=(
   ags/textos/ajustes/accesibilidad.json
   hypr/hyprland.lua hypr/gigishell/util.lua hypr/gigishell/json.lua hypr/gigishell/variables.lua
   hypr/shaders/daltonismo-protanopia.frag hypr/shaders/daltonismo-deuteranopia.frag hypr/shaders/daltonismo-tritanopia.frag
-  hypr/gigishell/gpu.lua hypr/gigishell/gpu/laptop-hibrida.lua hypr/gigishell/gpu/sobremesa-nvidia.lua hypr/gigishell/gpu/integrada.lua
+  hypr/gigishell/gpu.lua hypr/gigishell/gpu/laptop-hibrida.lua hypr/gigishell/gpu/sobremesa-nvidia.lua hypr/gigishell/gpu/sobremesa-amd.lua hypr/gigishell/gpu/integrada.lua
   hypr/scripts/bloquear.sh hypr/scripts/hypridle.sh
   hypr/scripts/clipboard-history.sh hypr/scripts/limpiar-portapapeles.sh hypr/scripts/miniatura-portapapeles.sh hypr/scripts/emoji-picker.sh hypr/scripts/scan-file.sh
   hypr/scripts/usb-eject.sh hypr/scripts/usb-repair.sh
@@ -706,6 +706,7 @@ EOF
       # una instalación por lo demás correcta.
       gpu_hay_nvidia=0
       gpu_hay_integrada=0
+      gpu_hay_amd=0
       for gpu_dispositivo in /sys/bus/pci/devices/*; do
         [[ -r "$gpu_dispositivo/class" && -r "$gpu_dispositivo/vendor" ]] || continue
         IFS= read -r gpu_clase < "$gpu_dispositivo/class" || continue
@@ -713,13 +714,21 @@ EOF
         IFS= read -r gpu_vendor < "$gpu_dispositivo/vendor" || continue
         case "$gpu_vendor" in
           0x10de) gpu_hay_nvidia=1 ;;
-          0x8086|0x1002|0x1022) gpu_hay_integrada=1 ;;
+          0x8086) gpu_hay_integrada=1 ;;
+          0x1002|0x1022) gpu_hay_integrada=1; gpu_hay_amd=1 ;;
         esac
       done
       case "$gpu_perfil" in
         sobremesa-nvidia|laptop-hibrida)
-          (( gpu_hay_nvidia )) \
-            || warn "el perfil de GPU '$gpu_perfil' asume una NVIDIA y aquí no hay ninguna: exporta GBM_BACKEND/LIBVA_DRIVER_NAME de NVIDIA sobre Mesa (echo integrada > $gpu_perfil_ruta)"
+          if (( ! gpu_hay_nvidia )); then
+            gpu_perfil_recomendado=integrada
+            (( gpu_hay_amd )) && gpu_perfil_recomendado=sobremesa-amd
+            warn "el perfil de GPU '$gpu_perfil' asume una NVIDIA y aquí no hay ninguna (echo $gpu_perfil_recomendado > $gpu_perfil_ruta y vuelve a iniciar sesión)"
+          fi
+          ;;
+        sobremesa-amd)
+          (( gpu_hay_amd )) \
+            || warn "el perfil de GPU 'sobremesa-amd' asume una Radeon y aquí no hay ninguna; revisa $gpu_perfil_ruta"
           ;;
         integrada)
           (( gpu_hay_nvidia )) \
@@ -736,6 +745,17 @@ EOF
         sobremesa-nvidia)
           pacman -Q libva-nvidia-driver >/dev/null 2>&1 \
             || fail "el perfil '$gpu_perfil' exporta LIBVA_DRIVER_NAME=nvidia pero falta libva-nvidia-driver (sudo pacman -S --needed libva-nvidia-driver)"
+          ;;
+        sobremesa-amd)
+          for gpu_paquete in mesa vulkan-radeon linux-firmware-amdgpu; do
+            pacman -Q "$gpu_paquete" >/dev/null 2>&1 \
+              || fail "el perfil '$gpu_perfil' necesita $gpu_paquete (sudo pacman -S --needed $gpu_paquete)"
+          done
+          [[ -e /usr/lib/dri/radeonsi_drv_video.so ]] \
+            || fail "falta el controlador VA-API radeonsi de Mesa para AMD"
+          if [[ "${GBM_BACKEND:-}" == nvidia-drm || "${__GLX_VENDOR_LIBRARY_NAME:-}" == nvidia || "${LIBVA_DRIVER_NAME:-}" == nvidia ]]; then
+            warn "perfil AMD seleccionado pero este proceso aún hereda variables NVIDIA: cierra sesión y vuelve a entrar"
+          fi
           ;;
       esac
     else

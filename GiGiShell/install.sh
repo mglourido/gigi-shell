@@ -272,7 +272,7 @@ fi
 # no está garantizado, y un `command -v lspci` fallido dejaría el perfil sin elegir sin
 # que se note. Clases PCI 0x03xxxx = VGA / 3D controller / Display controller.
 detectar_perfil_gpu() {
-  local dispositivo clase vendor nvidia=0 integrada=0 encontrada=0
+  local dispositivo clase vendor nvidia=0 integrada=0 amd=0 encontrada=0
   for dispositivo in /sys/bus/pci/devices/*; do
     [[ -r "$dispositivo/class" && -r "$dispositivo/vendor" ]] || continue
     IFS= read -r clase < "$dispositivo/class" || continue
@@ -281,7 +281,8 @@ detectar_perfil_gpu() {
     encontrada=1
     case "$vendor" in
       0x10de) nvidia=1 ;;
-      0x8086|0x1002|0x1022) integrada=1 ;;
+      0x8086) integrada=1 ;;
+      0x1002|0x1022) integrada=1; amd=1 ;;
     esac
   done
   ((encontrada)) || return 1
@@ -290,6 +291,8 @@ detectar_perfil_gpu() {
     # casi siempre de la NVIDIA, que es lo que asume sobremesa-nvidia.
     if ((integrada)) && tiene_bateria; then printf 'laptop-hibrida'
     else printf 'sobremesa-nvidia'; fi
+  elif ((amd)) && ! tiene_bateria; then
+    printf 'sobremesa-amd'
   elif ((integrada)); then
     printf 'integrada'
   else
@@ -745,6 +748,7 @@ install_packages() {
   fi
   case "$perfil_gpu_efectivo" in
     sobremesa-nvidia) official+=(libva-nvidia-driver) ;;
+    sobremesa-amd) official+=(mesa vulkan-radeon linux-firmware-amdgpu) ;;
   esac
 
   # AGS y las bibliotecas Astal entran EN LA MISMA LISTA, no en una pasada aparte.
