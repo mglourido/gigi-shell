@@ -79,7 +79,7 @@ async function perfilActual(): Promise<string | null> {
     const v = salida.trim()
     return v.length > 0 ? v : null
   } catch (error) {
-    console.error("[suspension-falsa] no se pudo leer el perfil de energía:", error)
+    console.warn("[suspension-falsa] no se pudo leer el perfil de energía:", error)
     return null
   }
 }
@@ -92,7 +92,7 @@ async function fijarPerfil(perfil: string): Promise<boolean> {
     await execAsync([CTL, "set", perfil])
     return true
   } catch (error) {
-    console.error(`[suspension-falsa] no se pudo poner el perfil "${perfil}":`, error)
+    console.warn(`[suspension-falsa] no se pudo poner el perfil "${perfil}":`, error)
     return false
   }
 }
