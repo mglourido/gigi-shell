@@ -67,18 +67,36 @@ case " $id " in
 esac
 
 # ── Detección de GPU (una vez) ────────────────────────────────────────────────
+# Mismo criterio PCI que el instalador: clase 0x03 (VGA/3D/display) y fabricante.
+# Leer sysfs con builtins evita lspci/grep y funciona sin pciutils o driver cargado.
+# No basta encontrar un dispositivo AMD: también podría ser la CPU o un puente PCI.
 has_nvidia=false; has_amd=false
-if command -v lspci >/dev/null 2>&1; then
-    gpus=$(lspci 2>/dev/null | grep -iE 'vga|3d|display' || true)
-    [[ "$gpus" == *NVIDIA* ]] && has_nvidia=true
-    echo "$gpus" | grep -qiE 'AMD|ATI|Radeon' && has_amd=true
-fi
+for dispositivo in /sys/bus/pci/devices/*; do
+    [[ -r "$dispositivo/class" && -r "$dispositivo/vendor" ]] || continue
+    IFS= read -r clase < "$dispositivo/class" || continue
+    [[ "$clase" == 0x03* ]] || continue
+    IFS= read -r fabricante < "$dispositivo/vendor" || continue
+    case "$fabricante" in
+        0x10de) has_nvidia=true ;;
+        0x1002|0x1022) has_amd=true ;;
+    esac
+done
 
 # ¿El nombre de paquete corresponde a un driver de GPU de un fabricante presente?
 is_gpu() {
-    local n=$1
+    local n=${1%%:*}  # APT puede añadir :amd64/:i386 al nombre del paquete.
     if $has_nvidia && [[ "$n" == *nvidia* ]]; then return 0; fi
-    if $has_amd && [[ "$n" == *mesa* || "$n" == *radeon* || "$n" == *amdgpu* || "$n" == *amdvlk* ]]; then return 0; fi
+    if $has_amd; then
+        # Mesa/RADV, drivers Xorg y firmware Radeon; las bibliotecas compartidas
+        # DRM/VA-API/Vulkan también afectan al stack AMD, incluidas las de 32 bits.
+        case "$n" in
+            *mesa*|*radeon*|*amdgpu*|*amdvlk*|xf86-video-ati|xserver-xorg-video-ati|\
+            firmware-amd-graphics|amd-gpu-firmware|\
+            libdrm|lib32-libdrm|libdrm2|libdrm-amdgpu1|\
+            libva|lib32-libva|libva[0-9]*|libva-drm*|libva-x11*|libva-wayland*|\
+            vulkan-icd-loader|lib32-vulkan-icd-loader|vulkan-loader|libvulkan1) return 0 ;;
+        esac
+    fi
     return 1
 }
 

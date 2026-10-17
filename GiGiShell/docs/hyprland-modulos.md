@@ -1567,17 +1567,47 @@ La generación del resultado usa **una sola ejecución de `jq`**, en lugar de ci
 marca de tiempo. Solo se acumulan los veinte nombres que muestra `systemSample`; el contador
 incluye todos los paquetes. Se conserva la escritura atómica y la clasificación de avisos.
 
+La GPU se detecta **una sola vez**, leyendo clase y fabricante de los dispositivos PCI
+en `/sys/bus/pci/devices`, con el mismo criterio que el instalador. Solo las clases `0x03`
+(VGA/3D/display) cuentan: un procesador AMD no convierte una NVIDIA en una Radeon. Se admiten
+ambas marcas a la vez y dispositivos sin driver cargado. No se necesitan `lspci`, `grep`,
+procesos nuevos ni cachés para detectarlas.
+
+Se mantiene el filtro por hardware para que los paquetes NVIDIA que queden instalados al
+cambiar a Radeon no generen avisos de GPU. En una medición local de 31 ejecuciones con 1.000
+paquetes por ejecución, usando el mismo filtro ampliado, la mediana fue **28,2 ms** con la
+detección anterior (`lspci` y dos `grep`), **15,9 ms** con sysfs y **15,9 ms** sin detectar
+hardware y aceptando ambas marcas. Son tiempos de detección y clasificación con Bash,
+sin consultar gestores de paquetes ni red; no representan la duración total de una búsqueda.
+La variante sysfs elimina tres comandos externos sin un coste apreciable frente a aceptar
+ambas marcas. No añade trabajo periódico de detección ni procesos residentes.
+
+El filtro AMD incluye Mesa/RADV (también `lib32-*` y variantes), Radeon/AMDGPU/AMDVLK,
+los drivers Xorg ATI, `linux-firmware-amdgpu`/`linux-firmware-radeon`,
+`firmware-amd-graphics` (Debian) y `amd-gpu-firmware` (Fedora). También contempla las
+bibliotecas DRM, VA-API y el cargador Vulkan, con sus nombres multilib y el sufijo
+`:arquitectura` de APT. Estos paquetes solo se destacan si aparecen entre las actualizaciones
+pendientes del gestor; no se instalan ni se consultan por separado.
+Referencias de paquetes: [Mesa](https://archlinux.org/packages/extra/x86_64/mesa/),
+[RADV](https://archlinux.org/packages/extra/x86_64/vulkan-radeon/),
+[firmware AMD de Arch](https://archlinux.org/packages/core/any/linux-firmware-amdgpu/),
+[Debian](https://packages.debian.org/stable/firmware-amd-graphics) y
+[Fedora](https://packages.fedoraproject.org/pkgs/linux-firmware/amd-gpu-firmware/).
+
 Regresiones sin red ni instalaciones: `python3 hypr/scripts/updates-monitor.test.py -v`.
 Cubren eventos durante las consultas, transacciones con pausas largas, transacciones seguidas,
 apagado por SIGTERM, respaldo sin vigilancia, refresco local de los avisos, generación del JSON
 y aplazamiento por juego usando el estado compartido, incluidos archivos ausentes y pids muertos.
+La prueba local `python3 hypr/scripts/updates-monitor-gpu_test.py -v` cubre además
+AMD/NVIDIA/híbridas, ausencia de GPU reconocida, detección sin pciutils, clases PCI ajenas
+a gráficos, bibliotecas AMD, firmware y nombres multilib/multiarch.
 
 All polling is **read-only and sudo-free**, one branch per distro family detected from
 `/etc/os-release`: Arch/CachyOS → `checkupdates` (pacman-contrib; syncs a *temp* DB in the
 user cache, never the system one; falls back to `pacman -Qu`), Fedora → `dnf -q check-update`
 (rc 100 = updates), Debian/Ubuntu → `apt list --upgradable` **against the existing cache, no
-`apt update`**. Each pending package lands in one of three buckets: *GPU driver* (name matches a vendor actually
-present per `lspci` — `*nvidia*`, or `*mesa*`/`*radeon*`/`*amdgpu*`/`*amdvlk*` for AMD), *kernel*
+`apt update`**. Each pending package lands in one of three buckets: *GPU driver* (fabricante
+presente según sysfs y los patrones de paquetes descritos arriba), *kernel*
 (`linux`, `linux-*`, `kernel`, `kernel-*` — so `util-linux` does **not** match), or *system*
 (everything else, counted only). Results are written **atomically** (tmp+`mv`, built with `jq` so
 names/versions are escaped) to `~/.config/gigishell/updates.json`:
