@@ -68,7 +68,7 @@ M.acciones = {
     hl.exec_cmd("setsid -f " .. util.HOGAR .. "/.config/hypr/scripts/bloquear.sh")
   end,
   pantalla = function()
-    -- Solo una tecla la vuelve a encender: mouse_move_enables_dpms = false.
+    -- El ratón o una tecla la vuelven a encender (gigishell/ventanas.lua).
     hl.dispatch(hl.dsp.dpms({ action = "off" }))
   end,
   -- Pasa por AGS, que es quien conoce el ajuste «sustituir la suspensión real por la

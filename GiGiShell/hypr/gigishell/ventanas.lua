@@ -188,7 +188,7 @@ hl.config({
     disable_hyprland_logo   = true, -- true quita el logo/anime girl aleatorio. :(
 
     focus_on_activate       = false, -- no roba el foco al abrirse apps
-    mouse_move_enables_dpms = false, -- no despierta pantalla al mover ratón
+    mouse_move_enables_dpms = true,  -- despierta pantalla al mover ratón, también en suspensión falsa
     key_press_enables_dpms  = true,  -- sí la despierta al pulsar tecla
     disable_autoreload      = false, -- recarga conf automáticamente al guardar
 

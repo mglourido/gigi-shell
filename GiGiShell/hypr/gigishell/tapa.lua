@@ -157,9 +157,9 @@ end
 
 --- Al ABRIR la tapa se enciende la pantalla, siempre y sin mirar la preferencia.
 ---
---- No es simetría decorativa: con la acción "Apagar la pantalla" nadie más la
---- volvería a encender (mouse_move_enables_dpms = false en gigishell/ventanas.lua), y
---- abrir la tapa a un panel negro se lee como que el portátil no ha despertado. En
+--- Con la acción "Apagar la pantalla", abrir la tapa debe recuperar el panel sin
+--- necesitar además mover el ratón ni pulsar una tecla. Abrir la tapa a un panel
+--- negro se lee como que el portátil no ha despertado. En
 --- el resto de acciones es inofensivo — al volver de una suspensión hypridle ya
 --- manda su propio dpms-on, y encender lo que ya está encendido no hace nada.
 ---

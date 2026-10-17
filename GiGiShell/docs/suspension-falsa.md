@@ -278,10 +278,16 @@ las ventanas de AGS ocultas no hay ni UI donde apagarlo.
 
 La salida robusta es **hyprlock como puerta**:
 
-1. Una tecla enciende la pantalla. El ratón **no** (`mouse_move_enables_dpms = false` en
-   `gigishell/ventanas.lua`), lo cual aquí es una ventaja: un roce en la mesa no despierta el equipo.
+1. Mover el ratón o pulsar una tecla enciende la pantalla (`mouse_move_enables_dpms = true` y
+   `key_press_enables_dpms = true` en `gigishell/ventanas.lua`). Esto también funciona si la
+   suspensión falsa se activó manualmente desde las funciones del workspace.
 2. Aparece hyprlock. El usuario desbloquea.
 3. El desbloqueo dispara la secuencia de salida.
+
+Desde el 17-10-2026 el ratón enciende la pantalla siempre que esté apagada por DPMS, por petición
+del usuario. Antes `mouse_move_enables_dpms = false` impedía recuperarla con el ratón tras una
+entrada manual: no había ningún `on-resume` de hypridle que pudiera suplirlo. Encender la pantalla
+no desbloquea la sesión ni sustituye el desbloqueo como puerta de salida.
 
 Además, y sin excepción, **un atajo de escape directo** que salga de la suspensión falsa sin pasar
 por nada. Es la red de seguridad: si el paso 3 falla, el atajo sigue estando ahí.
@@ -680,6 +686,9 @@ lo lee bash), `idle-suspend-vetado` (el epoch del último veto, lo lee el puente
   suspenderse (fail-open).
 - Que la salida funciona con la pantalla apagada por nuestra mano y **sin** que ningún listener de
   hypridle haya vencido. Es el caso que rompe el diseño ingenuo.
+- Que mover el ratón enciende la pantalla tras activar la suspensión falsa desde las funciones
+  del workspace, y también tras un apagado por DPMS fuera de ella. Si hay bloqueo, debe seguir
+  pidiendo la contraseña y la suspensión falsa debe terminar al desbloquear.
 - Que el atajo de escape funciona **con hyprlock delante** (sin él, la red de seguridad no existe).
 - Que un crash de AGS a mitad devuelve el escritorio a su sitio: `pkill ags` con todo puesto y
   mirar opacidad, DND, TLP y apps congeladas (y que el arranque siguiente las descongela).
