@@ -56,11 +56,13 @@ llega a commitearse.
   `compact-workspaces.sh` → `GiGiShell.compactar()`, `escaner-apps-inicio.sh` →
   `gigishell/escaner-apps.lua`. Son globals del config, así que **AGS los llama por
   `hyprctl eval 'GiGiShell.daltonismo("...")'`** (verificado: `eval` comparte el estado Lua del config).
-- **`keybinds-nop.conf` (335 líneas) y `generar-nop-binds.sh` están OBSOLETOS**: los 317 binds
+- **`keybinds-nop.conf` (335 líneas) y `generar-nop-binds.sh` están OBSOLETOS**: los binds
   sordos los calcula ahora un bucle en `gigishell/nop-binds.lua` contra la tabla `usados` que llena el
   envoltorio `bind()` de `gigishell/keybinds.lua`. **Todo atajo nuevo debe pasar por ese envoltorio**,
   no por `hl.bind` directo (no da error: solo deja un bind sordo duplicado encima). El no-op es
-  `hl.dsp.no_op()` nativo, no el `submap, reset` de antes.
+  `hl.dsp.no_op()` nativo, compartido por todos los binds sordos de esa carga. La limitación de la
+  API Lua para sustituirlos por un filtro se detalla en
+  [la sección del bloqueo de SUPER](hyprland-modulos.md#super--tecla-sin-atajo-no-debe-escribirse-gigishellnop-bindslua).
 - **El perfil de GPU ya no se descomenta a mano**: lo elige `~/.config/gigishell/gpu-perfil`, un
   fichero local de una línea (`sobremesa-nvidia`) **fuera del repo** — la elección de máquina es
   estado local, como manda `docs/anadir-perfiles-por-equipo.md`. Ausente o inválido = ningún perfil

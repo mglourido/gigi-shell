@@ -54,13 +54,17 @@ local TECLAS = {
 
 local MODIFICADORES = { "SUPER", "SUPER + SHIFT", "SUPER + CTRL", "SUPER + ALT" }
 
+-- El dispatcher no guarda estado: todos los binds pueden compartirlo. Crearlo
+-- dentro del bucle generaba un userdata HL.Dispatcher temporal por combinación.
+local sin_accion = hl.dsp.no_op()
+
 for _, mods in ipairs(MODIFICADORES) do
   for _, tecla in ipairs(TECLAS) do
     local combo = mods .. " + " .. tecla
     if not usados[normalizar(combo)] then
       -- hl.bind directo A PROPÓSITO: los sordos no deben apuntarse en
       -- `usados` (no son atajos) ni pisarse a sí mismos.
-      hl.bind(combo, hl.dsp.no_op())
+      hl.bind(combo, sin_accion)
     end
   end
 end

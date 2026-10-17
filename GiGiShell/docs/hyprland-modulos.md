@@ -1420,12 +1420,24 @@ cuando en realidad no había regla actuando. Hay que juzgarla con una ventana **
 Con SUPER pulsado, una tecla que **no** forma un atajo llegaba a la aplicación: `SUPER+C` escribía
 una `c`. Es al revés que en Windows, donde la tecla Win sin atajo no hace nada.
 
-**No hay opción global para esto: Hyprland solo se traga una tecla si algún bind la captura.** El
-candidato obvio es `catchall`, y el compositor lo rechaza — medido, no supuesto: responde *«Invalid
-catchall, catchall keybinds are only allowed in submaps»*. La API Lua tampoco lo trae:
-`HL.BindOptions` no tiene `catchall` ni `any`. Así que la única vía es **enumerar** una combinación
+**La API Lua de Hyprland 0.56.2 no ofrece un filtro global que consuma solo las combinaciones
+sin atajo.** `hl.bind("catchall", ...)` se rechaza fuera de un submap; `HL.BindOptions` tampoco
+tiene un comodín `catchall` ni `any`. Para conservar el comportamiento se enumera una combinación
 por tecla (letras, dígitos, puntuación, F1–F12, teclado numérico, navegación y edición; para
 `SUPER`, `SUPER SHIFT`, `SUPER CTRL` y `SUPER ALT`).
+
+**Revisión de la alternativa por eventos (2026-10-17, versión 0.56.2):**
+`hl.on("input.keyboard.key", ...)` recibe código XKB, tiempo y estado **antes** de resolver los
+binds, pero solo permite observar. El puente Lua descarta el resultado del callback y no expone
+el `SCallbackInfo` cancelable de C++: devolver `true`, `false` o una tabla no bloquea nada.
+Comprobado en el código oficial de
+[`LuaEventHandler.cpp`](https://github.com/hyprwm/Hyprland/blob/v0.56.2/src/config/lua/LuaEventHandler.cpp)
+y [`LuaBindingsToplevel.cpp`](https://github.com/hyprwm/Hyprland/blob/v0.56.2/src/config/lua/bindings/LuaBindingsToplevel.cpp).
+Un submap con `catchall` requeriría coordinar entrada/salida, modificadores y atajos reales;
+un bind con `ignore_mods` y `auto_consuming` llevaría el filtrado al callback de cada pulsación.
+Se mantienen los binds explícitos para conservar la resolución nativa, los inhibidores y el
+bloqueo de sesión, sin añadir trabajo Lua a cada tecla escrita. Eliminar la enumeración con esas
+garantías requiere soporte del compositor o un plugin nativo.
 
 **Antes era un fichero generado de 335 líneas** (`keybinds-nop.conf`) más su generador
 (`generar-nop-binds.sh`), que parseaba `hyprctl binds` para saber qué combinaciones estaban ya
@@ -1440,9 +1452,15 @@ por `hl.bind` directo. Saltárselo **no da ningún error**: solo deja esa combin
 —el tuyo y un sordo de más—, que Hyprland ejecuta ambos, así que es inofensivo pero deja los sordos
 sin reflejar la realidad. Hay un aviso gordo en la cabecera del módulo por eso.
 
-**El no-op es `hl.dsp.no_op()`, nativo.** Antes era `submap, reset`, que solo era inerte *mientras
-no existiera ningún submap* en toda la configuración — una trampa que había que documentar y que
-aquí desaparece.
+**El no-op es `hl.dsp.no_op()`, nativo, y se crea una sola vez por carga.** Los binds comparten
+el dispatcher sin estado: se evita crear un objeto temporal `HL.Dispatcher` por combinación.
+Esto reduce asignaciones durante la recarga; la cantidad de binds y su coste por pulsación
+siguen iguales. Antes era `submap, reset`, que solo era inerte *mientras no existiera ningún
+submap* en toda la configuración — una trampa que aquí desaparece.
+
+**Orión sigue leyendo solo los atajos reales de `keybinds.lua`**, con su envoltorio `bind()` y
+sus descripciones. El bloqueo vive aparte y usa `hl.bind` directamente, por lo que no introduce
+filas sin función en la sección Atajos ni cambia el formato que reconoce su parser.
 
 **Ya no hay nada que regenerar ni que se pueda desincronizar**: el bucle se recalcula en cada carga
 del config. El gesto de "recoger los atajos nuevos" (activar el ajuste para forzar una
