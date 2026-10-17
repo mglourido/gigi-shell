@@ -19,6 +19,27 @@ export interface ClienteAplicacionLike {
 
 let indice: Map<string, EntradaEscritorio> | null = null
 let monitorAplicaciones: Gio.AppInfoMonitor | null = null
+const observadores = new Set<() => void>()
+
+function observarAplicaciones(): void {
+  if (monitorAplicaciones) return
+  monitorAplicaciones = Gio.AppInfoMonitor.get()
+  monitorAplicaciones.connect("changed", () => {
+    indice = null
+    for (const actualizar of observadores) {
+      try { actualizar() } catch (error) {
+        console.error("[aplicaciones] No se pudo actualizar una entrada:", error)
+      }
+    }
+  })
+}
+
+/** Comparte el monitor y avisa después de invalidar el catálogo. */
+export function observarCambiosAplicaciones(actualizar: () => void): () => void {
+  observarAplicaciones()
+  observadores.add(actualizar)
+  return () => { observadores.delete(actualizar) }
+}
 
 function anadirClave(
   mapa: Map<string, EntradaEscritorio>,
@@ -62,10 +83,7 @@ function construirIndice(): Map<string, EntradaEscritorio> {
 }
 
 function obtenerIndice(): Map<string, EntradaEscritorio> {
-  if (!monitorAplicaciones) {
-    monitorAplicaciones = Gio.AppInfoMonitor.get()
-    monitorAplicaciones.connect("changed", () => { indice = null })
-  }
+  observarAplicaciones()
   indice ??= construirIndice()
   return indice
 }

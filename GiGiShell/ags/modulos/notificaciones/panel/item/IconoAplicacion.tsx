@@ -1,62 +1,61 @@
-import { Gtk, Gdk } from "ags/gtk4"
+import { onCleanup } from "ags"
+import { Gtk } from "ags/gtk4"
 import Gio from "gi://Gio"
-import GLib from "gi://GLib"
+import {
+  observarCambiosIconos,
+  resolverIconoNotificacion,
+} from "../../iconos/resolucion"
 
-type InformacionIcono =
-  | { tipo: "nombre"; nombre: string }
-  | { tipo: "archivo"; icono: Gio.FileIcon }
-
-// Los iconos se repiten entre items y vistas. Se memoriza su resolución; GTK
-// comparte su carga y adapta el archivo original al tamaño y escala de cada vista.
-// Reducir antes el archivo a un pixbuf de 18 px emborronaba los iconos con HiDPI.
-const cacheInformacionIconos = new Map<string, InformacionIcono | null>()
-
-function resolverIconoSinCache(iconoApp: string): InformacionIcono | null {
-  if (!iconoApp) return null
-
-  try {
-    if (iconoApp.startsWith("/")) {
-      return GLib.file_test(iconoApp, GLib.FileTest.EXISTS)
-        ? { tipo: "archivo", icono: Gio.FileIcon.new(Gio.File.new_for_path(iconoApp)) }
-        : null
-    }
-
-    const pantalla = Gdk.Display.get_default()
-    if (!pantalla) return null
-    const tema = Gtk.IconTheme.get_for_display(pantalla)
-    const minusculas = iconoApp.toLowerCase()
-    const candidatos = [iconoApp, minusculas, minusculas.replace(/[_\s]/g, "-")]
-    const encontrado = candidatos.find((nombre) => tema.has_icon(nombre))
-    return encontrado ? { tipo: "nombre", nombre: encontrado } : null
-  } catch (_) {
-    return null
-  }
+interface PropiedadesIcono {
+  iconoApp?: string
+  nombreApp: string
+  alternativa?: string
+  tamano?: number
+  clase?: string
+  alCambiarDisponibilidad?: (disponible: boolean) => void
 }
 
-function resolverIcono(iconoApp: string): InformacionIcono | null {
-  const cacheado = cacheInformacionIconos.get(iconoApp)
-  if (cacheado !== undefined) return cacheado
-  const informacion = resolverIconoSinCache(iconoApp)
-  cacheInformacionIconos.set(iconoApp, informacion)
-  return informacion
-}
+/** Una imagen por vista; las referencias y las señales se comparten entre todas. */
+export default function IconoAppNotificacion({
+  iconoApp = "", nombreApp, alternativa = "", tamano = 18,
+  clase = "notif-app-img", alCambiarDisponibilidad,
+}: PropiedadesIcono): Gtk.Box {
+  const caja = new Gtk.Box({ valign: Gtk.Align.CENTER, css_classes: [clase] })
+  const imagen = new Gtk.Image({ pixel_size: tamano })
+  const simbolo = alternativa
+    ? new Gtk.Label({ label: alternativa })
+    : null
+  caja.tooltip_text = nombreApp || null
+  caja.append(imagen)
+  if (simbolo) caja.append(simbolo)
 
-export default function IconoAppNotificacion({ iconoApp }: { iconoApp: string }): Gtk.Image | null {
-  const informacion = resolverIcono(iconoApp)
-  if (!informacion) return null
-
-  try {
-    let imagen: Gtk.Image
-    if (informacion.tipo === "archivo") {
-      imagen = Gtk.Image.new_from_gicon(informacion.icono)
-    } else {
-      imagen = Gtk.Image.new_from_icon_name(informacion.nombre)
-      imagen.pixel_size = 18
+  function actualizar(): void {
+    let icono = resolverIconoNotificacion(iconoApp, nombreApp)
+    try {
+      if (icono instanceof Gio.FileIcon) {
+        // Una representación nueva y ajustada a la escala evita reutilizar el
+        // contenido antiguo cuando un avatar se sobrescribe en la misma ruta.
+        imagen.set_from_paintable(Gtk.IconPaintable.new_for_file(
+          icono.get_file(), tamano, imagen.get_scale_factor(),
+        ))
+      } else if (icono) imagen.set_from_gicon(icono)
+      else imagen.clear()
+    } catch (_) {
+      icono = null
+      imagen.clear()
     }
-    imagen.valign = Gtk.Align.CENTER
-    imagen.css_classes = ["notif-app-img"]
-    return imagen
-  } catch (_) {
-    return null
+    imagen.visible = !!icono
+    if (simbolo) simbolo.visible = !icono
+    caja.visible = !!icono || !!alternativa
+    alCambiarDisponibilidad?.(caja.visible)
   }
+
+  const dejarDeObservar = observarCambiosIconos(actualizar)
+  const senalEscala = imagen.connect("notify::scale-factor", actualizar)
+  onCleanup(() => {
+    dejarDeObservar()
+    imagen.disconnect(senalEscala)
+  })
+  actualizar()
+  return caja
 }

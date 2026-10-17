@@ -8,6 +8,7 @@ import {
   type StoredNotification,
 } from "../store"
 import { invocarAccionViva } from "../panel/item/acciones"
+import IconoAppNotificacion from "../panel/item/IconoAplicacion"
 import { aMarcadoPango, limpiarMarcado } from "../marcado"
 import { resolverAccionesPopup } from "./logica.ts"
 
@@ -43,7 +44,6 @@ export default function ElementoPopup({
   registrarDescarte,
 }: PropiedadesElementoPopup) {
   const color = resolveNotifColor(notificacion)
-  const icono = getAppIcon(notificacion.appName)
 
   // El aspecto dunst lo decide siempre una regla mediante `meta.style`. No se usa el
   // hint de origen como fallback: hacerlo impediría desactivar la regla desde la UI.
@@ -94,12 +94,14 @@ export default function ElementoPopup({
       spacing={6}
     >
       <box spacing={5} valign={Gtk.Align.CENTER} visible={!esDunst || !!notificacion.summary}>
-        <label
-          cssClasses={["notif-popup-app-icon"]}
-          label={icono}
-          css={esDunst ? "" : `color: ${color};`}
-          visible={!esDunst}
-        />
+        {!esDunst && <box css={`color: ${color};`}>
+          <IconoAppNotificacion
+            nombreApp={notificacion.appName}
+            alternativa={getAppIcon(notificacion.appName)}
+            tamano={11}
+            clase="notif-popup-app-icon"
+          />
+        </box>}
         {/* El nombre de app cede el ancho ANTES que el título: ver el comentario de
             `notif-popup-summary`, justo debajo. 12 caracteres a 10 px son ~72 px. */}
         <label

@@ -12,6 +12,7 @@ El resto del código se agrupa por responsabilidad:
 - `panel/item/`: tarjeta individual, acciones, respuesta, iconos y lógica asociada.
 - `popup/`: elemento visual, pila, disposición, duración y control de ráfagas.
 - `estado/`: modelos, almacenamiento, estado de panel, presentación y persistencia JSON.
+- `iconos/`: resolución compartida de logos y caché acotada en memoria.
 - `procesamiento/`: entrada y transformación de notificaciones recibidas.
 - `daemon/`: comprobación del propietario D-Bus y aviso de conflicto.
 - `rules/`: motor puro de reglas y validación.
@@ -22,6 +23,42 @@ El resto del código se agrupa por responsabilidad:
 
 Si se añaden pruebas, deben permanecer junto al código que verifican. Los consumidores externos deben importar
 las fachadas de la raíz salvo que necesiten explícitamente una pieza interna concreta.
+
+WhatsApp puede enviar la foto del contacto en `appIcon`. Las tarjetas del panel y
+del historial conservan esa imagen y añaden al lado el logo instalado según
+`appName` (WhatsApp o ZapZap); no debe usarse la presencia de `appIcon` para ocultar
+ese identificador.
+Si falta la foto, el logo sigue identificando la aplicación. Tanto ese logo como
+los de los popups usan el símbolo anterior como alternativa si no hay imagen
+instalada. El estilo dunst continúa ocultándolos y evita resolverlos.
+
+El icono recibido tiene prioridad, pero puede faltar (como ocurre con Discord) o
+apuntar a un archivo temporal eliminado. Antes de recurrir al nombre de la app,
+las tarjetas buscan su nombre en el tema de iconos y consultan el catálogo
+compartido de entradas `.desktop`. También se admiten imágenes con URI `file://`.
+Así se recuperan logos instalados sin sustituir avatares válidos ni guardar
+iconos adicionales en disco.
+
+La caché de resolución guarda como máximo 128 referencias por último uso; no
+retiene texturas, pixbufs ni widgets. Tema y catálogo de aplicaciones comparten
+las señales existentes: al cambiar se invalidan aciertos y fallos y se refrescan
+las vistas montadas mediante un único aviso diferido por ráfaga. El catálogo se
+invalida antes de avisar, para no volver a memorizar una entrada antigua. Cada
+vista libera su suscripción al desmontarse.
+
+Las rutas externas, incluidos los avatares, se comprueban en cada reutilización
+y no se memorizan: un fallo previo no oculta un archivo que aparece después y
+un archivo borrado permite recuperar el logo de la aplicación. Se crea una
+representación ajustada al tamaño y la escala actuales, para recoger también
+sobrescrituras en la misma ruta sin retener la imagen anterior. No hay sondeo
+ni un vigilante por notificación; un cambio aislado de avatar se recoge al
+volver a montar la tarjeta o al siguiente cambio de tema/aplicaciones.
+
+Los JSON conservan referencias de icono, no imágenes por notificación. Los PNG
+que Astal genera para `image-data` pertenecen a su caché independiente
+`~/.cache/astal/notifd/`. No se añaden copias ni barridos periódicos sobre ella:
+borrar una imagen todavía usada por el daemon o por un historial rompería su
+referencia, y el volumen observado no justifica otro gestor de caché.
 
 Los popups recortan la entrada por tarjeta, con esquinas redondeadas en el estilo
 normal y rectas en dunst. GTK puede conservar el alto anterior de su ventana al

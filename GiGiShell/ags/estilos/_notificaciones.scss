@@ -619,6 +619,13 @@ button.np-filter-chip {
   transform: translateX(-2px);
 }
 
+.notif-app-icon {
+  font-family: $font-icon;
+  font-size: 18px;
+  color: $green;
+  margin: 0;
+}
+
 .notif-app-name {
   font-size: 10px;
   font-weight: 500;
