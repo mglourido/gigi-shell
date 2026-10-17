@@ -46,7 +46,7 @@ set -uo pipefail
 export LC_ALL=C
 
 APP="Almacenamiento"
-NOTIF_APP="$APP"
+NOTIF_APP="Mantenimiento"
 # shellcheck source=lib/notif.sh
 if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     notificar() {

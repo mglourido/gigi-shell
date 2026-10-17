@@ -28,7 +28,7 @@
 #                                      aparece, ahí sí es un problema real → avisar.
 WAIT_SECS=30
 
-NOTIF_APP="WiFi"
+NOTIF_APP="Red"
 # shellcheck source=lib/notif.sh
 if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por

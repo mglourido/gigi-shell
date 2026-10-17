@@ -41,7 +41,7 @@ MIN_BYTES=$(( MIN_GB  * 1024 * 1024 * 1024 ))
 MARCA_AVISOS="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/disco-avisos"
 ESPERA_S=$(( 6 * 3600 ))   # debe coincidir con AVISO_ESPERA_S de vigilancia.ts
 
-NOTIF_APP="Disco"
+NOTIF_APP="Mantenimiento"
 # shellcheck source=lib/notif.sh
 if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por

@@ -13,7 +13,7 @@ archivo_estado="$directorio_estado/grabacion-pantalla.estado"
 archivo_bloqueo="$directorio_estado/grabacion-pantalla.lock"
 archivo_log="$directorio_estado/grabacion-pantalla.log"
 
-NOTIF_APP="GiGiShell"
+NOTIF_APP="Escritorio"
 # shellcheck source=lib/notif.sh
 if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por

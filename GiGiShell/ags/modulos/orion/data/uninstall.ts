@@ -89,7 +89,7 @@ export async function desinstalarApp(objetivo: AppDesinstalable): Promise<Result
     execAsync([
       "notify-send", "-h", "string:x-gigishell-source:system",
       "-h", "string:x-gigishell-event:desinstalar.falta-script", "-u", "critical",
-      "-a", "Desinstalar", `No se pudo desinstalar «${objetivo.name}»`,
+      "-a", "Escritorio", `No se pudo desinstalar «${objetivo.name}»`,
       "Falta hypr/scripts/desinstalar-app.sh: ejecuta bin/link.sh.",
     ]).catch(() => {})
     return "error"

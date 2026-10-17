@@ -43,7 +43,7 @@
 # directorio — `/dev/null`, `/dev/urandom`, los `/dev/dri/*` — o sea miles de
 # eventos por minuto para filtrarlos casi todos.
 
-NOTIF_APP="Cámara"
+NOTIF_APP="Privacidad"
 # shellcheck source=lib/notif.sh
 if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por

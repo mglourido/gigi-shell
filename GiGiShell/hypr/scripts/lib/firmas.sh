@@ -71,7 +71,7 @@ firmas_aviso_con_boton() {   # $1 evento  $2 urgencia  $3 título  $4 cuerpo
     local salida act vigilante notif
     salida=$(mktemp) || return 1
 
-    notificar "$evento" -a "Seguridad" --wait -t 60000 \
+    notificar "$evento" -a "Antivirus" --wait -t 60000 \
         -A "update=Actualizar firmas" -u "$urgencia" "$titulo" "$cuerpo" > "$salida" &
     notif=$!
     # `pkill -P` antes del `kill`, y no es redundante: lo que está en segundo plano es un SUBSHELL

@@ -111,7 +111,7 @@ function escribirEstado(activo: boolean) {
 function notificarFin() {
   try {
     Gio.Subprocess.new(
-      ["notify-send", "-a", "Wake up", "-h", "string:x-gigishell-source:system",
+      ["notify-send", "-a", "Energía", "-h", "string:x-gigishell-source:system",
        "-h", "string:x-gigishell-event:energia.wake-up-fin",
        "Wake up", "Se acabó el plazo: el equipo vuelve a suspenderse con normalidad."],
       Gio.SubprocessFlags.NONE,

@@ -558,6 +558,7 @@ async function setBluetoothPower(powered: boolean, notifyOnError = true) {
     if (notifyOnError) {
       execAsync([
         "notify-send",
+        "-a", "Bluetooth",
         "Bluetooth",
         `No se pudo ${powered ? "encender" : "apagar"} el adaptador`,
       ]).catch(() => {})

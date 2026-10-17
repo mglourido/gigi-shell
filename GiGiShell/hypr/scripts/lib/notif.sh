@@ -31,7 +31,7 @@
 #
 #     # shellcheck source=lib/notif.sh
 #     source "$HOME/.config/hypr/scripts/lib/notif.sh"
-#     NOTIF_APP="USB"                       # opcional: `-a` para todos los avisos
+#     NOTIF_APP="USB"                       # respaldo para eventos sin seudónimo
 #     notificar usb.conectado -u normal "USB conectado" "$label" -t 8000
 #
 # Todo lo que va detrás del id se le pasa tal cual a `notify-send`, así que `-A`,
@@ -56,8 +56,30 @@ _notif_id_valido() { [[ "$1" =~ ^[a-z0-9]+([.-][a-z0-9]+)*$ ]]; }
 
 notificar() {
     local evento=$1; shift
+    # El remitente describe la función, aunque varias compartan monitor. Mantener
+    # este mapa alineado con `seudonimo` en eventd/src/notif.rs. No depende del título
+    # ni añade procesos: se resuelve solo cuando ya hay un aviso que emitir.
+    local remitente="${NOTIF_APP:-}"
+    case "$evento" in
+        bateria.*) remitente="Batería" ;;
+        ram.*|kernel.oom) remitente="Memoria" ;;
+        archivos.actualizacion|sistema.*|actualizaciones.*|app.*|servicio.*) remitente="Sistema" ;;
+        sudo.*|ssh.*|seguridad.*|archivos.*|monitor.*|kernel.modulo-sin-firmar) remitente="Seguridad" ;;
+        antivirus.*|analisis.*|descargas.*|aislado.*) remitente="Antivirus" ;;
+        disco.*|limpieza.*) remitente="Mantenimiento" ;;
+        temperatura.*|cpu.*|gpu.*|hardware.*|kernel.*) remitente="Hardware" ;;
+        arranque.*) remitente="Arranque" ;;
+        usb.*) remitente="USB" ;;
+        wifi.*) remitente="Red" ;;
+        bluetooth.*) remitente="Bluetooth" ;;
+        camara.*) remitente="Privacidad" ;;
+        gestos.*) remitente="Gestos" ;;
+        energia.*) remitente="Energía" ;;
+        juegos.*) remitente="Juegos" ;;
+        grabacion.*|emojis.*|desinstalar.*) remitente="Escritorio" ;;
+    esac
     local -a extra=()
-    [[ -n "$NOTIF_APP" ]] && extra+=(-a "$NOTIF_APP")
+    [[ -n "$remitente" ]] && extra+=(-a "$remitente")
     if _notif_id_valido "$evento"; then
         extra+=(-h "string:x-gigishell-event:$evento")
     else

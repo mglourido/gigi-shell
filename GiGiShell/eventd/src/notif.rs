@@ -57,12 +57,42 @@ pub fn id_valido(id: &str) -> bool {
         })
 }
 
+/// Mismo mapa de remitentes que `hypr/scripts/lib/notif.sh`. Las excepciones van
+/// antes de su familia; no se asignan cadenas ni se consultan archivos al notificar.
+fn seudonimo(evento: &str) -> &'static str {
+    match evento {
+        "kernel.oom" => "Memoria",
+        "archivos.actualizacion" => "Sistema",
+        "kernel.modulo-sin-firmar" => "Seguridad",
+        _ => match evento.split('.').next().unwrap_or("") {
+            "bateria" => "Batería",
+            "ram" => "Memoria",
+            "sistema" | "actualizaciones" | "app" | "servicio" => "Sistema",
+            "sudo" | "ssh" | "seguridad" | "archivos" | "monitor" => "Seguridad",
+            "antivirus" | "analisis" | "descargas" | "aislado" => "Antivirus",
+            "disco" | "limpieza" => "Mantenimiento",
+            "temperatura" | "cpu" | "gpu" | "hardware" | "kernel" => "Hardware",
+            "arranque" => "Arranque",
+            "usb" => "USB",
+            "wifi" => "Red",
+            "bluetooth" => "Bluetooth",
+            "camara" => "Privacidad",
+            "gestos" => "Gestos",
+            "energia" => "Energía",
+            "juegos" => "Juegos",
+            "grabacion" | "emojis" | "desinstalar" => "Escritorio",
+            _ => "GiGiShell",
+        },
+    }
+}
+
 pub fn notificar(salida: Salida, evento: &str, urgencia: &str, titulo: &str, cuerpo: &str, tmo_ms: i64) {
     if salida == Salida::Simulado {
         imprimir(&format!("[{evento}] ({urgencia}, {tmo_ms} ms) {titulo} — {}", cuerpo.replace('\n', " ⏎ ")));
         return;
     }
     let mut cmd = Command::new("notify-send");
+    cmd.args(["-a", seudonimo(evento)]);
     cmd.arg("-h").arg("string:x-gigishell-source:system");
     if id_valido(evento) {
         cmd.arg("-h").arg(format!("string:x-gigishell-event:{evento}"));
@@ -107,7 +137,7 @@ pub fn aviso_con_boton(
     if id_valido(evento) {
         cmd.arg("-h").arg(format!("string:x-gigishell-event:{evento}"));
     }
-    cmd.args(["-a", "Seguridad", "--wait", "-t", &tmo_ms.to_string()])
+    cmd.args(["-a", seudonimo(evento), "--wait", "-t", &tmo_ms.to_string()])
         .arg("-A")
         .arg(format!("{accion}={etiqueta}"))
         .args(["-u", urgencia, titulo, cuerpo])

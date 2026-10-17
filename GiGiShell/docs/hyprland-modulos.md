@@ -129,9 +129,9 @@ sus tiempos quedan desactivados para siempre y la UI de Ajustes los enseña apag
 **Alcance**: Wake up a secas veta **solo `suspend`** — la pantalla se apaga a los 10 min y bloquea
 a los 11, como siempre. Con la subopción **Pantalla** veta además `dpms-off` **y `lock`**: el
 bloqueo va atado a la pantalla porque hyprlock la taparía, que es justo lo que la opción evita.
-`on-resume` **no** pasa por la puerta: encender la pantalla al volver no se veta nunca, y es lo
-único que la despierta si vuelves con el ratón (`mouse_move_enables_dpms = false` en
-`gigishell/ventanas.lua`; solo una tecla la enciende por su cuenta).
+`on-resume` llama a `idle-action.sh dpms-on`, que nunca veta el encendido. Hyprland también
+enciende la pantalla directamente al mover el ratón o pulsar una tecla (`mouse_move_enables_dpms`
+y `key_press_enables_dpms` en `true` en `gigishell/ventanas.lua`), incluso tras un apagado manual.
 
 **Estado**: `~/.config/gigishell/wakeup.json`, `{active, until, screen, pid}`, escrito por AGS
 (`ags/servicios/energia/mantenerDespierto.ts`) y leído por el script — misma dirección que
@@ -282,8 +282,8 @@ despertar suele estarlo, porque la enciende antes el propio restore de sesión d
 
 - `Actions::dpms(ENABLE)` deja `g_pCompositor->m_dpmsStateOn = true`, y `InputManager` solo
   enciende la pantalla al teclear `if (… && !g_pCompositor->m_dpmsStateOn)`. Con el pestillo en
-  `true`, **el teclado deja de despertarla** (y el ratón nunca pudo: `mouse_move_enables_dpms =
-  false`).
+  `true`, **el teclado deja de despertarla** (en el momento de ese fallo, el ratón tampoco podía:
+  `mouse_move_enables_dpms` estaba en `false`; desde el 17-10-2026 está en `true`).
 - `CMonitor::setDPMS()` empieza por `if (m_dpmsStatus == on) return;`, así que un `dpms on`
   posterior tampoco vuelve a hacer commit del output.
 
@@ -557,9 +557,9 @@ Dos diferencias con el botón, y las dos son deliberadas:
   llama primero a `confirmar_pendiente()` del módulo del botón y, si había cuenta, ejecuta la
   acción del botón y no la suya — ni `accionTapa` ni la excepción de pantalla externa cuentan ahí.
 - **Abrir la tapa enciende la pantalla SIEMPRE** (`switch:off:Lid Switch` → `GiGiShell.tapa_abierta()`),
-  sin mirar la preferencia. Con la acción "Apagar la pantalla" no habría nadie más que la
-  encendiera (`mouse_move_enables_dpms = false`, ver `gigishell/ventanas.lua`) y abrir la tapa a un
-  panel negro se lee como que el portátil no ha despertado. En el resto de acciones es inofensivo.
+  sin mirar la preferencia. Con la acción "Apagar la pantalla", abrir la tapa debe recuperar el
+  panel sin necesitar además mover el ratón ni pulsar una tecla: abrir la tapa a un panel negro
+  se lee como que el portátil no ha despertado. En el resto de acciones es inofensivo.
   ⚠️ La forma es la **tabla** (`hl.dsp.dpms({ action = "on" })`): el string es un toggle disfrazado
   — ver «Salir de suspensión» más arriba.
 
@@ -620,6 +620,21 @@ sección *Switches*. En un equipo sin tapa el bind simplemente no se dispara nun
 (qué clase de notificación es) y `x-gigishell-event:<id>` (**cuál** de ellas es). El fichero se sourcea
 con el mismo patrón que `lib/gaming-gate.sh`, con un respaldo inline que emite igual sin el id: sin
 la librería se pierde la identidad del aviso, nunca el aviso.
+
+**El remitente (`notify-send -a`) es un seudónimo de la función emisora.** Lo asigna
+`lib/notif.sh` por evento, con el mismo mapa en `eventd/src/notif.rs` tanto para avisos
+simples como para los que tienen botones. AGS declara los mismos nombres en sus emisores:
+Batería, Seguridad, Antivirus, Sistema, Mantenimiento, Hardware, Memoria, Arranque, USB,
+Red, Bluetooth, Privacidad, Gestos, Energía, Juegos y Escritorio. Las excepciones se resuelven
+antes que la familia: `kernel.oom` es Memoria; `kernel.modulo-sin-firmar`, Seguridad;
+`archivos.actualizacion`, Sistema. Un evento no reconocido en bash conserva `NOTIF_APP`
+como respaldo. Al añadir una familia, mantener ambos mapas alineados.
+
+Los ids, hints, títulos, cuerpos y acciones no cambian. El historial previo conserva su
+remitente original; como la deduplicación por defecto usa app+título, un aviso nuevo puede
+coexistir con uno antiguo de la misma función. Las reglas del catálogo siguen casando por
+evento; las reglas personales que filtren por un nombre de app anterior requieren ajustarlo.
+El monitor de actualizaciones sigue publicando solo el estado de la barra, sin emitir avisos.
 
 **El `event` existe porque el `source` no bastaba para configurarlas por separado.** Con solo el
 origen, «USB desconectado», «Disco casi lleno» y «Escalada de privilegios» eran indistinguibles

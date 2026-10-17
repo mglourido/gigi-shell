@@ -35,7 +35,7 @@ fi
 
 avisar() {
   echo "compilar-css: $1" >&2
-  command -v notify-send >/dev/null && notify-send -u critical "CSS de AGS" "$1"
+  command -v notify-send >/dev/null && notify-send -a "Escritorio" -u critical "CSS de AGS" "$1"
 }
 
 command -v sass >/dev/null || { avisar "falta 'sass' (sudo pacman -S --needed dart-sass)"; exit 1; }

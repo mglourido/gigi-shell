@@ -79,7 +79,7 @@ get_gpu_temp() {
     [[ "$t" =~ ^[0-9]+$ ]] && gpu_temp=$t || gpu_temp=0
 }
 
-NOTIF_APP="Temperatura"
+NOTIF_APP="Hardware"
 # shellcheck source=lib/notif.sh
 if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por

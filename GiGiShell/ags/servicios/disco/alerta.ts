@@ -67,7 +67,7 @@ export function revisarDiscos(discos: readonly Disco[]): void {
          // El MISMO id que emite `disk-monitor.sh`: quien silencia el aviso del arranque quiere
          // callado también este. Ver `modulos/notificaciones/rules/catalogoSistema.ts`.
          "-h", "string:x-gigishell-event:disco.casi-lleno",
-         "-a", "Disco", "-i", "drive-harddisk", "-t", "15000",
+         "-a", "Mantenimiento", "-i", "drive-harddisk", "-t", "15000",
          aviso.titulo, aviso.cuerpo],
         Gio.SubprocessFlags.NONE,
       )

@@ -97,10 +97,9 @@ if ! source "$HOME/.config/hypr/scripts/lib/gaming-gate.sh" 2>/dev/null; then
 fi
 
 # Identidad por aviso: cada `notificar <id>` declara CUÁL de los ~30 avisos de este
-# script es, para que se pueda configurar por separado en Ajustes. Aquí NO se fija
-# `NOTIF_APP` a propósito: los cuatro avisos con botón ya mandan su propio `-a
-# "Seguridad"` y el resto nunca ha llevado nombre de app; ponerlo ahora cambiaría el
-# `dedupKey` por defecto (app+título) de todo lo que este script ha guardado.
+# script es, para que se pueda configurar por separado en Ajustes. `lib/notif.sh`
+# asigna también el remitente por evento: Seguridad, Memoria, Mantenimiento…
+# El catálogo sigue casando por el id; el nombre solo identifica la función emisora.
 # shellcheck source=lib/notif.sh
 if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     # Sin la librería se pierde la IDENTIDAD del aviso (deja de poder configurarse por
@@ -1030,7 +1029,7 @@ download_alert() {
     local f="$1"
     if [[ "$sec_sandboxLaunch" != false && -x "$RUN_UNTRUSTED" ]]; then
         # notify-send --wait -A bloquea hasta el clic/cierre → subshell en 2º plano.
-        ( act=$(notificar descargas.ejecutable-nuevo -a "Seguridad" --wait -t 45000 \
+        ( act=$(notificar descargas.ejecutable-nuevo -a "Antivirus" --wait -t 45000 \
             -A "launch=Lanzar aislado" -u normal \
             "Ejecutable nuevo en Descargas" \
             "$(basename "$f") — verifícalo antes de lanzarlo.")
@@ -1267,7 +1266,7 @@ monitor_downloads() {
             for f in "${big_files[@]}"; do
                 mb=$(( $(stat -c%s "$f" 2>/dev/null || echo 0) / 1048576 ))
                 if [[ -x "$SCAN_FILE" ]]; then
-                    ( act=$(notificar descargas.archivo-grande -a "Seguridad" --wait -t 45000 \
+                    ( act=$(notificar descargas.archivo-grande -a "Antivirus" --wait -t 45000 \
                         -A "scan=Escanear igualmente" -u normal \
                         "Archivo grande sin analizar" \
                         "$(basename "$f") (${mb} MB) supera el tope de auto-análisis. Escanéalo aquí o en Ajustes › Seguridad.")
