@@ -54,6 +54,11 @@ respalda. Todo lo que hay en `target/` se regenera, así que su sitio es la cach
   (la variable gana al config) y copia el binario desde `$CARGO_TARGET_DIR/release/`.
 - **`guardian/pruebas/*.sh` corren con `sudo`**: ahí `$HOME` es el de root, así que el binario se
   busca en la caché del usuario que lanzó sudo (`getent passwd "$SUDO_USER"`).
+- **`almacenamiento/`** (`gigishell-almacenamiento`, 2026-10-25) es el tercer crate: análisis y
+  limpieza de Ajustes > Almacenamiento. Es una excepción consciente a «los wrappers de CLIs no se
+  migran»: el problema no era la CPU sino que analizador y limpiador, en bash, tenían dos ideas
+  distintas de qué borraba cada acción. Motivo completo en la subsección «La reescritura en Rust»
+  de `docs/hyprland-modulos.md`. Ruta de compilación en `.cargo/config.toml` e `instalar.sh`.
 - **La misma ruta está escrita a mano en varios sitios**: en guardian, `.cargo/config.toml`,
   `instalar.sh` y las dos pruebas; en eventd, `.cargo/config.toml` e `instalar.sh`. Si cambia en uno, cambiarla en todos; buscar con
   `grep -rn 'gigishell/cargo' ~/GiGiShell`. Un crate nuevo necesita su propio `.cargo/config.toml`:

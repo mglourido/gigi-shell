@@ -3941,6 +3941,88 @@ Ajustes > **Almacenamiento** (qué ocupa el disco, catálogo de apps por tamaño
 | `limpieza-arranque.sh` | comprobación de un disparo al iniciar sesión: decide si toca | ninguno propio |
 | `system/limpieza/gigishell-limpieza.sh` | la parte de root, root-owned + sudoers NOPASSWD | root |
 | `hypr/scripts/lib/limpieza-rutas.sh` | **la lista única de qué borra cada acción**; la sourcean el analizador y el limpiador | (se sourcea) |
+| `almacenamiento/` (crate Rust `gigishell-almacenamiento`) | **la implementación vigente** de analizador y limpiador; los dos `.sh` le ceden todo con `exec` si está en `~/.local/bin` | usuario |
+
+#### La reescritura en Rust (2026-10-25): un planificador, no dos scripts
+
+Tres síntomas reportados, una causa común — el análisis y la limpieza eran dos programas con dos
+ideas distintas de lo que hacía cada acción:
+
+1. **La autolimpieza tardaba muchísimo: cinco minutos exactos por `cacheAur`.** Delegaba en
+   `yay -Sc --noconfirm`, que **antes** de tocar el AUR lanza `sudo pacman -Sc`. AGS hereda la TTY
+   de la sesión (`TTY=tty1` en el journal), así que sudo se quedaba esperando una contraseña que
+   nadie veía hasta su `passwd_timeout`: `sudo[63980]` arrancó a las 17:49:32 y falló a las
+   17:54:30 con `conversation failed`. Y al fallar, **yay abortaba sin limpiar nada del AUR**.
+2. **«La caché del AUR son 4,3 GB» y al borrar 2,3 — y luego seguía diciendo 4,3.** El análisis
+   prometía la carpeta **entera** como liberable; el borrado (cuando no colgaba) hacía otra cosa.
+   Como nunca se borraba lo prometido, la cifra no bajaba nunca.
+3. **«Se liberan 24 GB» y se liberaban 13.** Además de lo anterior: los tamaños eran **aparentes**
+   (`du -b`), el disco es btrfs con `compress=zstd:1` —`st_blocks` informa del tamaño SIN comprimir,
+   medido: 100 MB de texto repetitivo = 100 MB—, el journal son ficheros dispersos (111 MB
+   aparentes, 48 MB reales) y quitar huérfanos borra ficheros de `/usr`, que siguen en la
+   instantánea que snap-pac hace antes de cada `pacman -Rns`.
+
+El arreglo es de arquitectura, no de lenguaje: **`plan::planificar(acción)` es la única función que
+decide qué se borra, y la llaman las dos mitades.** Para las acciones que borra el propio binario,
+`liberable` es la suma de los objetivos del plan y limpiar es borrar *esos* objetivos — prometido y
+liberado salen de la misma lista (verificado: miniaturas, 3 657 728 prometidos, 3 657 728 liberados,
+0 después). Rust se eligió por lo que la versión bash ya pagaba caro: la paridad dependía de un
+`lib` sourceado por dos scripts, el filtro de rutas que decide un `rm -rf` no tenía pruebas (ahora
+`cargo test`, que `instalar.sh` exige antes de instalar) y medir era un enjambre de `du`/`find`/`jq`.
+El análisis pasó de 1,1 s a 0,33 s (las categorías se miden en paralelo).
+
+Qué cambió en cada pieza:
+
+- **AUR, sin yay.** Por clon de `~/.cache/yay/<pkgbase>` (o `~/.cache/paru/clone/`): si el pkgbase
+  ya no está instalado, fuera entero; si lo está, se conserva `.git`, lo versionado
+  (`git ls-files`: PKGBUILD, .SRCINFO, parches) y el `.pkg.tar*` **de la versión instalada**, y se
+  borra el resto (versiones viejas, `.deb`/tarballs descargados, `src/`, `pkg/`). En esta máquina
+  `visual-studio-code-bin` guardaba nueve `.deb` y nueve paquetes: 4,8 GB para conservar 290 MB.
+  El respaldo bash sigue usando el helper, pero con `--aur` y bajo `setsid` (sin TTY, sudo falla
+  al instante en vez de esperar).
+- **Bloques asignados, no tamaño aparente**, con cada inodo contado una vez. El helper root mide
+  igual (`du --block-size=1`, antes `-b`).
+- **Dos cifras al limpiar: `liberado` (lo borrado) y `recuperado`** (lo que creció el disponible
+  por `statvfs`, tras `syncfs`: en btrfs el espacio no cuenta como libre hasta confirmar la
+  transacción). La segunda es la única que incluye compresión e instantáneas; la UI y el aviso de
+  la autolimpieza la enseñan **solo si es claramente menor** (<90 %), porque con otros procesos
+  escribiendo puede salir hasta mayor y entonces es ruido. El análisis publica `compresion: true`
+  y la estimación lo advierte.
+- **Instantáneas**: lo que se borraría dentro de un subvolumen que snapper fotografía
+  (`/etc/snapper/configs/*` → `SUBVOLUME`, comparando `st_dev`, que en btrfs es único por
+  subvolumen) sale con `liberable: 0` y una `nota`. Hoy afecta a huérfanos (`/usr`); la caché de
+  pacman, el journal y `$HOME` están en subvolúmenes propios (`@cache`, `@log`, `@home`).
+- **Journal**: se simula `journalctl --vacuum-size` (borra archivados del más antiguo al más nuevo
+  por directorio, **nunca el activo**) en vez de restar «tamaño − retención».
+- **Papelera con días**: la antigüedad es el `DeletionDate` del `.trashinfo`. Con `find -mtime` una
+  foto de hace dos años tirada ayer se vaciaba en la primera limpieza, porque mover a la papelera
+  conserva el `mtime`.
+- **Descargas con días**: la más reciente de `mtime` y `ctime` (hay navegadores que ponen la fecha
+  del servidor como `mtime`).
+- **Caché de pacman, sin `paccache`** (2026-10-26): se conserva EXACTAMENTE la versión instalada de
+  cada paquete —nombre, versión **y arquitectura**, leídos de `/var/lib/pacman/local/*/desc`— y se
+  borra todo lo demás con sus `.sig`. paccache agrupa por nombre + arquitectura, y CachyOS sirve el
+  mismo paquete unas veces como `x86_64` y otras como `x86_64_v3` según el repo: para él
+  `firefox-155…-x86_64` y `firefox-158…-x86_64_v3` eran dos paquetes con una versión cada uno, y
+  respondía «no candidate packages found» con 52 versiones viejas (0,30 GiB) en la caché, que
+  crecían con cada actualización que cambiara de repo. Es el equivalente pacman de las versiones
+  viejas que guarda Flatpak. La regla está **dos veces** —`pacman::sobrantes_cache` (estimación) y
+  el verbo `paccache` del helper (borrado, root, sin aceptar rutas de fuera)— y se verificó que
+  coinciden fichero a fichero (104 ficheros, 324 575 232 bytes en las dos). Si una base local
+  ilegible dejara la lista de instalados vacía, las dos se niegan en vez de tratar toda la caché
+  como sobrante. Con pacman en marcha (`db.lck`) el helper no toca nada.
+- **Caché de pacman**: el helper borra además las `download-XXXXXX` que pacman abandona al
+  interrumpirse una descarga (había 33; nadie las limpiaba), solo con pacman parado y si tienen
+  más de una hora. No se pueden medir sin root, así que la fila lo dice en su `nota`.
+- **`cacheDesarrollo`** mide y vacía `~/.npm/_cacache`, no `~/.npm` entero (lo de fuera no lo tocaba
+  `npm cache clean` y se prometía igual).
+- El **aviso** de la autolimpieza lo da ahora `limpieza-arranque.sh` a partir del JSON (el binario no
+  notifica), así sale igual con cualquiera de las dos implementaciones.
+
+**El helper root hay que reinstalarlo** tras actualizar (`sudo install -Dm755
+~/GiGiShell/system/limpieza/gigishell-limpieza.sh /usr/local/bin/gigishell-limpieza`, o el paso del
+instalador): no se symlinkea a propósito. Lo de abajo describe la versión bash, que sigue siendo el
+respaldo sin Rust; donde discrepe de esta subsección, manda esta.
 
 **Un solo volcado de paquetes para todo el análisis, y lo produce `expac`.** El inventario lo piden
 tres consumidores —el total instalado, los huérfanos y el catálogo de aplicaciones— y antes cada uno
@@ -4200,7 +4282,7 @@ coinciden, y las diferencias no son de redondeo:
 
 | Categoría | Por qué `liberable` < `bytes` |
 | --- | --- |
-| `cachePaquetes` | se conserva la última versión de cada paquete instalado (`paccache -rk1`) |
+| `cachePaquetes` | se conserva la versión instalada de cada paquete (ya no con `paccache`, ver «La reescritura en Rust») |
 | `registros` | el journal se recorta a `retenerJournal`; **por debajo de ese tamaño libera 0** |
 | `temporales` | mide `/tmp` + `/var/tmp`, pero `/tmp` es tmpfs (RAM) y no se toca: solo cuenta `/var/tmp`, y solo lo anterior a un día |
 | `cacheUsuario` | el borrado respeta las cachés de GPU, las de GiGiShell y todo lo que tiene botón propio |

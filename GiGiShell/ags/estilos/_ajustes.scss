@@ -643,6 +643,8 @@ progressbar.alm-barra {
   &.omitida, &.cancelado { color: #aaa7b4; }
   &.error, &.sin-permisos { color: $red; }
 }
+/* Aclaración del análisis bajo la fila (instantáneas, restos sin medir): informativa, no un aviso. */
+.alm-nota { font-size: 11px; color: #aaa7b4; font-style: italic; }
 .alm-cargando { min-height: 220px; color: #aaa7b4; font-family: 'Inter', sans-serif; font-size: 11px; }
 .alm-cargando spinner { color: acento(); }
 .alm-totales { color: acento(); font-family: $font-icon; font-size: 11.5px; font-weight: 600; }

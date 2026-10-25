@@ -162,6 +162,8 @@ export interface MedidaCategoria {
    * `uninstall --unused`). No es 0, y la estimación lo declara en vez de tragárselo.
    */
   liberable: number | null
+  /** Aclaración del análisis (instantáneas que retienen el espacio, restos sin medir…). */
+  nota: string
 }
 
 export interface FilaCategoria {
@@ -169,6 +171,7 @@ export interface FilaCategoria {
   bytes: number | null
   detalle: string
   liberable: number | null
+  nota: string
 }
 
 /**
@@ -187,6 +190,7 @@ export function agrupar(medidas: MedidaCategoria[]): Record<"sistema" | "persona
     filas.push({
       categoria: cat, bytes: medida.bytes, detalle: medida.detalle ?? "",
       liberable: medida.liberable ?? null,
+      nota: medida.nota ?? "",
     })
   }
   const ordenar = (lista: FilaCategoria[]) =>

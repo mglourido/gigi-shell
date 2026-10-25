@@ -55,6 +55,7 @@ eventd/target/
 # ídem para guardian: incluye además vmlinux.h y el .skel.rs generados en OUT_DIR,
 # que son de esta máquina/kernel — build.rs los regenera desde BTF en cada checkout
 guardian/target/
+almacenamiento/target/
 
 # --- Desechable ---
 

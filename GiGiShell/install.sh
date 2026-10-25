@@ -1718,6 +1718,11 @@ configure_default_shell() {
     else
       warn "No se pudo compilar gigishell-eventd; el monitor de seguridad seguirá en bash. Reintento: bash ~/GiGiShell/install.sh"
     fi
+    # Análisis y limpieza de disco (Ajustes > Almacenamiento). Opcional igual que eventd: sin el
+    # binario, analizar/limpiar-almacenamiento.sh siguen en bash. Mismo cargo y mismo enlazador.
+    info "Compilando gigishell-almacenamiento (pasa los tests antes de instalar) ..."
+    bash "$GIGISHELL/almacenamiento/instalar.sh" \
+      || warn "No se pudo compilar gigishell-almacenamiento; Ajustes > Almacenamiento seguirá en bash. Reintento: bash ~/GiGiShell/almacenamiento/instalar.sh"
     fi
 
     GUARDIAN_ESTADO="fallido"

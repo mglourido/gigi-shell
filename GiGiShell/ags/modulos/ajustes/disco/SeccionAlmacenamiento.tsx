@@ -143,6 +143,12 @@ function FilaCategoriaVista({ fila, limpiezas, columnas }: {
           <box cssClasses={["alm-accion"]} $={(self: Gtk.Box) => columnas.acciones.add_widget(self)} />
         )}
       </box>
+      {/* La nota del análisis explica una cifra que, sin ella, parece un error: «No libera nada»
+          al lado de 2 GB de huérfanos (los retienen las instantáneas), o restos que no se pueden
+          medir sin permisos. */}
+      {fila.nota
+        ? <TextoInformativo cssClasses={["alm-nota"]} label={fila.nota} wrap xalign={0} maxWidthChars={60} />
+        : <box />}
       <With value={resultado}>
         {(r: ResultadoLimpieza | null) =>
           r ? <TextoInformativo cssClasses={["alm-resultado", r.estado]} label={textoResultado(r)} wrap xalign={0} maxWidthChars={60} />
@@ -182,10 +188,17 @@ function textoResultado(r: ResultadoLimpieza): string {
       // que termina bien pero con `liberado: 0` —mover no libera disco—: sin esta rama la fila
       // habría dicho «No había nada que liberar» justo después de mover 5 GB, que es lo contrario
       // de lo que ha pasado.
-      if (r.mensaje) return r.mensaje
-      return r.liberado > 0
-        ? formatearTexto(textos.estados.liberado, { tamano: formatearBytes(r.liberado) })
-        : textos.estados.nada
+      if (r.liberado <= 0) return r.mensaje || textos.estados.nada
+      {
+        const partes = [formatearTexto(textos.estados.liberado, { tamano: formatearBytes(r.liberado) })]
+        // Lo borrado y lo que vuelve al disco no son lo mismo en btrfs con compresión o con
+        // instantáneas. Se dice solo cuando difieren de verdad (más de un 10 %): si no, es ruido.
+        if (r.recuperado !== null && r.recuperado * 10 < r.liberado * 9) {
+          partes.push(formatearTexto(textos.estados.recuperado, { tamano: formatearBytes(r.recuperado) }))
+        }
+        if (r.mensaje) partes.push(r.mensaje)
+        return partes.join(" ")
+      }
     case "cancelado":    return textos.estados.cancelado
     case "omitida":      return formatearTexto(textos.estados.omitida, { mensaje: r.mensaje })
     case "sin-permisos": return textos.estados.sinPermisos
@@ -473,8 +486,10 @@ function VistaLimpieza() {
               después de abrir la sección y no reemitía nada, así que la estimación contradecía
               al desglose de la vista de al lado hasta que tocaras una casilla. */}
           <TextoInformativo
-            label={createComputed([analisis, marcadas], (a: Analisis, activas: IdAccion[]) =>
-              textoEstimacion(estimarLiberable(a.categorias, activas)))}
+            label={createComputed([analisis, marcadas], (a: Analisis, activas: IdAccion[]) => {
+              const texto = textoEstimacion(estimarLiberable(a.categorias, activas))
+              return a.compresion ? `${texto} ${textos.auto.compresion}` : texto
+            })}
             wrap
             xalign={0}
             maxWidthChars={62}

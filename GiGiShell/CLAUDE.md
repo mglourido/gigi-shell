@@ -33,6 +33,10 @@ regla de seguridad cambiada en un sitio hay que cambiarla en el otro. Plan y est
 [`docs/rust-migracion.md`](docs/rust-migracion.md), que explica también por qué eventd y guardian
 compilan en `~/.cache/gigishell/cargo/<crate>` y no en `target/` — un crate nuevo necesita su
 `.cargo/config.toml` o vuelve a llenar el repo de compilados sin avisar),
+`almacenamiento/` (binario Rust `gigishell-almacenamiento`: el análisis y la limpieza de Ajustes >
+Almacenamiento; `hypr/scripts/{analizar,limpiar}-almacenamiento.sh` le ceden todo con `exec` si está
+en `~/.local/bin` y si no corren su respaldo bash. Análisis y limpieza salen del MISMO planificador
+—ver la subsección «La reescritura en Rust» en `docs/hyprland-modulos.md` antes de tocarlo—),
 `guardian/` (daemon Rust root `gigishell-guardian`, la **protección de archivos**: BPF LSM +
 fanotify, gobernado desde Ajustes > Seguridad > Protección de archivos. Se instala **apagado**; su
 política vive en `/var/lib/gigishell-guardian/`, no en `~/.config`, a propósito. Ver su sección en

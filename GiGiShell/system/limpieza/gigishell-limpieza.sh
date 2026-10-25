@@ -12,7 +12,7 @@
 # que nadie escriba una contraseña — incluida la autolimpieza desatendida. El criterio para que un
 # verbo entre aquí es **que lo borrado se regenere solo**:
 #
-#   paccache       paquetes .pkg.tar ya instalados; se vuelven a descargar si hicieran falta
+#   paccache       paquetes .pkg.tar que no son la versión instalada; se vuelven a descargar si hicieran falta
 #   journal        registros rotados; el journal sigue escribiendo
 #   tmp            /var/tmp, que por definición no sobrevive a un reinicio
 #   huerfanos      dependencias que ya no necesita ningún paquete instalado
@@ -33,13 +33,15 @@ set -uo pipefail
 
 export LC_ALL=C
 
-# Tamaño de una ruta en bytes, o 0. Se usa para poder informar de cuánto se ha liberado de verdad
-# en vez de fiarse de lo que diga cada herramienta (paccache imprime, journalctl no).
+# Lo que ocupa una ruta en disco (bloques ASIGNADOS, no tamaño aparente), o 0. Se usa para poder
+# informar de cuánto se ha liberado de verdad en vez de fiarse de lo que diga cada herramienta
+# (journalctl no imprime nada útil). Asignados y no `du -b` porque es como mide la estimación
+# (`gigishell-almacenamiento`) y porque el journal son ficheros dispersos: con `-b` daba el doble.
 _tam() {
     local total=0 r
     for r in "$@"; do
         [[ -e "$r" ]] || continue
-        total=$((total + $(du -sxb -- "$r" 2>/dev/null | awk 'END{print $1+0}')))
+        total=$((total + $(du -sx --block-size=1 -- "$r" 2>/dev/null | awk 'END{print $1+0}')))
     done
     echo "$total"
 }
@@ -63,17 +65,49 @@ case "${1:-}" in
         ;;
 
     # ── Limpiezas ────────────────────────────────────────────────────────────
-    # Caché de pacman conservando la última versión de cada paquete. `-k1` y no
-    # `-k0`: con 0 no queda ni la versión INSTALADA, así que un downgrade tras
-    # una actualización rota exigiría red — justo cuando lo que se ha roto puede
-    # ser la red. Se limpian también los paquetes ya desinstalados (`-ruk0`),
-    # que no sirven para ningún downgrade de nada.
+    # Caché de pacman: se conserva EXACTAMENTE la versión instalada de cada paquete (con la
+    # arquitectura con la que se instaló) y se borra todo lo demás, `.sig` incluidas. Conservar la
+    # instalada y no `-k0`: sin ella, reinstalar tras una actualización rota exigiría red — justo
+    # cuando lo que se ha roto puede ser la red. El nombre del verbo sigue siendo `paccache` porque
+    # es el que autoriza la regla sudoers.
+    #
+    # NO se usa paccache (`-rk1` + `-ruk0`), y es un arreglo: paccache agrupa por nombre +
+    # ARQUITECTURA, y CachyOS sirve el mismo paquete unas veces como `x86_64` y otras como
+    # `x86_64_v3`. `firefox-155…-x86_64` y `firefox-158…-x86_64_v3` le parecían dos paquetes con una
+    # versión cada uno y el viejo no se borraba nunca (52 versiones viejas en esta máquina, con
+    # paccache diciendo «no candidate packages found»). Mismo criterio que la estimación de
+    # `gigishell-almacenamiento` (`pacman::sobrantes_cache`): si cambia aquí, cambiarlo allí.
+    #
+    # Nada de esto corre con pacman en marcha (`db.lck`): le borraría el paquete que está a punto
+    # de instalar o el directorio en el que descarga.
     paccache)
-        command -v paccache >/dev/null 2>&1 || { echo "falta paccache (pacman-contrib)" >&2; exit 1; }
-        antes=$(_tam /var/cache/pacman/pkg)
-        paccache -rk1 >/dev/null 2>&1 || { echo "paccache -rk1 falló" >&2; exit 1; }
-        paccache -ruk0 >/dev/null 2>&1 || { echo "paccache -ruk0 falló" >&2; exit 1; }
-        despues=$(_tam /var/cache/pacman/pkg)
+        cache=/var/cache/pacman/pkg
+        [[ -e /var/lib/pacman/db.lck ]] && { echo "pacman está en uso (existe db.lck); se reintentará en la próxima limpieza" >&2; exit 1; }
+        antes=$(_tam "$cache")
+        # nombre → «versión arquitectura» instalada, leído de la base local (no de la salida
+        # traducida de pacman).
+        declare -A instalada=()
+        while IFS=$'\t' read -r n v a; do
+            [[ -n "$n" ]] && instalada[$n]="$v $a"
+        done < <(awk '/^%NAME%$/{getline; n=$0} /^%VERSION%$/{getline; v=$0} /^%ARCH%$/{getline; a=$0}
+                      ENDFILE{ if (n != "") print n "\t" v "\t" a; n = v = a = "" }' /var/lib/pacman/local/*/desc)
+        # Sin base local legible TODO parecería sobrante: vaciar la caché entera por un fallo de
+        # lectura es justo lo que este verbo no debe hacer nunca.
+        ((${#instalada[@]} > 0)) || { echo "no se pudo leer la base de datos local de pacman" >&2; exit 1; }
+        sobran=()
+        for ruta in "$cache"/*.pkg.tar*; do
+            [[ -f "$ruta" ]] || continue
+            f=${ruta##*/}
+            base=${f%%.pkg.tar*}
+            [[ "$base" =~ ^(.+)-([^-]+-[^-]+)-([^-]+)$ ]] || continue
+            [[ "${instalada[${BASH_REMATCH[1]}]:-}" == "${BASH_REMATCH[2]} ${BASH_REMATCH[3]}" ]] || sobran+=("$ruta")
+        done
+        ((${#sobran[@]})) && rm -f -- "${sobran[@]}"
+        # Descargas a medias (`download-XXXXXX`): pacman las crea al bajar y las abandona si se
+        # interrumpe, y nadie más las quita; en este equipo había 33. Solo las de más de una hora.
+        find "$cache" -mindepth 1 -maxdepth 1 -type d -name 'download-*' -mmin +60 \
+            -exec rm -rf -- {} + 2>/dev/null
+        despues=$(_tam "$cache")
         echo $((antes - despues))
         ;;
 

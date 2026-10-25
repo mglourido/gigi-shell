@@ -35,6 +35,13 @@
 # fría tarda decenas de segundos. Esta salida alimenta un panel: una sonda lenta
 # no puede dejar la sección entera esperando, así que cada `du` corre bajo
 # `timeout` y lo que no llega a tiempo sale como `null`.
+# ── Implementación en Rust ──────────────────────────────────────────────────
+# Con `gigishell-almacenamiento` instalado (almacenamiento/instalar.sh) se le cede todo: planifica
+# y borra con la MISMA lista, así que lo que promete el análisis es lo que se libera. Lo de abajo
+# es el respaldo para una máquina sin Rust. `GIGISHELL_ALMACENAMIENTO_BASH=1` fuerza el bash.
+_rs="$HOME/.local/bin/gigishell-almacenamiento"
+[[ -x "$_rs" && "${GIGISHELL_ALMACENAMIENTO_BASH:-0}" != 1 ]] && exec "$_rs" analizar "${1:-todo}"
+
 set -uo pipefail
 
 export LC_ALL=C

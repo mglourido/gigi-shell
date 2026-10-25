@@ -41,6 +41,13 @@
 # por donde pasa TODO lo que borra este script directamente. Lo que borra un tercero —paccache,
 # `paru -Sc`, `npm cache clean`, `pip cache purge`, `flatpak uninstall`, el helper root— no puede
 # respetarla, porque esas herramientas no aceptan exclusiones. Ver lib/limpieza-rutas.sh.
+# ── Implementación en Rust ──────────────────────────────────────────────────
+# Con `gigishell-almacenamiento` instalado (almacenamiento/instalar.sh) se le cede todo: planifica
+# y borra con la MISMA lista, así que lo que promete el análisis es lo que se libera. Lo de abajo
+# es el respaldo para una máquina sin Rust. `GIGISHELL_ALMACENAMIENTO_BASH=1` fuerza el bash.
+_rs="$HOME/.local/bin/gigishell-almacenamiento"
+[[ -x "$_rs" && "${GIGISHELL_ALMACENAMIENTO_BASH:-0}" != 1 ]] && exec "$_rs" limpiar "$@"
+
 set -uo pipefail
 
 export LC_ALL=C
@@ -261,7 +268,12 @@ _ejecutar() {
                 estado=omitida; mensaje="No hay paru ni yay instalados."
             else
                 antes=$(_tam "$CACHE_HOME/$helper")
-                "$helper" -Sc --noconfirm >/dev/null 2>&1
+                # `--aur`: solo la parte del AUR. Sin él, `-Sc` lanza antes `sudo pacman -Sc`, y como
+                # AGS hereda la TTY de la sesión, sudo se quedaba CINCO MINUTOS esperando una
+                # contraseña que nadie ve, fallaba, y yay abortaba sin limpiar nada del AUR (medido en
+                # el journal: 17:49:32 → 17:54:30). `setsid` lo deja sin TTY de control, así que
+                # cualquier sudo que quede dentro falla al instante en vez de esperar.
+                setsid -w "$helper" -Sc --aur --noconfirm </dev/null >/dev/null 2>&1
                 _vaciar "$CACHE_HOME/$helper/clone"
                 liberado=$((antes - $(_tam "$CACHE_HOME/$helper")))
             fi

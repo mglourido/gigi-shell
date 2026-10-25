@@ -275,6 +275,19 @@ if [[ "$mode" == "--installed" ]]; then
     ok "gigishell-eventd instalado y al día"
   fi
 
+  # gigishell-almacenamiento: mismo criterio. Desactualizado es peor que ausente, porque
+  # analizar/limpiar-almacenamiento.sh le ceden todo y seguiría planificando con reglas viejas.
+  alm_bin="$HOME/.local/bin/gigishell-almacenamiento"
+  if [[ ! -x "$alm_bin" ]]; then
+    warn "gigishell-almacenamiento no instalado: Ajustes > Almacenamiento usa el respaldo bash (bash $GIGISHELL/almacenamiento/instalar.sh)"
+  elif ! "$alm_bin" --version >/dev/null 2>&1; then
+    fail "gigishell-almacenamiento no arranca: recompila con $GIGISHELL/almacenamiento/instalar.sh o quítalo con --quitar"
+  elif [[ -n "$(find "$GIGISHELL/almacenamiento/src" "$GIGISHELL/almacenamiento/Cargo.toml" -newer "$alm_bin" -print -quit 2>/dev/null)" ]]; then
+    warn "gigishell-almacenamiento es más viejo que su código: recompila con $GIGISHELL/almacenamiento/instalar.sh"
+  else
+    ok "gigishell-almacenamiento instalado y al día"
+  fi
+
   # gigishell-guardian (protección de archivos) también es opcional y viene APAGADO.
   # Lo que se vigila es que el binario o las categorías instaladas no se queden atrás
   # del repo: el servicio seguiría aplicando las reglas viejas sin ningún síntoma.

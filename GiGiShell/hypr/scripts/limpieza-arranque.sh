@@ -111,5 +111,30 @@ ESTADO="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/limpieza.json"
 mkdir -p "${ESTADO%/*}"
 printf '{"ultima":%d}\n' "$ahora" > "$ESTADO"
 
-GIGISHELL_LIMPIEZA_NOTIFICAR=$([[ "$notificar" == false ]] && echo 0 || echo 1) \
-    "$LIMPIAR" "${lote[@]}" >/dev/null 2>&1
+# El aviso lo da este script a partir del JSON, y no el limpiador: así sale igual con la
+# implementación en Rust (que no notifica) que con la de bash. Dos cifras, porque no son la misma:
+# lo BORRADO y lo que de verdad ha crecido el espacio libre (`recuperado`, por `statvfs`). En btrfs
+# con compresión, o con instantáneas de snapper reteniendo ficheros, la segunda es menor — y es la
+# que el usuario ve luego en el disco. Contar solo la primera es lo que hacía que «se han liberado
+# 24 GB» acabara siendo 13.
+salida=$("$LIMPIAR" "${lote[@]}" 2>/dev/null)
+[[ "$notificar" == false ]] && exit 0
+IFS=$'\t' read -r borrado recuperado < <(
+    jq -r '[ (map(select(.estado == "ok") | .liberado) | add // 0),
+             (map(select(.estado == "ok") | .recuperado) | if any(. == null) then "" else (add // 0) end)
+           ] | @tsv' <<<"$salida" 2>/dev/null
+)
+[[ "$borrado" =~ ^[0-9]+$ ]] && ((borrado > 0)) || exit 0
+_legible() {
+    local t; t=$(numfmt --to=iec-i --suffix=B --format='%.1f' "$1" 2>/dev/null) || { echo "$1 B"; return; }
+    local num=${t%%[A-Za-z]*}; num=${num/./,}; num=${num%,0}
+    echo "$num ${t#"${t%%[A-Za-z]*}"}"
+}
+cuerpo="Se han borrado $(_legible "$borrado")."
+# Solo se menciona la otra cifra si difiere de verdad (más de un 10 %): repetir la misma cifra es ruido.
+if [[ "$recuperado" =~ ^[0-9]+$ ]] && ((recuperado * 10 < borrado * 9)); then
+    cuerpo+=" En disco se han recuperado $(_legible "$recuperado"): el resto lo ahorraba ya la compresión o lo retienen las instantáneas."
+fi
+NOTIF_APP="Mantenimiento"
+source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null \
+    && notificar limpieza.completada -u low -t 8000 "Limpieza automática" "$cuerpo"

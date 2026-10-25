@@ -21,7 +21,14 @@ export type EstadoLimpieza = "ok" | "omitida" | "cancelado" | "sin-permisos" | "
 export interface ResultadoLimpieza {
   accion: string
   estado: EstadoLimpieza
+  /** Lo borrado, medido igual que la estimación. */
   liberado: number
+  /**
+   * Lo que creció de verdad el espacio libre del disco (`statvfs` antes y después). Menor que
+   * `liberado` con compresión de btrfs o con instantáneas reteniendo ficheros. `null` si no se
+   * midió (respaldo bash, o la acción no terminó en `ok`).
+   */
+  recuperado: number | null
   mensaje: string
 }
 
@@ -38,6 +45,7 @@ function normalizar(crudo: unknown): ResultadoLimpieza[] {
       accion: typeof o.accion === "string" ? o.accion : "",
       estado,
       liberado: typeof o.liberado === "number" && Number.isFinite(o.liberado) ? o.liberado : 0,
+      recuperado: typeof o.recuperado === "number" && Number.isFinite(o.recuperado) ? o.recuperado : null,
       mensaje: typeof o.mensaje === "string" ? o.mensaje : "",
     })
   }
@@ -61,8 +69,8 @@ export async function ejecutarLimpieza(id: IdAccion): Promise<ResultadoLimpieza>
       ? await withPrivilegedPrompt(invocar)
       : await invocar()
     const resultados = normalizar(JSON.parse(salida))
-    return resultados[0] ?? { accion: id, estado: "error", liberado: 0, mensaje: "sin respuesta" }
+    return resultados[0] ?? { accion: id, estado: "error", liberado: 0, recuperado: null, mensaje: "sin respuesta" }
   } catch (e) {
-    return { accion: id, estado: "error", liberado: 0, mensaje: String(e) }
+    return { accion: id, estado: "error", liberado: 0, recuperado: null, mensaje: String(e) }
   }
 }

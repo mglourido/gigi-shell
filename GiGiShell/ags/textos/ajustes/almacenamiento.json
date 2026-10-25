@@ -27,7 +27,7 @@
     },
     "cachePaquetes": {
       "nombre": "Caché de paquetes",
-      "descripcion": "Ficheros .pkg.tar ya instalados. Se conserva la última versión de cada uno por si hace falta revertir una actualización."
+      "descripcion": "Ficheros .pkg.tar ya instalados. Se conserva la versión instalada de cada uno para poder reinstalarla sin red."
     },
     "cacheAur": {
       "nombre": "Caché del AUR",
@@ -105,7 +105,7 @@
   "acciones": {
     "cachePaquetes": {
       "etiqueta": "Limpiar caché de paquetes",
-      "descripcion": "Conserva la última versión de cada paquete instalado y borra el resto."
+      "descripcion": "Conserva solo la versión instalada de cada paquete y borra las demás, también las de otra arquitectura."
     },
     "cachePaquetesTotal": {
       "etiqueta": "Vaciar la caché entera",
@@ -113,7 +113,7 @@
     },
     "cacheAur": {
       "etiqueta": "Limpiar caché del AUR",
-      "descripcion": "Borra clones y compilaciones de paru o yay."
+      "descripcion": "Borra los clones de lo que ya no tienes instalado y, de lo instalado, las versiones viejas, las fuentes descargadas y las compilaciones. Conserva la receta y el paquete de la versión actual."
     },
     "huerfanos": {
       "etiqueta": "Quitar bibliotecas sin usar",
@@ -163,6 +163,7 @@
   "estados": {
     "limpiando": "Limpiando…",
     "liberado": "Se han liberado {{tamano}}.",
+    "recuperado": "En disco se han recuperado {{tamano}}: el resto ya lo ahorraba la compresión o lo retienen las instantáneas.",
     "nada": "No había nada que liberar.",
     "cancelado": "Cancelado.",
     "omitida": "{{mensaje}}",
@@ -229,6 +230,7 @@
     "avisoReinicio": "Los cambios se guardan al momento; la comprobación automática los lee en el siguiente inicio de sesión.",
     "estimacionParcial": "Se liberarían al menos {{tamano}}: hay marcada alguna limpieza cuyo tamaño no se puede calcular de antemano.",
     "estimacionNada": "Con lo marcado no se liberaría nada ahora mismo.",
+    "compresion": "El disco comprime los datos (btrfs), así que el espacio recuperado puede ser algo menor.",
     "descargasAPapelera": {
       "titulo": "Mandar las descargas a la papelera",
       "descripcion": "En vez de borrarlas. Ojo: la papelera está en el mismo disco, así que mover algo ahí no libera espacio hasta que la vacíes — por eso esta limpieza informará de 0 liberado."

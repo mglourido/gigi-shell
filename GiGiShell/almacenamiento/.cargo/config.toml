@@ -1,0 +1,5 @@
+# La compilación va a la caché del usuario, no dentro del repo (ver docs/rust-migracion.md).
+# Relativo a almacenamiento/ — da ~/.cache/gigishell/cargo/almacenamiento con el repo en ~/GiGiShell.
+# instalar.sh usa la misma ruta a mano (CARGO_TARGET_DIR): si cambia aquí, cambiarla allí.
+[build]
+target-dir = "../../.cache/gigishell/cargo/almacenamiento"

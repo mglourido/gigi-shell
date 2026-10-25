@@ -1,0 +1,21 @@
+[package]
+name = "gigishell-almacenamiento"
+version = "0.1.0"
+edition = "2021"
+description = "Análisis y limpieza de disco de Ajustes > Almacenamiento (sustituye a analizar/limpiar-almacenamiento.sh)"
+publish = false
+
+[dependencies]
+libc = "0.2"
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Mismo criterio que eventd: backtraces con fichero y línea, sin el resto de la info de depuración.
+[profile.dev]
+debug = "line-tables-only"

@@ -38,20 +38,26 @@ export interface App {
 export interface Analisis {
   version: number
   epoch: number
+  /** El disco comprime (btrfs `compress=`): lo que se recupera puede ser menos que lo borrado. */
+  compresion: boolean
   discos: Disco[]
   categorias: MedidaCategoria[]
   apps: App[]
 }
 
 // 2: cada categoría lleva además `liberable` (lo que se liberaría al limpiarla, no lo que ocupa).
-// Subirlo INVALIDA la caché en disco: `normalizar` devuelve `null` ante otra versión, así que un
-// análisis de la versión 1 —sin esa columna— se descarta y se vuelve a medir, en vez de alimentar
-// la estimación con `liberable: null` en todo y dejarla en "no se ha podido calcular" para siempre.
-const VERSION_CACHE = 2
+// 3: lo produce `gigishell-almacenamiento` (Rust): añade `nota` por categoría y `compresion`, y
+//    `liberable` sale del MISMO plan que ejecuta la limpieza. El respaldo bash sigue emitiendo la 2,
+//    así que se aceptan las dos; cualquier otra (la 1, sin `liberable`) se descarta y se vuelve a
+//    medir, en vez de dejar la estimación en "no se ha podido calcular" para siempre.
+const VERSION_CACHE = 3
+const VERSIONES_VALIDAS = [2, 3]
 const CACHE = GLib.build_filenamev([GLib.get_user_cache_dir(), "gigishell", "almacenamiento.json"])
 const SCRIPT = `${GLib.get_user_config_dir()}/hypr/scripts/analizar-almacenamiento.sh`
 
-export const ANALISIS_VACIO: Analisis = { version: VERSION_CACHE, epoch: 0, discos: [], categorias: [], apps: [] }
+export const ANALISIS_VACIO: Analisis = {
+  version: VERSION_CACHE, epoch: 0, compresion: false, discos: [], categorias: [], apps: [],
+}
 
 /**
  * Normaliza lo que venga del script o de la caché. Todo campo ausente cae a un valor neutro en vez
@@ -62,7 +68,7 @@ export const ANALISIS_VACIO: Analisis = { version: VERSION_CACHE, epoch: 0, disc
 function normalizar(crudo: unknown): Analisis | null {
   if (!crudo || typeof crudo !== "object") return null
   const o = crudo as Record<string, unknown>
-  if (o.version !== VERSION_CACHE) return null
+  if (typeof o.version !== "number" || !VERSIONES_VALIDAS.includes(o.version)) return null
 
   const lista = <T>(valor: unknown, mapa: (item: Record<string, unknown>) => T | null): T[] => {
     if (!Array.isArray(valor)) return []
@@ -78,8 +84,9 @@ function normalizar(crudo: unknown): Analisis | null {
   const txt = (v: unknown): string => (typeof v === "string" ? v : "")
 
   return {
-    version: VERSION_CACHE,
+    version: o.version,
     epoch: num(o.epoch),
+    compresion: o.compresion === true,
     discos: lista<Disco>(o.discos, d => txt(d.punto) ? {
       dispositivo: txt(d.dispositivo), punto: txt(d.punto), fs: txt(d.fs),
       total: num(d.total), usado: num(d.usado), libre: num(d.libre), porcentaje: num(d.porcentaje),
@@ -93,6 +100,7 @@ function normalizar(crudo: unknown): Analisis | null {
       // Igual que `bytes`: `null` sobrevive porque significa "no se ha podido saber cuánto
       // liberaría", que la estimación trata distinto de un 0.
       liberable: typeof m.liberable === "number" && Number.isFinite(m.liberable) ? m.liberable : null,
+      nota: txt(m.nota),
     } : null),
     apps: lista<App>(o.apps, p => txt(p.nombre) ? {
       nombre: txt(p.nombre), bytes: num(p.bytes),
