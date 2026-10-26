@@ -364,12 +364,12 @@ image/png|org.kde.gwenview.desktop
 video/mp4|org.kde.haruna.desktop
 audio/mpeg|org.kde.elisa.desktop
 text/plain|org.kde.kate.desktop
-text/markdown|code.desktop;obsidian.desktop;org.kde.kate.desktop
+text/markdown|com.microsoft.VSCode.desktop;code.desktop;md.obsidian.Obsidian.desktop;obsidian.desktop;org.kde.kate.desktop
 text/x-xresources|org.kde.kate.desktop
-text/x-csrc|code.desktop
-text/x-configuration|code.desktop
-text/x-typescript-jsx|code.desktop
-application/x-executable|code.desktop
+text/x-csrc|com.microsoft.VSCode.desktop;code.desktop
+text/x-configuration|com.microsoft.VSCode.desktop;code.desktop
+text/x-typescript-jsx|com.microsoft.VSCode.desktop;code.desktop
+application/x-executable|com.microsoft.VSCode.desktop;code.desktop
 application/octet-stream|org.kde.kate.desktop
 application/zip|org.kde.ark.desktop
 application/vnd.openxmlformats-officedocument.wordprocessingml.document|libreoffice-writer.desktop
