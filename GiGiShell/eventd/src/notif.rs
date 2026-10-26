@@ -8,6 +8,7 @@
 
 use std::collections::HashMap;
 use std::process::{Command, Stdio};
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
 /// Dónde acaba un aviso. `Simulado` imprime en stdout en vez de notificar: sirve para
@@ -87,8 +88,30 @@ fn seudonimo(evento: &str) -> &'static str {
 }
 
 pub fn notificar(salida: Salida, evento: &str, urgencia: &str, titulo: &str, cuerpo: &str, tmo_ms: i64) {
+    notificar_ext(salida, evento, urgencia, titulo, cuerpo, tmo_ms, None, None);
+}
+
+/// `notificar` con las dos piezas del aviso inmediato: `reemplaza` (`notify-send -r`)
+/// sustituye la tarjeta de ese id en vez de apilar otra —AGS retira el popup y la
+/// entrada con el mismo id—, y `id` (`-p`) recibe el id de la que se emite. El id
+/// llega desde el hilo que recoge a notify-send, así que nunca bloquea el bucle.
+#[allow(clippy::too_many_arguments)]
+pub fn notificar_ext(
+    salida: Salida,
+    evento: &str,
+    urgencia: &str,
+    titulo: &str,
+    cuerpo: &str,
+    tmo_ms: i64,
+    reemplaza: Option<u32>,
+    id: Option<Arc<OnceLock<u32>>>,
+) {
     if salida == Salida::Simulado {
-        imprimir(&format!("[{evento}] ({urgencia}, {tmo_ms} ms) {titulo} — {}", cuerpo.replace('\n', " ⏎ ")));
+        let r = reemplaza.map(|r| format!(" [reemplaza {r}]")).unwrap_or_default();
+        imprimir(&format!("[{evento}] ({urgencia}, {tmo_ms} ms){r} {titulo} — {}", cuerpo.replace('\n', " ⏎ ")));
+        if let Some(id) = id {
+            let _ = id.set(1);
+        }
         return;
     }
     let mut cmd = Command::new("notify-send");
@@ -99,14 +122,25 @@ pub fn notificar(salida: Salida, evento: &str, urgencia: &str, titulo: &str, cue
     } else {
         log(&format!("notificar: id de evento inválido: {evento:?} (se emite sin identidad)"));
     }
+    if let Some(r) = reemplaza {
+        cmd.arg("-r").arg(r.to_string());
+    }
+    if id.is_some() {
+        cmd.arg("-p");
+    }
     cmd.args(["-u", urgencia, titulo, cuerpo, "-t", &tmo_ms.to_string()])
         .stdin(Stdio::null())
-        .stdout(Stdio::null());
+        .stdout(if id.is_some() { Stdio::piped() } else { Stdio::null() });
     // Se recoge en un hilo aparte para no dejar zombis y no bloquear el bucle del
     // journal si el demonio de notificaciones tarda en contestar.
     match cmd.spawn() {
-        Ok(mut hijo) => hilo("notify-send", move || {
-            let _ = hijo.wait();
+        Ok(hijo) => hilo("notify-send", move || {
+            let Ok(salida) = hijo.wait_with_output() else { return };
+            if let Some(id) = id {
+                if let Ok(n) = String::from_utf8_lossy(&salida.stdout).trim().parse() {
+                    let _ = id.set(n);
+                }
+            }
         }),
         Err(e) => log(&format!("notify-send: {e}")),
     }
@@ -189,6 +223,8 @@ struct Cola {
     total: usize,
     abierta: Option<Instant>,
     ultimo: Option<Instant>,
+    /// Id de la tarjeta que ya salió al abrirse la ventana (categorías inmediatas).
+    aviso: Option<Arc<OnceLock<u32>>>,
 }
 
 /// A diferencia del bash, cada categoría lleva SU PROPIA ventana: una ráfaga de GPU
@@ -200,6 +236,8 @@ pub struct Agrupador {
     /// Categorías donde un texto repetido es el MISMO suceso visto dos veces (inotify
     /// emite `create` y `close_write` por un único cambio): ahí no suma al total.
     unicas: Vec<&'static str>,
+    /// Categorías cuyo PRIMER evento sale en el acto (ver `marcar_inmediata`).
+    inmediatas: Vec<&'static str>,
     calma: Duration,
     tope: Duration,
     salida: Salida,
@@ -212,6 +250,7 @@ impl Agrupador {
             grupos: HashMap::new(),
             colas: HashMap::new(),
             unicas: vec![],
+            inmediatas: vec![],
             calma: CALMA,
             tope: TOPE,
             salida,
@@ -220,6 +259,14 @@ impl Agrupador {
 
     pub fn marcar_unica(&mut self, cat: &'static str) {
         self.unicas.push(cat);
+    }
+
+    /// El primer evento de cada ventana se avisa YA, sin esperar la calma: para los de
+    /// autenticación, 4 s (más lo que tarde el resto de la ráfaga) es llegar tarde. Lo
+    /// que llegue después se agrupa como siempre y el resumen SUSTITUYE esa tarjeta
+    /// (`notify-send -r`), así que una ráfaga sigue siendo una sola tarjeta.
+    pub fn marcar_inmediata(&mut self, cat: &'static str) {
+        self.inmediatas.push(cat);
     }
 
     /// Cambia la ventana (la de archivos se ensancha durante una actualización).
@@ -256,6 +303,13 @@ impl Agrupador {
         // Pasado el CAP el evento cuenta en el total pero no entra en la lista.
         cola.abierta.get_or_insert(ahora);
         cola.ultimo = Some(ahora);
+        if cola.total == 1 && self.inmediatas.contains(&cat) {
+            let g = &self.grupos[cat];
+            let (titulo, cuerpo) = formatear(g, &cola.items, 1);
+            let id = Arc::new(OnceLock::new());
+            notificar_ext(self.salida, g.evento, g.urgencia, &titulo, &cuerpo, g.tmo_ms, None, Some(id.clone()));
+            cola.aviso = Some(id);
+        }
     }
 
     #[cfg(test)]
@@ -281,9 +335,15 @@ impl Agrupador {
                 continue;
             }
             let cola = std::mem::take(self.colas.get_mut(cat).unwrap());
+            // Un solo evento en una categoría inmediata: ya salió al encolarse.
+            if cola.aviso.is_some() && cola.total == 1 {
+                continue;
+            }
             let g = &self.grupos[cat];
             let (titulo, cuerpo) = formatear(g, &cola.items, cola.total);
-            notificar(self.salida, g.evento, g.urgencia, &titulo, &cuerpo, g.tmo_ms);
+            // Sin id (notify-send aún no contestó o falló) sale como tarjeta nueva.
+            let reemplaza = cola.aviso.as_ref().and_then(|a| a.get().copied());
+            notificar_ext(self.salida, g.evento, g.urgencia, &titulo, &cuerpo, g.tmo_ms, reemplaza, None);
         }
     }
 }
@@ -372,6 +432,21 @@ mod tests {
         let items: Vec<_> = (0..10).map(|i| (format!("l{i}"), 1)).collect();
         let (_, c) = formatear(&g(), &items, 12);
         assert!(c.ends_with("… y 4 más"), "{c}");
+    }
+
+    #[test]
+    fn inmediata_avisa_al_encolar_y_resume_reemplazando() {
+        let mut a = Agrupador::new(Salida::Simulado);
+        a.registrar("s", g());
+        a.marcar_inmediata("s");
+        let t0 = Instant::now();
+        a.encolar("s", "", t0);
+        let id = a.colas["s"].aviso.clone().expect("salió al encolar");
+        assert_eq!(id.get(), Some(&1));
+        // Un solo evento: el volcado no repite la tarjeta.
+        a.volcar(t0 + CALMA, false);
+        assert!(a.colas["s"].aviso.is_none());
+        assert_eq!(a.plazo(t0 + CALMA), None);
     }
 
     #[test]

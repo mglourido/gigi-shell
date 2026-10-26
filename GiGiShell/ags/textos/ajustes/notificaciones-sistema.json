@@ -87,7 +87,7 @@
     "wifi.sin-interfaz": "NetworkManager no publica la interfaz WiFi",
     "bluetooth.conectado": "Bluetooth conectado",
     "bluetooth.perdido": "Bluetooth perdido",
-    "seguridad.escalada-privilegios": "Escalada de privilegios (pkexec, su, polkit)",
+    "seguridad.escalada-privilegios": "Escalada de privilegios denegada (pkexec, su, polkit, sudoers)",
     "sudo.fallo-autenticacion": "Fallo de autenticación de sudo",
     "ssh.evento": "Evento SSH (acceso o fallo)",
     "archivos.critico-modificado": "Fichero crítico del sistema modificado",

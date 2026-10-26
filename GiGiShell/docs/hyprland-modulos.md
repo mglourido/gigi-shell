@@ -726,6 +726,25 @@ antes del «… y N más»; `NOTIF_CAP=300` entradas únicas retenidas — pasad
 **sigue contando** en el total pero deja de listarse, porque la deduplicación es un barrido lineal
 y una ráfaga patológica lo volvería cuadrático.
 
+**Categorías inmediatas (`notif_grupo_inmediato` / `Agrupador::marcar_inmediata`).** En las de
+autenticación (`ssudo`, `spriv`, `sssh`) la calma era llegar tarde: con un sudo fallido el aviso
+salía 4 s después del ÚLTIMO intento, unos 10 s en total, cuando la terminal lo había dicho al
+instante. Ahí el primer evento se avisa en el acto y el resumen de la ráfaga **sustituye esa misma
+tarjeta** (`notify-send -p` para obtener el id, `-r` para reemplazarla; AGS retira el popup y la
+entrada con el mismo id). El id se recoge en segundo plano —en el bash, a un fichero en
+`$XDG_RUNTIME_DIR`—, porque esperarlo en línea colgaría el monitor si el demonio de notificaciones
+no contesta; sin id el resumen sale como tarjeta nueva. La lectura del journal no era el cuello de
+botella: medido, una línea llega al lector en ~0,34 s.
+
+**Lo que el usuario ya vio no avisa.** Un sudo o `su` fallido en una terminal (lo dice la propia
+terminal; se distingue por el `tty=` de PAM, vacío sin terminal), un fallo dentro del diálogo de
+polkit, y el «Not authorized» o el «Request dismissed» con que pkexec cierra ese diálogo. Sí avisan
+el intento sin terminal (un script o un proceso probando contraseñas), sudo rechazado por sudoers,
+pkexec denegado sin diálogo y el bloqueo de pam_faillock — que además cubre al atacante que se
+fabrique un pty para pasar por terminal. Una contraseña incorrecta de sudo deja dos líneas (la de
+PAM y el resumen `N incorrect password attempt`): cuenta la de PAM, y el resumen solo si ese PID no
+dejó línea PAM.
+
 **Con un solo evento el texto es el de siempre, palabra por palabra** (`título` + `<prefijo><texto><sufijo>`).
 Agrupar no debe cambiar el caso de un evento — si lo cambiara, sería un rediseño disfrazado de
 optimización.

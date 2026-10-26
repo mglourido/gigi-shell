@@ -3,7 +3,7 @@
 //! conserva porque es semántico (una línea que case con dos reglas va a la primera).
 //! Los porqués de cada regla están documentados en el bash; aquí solo lo que cambia.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use crate::notif::{notificar, Agrupador, Grupo, Salida};
@@ -20,6 +20,10 @@ pub struct Monitor<E: Entorno> {
     coredumps: Vec<Instant>,
     tormenta: Option<Instant>,
     aviso_reinicio: bool,
+    /// PIDs de sudo cuyo fallo ya se contó por la línea PAM (ver `sudo()`).
+    sudo_pam: HashSet<u32>,
+    /// Último fallo de pkexec que polkitd vio en SU diálogo (ver la rama de pkexec).
+    polkit_dialogo: Option<Instant>,
 }
 
 fn g(
@@ -55,6 +59,10 @@ impl<E: Entorno> Monitor<E> {
         a.registrar("ssudo", g("sudo.fallo-autenticacion", "critical", 15000, "Fallo sudo", "fallos de sudo", "Intento fallido de sudo", ""));
         a.registrar("spriv", g("seguridad.escalada-privilegios", "critical", 15000, "Escalada de privilegios", "escaladas de privilegios", "", ""));
         a.registrar("sssh", g("ssh.evento", "normal", 15000, "SSH", "eventos SSH", "", ""));
+        // Autenticación: el primer aviso sale en el acto (ver `marcar_inmediata`).
+        for cat in ["ssudo", "spriv", "sssh"] {
+            a.marcar_inmediata(cat);
+        }
         a.registrar("score", g("app.crash", "critical", 15000, "App crasheada", "apps crasheadas", "Proceso: ", ""));
         Monitor {
             cfg,
@@ -67,6 +75,8 @@ impl<E: Entorno> Monitor<E> {
             coredumps: vec![],
             tormenta: None,
             aviso_reinicio: false,
+            sudo_pam: HashSet::new(),
+            polkit_dialogo: None,
         }
     }
 
@@ -170,25 +180,90 @@ impl<E: Entorno> Monitor<E> {
         }
     }
 
+    /// **Un fallo tecleado en una terminal NO avisa**: sudo ya lo dice ahí al instante
+    /// («Lo siento, pruebe otra vez»), y una tarjeta crítica segundos después solo repite
+    /// lo que el usuario acaba de ver. Avisa el intento SIN terminal —un script o un
+    /// proceso en segundo plano probando contraseñas—, que nadie está mirando. Un
+    /// atacante que se fabrique un pty lo esquiva, pero al tercer fallo pam_faillock
+    /// bloquea la cuenta y eso sí avisa (rama de abajo).
+    ///
+    /// Una contraseña incorrecta deja DOS líneas: la de PAM (`pam_unix(sudo:auth):
+    /// authentication failure`, una por intento) y el resumen de sudo al rendirse
+    /// (`N incorrect password attempt(s)`). Contar las dos convertía un fallo en «2 fallos
+    /// de sudo». Cuenta PAM; el resumen solo cuando ese proceso no dejó línea PAM (una
+    /// cuenta de systemd-homed no pasa por pam_unix), y entonces vale por N.
+    fn sudo(&mut self, l: &str, linea: &str, ahora: Instant) {
+        let pid = pid_de(linea);
+        if l.contains("(sudo:auth)") && l.contains("authentication failure") {
+            if let Some(p) = pid {
+                // Un resumen que no llega (sudo matado) no debe dejar crecer el set.
+                if self.sudo_pam.len() >= 32 {
+                    self.sudo_pam.clear();
+                }
+                self.sudo_pam.insert(p);
+            }
+            if self.on("sudoAuth") && !en_terminal(l) {
+                self.grupos.encolar("ssudo", "", ahora);
+            }
+        } else if let Some(n) = intentos_incorrectos(l) {
+            let ya_contado = pid.is_some_and(|p| self.sudo_pam.remove(&p));
+            if self.on("sudoAuth") && !ya_contado && !en_terminal(l) {
+                for _ in 0..n {
+                    self.grupos.encolar("ssudo", "", ahora);
+                }
+            }
+        } else if self.on("privEsc")
+            && (l.contains("not in sudoers")
+                || l.contains("command not allowed")
+                || l.contains("not authorized on host")
+                || l.contains("account temporarily locked"))
+        {
+            // Escalada DENEGADA por la política (sudoers) o cuenta bloqueada por
+            // pam_faillock tras `deny` fallos: no es un despiste de contraseña.
+            self.grupos.encolar("spriv", linea, ahora);
+        }
+    }
+
     fn sistema(&mut self, linea: &str, ahora: Instant) {
         let l = linea.to_lowercase();
         let has = |s: &str| l.contains(s);
+        let ident = identificador(linea);
 
         if self.on("serviceFailure") && has("failed to start") {
             // Lo que siga roto tras la actualización lo caza monitor_units (bash).
             if !self.env.pkg_tx_activa() {
                 self.grupos.encolar("ssvc", linea, ahora);
             }
-        } else if self.on("sudoAuth") && has("sudo") && (has("authentication failure") || has("incorrect password")) {
-            self.grupos.encolar("ssudo", "", ahora);
+        } else if ident == "sudo" {
+            // Toda línea de sudo se queda aquí: antes caía a las ramas siguientes por
+            // subcadena, y un `sudo pkexec …` correcto (COMMAND=/usr/bin/pkexec) avisaba
+            // como escalada de pkexec.
+            self.sudo(&l, linea, ahora);
+        } else if ident == "polkitd" && has("failed to authenticate") {
+            // Fallo DENTRO del diálogo de polkit: el propio diálogo ya lo dijo, no avisa.
+            // Solo se apunta, para que el «Not authorized» con que pkexec cierra ese mismo
+            // intento tampoco avise. Va por tiempo y no por PID: el sujeto que polkitd
+            // registra es el PADRE de pkexec (su `getppid()`), no pkexec.
+            if has("org.freedesktop.policykit.exec") {
+                self.polkit_dialogo = Some(ahora);
+            }
         } else if self.on("privEsc")
-            && (has("pkexec")
-                || (has("(su:auth)") && has("authentication failure"))
-                || (has("polkit") && has("failed to authenticate")))
+            && (ident == "pkexec"
+                || (ident == "su" && (has("(su:auth)") || has("(su-l:auth)")) && has("authentication failure")))
         {
-            // Escalada autenticada (sesión PAM o COMMAND=) = el usuario acaba de meter
-            // su contraseña: callar. Solo avisa la que NO pasó por una contraseña válida.
-            if has("pkexec") && (has("pam_unix(polkit-1:session)") || linea.contains("[COMMAND=")) {
+            if ident == "pkexec" {
+                // Escalada autenticada (sesión PAM o COMMAND=) = el usuario acaba de meter
+                // su contraseña. «Request dismissed» = pulsó Cancelar. Ninguna avisa.
+                if has("pam_unix(polkit-1:session)") || linea.contains("[COMMAND=") || has("request dismissed") {
+                    return;
+                }
+                // Denegado tras fallar en el diálogo: ya se vio. Denegado SIN diálogo
+                // (la política dice «no», sesión inactiva…) sí avisa.
+                if self.polkit_dialogo.take().is_some_and(|t| ahora.duration_since(t) < Duration::from_secs(10)) {
+                    return;
+                }
+            } else if en_terminal(&l) {
+                // `su` fallido en una terminal: la terminal ya dijo «Authentication failure».
                 return;
             }
             self.grupos.encolar("spriv", linea, ahora);
@@ -292,6 +367,33 @@ pub fn app_segfault(linea: &str) -> Option<String> {
     None
 }
 
+/// `<ident>` de `<ident>[<pid>]: …` o `<ident>: …` (el formato de `journal::Entrada`).
+fn identificador(linea: &str) -> &str {
+    linea.find(['[', ':']).map_or(linea, |i| &linea[..i])
+}
+
+/// ¿La línea dice que el intento vino de una terminal? `tty=/dev/pts/1` (PAM) o
+/// `TTY=pts/1` (resumen de sudo). Sin terminal, PAM deja `tty=` vacío y sudo omite el campo.
+fn en_terminal(l: &str) -> bool {
+    l.find("tty=").is_some_and(|i| {
+        l[i + 4..].chars().next().is_some_and(|c| !c.is_whitespace() && c != ';')
+    })
+}
+
+/// `<ident>[([0-9]+)]: …`
+fn pid_de(linea: &str) -> Option<u32> {
+    let tras = &linea[linea.find('[')? + 1..];
+    tras[..tras.find(']')?].parse().ok()
+}
+
+/// `([0-9]+) incorrect password attempt` sobre la línea en minúsculas. Sin número
+/// legible cuenta 1; el tope evita un bucle absurdo con un dato corrupto.
+fn intentos_incorrectos(l: &str) -> Option<usize> {
+    let i = l.find(" incorrect password attempt")?;
+    let n = l[..i].rsplit(' ').next().and_then(|t| t.parse().ok()).unwrap_or(1);
+    Some(n.clamp(1, 100))
+}
+
 /// `a.*b` sobre una sola línea.
 fn contiene_en_orden(s: &str, a: &str, b: &str) -> bool {
     s.find(a).is_some_and(|i| s[i + a.len()..].contains(b))
@@ -350,10 +452,92 @@ mod tests {
     }
 
     #[test]
-    fn sudo_por_prefijo() {
+    fn sudo_resumen_sin_pam_cuenta_n() {
         let mut m = monitor(Falso::default());
-        m.procesar(false, "sudo[5]:   mateo : 3 incorrect password attempts ; TTY=pts/1", Instant::now());
-        assert!(pendientes(&m));
+        m.procesar(false, "sudo[5]:   mateo : 3 incorrect password attempts ; PWD=/tmp ; USER=root ; COMMAND=/usr/bin/true", Instant::now());
+        assert_eq!(m.grupos.total("ssudo"), 3);
+    }
+
+    /// Lo del requisito: fallar sudo en la terminal no manda nada (la terminal ya avisó).
+    #[test]
+    fn sudo_en_terminal_calla() {
+        let mut m = monitor(Falso::default());
+        let t = Instant::now();
+        for l in [
+            "sudo[40]: pam_unix(sudo:auth): authentication failure; logname=mateo uid=1000 euid=0 tty=/dev/pts/1 ruser=mateo rhost=  user=mateo",
+            "sudo[40]: pam_unix(sudo:auth): authentication failure; logname=mateo uid=1000 euid=0 tty=/dev/pts/1 ruser=mateo rhost=  user=mateo",
+            "sudo[40]: mateo : 2 incorrect password attempts ; TTY=pts/1 ; PWD=/home/mateo ; USER=root ; COMMAND=/usr/bin/true",
+            "sudo[41]: mateo : 1 incorrect password attempt ; TTY=pts/1 ; PWD=/home/mateo ; USER=root ; COMMAND=/usr/bin/true",
+        ] {
+            m.procesar(false, l, t);
+        }
+        assert!(!pendientes(&m));
+        assert!(m.sudo_pam.is_empty());
+    }
+
+    #[test]
+    fn su_en_terminal_calla() {
+        let mut m = monitor(Falso::default());
+        m.procesar(false, "su[3]: pam_unix(su-l:auth): authentication failure; logname=mateo uid=1000 euid=0 tty=pts/1 ruser=mateo rhost=  user=root", Instant::now());
+        assert!(!pendientes(&m));
+    }
+
+    #[test]
+    fn polkit_visto_en_dialogo_calla() {
+        let mut m = monitor(Falso::default());
+        let t = Instant::now();
+        m.procesar(false, "polkitd[763]: Operator of unix-session:2 FAILED to authenticate to gain authorization for action org.freedesktop.policykit.exec for unix-process:900:1 [bash] (owned by unix-user:mateo)", t);
+        m.procesar(false, "pkexec[901]: mateo: Error executing command as another user: Not authorized [USER=root] [TTY=unknown] [CWD=/]", t);
+        m.procesar(false, "pkexec[902]: mateo: Error executing command as another user: Request dismissed [USER=root] [TTY=unknown] [CWD=/]", t);
+        assert!(!pendientes(&m));
+        // Denegado sin diálogo: avisa.
+        m.procesar(false, "pkexec[903]: mateo: Error executing command as another user: Not authorized [USER=root] [TTY=unknown] [CWD=/]", t);
+        assert_eq!(m.grupos.total("spriv"), 1);
+    }
+
+    /// Líneas reales de UNA contraseña incorrecta (sudo 1.9.17, pam_unix + faillock):
+    /// es un fallo, no dos.
+    #[test]
+    fn sudo_un_fallo_cuenta_uno() {
+        let mut m = monitor(Falso::default());
+        let t = Instant::now();
+        for l in [
+            "sudo[28520]: pam_unix(sudo:auth): authentication failure; logname=mateo uid=1000 euid=0 tty= ruser=mateo rhost=  user=mateo",
+            "sudo[28520]: pam_unix(sudo:auth): conversation failed",
+            "sudo[28520]: pam_unix(sudo:auth): auth could not identify password for [mateo]",
+            "sudo[28520]: mateo : 1 incorrect password attempt ; PWD=/home/mateo ; USER=root ; COMMAND=/usr/bin/true",
+        ] {
+            m.procesar(false, l, t);
+        }
+        assert_eq!(m.grupos.total("ssudo"), 1);
+        assert!(m.sudo_pam.is_empty());
+    }
+
+    #[test]
+    fn sudo_denegado_es_escalada() {
+        let mut m = monitor(Falso::default());
+        let t = Instant::now();
+        m.procesar(false, "sudo[7]:    intruso : user NOT in sudoers ; TTY=pts/2 ; PWD=/tmp ; USER=root ; COMMAND=/usr/bin/sh", t);
+        m.procesar(false, "sudo[8]: pam_faillock(sudo:auth): Consecutive login failures for user mateo account temporarily locked", t);
+        assert_eq!(m.grupos.total("spriv"), 2);
+        assert_eq!(m.grupos.total("ssudo"), 0);
+    }
+
+    #[test]
+    fn sudo_correcto_no_avisa() {
+        let mut m = monitor(Falso::default());
+        let t = Instant::now();
+        // Contiene "pkexec": antes caía a la rama de pkexec y avisaba como escalada.
+        m.procesar(false, "sudo[9]: mateo : TTY=pts/1 ; PWD=/home/mateo ; USER=root ; COMMAND=/usr/bin/pkexec true", t);
+        m.procesar(false, "sudo[9]: pam_unix(sudo:session): session opened for user root(uid=0) by mateo(uid=1000)", t);
+        assert!(!pendientes(&m));
+    }
+
+    #[test]
+    fn su_login_falla() {
+        let mut m = monitor(Falso::default());
+        m.procesar(false, "su[3]: pam_unix(su-l:auth): authentication failure; logname=mateo uid=1000 euid=0 tty= ruser=mateo rhost=  user=root", Instant::now());
+        assert_eq!(m.grupos.total("spriv"), 1);
     }
 
     #[test]

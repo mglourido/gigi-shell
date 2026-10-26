@@ -83,11 +83,11 @@
     },
     "fallosSudo": {
       "titulo": "Fallos de sudo",
-      "descripcion": "Avisa ante intentos fallidos de autenticación con sudo."
+      "descripcion": "Avisa al instante de contraseñas incorrectas en sudo que no se teclearon en una terminal (un script o un proceso probando contraseñas). Las de la terminal no avisan: ya las dice ella."
     },
     "escaladaPrivilegios": {
       "titulo": "Escalada de privilegios",
-      "descripcion": "Avisa del uso de pkexec —salvo acciones permitidas de GameMode— y de fallos de autenticación con su o polkit."
+      "descripcion": "Avisa de las escaladas denegadas que no viste: pkexec rechazado sin diálogo, su fallido fuera de una terminal, sudo rechazado por sudoers y cuenta bloqueada tras varios fallos. Cancelar o fallar en un diálogo de contraseña no avisa."
     },
     "sesionesSsh": {
       "titulo": "Sesiones SSH",

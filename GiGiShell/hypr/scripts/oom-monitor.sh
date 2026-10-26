@@ -149,6 +149,7 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif-agrupar.sh" 2>/dev/null; then
     notif_volcar()  { :; }
     notif_pendiente() { return 1; }
     notif_grupo_unico() { :; }   # sin agrupación no hay nada que deduplicar
+    notif_grupo_inmediato() { :; }   # sin agrupación ya es todo inmediato
 fi
 
 # ¿Es "lanzable"? Bit de ejecución, tipo de instalador conocido o binario ELF.
@@ -514,6 +515,15 @@ monitor_system() {
     declare -A _crash_cooldown
     declare -a _coredump_times=()   # ventana deslizante para detectar tormentas
     _storm_last=0
+    declare -A _sudo_pam=()         # PIDs de sudo cuyo fallo ya contó la línea PAM
+    # journalctl -o short: "<fecha> <host> sudo[1234]: …". El espacio delante ancla al
+    # identificador y no a un "sudo[" dentro del mensaje.
+    pat_sudo=' sudo\[([0-9]+)\]: '
+    pat_intentos='([0-9]+) incorrect password attempt'
+    # ¿El intento vino de una terminal? `tty=/dev/pts/1` (PAM) o `TTY=pts/1` (resumen de
+    # sudo). Sin terminal PAM deja `tty=` vacío y sudo omite el campo.
+    pat_tty='tty=[^[:space:];]'
+    _polkit_dialogo=0               # epoch del último fallo de pkexec dentro del diálogo
 
     # Agrupación. Aquí la ráfaga típica no es un fallo de hardware sino un ataque o
     # un servicio en bucle: un SSH expuesto recibe cientos de "Failed password" por
@@ -524,6 +534,8 @@ monitor_system() {
     notif_grupo ssudo    sudo.fallo-autenticacion     critical 15000 "Fallo sudo"                    "fallos de sudo" "Intento fallido de sudo"
     notif_grupo spriv    seguridad.escalada-privilegios critical 15000 "Escalada de privilegios"       "escaladas de privilegios"
     notif_grupo sssh     ssh.evento                   normal   15000 "SSH"                           "eventos SSH"
+    # Autenticación: el primer aviso sale en el acto (ver notif_grupo_inmediato).
+    notif_grupo_inmediato ssudo; notif_grupo_inmediato spriv; notif_grupo_inmediato sssh
     notif_grupo score    app.crash                    critical 15000 "App crasheada"                 "apps crasheadas" "Proceso: "
 
     # -t restringe a los identificadores que nos interesan → menos volumen y sin
@@ -538,7 +550,8 @@ monitor_system() {
     trap '_matar_descendientes "$_tuberia" 2>/dev/null; exit 0' TERM INT HUP
     {
         journalctl -f -n 0 --no-pager \
-            -t sudo -t sshd -t su -t pkexec -t polkitd -t systemd -t systemd-coredump 2>/dev/null |
+            -t sudo -t sshd -t su -t pkexec -t polkitd -t systemd -t systemd-coredump \
+            -t sshd-session 2>/dev/null |
         while :; do
 
             notif_leer line; rc=$?
@@ -558,11 +571,46 @@ monitor_system() {
                 # estado y no flanco — así que esto se descarta, no se pierde.
                 pkg_tx_activa || notif_encolar ssvc "$line"
 
-            # --- Sudo auth failure ---
-            elif [[ "$sec_sudoAuth" != false ]] && \
-                 [[ "$lower" == *"sudo"* && \
-                    ( "$lower" == *"authentication failure"* || "$lower" == *"incorrect password"* ) ]]; then
-                notif_encolar ssudo ""
+            # --- Sudo (fallos de contraseña y escaladas denegadas) ---
+            #     Anclado al IDENTIFICADOR, no a la subcadena "sudo": toda línea de sudo
+            #     se queda en esta rama. Antes caía a las siguientes, y un `sudo pkexec …`
+            #     correcto (COMMAND=/usr/bin/pkexec, sin el "[COMMAND=" de pkexec) avisaba
+            #     como escalada de pkexec.
+            #     Una contraseña incorrecta deja DOS líneas: la de PAM (una por intento) y
+            #     el resumen de sudo al rendirse ("N incorrect password attempt(s)").
+            #     Contar las dos convertía un fallo en "2 fallos de sudo". Cuenta PAM; el
+            #     resumen solo si ese PID no dejó línea PAM (una cuenta de systemd-homed no
+            #     pasa por pam_unix), y entonces vale por N.
+            #     Un fallo tecleado EN UNA TERMINAL no avisa: sudo ya lo dice ahí al instante,
+            #     y una tarjeta crítica segundos después solo repite lo que el usuario acaba
+            #     de ver. Avisa el intento SIN terminal (un script o un proceso en segundo
+            #     plano probando contraseñas). Un atacante que se fabrique un pty lo esquiva,
+            #     pero al tercer fallo pam_faillock bloquea la cuenta y eso sí avisa.
+            elif [[ "$line" =~ $pat_sudo ]]; then
+                _pid=${BASH_REMATCH[1]}
+                if [[ "$lower" == *"(sudo:auth)"* && "$lower" == *"authentication failure"* ]]; then
+                    # Un resumen que no llega (sudo matado) no debe dejar crecer el mapa.
+                    (( ${#_sudo_pam[@]} >= 32 )) && _sudo_pam=()
+                    _sudo_pam[$_pid]=1
+                    if [[ "$sec_sudoAuth" != false && ! "$lower" =~ $pat_tty ]]; then
+                        notif_encolar ssudo ""
+                    fi
+                elif [[ "$lower" =~ $pat_intentos ]]; then
+                    _n=${BASH_REMATCH[1]}
+                    if [[ -n "${_sudo_pam[$_pid]:-}" ]]; then
+                        unset '_sudo_pam[$_pid]'
+                    elif [[ "$sec_sudoAuth" != false && ! "$lower" =~ $pat_tty ]]; then
+                        (( _n > 100 )) && _n=100
+                        for (( _i = 0; _i < _n; _i++ )); do notif_encolar ssudo ""; done
+                    fi
+                # Escalada DENEGADA por sudoers, o cuenta bloqueada por pam_faillock tras
+                # `deny` fallos: no es un despiste de contraseña.
+                elif [[ "$sec_privEsc" != false ]] && \
+                     [[ "$lower" == *"not in sudoers"* || "$lower" == *"command not allowed"* || \
+                        "$lower" == *"not authorized on host"* || \
+                        "$lower" == *"account temporarily locked"* ]]; then
+                    notif_encolar spriv "$line"
+                fi
 
             # --- Escalada de privilegios (pkexec / su / polkit) ---
             #     pkexec emite DOS líneas por escalada: la de PAM ("session opened",
@@ -577,15 +625,33 @@ monitor_system() {
             #     contraseña válida: un pkexec DENEGADO no abre sesión PAM ni loguea
             #     COMMAND=, pero sí "Not authorized", que esta rama capta; igual que
             #     los fallos de autenticación de `su` y de polkit.
-            elif [[ "$sec_privEsc" != false ]] && \
-                 [[ "$lower" == *"pkexec"* || \
-                    ( "$lower" == *"(su:auth)"* && "$lower" == *"authentication failure"* ) || \
-                    ( "$lower" == *"polkit"* && "$lower" == *"failed to authenticate"* ) ]]; then
+            #     `su -` usa el servicio PAM su-l, no su: con solo "(su:auth)" esos fallos
+            #     no avisaban.
+            #     Tampoco avisa lo que el usuario YA VIO: un fallo dentro del diálogo de
+            #     polkit (el diálogo lo dice), el «Request dismissed» de pulsar Cancelar y un
+            #     `su` fallido en una terminal. El fallo de polkit solo se apunta, para callar
+            #     el «Not authorized» con que pkexec cierra ese mismo intento; va por tiempo y
+            #     no por PID porque el sujeto que registra polkitd es el PADRE de pkexec.
+            elif [[ "$line" == *" polkitd["* && "$lower" == *"failed to authenticate"* ]]; then
+                [[ "$lower" == *"org.freedesktop.policykit.exec"* ]] && printf -v _polkit_dialogo '%(%s)T' -1
 
-                if [[ "$lower" == *"pkexec"* ]]; then
+            elif [[ "$sec_privEsc" != false ]] && \
+                 [[ "$line" == *" pkexec["* || \
+                    ( "$line" == *" su["* && ( "$lower" == *"(su:auth)"* || "$lower" == *"(su-l:auth)"* ) && \
+                      "$lower" == *"authentication failure"* ) ]]; then
+
+                if [[ "$line" == *" pkexec["* ]]; then
                     [[ "$lower" == *"pam_unix(polkit-1:session)"* ]] && continue
                     # COMMAND= presente → autenticación correcta, callar.
                     [[ "$line" == *"[COMMAND="* ]] && continue
+                    [[ "$lower" == *"request dismissed"* ]] && continue
+                    printf -v _now '%(%s)T' -1
+                    if (( _now - _polkit_dialogo < 10 )); then
+                        _polkit_dialogo=0
+                        continue
+                    fi
+                elif [[ "$lower" =~ $pat_tty ]]; then
+                    continue
                 fi
 
                 notif_encolar spriv "$line"

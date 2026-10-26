@@ -79,6 +79,8 @@
 declare -a _NG_ORDEN=()
 declare -A _NG_EV=() _NG_URG=() _NG_TMO=() _NG_TIT=() _NG_PLU=() _NG_PRE=() _NG_SUF=() _NG_EXT=()
 declare -A _NG_UNI=()      # cat  → 1 si un texto repetido es el MISMO suceso (ver cabecera)
+declare -A _NG_INM=()      # cat  → 1 si el primer evento sale en el acto (ver notif_grupo_inmediato)
+declare -A _NG_IDF=()      # cat  → fichero donde notify-send -p dejó el id de esa primera tarjeta
 declare -A _NG_ITEMS=()   # cat  → textos únicos, unidos por \n (preserva el orden)
 declare -A _NG_CNT=()     # cat\x1ftexto → cuántas veces se ha visto ese texto
 declare -A _NG_TOTAL=()   # cat  → eventos encolados (con repeticiones)
@@ -109,6 +111,24 @@ notif_grupo() {
 # Marca una categoría como "un texto repetido es el mismo suceso" (ver cabecera). Se
 # llama justo después de su notif_grupo.
 notif_grupo_unico() { _NG_UNI[$1]=1; }
+# INMEDIATA: el primer evento de cada ventana se avisa YA, sin esperar NOTIF_CALMA — para
+# los de autenticación, 4 s más lo que dure la ráfaga es llegar tarde. Lo que llegue
+# después se agrupa como siempre y el resumen SUSTITUYE esa tarjeta (`notify-send -r`;
+# AGS retira el popup y la entrada con el mismo id), así que una ráfaga sigue siendo UNA
+# tarjeta. El id se recoge en segundo plano a un fichero: un `$(notify-send -p)` colgaría
+# el monitor si el demonio de notificaciones no contesta. Sin id, el resumen sale nuevo.
+notif_grupo_inmediato() { _NG_INM[$1]=1; }
+# shellcheck disable=SC2086  # $extra sin comillas A PROPÓSITO: son varios args.
+_ng_emitir() {   # <cat> <título> <cuerpo> [opciones extra de notify-send]
+    local cat=$1 titulo=$2 cuerpo=$3; shift 3
+    if declare -F notificar >/dev/null 2>&1; then
+        notificar "${_NG_EV[$cat]}" -u "${_NG_URG[$cat]}" ${_NG_EXT[$cat]} "$@" \
+            "$titulo" "$cuerpo" -t "${_NG_TMO[$cat]}"
+    else
+        notify-send -h string:x-gigishell-source:system -u "${_NG_URG[$cat]}" ${_NG_EXT[$cat]} "$@" \
+            "$titulo" "$cuerpo" -t "${_NG_TMO[$cat]}"
+    fi
+}
 
 # Encola un evento y abre la ventana si no lo estaba.
 #
@@ -142,6 +162,11 @@ notif_encolar() {
         (( ++_NG_TOTAL[$cat] ))   # pasado el CAP: cuenta en el total, no en la lista
     fi
 
+    if (( _NG_TOTAL[$cat] == 1 )) && [[ -n "${_NG_INM[$cat]+x}" ]]; then
+        _NG_IDF[$cat]="${XDG_RUNTIME_DIR:-/tmp}/gigishell-notif.$BASHPID.$cat"
+        _ng_emitir "$cat" "${_NG_TIT[$cat]}" "${_NG_PRE[$cat]}$txt${_NG_SUF[$cat]}" -p \
+            > "${_NG_IDF[$cat]}" 2>/dev/null &
+    fi
     if (( ! _NG_PEND )); then
         _NG_PEND=1
         printf -v _NG_LIMITE '%(%s)T' -1
@@ -206,13 +231,17 @@ notif_volcar() {
             [[ -n "$cuerpo" ]] || cuerpo="${_NG_PRE[$cat]}${_NG_SUF[$cat]}"
         fi
 
-        # shellcheck disable=SC2086  # $extra sin comillas A PROPÓSITO: son varios args.
-        if declare -F notificar >/dev/null 2>&1; then
-            notificar "${_NG_EV[$cat]}" -u "${_NG_URG[$cat]}" ${_NG_EXT[$cat]} \
-                "$titulo" "$cuerpo" -t "${_NG_TMO[$cat]}"
-        else
-            notify-send -h string:x-gigishell-source:system -u "${_NG_URG[$cat]}" ${_NG_EXT[$cat]} \
-                "$titulo" "$cuerpo" -t "${_NG_TMO[$cat]}"
+        local -a reemplaza=()
+        if [[ -n "${_NG_IDF[$cat]:-}" ]]; then
+            local id=""
+            id=$(<"${_NG_IDF[$cat]}") 2>/dev/null
+            rm -f "${_NG_IDF[$cat]}"
+            unset '_NG_IDF[$cat]'
+            [[ "$id" =~ ^[0-9]+$ ]] && reemplaza=(-r "$id")
+        fi
+        # Un solo evento en una categoría inmediata: ya salió al encolarse.
+        if (( total > 1 )) || [[ -z "${_NG_INM[$cat]+x}" ]]; then
+            _ng_emitir "$cat" "$titulo" "$cuerpo" "${reemplaza[@]}"
         fi
 
         _NG_ITEMS[$cat]="" _NG_TOTAL[$cat]=0 _NG_UNICOS[$cat]=0
