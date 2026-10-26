@@ -55,7 +55,7 @@ function orionSigueEnPantalla(): boolean {
  * frames, y copiar esa constante aquí la dejaría desincronizada en silencio la
  * primera vez que alguien la retoque.
  */
-function esperarOrionOculto(): Promise<void> {
+export function esperarOrionOculto(): Promise<void> {
   return new Promise((resolve) => {
     if (!orionSigueEnPantalla()) { resolve(); return }
     let intentos = 0

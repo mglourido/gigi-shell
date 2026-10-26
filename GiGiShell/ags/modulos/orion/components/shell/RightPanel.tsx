@@ -1,5 +1,7 @@
 // Panel contextual de la derecha: acciones sobre la app seleccionada (abrir,
-// editar config, fijar en Inicio, desinstalar). Sustituye la reserva
+// abrir como root, mostrar ubicación, editar config, fijar en Inicio,
+// desinstalar) o sobre un fichero encontrado por extensión (abrir, mostrar
+// ubicación y, si es un ejecutable suelto, abrir como root). Sustituye la reserva
 // `.orion-balance` derecha cuando está visible — ver el comentario de
 // `panelInner` en `Orion.tsx` para el porqué de esa reserva simétrica.
 
@@ -15,6 +17,10 @@ import { addFavorite, removeFavorite, isFavorite, favorites } from "../../data/f
 import { olvidarApp } from "../../data/historial"
 import { invalidarCatalogoApps } from "../../data/catalogo"
 import { desinstalarApp } from "../../data/uninstall"
+import {
+  lanzarComoRoot, comandoDe, execDeApp, mostrarUbicacion, ubicacionDeApp, seEjecuta,
+} from "../../data/ejecutables"
+import { carpetaCorta, extensionDe } from "../../data/ejecutables.modelo"
 import { crearIconoApp } from "../shared/tarjetaApp"
 import {
   enfocarVentana, traerVentanaAqui, alternarPantallaCompletaVentana,
@@ -175,7 +181,11 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
     // ── Header ───────────────────────────────────────────────────────────────
     const header = new Gtk.Box({ cssClasses: ["rp-header"], spacing: 10 })
     const eyebrow = new Gtk.Label({
-      label: app.ventana ? `VENTANA · ESCRITORIO ${app.ventana.escritorio.toUpperCase()}` : "APLICACIÓN",
+      label: app.ventana
+        ? `VENTANA · ESCRITORIO ${app.ventana.escritorio.toUpperCase()}`
+        : app.rutaEjecutable
+          ? `${seEjecuta(app.rutaEjecutable) ? "EJECUTABLE" : "ARCHIVO"} · .${(extensionDe(app.rutaEjecutable) ?? "").toUpperCase()}`
+          : "APLICACIÓN",
       cssClasses: ["rp-eyebrow"], halign: Gtk.Align.START,
     })
     inner.append(eyebrow)
@@ -189,7 +199,14 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
       cssClasses: ["rp-app-name"], ellipsize: 3, maxWidthChars: 13,
     }))
     inner.append(header)
-    if (app.ventana?.titulo) {
+    if (app.rutaEjecutable) {
+      inner.append(new Gtk.Label({
+        label: carpetaCorta(app.rutaEjecutable, GLib.get_home_dir(), 26),
+        halign: Gtk.Align.START, cssClasses: ["rp-ventana-titulo", "rp-ruta"],
+        ellipsize: 2, maxWidthChars: 26, tooltipText: app.rutaEjecutable,
+      }))
+    }
+        if (app.ventana?.titulo) {
       inner.append(new Gtk.Label({
         label: app.ventana.titulo, halign: Gtk.Align.START, cssClasses: ["rp-ventana-titulo"],
         ellipsize: 3, maxWidthChars: 22, tooltipText: app.ventana.titulo,
@@ -217,6 +234,36 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
       app.launch()
       hidePanel()
     })
+
+    // Root pasa por el diálogo de polkit: `lanzarComoRoot` espera a que Orion
+    // (layer OVERLAY) se haya ido antes de lanzar, o el diálogo saldría debajo.
+    // El comando se recalcula aquí y no se reutiliza `launch`, que es un
+    // closure con el comando ya cerrado para el usuario normal.
+    // Un fichero que no es un programa (un PDF) no se "ejecuta": abrirlo como
+    // root sería lanzar su visor como root, que no es lo que nadie busca. Sí
+    // cuenta como programa una extensión a la que el usuario le puso comando.
+    const esPrograma = !app.rutaEjecutable || seEjecuta(app.rutaEjecutable)
+    if (esPrograma) {
+      agregarAccion("dialog-password-symbolic", "Ejecutar como root", () => {
+        const linea = app.rutaEjecutable ? comandoDe(app.rutaEjecutable) : execDeApp(app.execRaw)
+        hidePanel()
+        lanzarComoRoot(linea)
+      })
+    }
+
+    agregarAccion("folder-open-symbolic", "Mostrar ubicación", () => {
+      mostrarUbicacion(app.rutaEjecutable ?? ubicacionDeApp(app.execRaw, app.desktopFile ?? ""))
+      hidePanel()
+    })
+
+    // Un fichero suelto no tiene `.desktop`: ni config que adivinar, ni
+    // favorito que guardar (los favoritos se resuelven por id de `.desktop`),
+    // ni paquete que desinstalar.
+    if (app.rutaEjecutable) {
+      inner.append(acts)
+      sincronizarAcciones()
+      return
+    }
 
     agregarAccion("document-edit-symbolic", "Editar config", () => {
       const p = guessConfigPath(app.execName, app.appId)

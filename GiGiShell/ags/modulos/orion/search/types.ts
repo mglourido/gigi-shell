@@ -32,6 +32,12 @@ export interface SearchContext {
 export interface HandlerMatch {
   score: number
   build: () => SearchResult[]
+  /**
+   * Sus filas van TODAS antes de la intercalación del resto, en vez de
+   * repartirse por turnos. Lo usa el handler de ejecutables: quien teclea
+   * ".jar" busca ese fichero, y las apps parecidas van detrás.
+   */
+  primero?: boolean
 }
 
 export interface SearchHandler {

@@ -688,6 +688,53 @@ déficit *a medias* con el título; acotado a 14 (con `tooltipText` para no perd
     AGS de `randomOnStart`), y ahora se **observa con un `Gio.FileMonitor`**: el planificador cambia
     el fondo por su cuenta al cruzar una franja, y sin eso la rejilla seguiría resaltando el anterior.
 
+  **Búsqueda de ficheros por extensión (`data/ejecutables.ts` + `ejecutables.modelo.ts`, puro y con
+  test; handler `search/handlers/ejecutables.ts`).** Teclear una consulta que acabe en una extensión
+  (`.pdf`, `.png`, `.jar`…: alfanumérica, ≤ 8 caracteres y con al menos una letra, para que `v1.2` no
+  cuente) busca ficheros con ella en `~` (primer nivel), Documentos, Documents, Descargas, Downloads
+  y las carpetas de `orionRutasEjecutables` (Ajustes > Orion > Carpetas de búsqueda de archivos, 4
+  niveles). Lo de antes del punto se compara con el nombre del fichero y también con las apps, que
+  salen **detrás**: el handler marca `primero` en su `HandlerMatch` y el motor pone esas filas delante
+  en vez de intercalarlas. **El handler de apps puntúa con la consulta entera Y con la base y se queda
+  con la mejor**: como cualquier `.algo` ya cuenta como extensión, `org.gnome` o `node.js` llegan
+  partidos, y quedarse solo con la base empeoraría la búsqueda de apps normales. Lo que no se deduce
+  del código:
+  - **El índice es POR EXTENSIÓN y no se recorre en cada tecla**: un `find -iname "*.<ext>"`
+    asíncrono por carpeta (podando ocultos, `node_modules`, `venv`, `site-packages`, `__pycache__`;
+    techo de 4000 líneas y `timeout 5`; la extensión va como argumento posicional, nunca
+    interpolada) lo rellena cuando caduca (30 s), y `state.ts` repite la consulta al terminar **solo
+    si sigue escrita esa misma extensión** — al teclear `.p`, `.pd`, `.pdf` terminan escaneos de las
+    anteriores. La primera búsqueda de cada extensión enseña primero solo las apps y un instante
+    después suben los ficheros. El icono es el del tipo MIME (`Gio.content_type_guess` por nombre,
+    sin leer el fichero).
+  - Los cuatro **ejecutables** (`EXTENSIONES`) se lanzan con su intérprete **desde su carpeta**
+    (`python3`, `java -jar`; un `.sh` sin bit de ejecución va por `bash`; a un `.AppImage` sin bit se
+    le pone con `chmod +x`); **cualquier otro fichero se abre con `xdg-open`**, o sea con la app
+    predeterminada de su tipo. Todo por `launchApp`, así que también se ancla al escritorio.
+  - **El usuario puede cambiar cómo se abre una extensión** (`orionComandosArchivo`, Ajustes >
+    Orion > Cómo abrir cada extensión: `{ext, comando, terminal}`), y su regla **gana a todo**,
+    intérpretes de fábrica incluidos. `comandoPersonalizado` sustituye `{archivo}`, `{nombre}` (sin
+    extensión) y `{carpeta}` **ya entrecomillados** —así `gcc {archivo} -o {nombre} && ./{nombre}`
+    funciona con espacios en la ruta—, añade `{archivo}` al final si la plantilla no lo nombra y
+    corre desde la carpeta del fichero. Con `terminal` va dentro de `kitty --hold sh -c …`: sin
+    ventana, la salida (o el error de compilación) de un `gcc` no llega a ningún sitio. Las filas de
+    la lista **no tienen controles que editen en sitio**: cambiar la regla crea un objeto nuevo y el
+    `<For>` destruiría el control desde su propio manejador; se edita con el lápiz, que copia la
+    regla al formulario.
+  - **«Mostrar ubicación» sale en la ficha de toda app y todo fichero; «Ejecutar como root», en las
+    apps, en los cuatro ejecutables y en las extensiones con regla del usuario** (`seEjecuta`;
+    abrir un PDF con su visor como root no es lo que nadie busca).
+    Root es `pkexec env DISPLAY=… WAYLAND_DISPLAY=… XDG_RUNTIME_DIR=… XAUTHORITY=… sh -c …`
+    (`pkexec` arranca con el entorno vacío y una app gráfica no encontraría la sesión) y espera con
+    `esperarOrionOculto()` igual que desinstalar, por la misma capa OVERLAY. Ubicación abre
+    `dolphin --select` sobre el binario real del `Exec`, o sobre el `.desktop` si el `Exec` es un
+    envoltorio (`flatpak`, `steam`, `env`…) — señalar `/usr/bin/flatpak` no diría nada.
+  - La ficha de un fichero (`rutaEjecutable` en `AppContextItem`) **no ofrece editar config,
+    fijar ni desinstalar**: no hay `.desktop`, y los favoritos se resuelven por id de `.desktop`.
+  - La carpeta bajo el nombre la acorta `carpetaCorta` (principio + `…` + final, con techo de
+    caracteres) **y** lleva `maxWidthChars`: una ruta larga no puede ensanchar la layer, que no
+    vuelve a encogerse sola.
+
   Un `execAsync` nuevo con `sh -c` para abrir una app es el modo de fallo aquí: no da error, solo
   deja de anclar. El interruptor es `anclarVentanasRofi` y lo lee el script, no este lado — dos
   lecturas del mismo ajuste podrían discrepar. Si el script falta, `launchApp` cae al `sh -c` de

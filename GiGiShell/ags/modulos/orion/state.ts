@@ -12,6 +12,8 @@ import {
 import AstalHyprland from "gi://AstalHyprland"
 import { clienteJuegoEnFoco } from "../../servicios/juegos/registro"
 import { escritorioTieneJuego } from "../../servicios/juegos/cierreRofi"
+import { alActualizarEjecutables } from "./data/ejecutables"
+import { separarConsulta } from "./data/ejecutables.modelo"
 
 export type SectionId =
   | "inicio" | "apps" | "rice" | "keybinds" | "reactivo"
@@ -283,12 +285,23 @@ export function setQuery(query: string) {
       execName,
       appId:    first.meta?.appId ?? first.id,
       desktopFile: first.meta?.desktopFile ?? "",
+      rutaEjecutable: first.meta?.rutaEjecutable,
       launch:   () => first.action(),
     })
   } else {
     hideRightPanel()
   }
 }
+
+// El índice de ficheros se rellena en segundo plano (ver
+// `data/ejecutables.ts`): cuando termina, la búsqueda que lo pidió ya se resolvió
+// sin él. Se repite si sigue escrita una consulta de ESA extensión (mientras se
+// teclea ".p", ".pd", ".pdf" terminan escaneos de las anteriores) y Orion está a
+// la vista — si no, la próxima tecla ya verá el índice nuevo.
+alActualizarEjecutables((ext) => {
+  const q = searchQuery.get()
+  if (orionVisible.get() && separarConsulta(q)?.ext === ext) setQuery(q)
+})
 
 // ── App context / right panel ─────────────────────────────────────────────────
 
@@ -306,6 +319,14 @@ export interface AppContextItem {
   // favorito guardado antes de que existiera este campo), y entonces la
   // detección cae en el binario, que sigue funcionando en la mayoría de casos.
   desktopFile?: string
+  /**
+   * Si viene, la ficha es de un FICHERO encontrado en disco por su extensión
+   * (ver `data/ejecutables.ts`) y no de una app instalada: sin `.desktop` no
+   * hay config que editar, nada que fijar ni paquete que desinstalar, así que
+   * el panel solo ofrece abrir, mostrar ubicación y —si es un ejecutable
+   * suelto (.AppImage, .jar, .sh, .py)— ejecutar como root.
+   */
+  rutaEjecutable?: string
   launch: () => void
   /**
    * Si viene, la ficha es de una VENTANA abierta (página "Abiertas" de Inicio) y

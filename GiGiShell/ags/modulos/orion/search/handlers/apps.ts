@@ -7,12 +7,13 @@ import { MAX_RESULTADOS } from "../engine"
 import type { HandlerMatch, SearchHandler, SearchResult } from "../types"
 import { launchApp } from "../../data/launch"
 import { getAppInfos } from "../../data/appsInfo"
+import { separarConsulta } from "../../data/ejecutables.modelo"
 
 // ── Fuzzy subsequence scoring ─────────────────────────────────────────────────
 // All query chars must appear in target in order (rofi fuzzy algorithm).
 // Returns null if target is not a match; positive score if it is.
 // Higher score = better match.
-function fuzzy(target: string, query: string): number | null {
+export function fuzzy(target: string, query: string): number | null {
   const t = target.toLowerCase()
   const q = query.toLowerCase()
 
@@ -118,14 +119,25 @@ export const appsHandler: SearchHandler = {
   // materializar solo el top N si este handler entra en la mezcla. Con una sola
   // letra busca igual (es un lanzador): baja la confianza, no los resultados.
   match(query: string): HandlerMatch {
-    const q = query.toLowerCase()
+    // "minecraft.jar" busca también apps que se llamen "minecraft": la
+    // extensión es para el handler de ficheros, no parte del nombre. Pero no se
+    // puede DESCARTAR la consulta entera: como cualquier ".algo" cuenta ya como
+    // extensión, "org.gnome" o "node.js" también llegan aquí partidos, y son
+    // nombres de app. Se puntúa con las dos y gana la mejor. Con solo ".pdf" no
+    // hay nada que comparar y no se lista el catálogo.
+    const consultaFichero = separarConsulta(query)
+    const q = query.trim().toLowerCase()
+    const base = consultaFichero?.base.toLowerCase() ?? ""
+    if (consultaFichero && !base) return { score: 0, build: () => [] }
+    const puntuar = (a: Gio.AppInfo) =>
+      base ? Math.max(scoreApp(a, q), scoreApp(a, base)) : scoreApp(a, q)
 
     const ranked = getAppInfos()
-      .map(a => ({ a, s: scoreApp(a, q) }))
+      .map(a => ({ a, s: puntuar(a) }))
       .filter(({ s }) => s > 0)
       .sort((x, y) => y.s - x.s)
 
-    const corta = q.length < 2
+    const corta = (base || q).length < 2
     const score = ranked.length > 0 ? (corta ? 0.05 : 0.75) : (corta ? 0 : 0.10)
 
     return {

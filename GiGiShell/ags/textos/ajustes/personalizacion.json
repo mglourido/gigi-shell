@@ -16,7 +16,7 @@
       "ventanas": "Ventanas y escritorios",
       "orion": "Comportamiento de Orion",
       "portapapeles": "Historial de copias"
-      },
+    },
     "sistema": {
       "supervision": "Supervisión",
       "actualizaciones": "Actualizaciones"
@@ -217,6 +217,30 @@
       "anadir": "Añadir",
       "quitar": "Quitar",
       "sugerencias": "Han enviado notificaciones:"
+    },
+    "ejecutables": {
+      "titulo": "Carpetas de búsqueda de archivos",
+      "ayuda": "Al escribir una extensión en Orion (.pdf, .png, .AppImage, .jar…) se buscan archivos con ella y salen antes que las apps. Los .AppImage, .jar, .sh y .py se ejecutan; el resto se abre con su app predeterminada. Siempre se mira en ~ (solo su primer nivel), Documentos, Documents, Descargas y Downloads; aquí puedes añadir más carpetas, que se recorren hasta 4 niveles.",
+      "vacia": "Ninguna carpeta extra: solo se busca en las de siempre.",
+      "placeholder": "Ruta de la carpeta (p. ej. ~/Juegos o ~/.local/bin)",
+      "anadir": "Añadir",
+      "quitar": "Quitar",
+      "invalida": "Escribe una ruta absoluta o que empiece por ~/",
+      "noExiste": "Añadida, pero ahora mismo esa carpeta no existe: se buscará cuando exista."
+    },
+    "comandos": {
+      "titulo": "Cómo abrir cada extensión",
+      "ayuda": "Por defecto los .AppImage, .jar, .sh y .py se ejecutan y el resto se abre con su app predeterminada. Aquí puedes cambiarlo para una extensión: por ejemplo .c con «gcc {archivo} -o {nombre}». {archivo} es la ruta del archivo, {nombre} su nombre sin extensión y {carpeta} la carpeta donde está; si no pones {archivo}, se añade al final. El comando se ejecuta desde la carpeta del archivo.",
+      "vacia": "Ninguna regla: cada archivo se abre de la forma predeterminada.",
+      "placeholderExt": ".c",
+      "placeholderComando": "Comando (p. ej. gcc {archivo} -o {nombre})",
+      "enTerminal": "Abrir en terminal",
+      "enTerminalCorto": "terminal",
+      "enTerminalAyuda": "Lo abre en kitty y la ventana se queda abierta al terminar, para que veas la salida (o los errores de compilación).",
+      "guardar": "Guardar",
+      "editar": "Editar",
+      "quitar": "Quitar",
+      "invalida": "Escribe una extensión (letras y números, p. ej. c o .c) y un comando."
     }
   },
   "portapapeles": {

@@ -16,6 +16,9 @@ import { createComputed, createState } from "ags"
 import { execAsync } from "ags/process"
 import { normalizarModoDaltonismo, type ModoDaltonismo } from "../accesibilidad/daltonismo"
 import {
+  normalizarCarpeta, normalizarExtension, sanitizarComandos, type ComandoArchivo,
+} from "../../orion/data/ejecutables.modelo"
+import {
   ACCION_BOTON_PREDETERMINADA,
   normalizarAccionBotonEncendido,
   type AccionBotonEncendido,
@@ -330,6 +333,23 @@ export { orionRecordarUltimaSeccion }
 const [orionNotisApps, _setOrionNotisApps] = createState<string[]>(["whatsapp", "discord"])
 export { orionNotisApps }
 
+// Carpetas EXTRA donde Orion busca archivos al teclear una extensión (.pdf,
+// .AppImage, .jar…). Las fijas (~, Documentos/Documents,
+// Descargas/Downloads) no van aquí: viven en `modulos/orion/data/ejecutables.ts`
+// y no se pueden quitar. Se guardan con `$HOME` como `~` (ver
+// `normalizarCarpeta`). Se aplica en caliente: cambiar la lista invalida el
+// índice. Default: vacía.
+const [orionRutasEjecutables, _setOrionRutasEjecutables] = createState<string[]>([])
+export { orionRutasEjecutables }
+
+// Cómo abre Orion cada extensión cuando el usuario no quiere lo de fábrica
+// (intérprete de los ejecutables o app predeterminada): `[{ext, comando,
+// terminal}]`, p. ej. los `.c` con `gcc {archivo} -o {nombre}` en un terminal.
+// Lógica y marcadores en `comandoPersonalizado`. Se aplica en caliente (se lee
+// al lanzar). Default: vacía.
+const [orionComandosArchivo, _setOrionComandosArchivo] = createState<ComandoArchivo[]>([])
+export { orionComandosArchivo }
+
 // Monitor de actualizaciones (scripts/updates-monitor.sh) + icono de la barra.
 // El toggle MAESTRO se aplica en caliente (su setter lanza/mata el script y el
 // icono se monta/desmonta con este estado). Default: activado.
@@ -523,6 +543,16 @@ function sanitizeApps(apps: unknown[]): string[] {
   return out
 }
 
+function sanitizeCarpetas(rutas: unknown[]): string[] {
+  const out: string[] = []
+  for (const r of rutas) {
+    if (typeof r !== "string") continue
+    const norm = normalizarCarpeta(r, GLib.get_home_dir())
+    if (norm && !out.includes(norm)) out.push(norm)
+  }
+  return out
+}
+
 // ── Carga inicial ─────────────────────────────────────────────────────────────
 function load() {
   try {
@@ -601,6 +631,12 @@ function load() {
     if (typeof saved.orion === "boolean") _setOrionEnabled(saved.orion)
     if (typeof saved.orionAppsDefault === "boolean") _setOrionAppsDefault(saved.orionAppsDefault)
     if (Array.isArray(saved.orionNotisApps)) _setOrionNotisApps(sanitizeApps(saved.orionNotisApps))
+    if (Array.isArray(saved.orionComandosArchivo)) {
+      _setOrionComandosArchivo(sanitizarComandos(saved.orionComandosArchivo))
+    }
+    if (Array.isArray(saved.orionRutasEjecutables)) {
+      _setOrionRutasEjecutables(sanitizeCarpetas(saved.orionRutasEjecutables))
+    }
     if (typeof saved.orionRecordarUltimaSeccion === "boolean") {
       _setOrionRecordarUltimaSeccion(saved.orionRecordarUltimaSeccion)
     }
@@ -698,6 +734,8 @@ function save() {
       orionAppsDefault: orionAppsDefault.get(),
       orionRecordarUltimaSeccion: orionRecordarUltimaSeccion.get(),
       orionNotisApps: orionNotisApps.get(),
+      orionRutasEjecutables: orionRutasEjecutables.get(),
+      orionComandosArchivo: orionComandosArchivo.get(),
       updatesMonitor: updatesMonitorEnabled.get(),
       updatesPeriodic: updatesPeriodicEnabled.get(),
       updatesIntervalHours: updatesIntervalHours.get(),
@@ -949,6 +987,37 @@ export function addOrionNotisApp(app: string) {
 /** Quita una app (comparación exacta contra el valor ya normalizado). */
 export function removeOrionNotisApp(app: string) {
   _setOrionNotisApps(orionNotisApps.get().filter((a) => a !== app))
+  save()
+}
+/**
+ * Añade una carpeta donde Orion busca ejecutables. Devuelve `false` si no es una
+ * ruta (relativa o vacía); duplicados se ignoran. No se exige que exista: puede
+ * ser un disco que se monta luego, y el escaneo se salta lo que falte.
+ */
+export function addOrionRutaEjecutables(ruta: string): boolean {
+  const norm = normalizarCarpeta(ruta, GLib.get_home_dir())
+  if (!norm) return false
+  _setOrionRutasEjecutables(sanitizeCarpetas([...orionRutasEjecutables.get(), norm]))
+  save()
+  return true
+}
+/**
+ * Fija cómo se abre una extensión (sustituye la regla que hubiera para ella).
+ * Devuelve `false` si la extensión no tiene forma de extensión o el comando
+ * está vacío.
+ */
+export function setOrionComandoArchivo(ext: string, comando: string, terminal: boolean): boolean {
+  if (!normalizarExtension(ext) || !comando.trim()) return false
+  _setOrionComandosArchivo(sanitizarComandos([...orionComandosArchivo.get(), { ext, comando, terminal }]))
+  save()
+  return true
+}
+export function removeOrionComandoArchivo(ext: string) {
+  _setOrionComandosArchivo(orionComandosArchivo.get().filter((r) => r.ext !== ext))
+  save()
+}
+export function removeOrionRutaEjecutables(ruta: string) {
+  _setOrionRutasEjecutables(orionRutasEjecutables.get().filter((r) => r !== ruta))
   save()
 }
 // Maestro del monitor de actualizaciones: se aplica en caliente. Al activar lanza

@@ -6,8 +6,9 @@ import { resolve, type ResolveResult } from "./engine"
 import type { SearchHandler } from "./types"
 import { appsHandler } from "./handlers/apps"
 import { keybindsHandler } from "./handlers/keybinds"
+import { ejecutablesHandler } from "./handlers/ejecutables"
 
-const handlers: readonly SearchHandler[] = [keybindsHandler, appsHandler]
+const handlers: readonly SearchHandler[] = [ejecutablesHandler, keybindsHandler, appsHandler]
 
 export function resolveSearch(query: string, section: SectionId): ResolveResult {
   return resolve(handlers, query, section)

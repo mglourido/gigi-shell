@@ -691,6 +691,13 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
   font-size: 10px;
   color: $j-text-secondary;
 }
+// Carpeta de un ejecutable suelto, debajo de su nombre: más pequeña y apagada
+// que una descripción, y monoespaciada porque es una ruta.
+.rx-ruta {
+  font-size: 9px;
+  font-family: $j-font-mono;
+  color: $j-text-muted;
+}
 .rx-empty {
   font-size: 11px;
   color: $j-text-muted;
@@ -721,6 +728,7 @@ popover.background {
 .rp-inner { padding: 0; }
 
 .rp-ventana-titulo { font-size: 9px; color: $j-text-muted; margin: 2px 0 4px; }
+.rp-ruta { font-family: $j-font-mono; }
 .rp-eyebrow {
   padding: 14px 13px 0;
   font-family: $j-font-mono;

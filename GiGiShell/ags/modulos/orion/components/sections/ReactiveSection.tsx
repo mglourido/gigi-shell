@@ -29,6 +29,8 @@ function mostrarContextoApp(resultado: SearchResult): void {
     execRaw: resultado.meta?.exec ?? "",
     execName: nombreEjecutable,
     appId: resultado.meta?.appId ?? resultado.id,
+    desktopFile: resultado.meta?.desktopFile ?? "",
+    rutaEjecutable: resultado.meta?.rutaEjecutable,
     launch: () => resultado.action(),
   })
 }
@@ -67,7 +69,19 @@ function crearFila(
   const columnaTexto = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, valign: Gtk.Align.CENTER, hexpand: true })
   columnaTexto.append(new Gtk.Label({ label: resultado.title, cssClasses: ["rx-title"], halign: Gtk.Align.START, ellipsize: 3 }))
   if (resultado.subtitle) {
-    columnaTexto.append(new Gtk.Label({ label: resultado.subtitle, cssClasses: ["rx-subtitle"], halign: Gtk.Align.START, ellipsize: 3 }))
+    // Un ejecutable suelto lleva debajo su CARPETA (ya acortada a un techo de
+    // caracteres en `carpetaCorta`), en letra más pequeña. La elipsis va en
+    // medio y no al final: de una ruta interesan el principio y la carpeta que
+    // lo contiene, y `maxWidthChars` impide que una ruta larga ensanche Orion.
+    const esRuta = !!resultado.meta?.rutaEjecutable
+    columnaTexto.append(new Gtk.Label({
+      label: resultado.subtitle,
+      cssClasses: esRuta ? ["rx-subtitle", "rx-ruta"] : ["rx-subtitle"],
+      halign: Gtk.Align.START,
+      ellipsize: esRuta ? 2 : 3,
+      maxWidthChars: esRuta ? 44 : -1,
+      tooltipText: esRuta ? resultado.meta!.rutaEjecutable : null,
+    }))
   }
   fila.append(columnaTexto)
   boton.set_child(fila)

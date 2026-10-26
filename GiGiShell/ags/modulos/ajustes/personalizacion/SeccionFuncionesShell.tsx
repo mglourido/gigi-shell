@@ -2,6 +2,8 @@ import { Gtk } from "ags/gtk4"
 import { AjusteInterruptor, TarjetaAjustes } from "../componentes"
 import LimpiezaPortapapeles from "./LimpiezaPortapapeles"
 import AppsNotificacionesOrion from "./AppsNotificacionesOrion"
+import CarpetasEjecutablesOrion from "./CarpetasEjecutablesOrion"
+import ComandosArchivoOrion from "./ComandosArchivoOrion"
 import {
   orionEnabled, setOrionEnabled,
   orionAppsDefault, setOrionAppsDefault,
@@ -23,6 +25,12 @@ export default function SeccionFuncionesShell({ vista }: { vista: VistaFunciones
         <AjusteInterruptor titulo={textos.orion.ultimaSeccion.titulo} informacion={textos.orion.ultimaSeccion.descripcion} activo={orionRecordarUltimaSeccion} visible={orionEnabled} alAlternar={() => setOrionRecordarUltimaSeccion(!orionRecordarUltimaSeccion.get())} />
         <box cssClasses={["dev-row"]} visible={orionEnabled}>
           <AppsNotificacionesOrion />
+        </box>
+        <box cssClasses={["dev-row"]} visible={orionEnabled}>
+          <CarpetasEjecutablesOrion />
+        </box>
+        <box cssClasses={["dev-row"]} visible={orionEnabled}>
+          <ComandosArchivoOrion />
         </box>
       </TarjetaAjustes>}
 

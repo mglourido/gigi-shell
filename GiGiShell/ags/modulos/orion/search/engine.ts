@@ -6,7 +6,8 @@
 //  - **Fusión**: en cualquier otra sección se MEZCLAN los resultados de todos
 //    los handlers relevantes (apps + atajos…), intercalados, en vez de que gane
 //    uno solo y oculte a los demás. El empujón +0.3 de `defaultFor` decide quién
-//    encabeza la intercalación y quién gobierna la decisión inline.
+//    encabeza la intercalación y quién gobierna la decisión inline. Un handler
+//    que marca `primero` (ejecutables) no se intercala: va entero delante.
 //
 // Cada handler puntúa en UNA pasada (`match`) y devuelve un `build` perezoso;
 // las filas solo se materializan para los handlers que aportan a la mezcla.
@@ -80,7 +81,11 @@ export function resolve(
     .filter(e => e.m.score > 0)
     .sort((a, b) => b.boosted - a.boosted)
 
-  const results = intercalar(fuentes.map(e => e.m.build()), MAX_RESULTADOS)
+  const delante = fuentes.filter(e => e.m.primero).flatMap(e => e.m.build()).slice(0, MAX_RESULTADOS)
+  const results = [
+    ...delante,
+    ...intercalar(fuentes.filter(e => !e.m.primero).map(e => e.m.build()), MAX_RESULTADOS - delante.length),
+  ]
   if (results.length === 0) return vacio()
 
   return { inline: false, results, handlerId: fuentes[0].h.id }
