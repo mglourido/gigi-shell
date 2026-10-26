@@ -158,6 +158,14 @@ export function descartarTodosLosPopups(): void {
   for (const id of Array.from(widgets.keys())) eliminarInmediatamente(id, false)
 }
 
+// Como si a todos se les acabara el tiempo a la vez: salida animada, no retirada en seco.
+// La cola se vacía ANTES porque cada salida, al terminar, rellena con la siguiente
+// pendiente — y quien llama a esto es porque ya no debe aparecer ninguna.
+export function expirarTodosLosPopups(): void {
+  pendientes.splice(0)
+  for (const id of Array.from(widgets.keys())) iniciarDescarte(id)
+}
+
 export function reiniciarPilaPorRafaga(): void {
   pendientes.splice(0)
   descartarTodosLosPopups()

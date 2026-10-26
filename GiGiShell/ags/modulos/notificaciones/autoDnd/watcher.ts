@@ -19,6 +19,7 @@
 import AstalHyprland from "gi://AstalHyprland"
 import AstalNotifd from "gi://AstalNotifd"
 import { shouldSilence } from "./detect.ts"
+import { expirarTodosLosPopups } from "../popup/pila.ts"
 import { autoDndEnabled, autoDndFullscreenApps } from "../../ajustes/preferences.ts"
 import {
   esClienteRegistradoComoJuego,
@@ -77,6 +78,9 @@ function evaluate(): void {
   if (!dnd && !userOptedOut) {
     setDnd(notifd, true)
     autoOwned = true
+    // dontDisturb solo frena los popups NUEVOS; los que ya estaban en pantalla
+    // seguirían tapando el juego hasta agotar su tiempo.
+    expirarTodosLosPopups()
   }
 }
 
