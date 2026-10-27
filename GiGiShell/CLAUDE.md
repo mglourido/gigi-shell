@@ -109,29 +109,27 @@ reinstalarlos** (`sudo install -Dm644 ~/GiGiShell/<f> /etc/xdg/<f>`); `link.sh` 
 avisan cuando difieren. Por qué `/etc/xdg` y no una ruta de `$HOME`: en la sección "Bases de
 escritorio" de `bin/link.sh`.
 
-`power-save/config.json` y `orion/favorites.json` **ya no viven dentro del repo**: antes
-`GiGiShell/cache/power-save/` y `GiGiShell/state/orion/` guardaban el dato real y un symlink XDG
-apuntaba hacia dentro (mismo esquema que `ags/`/`hypr/`), pero eso dejaba datos de usuario
-dentro del árbol que gestiona git — un `git clean`, un reset del checkout bare o restaurar un
-backup del repo se los habría llevado por delante. Ahora viven directamente en
-`~/.config/power-save/` y `~/.local/share/orion/`, sin symlink de por medio, junto con el resto
-de datos de runtime (ver la sección siguiente). `bin/link.sh` migra automáticamente cualquier
-instalación que todavía tenga el esquema viejo.
+`power-save/config.json` y `orion/favorites.json` viven directamente en `~/.config/power-save/` y
+`~/.local/share/orion/`, sin symlink de por medio, junto con el resto de datos de runtime (ver la
+sección siguiente): dentro del árbol que gestiona git, un `git clean`, un reset del checkout bare o
+restaurar un backup del repo se los llevaría por delante. `bin/link.sh` migra automáticamente
+cualquier instalación que todavía tenga el esquema viejo (`GiGiShell/cache/power-save/` y
+`GiGiShell/state/orion/`).
 
 ## Git caveat
 
-The `.git` directory here is empty — **git commands run from `~/GiGiShell` fail.** GiGiShell is
-a subtree of a separate *bare* repo at **`~/.gigishell`**, operated via the alias
-`gigishell` (`git --git-dir=~/.gigishell --work-tree="$HOME"`, defined in the shared bash/zsh/fish
-config; see `install.sh`). It used to be `~/.dotfiles` + alias `dotfiles`; it was renamed so it
-doesn't collide with a user's own dotfiles bare repo. `install.sh` migrates an old `~/.dotfiles`
-(asking first) **only if it is unmistakably ours**: bare, `origin` pointing at
-`github.com/mglourido/gigi-shell`, and `GiGiShell/install.sh` in HEAD. A personal bare that merely
-contains GiGiShell (other remote) is left alone and a fresh `~/.gigishell` is cloned beside it.
-`link.sh`/`preflight.sh` fall back to `~/.dotfiles` only under that same check — never loosen it:
-they write `core.hooksPath` and run `checkout` on whatever repo they pick.
-Do not assume normal `git status`/`git log` work here; treat this as a working tree
-without local history unless the user says otherwise.
+There is no `.git` here — **git commands run from `~/GiGiShell` fail.** GiGiShell is
+a subtree of a separate *bare* repo at **`~/.gigishell`** (named so it doesn't collide with a user's
+own dotfiles bare repo), operated via the alias `gigishell`
+(`git --git-dir=~/.gigishell --work-tree="$HOME"`, defined in the shared bash/zsh/fish config; see
+`install.sh`). For `status`/`log`/`blame` use the explicit form
+`git --git-dir=$HOME/.gigishell --work-tree=$HOME … -- GiGiShell`: the alias may not exist in a
+non-interactive shell.
+`install.sh`, `link.sh` and `preflight.sh` still carry a fallback for a legacy `~/.dotfiles`, and it
+must stay gated: they use it **only if it is unmistakably ours** (bare, `origin` pointing at
+`github.com/mglourido/gigi-shell`, and `GiGiShell/install.sh` in HEAD) — never loosen it, because
+they write `core.hooksPath` and run `checkout` on whatever repo they pick. A personal bare that
+merely contains GiGiShell (other remote) is left alone.
 
 ## Symlinks: install / repair / verify
 
@@ -154,10 +152,9 @@ in the repo, so a cache cleaner would delete it for good. It also
 migrates leftover AGS JSON from the old `~/.config/ags/config/` into `~/.config/gigishell/`;
 re-applies `core.hooksPath`; comprueba que las bases de `/etc/xdg/` (`kdeglobals`,
 `mimeapps.list`) estén instaladas y al día, y **retira los symlinks viejos** de `~/.config` hacia
-ellas — solo cuando la base ya existe, para no dejar las apps KDE en tema claro. Antes existía
-`hypr/scripts/reparar-kdeglobals.sh` para reponer `[UiSettings] ColorScheme=BreezeDark` cada vez que
-una app KDE reescribía `kdeglobals` y borraba el grupo; con la base en `/etc/xdg`, KColorSchemeManager
-lo sigue leyendo de ahí aunque el fichero del usuario lo pierda, y el script ya no se llama. `install.sh` is the fresh-machine path: it clones the bare
+ellas — solo cuando la base ya existe, para no dejar las apps KDE en tema claro.
+`[UiSettings] ColorScheme=BreezeDark` lo lee KColorSchemeManager de la base en `/etc/xdg` aunque una
+app KDE reescriba `kdeglobals` y borre el grupo en el fichero del usuario. `install.sh` is the fresh-machine path: it clones the bare
 repo into `~/.gigishell`, checks out into `$HOME` (backing up conflicts), then runs `link.sh --force`.
 
 ## Per-machine application profiles
@@ -199,16 +196,17 @@ These are data written/read by widgets and scripts at runtime — not code.
 **secretos en texto plano** (chmod 600) y no pueden commitearse ni copiarse dentro del repo. Se
 crean una sola vez con `ags/scripts/spotify-auth.sh` y `ags/scripts/google-calendar-auth.sh`.
 
-**El calendario ESCRIBÍA DENTRO DEL REPOSITORIO, y esa es la razón de su migración.** Los eventos
-vivían en `~/.config/ags/calendar-events.json`, y `~/.config/ags` es un symlink a `~/GiGiShell/ags`:
-las citas del usuario —dato personal— caían en el árbol versionado. Hoy van a
+**El calendario nunca escribe dentro del repositorio.** `~/.config/ags` es un symlink a
+`~/GiGiShell/ags`, así que un fichero ahí caería en el árbol versionado, y las citas del usuario
+—dato personal— no deben acabar en git. Los datos van a
 `~/.config/gigishell/calendario.json` (eventos + configuración, con `version` de esquema) y
 `~/.config/gigishell/reloj.json` (alarmas). `modulos/calendario/persistencia/repositorio.ts` migra el
-fichero antiguo una sola vez y **borra el original**: no destructivo significa que no se pierde
-nada, no que se deje una copia dentro de git. El orden es escribir el destino y solo entonces
-borrar el origen. Las alarmas se persisten; el temporizador y el cronómetro son de sesión.
+antiguo `~/.config/ags/calendar-events.json` una sola vez y **borra el original**: no destructivo
+significa que no se pierde nada, no que se deje una copia dentro de git. El orden es escribir el
+destino y solo entonces borrar el origen. Las alarmas se persisten; el temporizador y el cronómetro
+son de sesión.
 
-## ⚠️ El config es LUA (migrado el 2026-07-23, hyprlang ya retirado del repo)
+## ⚠️ El config es LUA
 
 Desde Hyprland 0.55 hyprlang está deprecado: **si existe `hyprland.lua`, Hyprland lo carga y no
 mira ningún `hyprland.conf`**. El config de esta máquina es **`hypr/hyprland.lua`** + los módulos
