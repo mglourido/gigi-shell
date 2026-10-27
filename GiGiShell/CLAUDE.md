@@ -2,6 +2,38 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Mapa: dónde está cada cosa
+
+Este archivo es el índice. Lo detallado vive en `CLAUDE.md` de subcarpetas y en `docs/`, para no cargar en cada sesión lo que solo importa en una zona. Los `CLAUDE.md` de subcarpetas se cargan al leer un archivo de esa carpeta, pero no antes: **antes de editar en una zona, lee su `CLAUDE.md`** (columna «Leer»). Casi todos documentan un fallo silencioso ya medido —efecto sin error visible— que se repite si no se conoce.
+
+| Zona | Qué hay | Leer |
+|---|---|---|
+| `ags/` | el shell: arquitectura, estado global, estilos y el índice de sus áreas | `ags/CLAUDE.md`, y de ahí el de cada área (abajo) |
+| `hypr/` | config de Hyprland en Lua, hypridle/hyprlock, scripts, perfiles de GPU y sus trampas | `hypr/CLAUDE.md`, `docs/hypr-estructura.md`, `docs/hyprland-lua-migracion.md` |
+| `inicializador/` | `init.sh` (repone el estado del hardware) y `apps-inicio.sh` | `inicializador/CLAUDE.md` |
+| `system/` | ficheros de `/etc` y `/usr/local/bin` (udev, TLP, ClamAV, cámara…) | `system/CLAUDE.md` |
+| `system/sddm/` | plantilla del saludador y su tema | `system/sddm/CLAUDE.md`, `system/sddm/tema/README.md` |
+| `system/hibernacion/` | helper y preparación de la hibernación | `system/hibernacion/CLAUDE.md` |
+| `eventd/` | daemon Rust que sustituye a los sub-monitores de `oom-monitor.sh` | `eventd/CLAUDE.md`, `docs/rust-migracion.md` |
+| `almacenamiento/` | binario Rust de análisis y limpieza de disco | `almacenamiento/CLAUDE.md` |
+| `guardian/` | daemon Rust root de protección de archivos | `guardian/CLAUDE.md` |
+| `audio/` | sonidos de alarmas y notificaciones | `audio/README.md` |
+| `bin/`, `install.sh` | symlinks, preflight, bootstrap | secciones «Symlinks» y «Per-machine profiles» de este archivo; `docs/SETUP.md` |
+
+**Áreas de `ags/`** (cada una con su `CLAUDE.md`; rutas desde `ags/`; el índice con más detalle está en `ags/CLAUDE.md`):
+- `modulos/barra` (barra, menú del logo Arch, Mantener despierto, escritorios) · `modulos/barra/indicadores` (actualizaciones, micrófono, cadena de estado, captura de pantalla) · `modulos/barra/multimedia/spotify` y `servicios/spotify`
+- `servicios/juegos` (detección de juegos) · `servicios/camara` · `servicios/multimedia` (audio: endpoints, presets, mezcla de apps) · `servicios/pantalla` (pantallas, reglas horarias, luz nocturna, brillo) · `servicios/energia` (ahorro, botón de encendido, tapa, GameMode) · `servicios/fondos` (franjas horarias, acento)
+- `modulos/ajustes-rapidos` (Quick Settings: Wi-Fi, Bluetooth) · `modulos/notificaciones` y `modulos/notificaciones/sonido` · `modulos/orion` (el lanzador «Jarvis») · `modulos/calendario` (calendario, reloj, Google)
+- `modulos/ajustes` (general, atajos, Sistema) · `modulos/ajustes/inicio` · `modulos/ajustes/predeterminadas` · `modulos/ajustes/disco` (Almacenamiento) · `modulos/ajustes/seguridad`
+
+**Documentos de `docs/`:**
+- `hyprland-modulos.md` (~5000 líneas, una sección `###` por módulo; `grep -n '^### ' docs/hyprland-modulos.md` las lista): Wake up/`idle-action.sh`, bloqueo de pantalla, salida de suspensión, hibernación, polkit, botón de encendido, tapa, hints de notificaciones de scripts, congelar tareas al jugar, apps al inicio, escáner de apps, reparto/límite/anclaje de ventanas, Steam single-instance, SUPER sin atajo, escritorio ancla, monitores (updates, screencast, recursos), cámara, modo gestos, USB, brillo, puntero hyprcursor, TLP, security monitor y lanzador aislado, ClamAV, protección de archivos, desinstalar apps, almacenamiento y autolimpieza, caché de sombreadores, boot-healthcheck, grabar pantalla, portapapeles, tema KDE, franjas horarias de fondos.
+- `hypr-estructura.md` (directorio de `hypr/`, orden de carga de módulos, qué script se dispara desde dónde) · `hyprland-lua-migracion.md` · `deteccion-juegos.md` · `suspension-falsa.md` · `rust-migracion.md`
+- `anadir-perfiles-por-equipo.md`, `kitty-profiles.md`, `firefox-profiles.md` (perfiles `laptop`/`desktop`) · `shell-local.md` (config de las shells, compartida y local)
+- `SETUP.md` (instalar en otro PC) · `revision-paquetes-install.md` · `superpowers/` (planes y specs de trabajo)
+
+**Datos de usuario y secretos:** `~/.config/gigishell/` y compañía, fuera del repo — ver «Runtime config & secrets» más abajo; la lista de JSON que escribe el shell está en `ags/CLAUDE.md` § «User-editable config».
+
 ## What this is
 
 `~/GiGiShell` is a personal Hyprland/Wayland desktop system, organized dotfiles-style:
@@ -20,77 +52,15 @@ XDG paths via **symlinks**, not copies. The three big components are:
   porque hasta que el compositor no está en pie no hay `WAYLAND_DISPLAY`. Symlinked to
   `~/.config/inicializador`.
 
-Supporting dirs: `Wallpapers/` (used directly by `wallpaper.sh`, no symlink),
-`audio/` (los sonidos de alarmas y notificaciones, también sin symlink: se leen de
-`~/GiGiShell/audio` — un `sound-name` se resuelve **primero** contra esta carpeta y solo si falta se
-delega en el tema de sonidos del sistema, que sin `sound-theme-freedesktop` instalado deja la
-alarma muda sin dar ningún error; ver `audio/README.md`),
-`bin/link.sh` (symlink manager), `install.sh` (fresh-machine bootstrap), `docs/` (specs/plans),
-`eventd/` (daemon Rust `gigishell-eventd`: sustituye a los seis sub-monitores de
-`oom-monitor.sh` cuando está instalado en `~/.local/bin` —el script le pregunta cuáles con
-`--modulos` y, si son todos, le cede el proceso con `exec`; sin el binario corre el bash. Una
-regla de seguridad cambiada en un sitio hay que cambiarla en el otro. Plan y estado en
-[`docs/rust-migracion.md`](docs/rust-migracion.md), que explica también por qué eventd y guardian
-compilan en `~/.cache/gigishell/cargo/<crate>` y no en `target/` — un crate nuevo necesita su
-`.cargo/config.toml` o vuelve a llenar el repo de compilados sin avisar),
-`almacenamiento/` (binario Rust `gigishell-almacenamiento`: el análisis y la limpieza de Ajustes >
-Almacenamiento; `hypr/scripts/{analizar,limpiar}-almacenamiento.sh` le ceden todo con `exec` si está
-en `~/.local/bin` y si no corren su respaldo bash. Análisis y limpieza salen del MISMO planificador
-—ver la subsección «La reescritura en Rust» en `docs/hyprland-modulos.md` antes de tocarlo—),
-`guardian/` (daemon Rust root `gigishell-guardian`, la **protección de archivos**: BPF LSM +
-fanotify, gobernado desde Ajustes > Seguridad > Protección de archivos. Se instala **apagado**; su
-política vive en `/var/lib/gigishell-guardian/`, no en `~/.config`, a propósito. Ver su sección en
-[`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) antes de tocarlo),
-`system/` (ficheros que van a `/etc` y `/usr/local/bin`, **no** se symlinkean: se instalan con `sudo` —
-la regla udev de escritura en USB, la carga del módulo `i2c-dev`, los perfiles TLP, el helper de
-firmas de ClamAV, el helper de limpieza de disco, el helper de bloqueo de la cámara, el helper y la
-preparación de la **hibernación**, la cesión del
-botón de encendido a Hyprland, la configuración de SDDM y la unidad systemd de la **protección de
-archivos** (`system/guardian/`); ver las secciones de USB, de brillo, de TLP, de ClamAV, de almacenamiento, de
-cámara, de hibernación, del botón de encendido y de protección de archivos).
+Directorios de apoyo (cada uno con su `CLAUDE.md` o README donde importa; ver el mapa de arriba):
 
-`system/sddm/zz-gigishell.conf.in` es una de las dos piezas de `system/` que **no se copian tal cual**
-(la otra es `system/guardian/gigishell-guardian.service`, a la que `guardian/instalar.sh` le pone el
-UID del usuario): es una plantilla que `install.sh` (paso `sddm`) materializa en `/etc/sddm.conf.d/zz-gigishell.conf`
-sustituyendo lo que es de cada máquina — el usuario del autologin, el `.desktop` de la sesión, el
-tema (sólo si existe en el equipo) y el método de entrada. Junto a ella, `system/sddm/tema/` es el
-**tema del saludador** (la variante `jake_the_dog` de sddm-astronaut-theme, recortada a lo que esa
-variante usa de verdad): el mismo paso lo copia a `/usr/share/sddm/themes/gigishell` y su fuente a
-`/usr/share/fonts/gigishell`. **Ver `system/sddm/tema/README.md`** — explica por qué el tema no puede
-vivir bajo `$HOME` (el greeter corre como el usuario `sddm`, antes de que `/home` esté montado) y
-por qué la fuente va aparte (el tema no usa `FontLoader`: pide `Font="Thunderman"` por nombre y la
-resuelve fontconfig; sin instalar, Qt sustituye en silencio y el saludador se ve distinto sin dar
-ningún error). Cuatro trampas que ya costaron su tiempo:
-
-- **Activar SDDM es crear un SYMLINK**: `systemctl enable sddm.service` deja
-  `/etc/systemd/system/display-manager.service -> /usr/lib/systemd/system/sddm.service` (la unidad
-  declara `Alias=display-manager.service`). Sin ese enlace **no hay ningún error**: el equipo
-  arranca hasta un TTY con todo el escritorio bien instalado y nada que lo lance. Por eso el paso
-  comprueba el enlace después de activar, en vez de fiarse del código de salida, y `preflight.sh` lo
-  da como ERROR.
-- **`/etc/sddm.conf` gana sobre TODO `/etc/sddm.conf.d/`**, pese al nombre (`man 5 sddm.conf`). Si
-  define una clave que también fijamos, manda la suya y editar el drop-in no se nota. El instalador
-  compara las claves y avisa; no toca ese fichero, que es de la distribución.
-- El prefijo **`zz-`** no es decorativo, y el que había antes (`99-`) **estaba mal**: `conf.d` se
-  lee en orden alfabético y gana **el último**, pero los dígitos van *antes* que las letras. Con los
-  restos de HyDE de esta máquina (`the_hyde_project.conf`, que fija `[Theme] Current=Candy`), un
-  `99-gigios.conf` se leía **primero** y quedaba pisado entero — tema y autologin incluidos — sin un
-  solo error: el saludador salía con el aspecto de HyDE y parecía que el paso `sddm` no se hubiera
-  ejecutado. El instalador retira el fichero con el nombre viejo, y `preflight.sh` avisa de
-  cualquier drop-in que ordene después del nuestro y fije una de nuestras claves.
-- **El autologin lo conmuta también Ajustes > Cuenta > Inicio de sesión**, sobre esa misma clave
-  (`[Autologin] User=`) de ese mismo fichero — no hay copia del dato en `~/.config/gigishell/`:
-  `ags/modulos/ajustes/cuenta/autologin.ts` lee y escribe el drop-in (por `pkexec`) y surte efecto
-  en el siguiente arranque. Dos consecuencias: el paso `sddm` **respeta lo que haya** cuando
-  `SDDM_AUTOLOGIN` no se pasa (si no, reinstalar desharía la decisión del usuario sin decir nada), y
-  la fila sale **apagada con el motivo escrito** cuando cambiarla no serviría de nada — sin drop-in
-  nuestro, sin `hyprland.desktop` (sin `Session=` SDDM ignora el autologin y enseña el saludador) o
-  con `/etc/sddm.conf` u otro drop-in posterior fijando `User`. Renombrar el usuario desde esa misma
-  pantalla **arrastra el autologin** al nombre nuevo, en la misma escalada de privilegios: si no, la
-  clave queda apuntando a un usuario que ya no existe y el autologin deja de funcionar sin error.
-- **`InputMethod=qtvirtualkeyboard` sin `qt6-virtualkeyboard` no degrada, ROMPE**: el greeter no
-  llega a dibujarse y el equipo arranca a una pantalla negra, sin mensaje. Por eso es un campo de la
-  plantilla y no una línea fija: el instalador sólo lo escribe si encuentra el módulo QML instalado.
+- `Wallpapers/` — usado directamente por `wallpaper.sh`, sin symlink.
+- `audio/` — sonidos de alarmas y notificaciones, también sin symlink (se leen de `~/GiGiShell/audio`): un `sound-name` se resuelve **primero** contra esta carpeta y solo si falta se delega en el tema de sonidos del sistema, que sin `sound-theme-freedesktop` instalado deja la alarma muda sin dar ningún error. Ver `audio/README.md`.
+- `bin/link.sh` (gestor de symlinks), `bin/preflight.sh`, `install.sh` (bootstrap de una máquina nueva) y `docs/` (specs, planes y guías).
+- `eventd/` — daemon Rust `gigishell-eventd`: sustituye a los seis sub-monitores de `oom-monitor.sh` cuando está instalado en `~/.local/bin`; una regla de seguridad cambiada en un sitio hay que cambiarla en el otro. Ver `eventd/CLAUDE.md` y `docs/rust-migracion.md`.
+- `almacenamiento/` — binario Rust `gigishell-almacenamiento`: análisis y limpieza de Ajustes > Almacenamiento; los scripts de `hypr/scripts/` le ceden el proceso con `exec` y, sin binario, corren su respaldo bash. Ver `almacenamiento/CLAUDE.md`.
+- `guardian/` — daemon Rust root `gigishell-guardian`, la **protección de archivos** (BPF LSM + fanotify); se instala **apagado** y su política vive en `/var/lib/gigishell-guardian/`, no en `~/.config`. Ver `guardian/CLAUDE.md`.
+- `system/` — ficheros para `/etc` y `/usr/local/bin` que **no** se symlinkean: se instalan con `sudo`. Ver `system/CLAUDE.md`; la plantilla de SDDM y su tema, en `system/sddm/CLAUDE.md`; la hibernación, en `system/hibernacion/CLAUDE.md`.
 
 `mime/`, `qt6ct/`, `menus/`, `kdeglobals`, `mimeapps.list` en la raíz no son un componente
 propio: son fragmentos sueltos de integración de escritorio (tema Qt, asociación de apps, menú
@@ -191,6 +161,9 @@ la vez sin colisionar. Mantenlos juntos solo si de verdad mejora la cohesión.
   interfaz.
 - Contén o trata de forma defensiva todo error posible (`try/catch`, degradar con seguridad) para
   que un problema aislado no rompa el shell.
+- Si pruebas enfoques que luego descartas (estaban mal, no funcionaban o la solución final los
+  reemplazó), borra ese código antes de terminar: ni código muerto, ni ramas sin uso, ni utilidades
+  abandonadas, ni restos de intentos intermedios.
 - Antes de añadir una función o un elemento de interfaz, busca si ya existe algo equivalente y
   reutilízalo o extrae un componente compartido. No fusiones a ciegas si eso encarece la memoria o
   el tiempo de ejecución.
@@ -208,7 +181,8 @@ la vez sin colisionar. Mantenlos juntos solo si de verdad mejora la cohesión.
 idioma. En `ags/`: TypeScript/TSX con widgets funcionales, imports explícitos de `ags/gtk4` y
 `gi://...`, y módulos locales por funcionalidad. Los módulos de Hyprland son `.lua` con nombres
 descriptivos en minúsculas (`hypr/gigishell/`), y los scripts, `.sh` en kebab-case. CSS: todo en
-`ags/estilos/style.scss` y coherente con el diseño existente salvo que el usuario pida otra cosa;
+el parcial del área correspondiente de `ags/estilos/` (`style.scss` es solo la entrada y el orden de
+sus `@use` fija la cascada) y coherente con el diseño existente salvo que el usuario pida otra cosa;
 antes de crear un bloque, mira si cabe en uno existente y si los estilos pueden agruparse en el
 elemento padre en vez de duplicarse en los hijos. `~/.cache/gigishell/out.css` es una caché
 regenerada: no se edita, se recompila con `ags/scripts/compilar-css.sh`.
@@ -311,113 +285,16 @@ imprescindible para no romper la sesión:
 
 ## Hyprland structure
 
-Para el directorio, el orden de carga de módulos y qué script se dispara desde dónde, ver
-[`docs/hypr-estructura.md`](docs/hypr-estructura.md). Para el detalle y el porqué de cada módulo
-individual (GPU/pantalla/idioma por máquina, Wake up, congelar tareas al jugar, USB, brillo DDC,
-puntero/hyprcursor, TLP, security monitor, ClamAV, protección de archivos, desinstalar apps, almacenamiento y autolimpieza,
-boot-healthcheck, apps al inicio, grabar pantalla, portapapeles, cámara (ajustes V4L2 y
-detector de uso), franjas horarias de fondos,
-monitores de batería/temperatura/RAM/disco/BT, y una decena más), ver
-**[`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) — léelo antes de
-tocar el script o módulo que nombra su título**, porque casi todos documentan un fallo silencioso
-ya medido (efecto sin error visible) que se repite si no se conoce.
+Directorio, orden de carga de módulos y qué script se dispara desde dónde: [`docs/hypr-estructura.md`](docs/hypr-estructura.md). Detalle y porqué de cada módulo individual: **[`docs/hyprland-modulos.md`](docs/hyprland-modulos.md)**, con una sección `###` por módulo — léela antes de tocar el script o módulo que nombra su título, porque casi todas documentan un fallo silencioso ya medido. Las trampas de `hypr/` (perfil de GPU por máquina, JSON de AGS que lee el config, `render.cm_enabled`, autostart escalonado, modo gestos, tapa del portátil) están en [`hypr/CLAUDE.md`](hypr/CLAUDE.md). Tres que conviene saber ya:
 
-Puntos que conviene recordar sin abrir el documento:
-
-- El **perfil de GPU** es machine-specific y lo elige `~/.config/gigishell/gpu-perfil` (fichero local
-  fuera del repo), no un comentario a mano. Lo escribe el instalador (paso `gpu`, detección por
-  clase PCI en `/sys`) y **nunca pisa uno que ya exista**. `integrada.lua` es el perfil vacío a
-  propósito de una Intel/AMD sola: con el fichero ausente, `gpu.lua` avisa en pantalla en cada
-  inicio de sesión porque no puede distinguir «no hay nada que configurar» de «no lo he elegido».
-- `gigishell/dispositivos.lua`, `gigishell/pantalla.lua` y `gigishell/env.lua` leen JSON de
-  `~/.config/gigishell/` (dispositivos, pantalla, idioma) escrito por AGS — ausencia de clave = no se
-  aplica nada, nunca un valor de fábrica que sorprenda en otra máquina.
-- `render.cm_enabled` está deliberadamente **off**: `hyprsunset` posee la CTM de KMS para la luz
-  nocturna, y el color management de Hyprland encima lava la imagen.
-- El arranque (`gigishell/autostart.lua`) está **escalonado a propósito** (t=0 lo visible, t=3..6
-  eventos, t=8..15 sondeos, t=20..30 lo caro) — no captures ese detalle sin leer el documento si vas
-  a tocar los tiempos.
-- **Nadie llama a `hyprlock` directamente**: los cuatro sitios que bloquean la sesión pasan por
-  `hypr/scripts/bloquear.sh`, que sortea el fondo del bloqueo (un wallpaper al azar, vía un symlink
-  sin extensión en la caché — hyprlang no sabe sustituir comandos) y lleva la única guarda de
-  instancia única, que hyprlock no tiene. Ver su sección en
-  [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md).
-- **El modo gestos por cámara (SUPER+SHIFT+G) es el único daemon de `hypr/scripts/` que NO sale del
-  autostart**: abre la webcam, cuesta medio núcleo y la deja ocupada para el resto de apps (no se
-  puede hacer una videollamada con él encendido), así que se pide a propósito. Lo enciende y apaga
-  `hypr/scripts/gestos.sh`; el trabajo está en `hypr/scripts/gestos/` y su entorno (venv con
-  MediaPipe + modelo de manos) lo instala `install.sh` fuera del repo. **Antes de
-  tocarlo lee su sección en [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md)**: documenta que
-  **el pellizco NO saca la ventana del mosaico** (hacerlo movía bien pero la dejaba sin recolocarse
-  nunca más: una tilada se recoloca por pasos con la secuencia `preselect`/`movewindow`/`preselect
-  none`, y solo una que YA estaba flotando recibe coordenadas), que el arrastre nativo
-  (`hl.dsp.window.drag`) **no sigue un cursor warpado** y además acepta cualquier argumento
-  respondiendo `ok`, que `w.at` de `HL.Window` es de SOLO LECTURA pero un `pcall` alrededor de la
-  asignación devuelve `ok=true, err=nil`, que `hl.dsp.window.move` responde `ok` sin mover nada
-  sobre una ventana en mosaico, que un puño cerrado es geométricamente indistinguible de un
-  pellizco por distancia pulgar-índice, que OpenCV 5 ya no abre la cámara por nombre **ni pasa de
-  640x480 sin pedir MJPG explícitamente** (se acepta, se ignora y no da ningún error), y sobre todo
-  que **UN SOLO frame sin mano mataba el gesto entero**: el motor lo trataba como «la mano ya no
-  está», tiraba el trayecto y volvía a BUSCANDO con 0,40 s de rearme — y perder un frame es lo
-  NORMAL al mover la mano deprisa, porque sale borrosa. Era la causa del «a veces va y a veces no».
-  Y que **`num_hands=1` deja que una CARA detectada como mano TAPE la mano de verdad** (la cara
-  puntúa 0,98: ocupa la única plaza y la mano no llega, que desde fuera se ve como «no detecta
-  nada»); se piden dos y se elige por CONTINUIDAD, no por puntuación. Para medir qué ve la cámara
-  sin tocar el escritorio: `gestos.py --diagnostico`, que mide en dos fases —primero SIN manos, para
-  contar falsos positivos— porque la tasa de detección a solas no distingue una mano de una cara.
-
-- **La TAPA del portátil no se le quita a logind desde `/etc`, y es a propósito.** Qué hace cerrar
-  la tapa lo decide Ajustes > Energía (`accionTapa` en `preferences.json`, ejecutada por
-  `gigishell/tapa.lua` desde `switch:on:Lid Switch`), pero para eso hay que desactivar
-  `HandleLidSwitch`, que es de logind y de fábrica suspende. Con el botón de encendido eso se
-  resolvió con un `ignore` permanente en `/etc`; con la tapa **no se puede**: valdría también para
-  el saludador y para una sesión caída, y cerrar el portátil en la pantalla de login lo dejaría
-  encendido dentro de la mochila, sin ningún síntoma hasta que quema. Se usa un **inhibidor** de
-  logind (sin privilegios) que sostiene `hypr/scripts/tapa-inhibidor.sh` mientras Hyprland viva:
-  si la sesión se cae, logind recupera la tapa y vuelve a suspender. Ver su sección en
-  [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) antes de tocar nada de esto — documenta
-  también por qué el inhibidor se ata a un `tail --pid` y no a un `sleep`, y por qué «no hacer nada
-  si hay una pantalla externa» tiene que reimplementarse a mano.
-- **Editar un `*-monitor.sh` no afecta al que ya está corriendo**: hace falta `pkill -f
-  <script>` + relanzarlo, o `hyprctl reload full-reset` (que sí re-ejecuta el autostart; un
-  `hyprctl reload` normal no).
+- **Nadie llama a `hyprlock` directamente**: los cuatro sitios que bloquean la sesión pasan por `hypr/scripts/bloquear.sh`, que sortea el fondo del bloqueo y lleva la única guarda de instancia única.
+- **El modo gestos por cámara (SUPER+SHIFT+G) es el único daemon de `hypr/scripts/` que NO sale del autostart**: abre la webcam y la deja ocupada para el resto de apps, así que se pide a propósito (`hypr/scripts/gestos.sh`). Lee su sección antes de tocarlo.
+- **Editar un `*-monitor.sh` no afecta al que ya está corriendo**: hace falta `pkill -f <script>` + relanzarlo, o `hyprctl reload full-reset` (que sí re-ejecuta el autostart; un `hyprctl reload` normal no).
 
 ## Hibernación: un número en la UI, dos mecanismos debajo
 
-Ajustes > Pantalla > Suspensión tiene **un solo** tiempo de hibernación (inactividad total), pero
-por dentro hay dos caminos y elegir mal es un fallo mudo. La razón, en una frase: **durante una
-suspensión el userspace está congelado**, así que un listener de hypridle posterior a la suspensión
-NO SE DISPARA NUNCA. Cuando se puede, quien cuenta es systemd (`suspend-then-hibernate` + alarma
-RTC, con `HibernateDelaySec` = total − suspensión, que es una **resta**); el listener `hibernate`
-de `hypridle.conf` queda solo para cuando hibernar no llega a pasar por la suspensión.
-
-La autoridad es `~/.config/gigishell/hibernacion.json`; el listener de `hypridle.conf` es su espejo.
-Habilitarla en una máquina nueva se prepara desde Ajustes o ejecutando
-`sudo bash ~/GiGiShell/system/hibernacion/gigishell-hibernacion-setup.sh`: swapfile
-persistente, `resume=` en el kernel, VRAM de NVIDIA) y **no surte efecto hasta reiniciar**. Nada se
-asume: `gigishell-hibernacion estado` pregunta a logind y, si dice que no, la fila de Ajustes sale
-apagada con el motivo escrito **y un botón «Preparar hibernación…»** que lanza ese paso en una
-terminal (con «Quitar hibernación…» a la inversa) — ninguno de los dos por NOPASSWD, a propósito.
-**Detalle completo, trampas y por qué de cada pieza en la sección de
-hibernación de [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) — léela antes de tocar
-`servicios/energia/hibernacion.ts`, `system/hibernacion/` o el listener `hibernate`.**
+Ajustes > Pantalla > Suspensión tiene **un solo** tiempo de hibernación (inactividad total), pero por dentro hay dos mecanismos —systemd `suspend-then-hibernate` con alarma RTC, o el listener `hibernate` de `hypridle.conf`— y elegir mal es un fallo mudo: durante una suspensión el userspace está congelado, así que un listener posterior a la suspensión no se dispara nunca. La autoridad es `~/.config/gigishell/hibernacion.json`. Detalle, preparación y trampas en [`system/hibernacion/CLAUDE.md`](system/hibernacion/CLAUDE.md) y en la sección de hibernación de [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) — léelos antes de tocar `servicios/energia/hibernacion.ts`, `system/hibernacion/` o el listener `hibernate`.
 
 ## init.sh (hardware state restore)
 
-`inicializador/init.sh` reads `~/.config/gigishell/{display,system_state}.json` and applies
-brightness (`brightnessctl`), night light (`hyprsunset`), wifi (`nmcli`), bluetooth
-(`bluetoothctl`), and volume/mute (`wpctl`), falling back to hardcoded defaults when a key is
-absent. It's the counterpart to the AGS UI that *writes* those JSON files.
-
-El brillo **no se restaura en un sobremesa** y no hace falta que se restaure: `apply_brightness` sale
-si `/sys/class/backlight` está vacío (solo el panel interno de un portátil publica esa clase), porque
-allí el brillo lo guarda el **propio monitor** en su firmware y AGS se lo lee por DDC/CI al arrancar.
-Cuando sí aplica, la llamada fija `-c backlight`: sin dispositivos de esa clase `brightnessctl` **no
-falla** — cae al primer dispositivo `leds` y encendía el **LED de scroll-lock del teclado** en cada
-login. Ver la sección de brillo en [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md).
-
-El volumen espera antes (`wait_for_sink`, techo 10 s): init.sh sale de un `exec-once` de Hyprland
-y puede ganarle la carrera al arranque de PipeWire/WirePlumber en la sesión de usuario. Hasta que
-WirePlumber no publica un sink por defecto, `@DEFAULT_AUDIO_SINK@` no resuelve y los `wpctl`
-fallan **en silencio** — el volumen/mute guardado simplemente no se aplicaba en los arranques que
-perdían la carrera.
+`inicializador/init.sh` lee `~/.config/gigishell/{display,system_state}.json` y repone brillo, luz nocturna, wifi, bluetooth y volumen/mute, con valores por defecto cuando falta una clave. Es la contraparte de la UI de AGS, que *escribe* esos JSON. Dos fallos silenciosos medidos (el brillo no se restaura en un sobremesa; el volumen espera al sink de PipeWire) están en [`inicializador/CLAUDE.md`](inicializador/CLAUDE.md).
