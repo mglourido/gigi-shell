@@ -4,7 +4,7 @@
 # ESTE FICHERO SE INSTALA ROOT-OWNED en /usr/local/bin/gigishell-hibernacion por
 # `gigishell-hibernacion-setup.sh`. NO se symlinkea desde ~/GiGiShell: corre como root vía /etc/sudoers.d/gigishell-hibernacion,
 # y apuntar a un script escribible por el usuario sería una escalada silenciosa (misma regla que el
-# helper de TLP, el de cámara y el de limpieza; ver CLAUDE.md).
+# helper de TLP, el de cámara y el de limpieza; ver system/CLAUDE.md).
 #
 # ¿Por qué hace falta root para "un número de minutos"? Porque el temporizador NO es nuestro: es
 # `HibernateDelaySec` de systemd, que solo se lee de /etc/systemd/sleep.conf y sus drop-ins. Es el

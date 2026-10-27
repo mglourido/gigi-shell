@@ -2,7 +2,7 @@
 // Pure helpers for the notification accent-color feature. No GTK/GLib imports.
 import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 
-// Theme palette offered as presets in the color picker (catppuccin-inspired, see CLAUDE.md).
+// Theme palette offered as presets in the color picker (catppuccin-inspired, see ags/CLAUDE.md, Styling).
 export const COLOR_PRESETS: { hex: string; name: string }[] = [
   { hex: "#cba6f7", name: textos.colores.preajustes.violeta },
   { hex: "#89b4fa", name: textos.colores.preajustes.azul },

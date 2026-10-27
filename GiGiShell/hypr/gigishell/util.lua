@@ -79,6 +79,6 @@ end
 -- Aquí vivía carga_opcional(), el dofile protegido de los chunks que AGS
 -- generaba (monitor-settings.lua, input-settings.lua). Ya no hay código
 -- generado: los ajustes de la UI se leen de su JSON con M.leer_json() y los
--- aplican gigishell/pantalla.lua y gigishell/dispositivos.lua. Ver CLAUDE.md.
+-- aplican gigishell/pantalla.lua y gigishell/dispositivos.lua. Ver hypr/CLAUDE.md.
 
 return M

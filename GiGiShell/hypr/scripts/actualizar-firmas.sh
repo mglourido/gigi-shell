@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # actualizar-firmas.sh — actualiza la base de firmas de ClamAV. Es el lado de USUARIO del helper
-# root-owned /usr/local/bin/gigishell-clamav-update (ver system/clamav/ y CLAUDE.md, "Firmas de ClamAV").
+# root-owned /usr/local/bin/gigishell-clamav-update (ver system/clamav/ y docs/hyprland-modulos.md, "Firmas de ClamAV").
 #
 # **NO HAY NINGÚN TEMPORIZADOR DE ACTUALIZACIÓN DE CLAMAV EN TODO EL SISTEMA.** Ni aquí, ni en un
 # servicio, ni en los escáneres. Este script se ejecuta exactamente en dos situaciones:

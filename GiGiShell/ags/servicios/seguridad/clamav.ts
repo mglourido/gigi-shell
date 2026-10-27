@@ -11,7 +11,7 @@
 // nada por su cuenta: delega en un helper root-owned instalado por install.sh
 // (/usr/local/bin/gigishell-clamav-update), autorizado sin contraseña por /etc/sudoers.d/gigishell-clamav
 // SOLO para sus dos argumentos fijos. Mismo esquema que servicios/energia/tlp.ts; ver la sección
-// "Firmas de ClamAV" del CLAUDE.md raíz.
+// "Firmas de ClamAV" de docs/hyprland-modulos.md.
 //
 // LEER el estado, en cambio, NO necesita sudo y por eso no pasa por el helper: la fecha sale del
 // mtime de la base (world-readable) y el estado actual del servicio de `systemctl is-active`, que

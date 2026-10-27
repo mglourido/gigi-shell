@@ -4,7 +4,7 @@
 //
 // La fila va con `<For id={f.id}>` en SeccionProteccion: se construye UNA vez y
 // su objeto no vuelve a llegar, así que todo lo mutable se lee por accessor
-// derivado de `ficheros` (ver la auditoría del <For> en ags/CLAUDE.md). La RUTA
+// derivado de `ficheros` (ver la auditoría del <For> en ags/modulos/barra/CLAUDE.md). La RUTA
 // también es mutable —si el archivo se mueve, el daemon la actualiza— y por eso
 // cada orden la lee en el momento del clic, no al construir.
 //

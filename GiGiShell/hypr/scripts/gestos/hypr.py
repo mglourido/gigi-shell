@@ -87,7 +87,7 @@ class Hypr:
 
         ⚠️ Un dispatcher CONMUTABLE con argumento de CADENA es un toggle mudo
         (`hl.dsp.window.float('on')` alterna y responde `ok`). Todo lo de aquí
-        usa la forma de TABLA con `action` explícito. Ver CLAUDE.md.
+        usa la forma de TABLA con `action` explícito. Ver el CLAUDE.md raíz, «El config es LUA».
 
         El código de salida no distingue "hecho" de "error de Lua": se mira la
         respuesta, que es `ok` cuando ha ido bien.

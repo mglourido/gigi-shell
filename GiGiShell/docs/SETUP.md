@@ -865,7 +865,7 @@ migrar y qué se regenera solo.
 | `~/.config/gigishell/reloj.json` | tus alarmas (el temporizador y el cronómetro son de sesión y no se guardan) |
 | `~/.config/gigishell/google-calendar-creds.json` | credenciales de Google Calendar en texto plano (chmod 600, git-ignored); regenerar con `ags/scripts/google-calendar-auth.sh` |
 | `~/.config/gigishell/google-calendar-sync.json` | tokens incrementales de Google; borrarlo solo cuesta una sincronización completa |
-| `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion (nota: `CLAUDE.md` dice que los perfiles de Orion viven en `~/.local/share/jarvis/profiles/` — **es un error**, el código real usa `~/.local/share/orion/`) |
+| `~/.local/share/orion/favorites.json` | apps favoritas fijadas en Orion |
 | `~/.local/share/orion/profiles/*.json` | sesiones guardadas de Orion (`ProfileManager.ts`) |
 | `~/.config/power-save/config.json` | umbral de ahorro de energía + toggles (ver `servicios/energia/powerState.ts`) |
 | `~/.local/share/gigishell/face.png` | foto privada opcional, fuera del repo; se pone desde Ajustes > Cuenta (§13) |

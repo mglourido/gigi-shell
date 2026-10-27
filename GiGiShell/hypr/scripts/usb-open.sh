@@ -7,7 +7,7 @@
 # `udisksctl mount` y NO por `mount`/`sudo`/`pkexec`, por el mismo motivo que
 # documenta usb-repair.sh: este script vive en ~/.config, escribible por el
 # usuario, y escalar privilegios desde aquí sería la escalada silenciosa contra la
-# que avisa CLAUDE.md. Con udisks el trabajo privilegiado lo hace udisksd (servicio
+# que avisa system/CLAUDE.md. Con udisks el trabajo privilegiado lo hace udisksd (servicio
 # del sistema, ya auditado) y polkit lo autoriza sin prompt en dispositivos que no
 # son del sistema (filesystem-mount → allow_active=yes); de propina el punto de
 # montaje queda bajo /run/media/$USER y pertenece al usuario, que es lo que luego

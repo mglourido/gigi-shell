@@ -34,7 +34,7 @@ local util = require("gigishell.util")
 
 -- Render: la gestión de color del compositor SIGUE apagada — hyprsunset es el
 -- único dueño del CTM del KMS (luz nocturna + atenuación); con las dos activas
--- la imagen se lava. Ver CLAUDE.md.
+-- la imagen se lava. Ver hypr/CLAUDE.md.
 hl.config({ render = { cm_enabled = false } })
 
 util.carga("gigishell.env")            -- variables de entorno (Qt, toolkits, idioma)

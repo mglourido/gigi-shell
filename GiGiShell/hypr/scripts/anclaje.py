@@ -149,7 +149,7 @@ def mover_a_workspace(addr, ws, follow):
          f"else hl.dispatch({lua}) end"],
         capture_output=True, text=True)
     # El rc de hyprctl no distingue "ejecutado" de "error de Lua" (la misma
-    # trampa que documenta CLAUDE.md para dispatch): se mira el stdout.
+    # trampa que documenta el CLAUDE.md raíz («El config es LUA») para dispatch): se mira el stdout.
     if "ok" not in r.stdout:
         dispatch(lua)
 
@@ -212,7 +212,7 @@ def _hueco_en(clientes, ws_id, addr, limite):
     Deshacía además justo lo que el tope existe para evitar: la novena ventana
     volvía a apretujarse con las otras ocho.
 
-    Manda el tope, que es la misma jerarquía que ya documenta CLAUDE.md: el
+    Manda el tope, que es la misma jerarquía que documenta docs/hyprland-modulos.md (tope de ventanas): el
     lanzador decide DÓNDE nace la ventana, el tope decide SI ahí cabe — y es el
     único de los dos que sabe algo que el lanzador no podía saber al lanzar.
 

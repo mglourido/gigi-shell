@@ -7,7 +7,7 @@
 # ({ terminal: { id, comando } }, ver servicios/aplicaciones/appsPredeterminadas.ts)
 # y aquí se lee EN CADA PULSACIÓN. Leerlo al cargar el config (variables.lua)
 # obligaría a un `hyprctl reload` tras cada cambio en Ajustes, que recrea los
-# nodos de audio HDMI y demás efectos que documenta ags/CLAUDE.md.
+# nodos de audio HDMI y demás efectos que documenta ags/servicios/multimedia/CLAUDE.md.
 #
 # Sin JSON, sin jq o con un comando que ya no está instalado: kitty, que es lo
 # que SUPER+Q lanzaba siempre. Un error aquí no puede dejar la sesión sin terminal.

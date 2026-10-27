@@ -18,7 +18,7 @@
 // ── SE GUARDA EL ENDPOINT, NO «EL ALTAVOZ POR DEFECTO» ────────────────────────────────
 // El mute es propiedad del NODO, y el nodo por defecto puede no ser el mismo al salir: los
 // nodos de PipeWire se destruyen y se recrean —el del HDMI lo hace en cada DPMS y en cada
-// `hyprctl reload`, medido en el CLAUDE.md de este directorio: id 86 → 71 → 86— y además
+// `hyprctl reload`, medido en ags/servicios/multimedia/CLAUDE.md: id 86 → 71 → 86— y además
 // unos cascos conectados mientras dormíamos cambian el default de aparato. Volver a pedir
 // `defaultSpeaker` al salir desilenciaría al NUEVO y dejaría mudo al que silenciamos, que es
 // un fallo mudo en los dos sentidos de la palabra. Se guarda la referencia al endpoint que

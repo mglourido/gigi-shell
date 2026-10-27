@@ -11,7 +11,7 @@ import { aFechaISO, desdeFechaISO, diasEnMes, horaAMinutos, minutosAHora } from 
  *
  * Ninguno de estos widgets se **reconstruye** al cambiar de valor: notifican hacia arriba y el
  * formulario guarda el dato en un borrador local. Reconstruir un campo desde su propio manejador de
- * cambio es exactamente lo que provocó el SIGSEGV de las franjas horarias (ver `ags/CLAUDE.md`).
+ * cambio es exactamente lo que provocó el SIGSEGV de las franjas horarias (ver `ags/servicios/pantalla/CLAUDE.md`).
  */
 
 function spin(

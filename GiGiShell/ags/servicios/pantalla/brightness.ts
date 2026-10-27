@@ -19,7 +19,7 @@ import { repartirBrillo, componerBrillo } from "./atenuacion"
 //  • `none`: ni una cosa ni la otra (monitor sin DDC/CI, `ddcutil` ausente, módulo
 //    `i2c-dev` sin cargar) → la UI oculta el slider en vez de fingir que funciona.
 //
-// Requisitos del camino DDC (ver `system/modules-load.d/i2c-dev.conf` y el CLAUDE.md raíz):
+// Requisitos del camino DDC (ver `system/modules-load.d/i2c-dev.conf` y docs/hyprland-modulos.md, sección Brillo):
 // el módulo `i2c-dev` cargado y los nodos `/dev/i2c-*` accesibles — de eso último ya se
 // encarga la regla udev que trae el propio ddcutil (`TAG+="uaccess"`), sin tocar grupos.
 // ─────────────────────────────────────────────────────────────────────────────

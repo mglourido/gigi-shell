@@ -57,7 +57,7 @@ function estadoFila(fila: FilaCaptura): string {
 }
 
 // La fila se construye UNA vez (`<For id>`: con clave, su objeto no vuelve a
-// llegar — ver la auditoría del <For> en ags/CLAUDE.md), así que TODO lo mutable
+// llegar — ver la auditoría del <For> en ags/modulos/barra/CLAUDE.md), así que TODO lo mutable
 // se deriva aquí de `filas`. Leyendo del objeto recibido, pulsar el interruptor
 // cambiaría el JSON y la fila seguiría pintando el valor viejo, sin dar error.
 function FilaCapturaMicrofono({ inicial, filas }: {

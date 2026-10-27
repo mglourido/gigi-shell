@@ -4,7 +4,7 @@
 # ESTE FICHERO SE INSTALA ROOT-OWNED en /usr/local/bin/gigishell-limpieza (install.sh paso 10).
 # NO se symlinkea desde ~/GiGiShell: corre como root vía /etc/sudoers.d/gigishell-limpieza, y apuntar a
 # un script escribible por el usuario sería una escalada silenciosa (misma regla que los helpers de
-# TLP y ClamAV, la regla udev de USB y i2c-dev; ver CLAUDE.md). La copia versionada en
+# TLP y ClamAV, la regla udev de USB y i2c-dev; ver system/CLAUDE.md). La copia versionada en
 # ~/GiGiShell/system/limpieza/ solo se vuelve efectiva al reinstalar con sudo a propósito.
 #
 # ── Qué entra aquí y qué NO ──────────────────────────────────────────────────

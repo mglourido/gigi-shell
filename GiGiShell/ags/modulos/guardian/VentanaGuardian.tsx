@@ -17,7 +17,7 @@
 // Las tarjetas van con `<For id>` (id de la pregunta / clave local del aviso):
 // sin clave, cada pregunta nueva reconstruiría las demás y reiniciaría sus
 // cuentas atrás. Cada tarjeta es dueña de su temporizador y lo para en
-// onCleanup (nunca connect("destroy"); ver ags/CLAUDE.md).
+// onCleanup (nunca connect("destroy"); ver ags/modulos/ajustes/CLAUDE.md).
 
 import { For, createComputed, createState, onCleanup } from "ags"
 import { Astal, Gdk, Gtk } from "ags/gtk4"

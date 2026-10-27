@@ -6,7 +6,7 @@
 // por install.sh (/usr/local/bin/gigishell-tlp-apply), autorizado sin contraseña por
 // /etc/sudoers.d/gigishell-tlp SOLO para los dos argumentos fijos. La copia versionada
 // vive en ~/GiGiShell/system/tlp/; las de confianza en /etc/gigishell/tlp/, root-owned.
-// Ver la sección "Perfiles TLP" del CLAUDE.md raíz para el porqué de esta separación.
+// Ver la sección "Perfiles TLP conmutables" de docs/hyprland-modulos.md para el porqué de esta separación.
 //
 // Estado inicial = el modo activo que el helper dejó anotado en /etc/gigishell/tlp/active
 // (lectura directa del fichero, world-readable, sin sudo). Ausente = "normal".

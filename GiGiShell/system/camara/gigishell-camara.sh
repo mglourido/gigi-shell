@@ -4,7 +4,7 @@
 # ESTE FICHERO SE INSTALA ROOT-OWNED en /usr/local/bin/gigishell-camara (install.sh, paso
 # `sistema`). NO se symlinkea desde ~/GiGiShell: corre como root vía /etc/sudoers.d/gigishell-camara, y
 # apuntar a un script escribible por el usuario sería una escalada silenciosa (misma regla que el
-# helper de TLP, el de ClamAV, el de limpieza y la regla udev de USB; ver CLAUDE.md). La copia
+# helper de TLP, el de ClamAV, el de limpieza y la regla udev de USB; ver system/CLAUDE.md). La copia
 # versionada en ~/GiGiShell/system/camara/ solo se vuelve efectiva al reinstalar con sudo a propósito.
 #
 # POR QUÉ ROOT: los nodos `/dev/video*` son de `root:video` y quien decide sus permisos es udev.

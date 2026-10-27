@@ -2,7 +2,7 @@
 -- ~/.config/gigishell/devices.json, la misma fuente de verdad que usa AGS (Ajustes
 -- > Dispositivos). Antes AGS volcaba además un `input-settings.lua` generado que
 -- este config cargaba con dofile; el dato se escribía dos veces y el fichero
--- generado quedaba dentro del árbol de git. Ver CLAUDE.md.
+-- generado quedaba dentro del árbol de git. Ver hypr/CLAUDE.md.
 --
 -- Se carga DESPUÉS de gigishell/userprefs.lua, para que estas preferencias pisen a
 -- las de ahí. Fichero ausente (máquina recién instalada, el usuario no ha tocado

@@ -10,7 +10,7 @@
 La suspensión real (S3) **rompe cosas**. Una descarga a medias muere por timeout, una compilación
 larga se congela con el reloj de pared corriendo, una sesión SSH se cae, un backup a medio subir
 se queda a medias, y el dongle Bluetooth se reenumera al volver (ver la sección de BT en
-`ags/CLAUDE.md`). Pero al dejar el equipo desatendido lo que se quiere es justo lo que la
+`ags/modulos/ajustes-rapidos/CLAUDE.md`). Pero al dejar el equipo desatendido lo que se quiere es justo lo que la
 suspensión da: pantalla apagada, ventiladores callados, batería que no se evapora.
 
 La **suspensión falsa** es el punto medio: se apaga todo lo que se puede apagar **sin detener el

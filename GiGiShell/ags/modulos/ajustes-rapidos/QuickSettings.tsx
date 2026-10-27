@@ -4904,7 +4904,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
           `qs-wifi-menu`, el formulario acababa debajo de la lista en vez de aquí.
           Dentro de su propia caja es el único hijo y el final es su sitio. El caso
           cerrado devuelve `<box />` y no `false` (ver la sección de `<With>` en
-          CLAUDE.md: sin hijo, el scope anterior no se dispone). */}
+          ags/modulos/ajustes/CLAUDE.md: sin hijo, el scope anterior no se dispone). */}
       <box orientation={Gtk.Orientation.VERTICAL} visible={passwordTarget((t) => !!t)}>
         <With value={passwordTarget}>
           {(target: string | null) => target ? formularioPassword(target) : <box />}

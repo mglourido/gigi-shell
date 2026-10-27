@@ -3,7 +3,7 @@
 -- `monitor-settings.lua` generado y este config lo cargaba con dofile; el dato
 -- se escribía dos veces y el fichero generado quedaba dentro del árbol de git.
 -- Con Lua no hace falta: aquí hay condiciones y bucles, así que el config lee el
--- JSON y decide. Ver CLAUDE.md.
+-- JSON y decide. Ver hypr/CLAUDE.md.
 --
 -- Se carga DESPUÉS del comodín de gigishell/monitores.lua: una spec con `desc:`
 -- concreta gana a la comodín, que sigue cubriendo los monitores sin preferencia

@@ -1,6 +1,6 @@
 // Utilidades GTK compartidas por las secciones de Orion, que reconstruyen su
 // contenido a mano (sin `<For>`, ver la nota de identidad de objeto en el
-// CLAUDE.md raíz sobre `servicios/pantalla/`) y repetían el mismo bucle de
+// ags/servicios/pantalla/CLAUDE.md) y repetían el mismo bucle de
 // vaciado en cada `rebuild`.
 
 import { Gtk } from "ags/gtk4"

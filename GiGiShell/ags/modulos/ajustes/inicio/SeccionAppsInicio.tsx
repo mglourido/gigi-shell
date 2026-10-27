@@ -23,7 +23,7 @@
 //
 // ── Las filas guardadas van con `<For id>` y leen por accessor ────────────────
 // Con clave, una fila se construye UNA vez y su objeto no vuelve a llegar (ver
-// la auditoría del <For> en ags/CLAUDE.md). Así que cada fila deriva su propio
+// la auditoría del <For> en ags/modulos/barra/CLAUDE.md). Así que cada fila deriva su propio
 // accessor de `appsInicio` en vez de leer del objeto que recibió: sin eso,
 // pulsar el interruptor cambiaría el JSON y la fila seguiría pintando el valor
 // viejo, sin un solo error.

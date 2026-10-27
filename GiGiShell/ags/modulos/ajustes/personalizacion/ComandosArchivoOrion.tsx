@@ -6,8 +6,8 @@
 // Las filas NO tienen controles que cambien la regla en sitio (ni casilla de
 // terminal ni campo editable): cambiar la regla crea un objeto nuevo y el
 // `<For>` rehace la fila, o sea destruiría el control desde su propio manejador
-// — el patrón del SIGSEGV de las franjas horarias (`servicios/pantalla/` en el
-// CLAUDE.md de ags). Para editar, el lápiz copia la regla al formulario de
+// — el patrón del SIGSEGV de las franjas horarias (ags/servicios/pantalla/CLAUDE.md).
+// Para editar, el lápiz copia la regla al formulario de
 // abajo y "Guardar" la sustituye (una extensión solo tiene una regla).
 import { For, createState } from "ags"
 import { Gtk } from "ags/gtk4"

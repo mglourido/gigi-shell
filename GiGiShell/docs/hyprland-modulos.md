@@ -680,7 +680,7 @@ para sacar del skin a algo del sistema, o para metérselo a una app normal. **Co
 aceptada**: al estar cubiertas por una regla, las notificaciones de los scripts **no aparecen en
 el historial** ("Detectadas"). Hoy eso ya no deja ninguna sin configurar —para eso está la pestaña
 Sistema, que las enumera todas aunque no se hayan disparado nunca—, que era el problema real que
-esa consecuencia arrastraba. Ver `ags/CLAUDE.md`.
+esa consecuencia arrastraba. Ver `ags/modulos/notificaciones/CLAUDE.md`.
 
 Se eligió el hint y no "casar por nombre de app" porque 44 de las 47 llamadas no pasan `-a`, así
 que llegan como app `notify-send`: filtrar por ahí le habría puesto el skin también a cualquier
@@ -1358,7 +1358,7 @@ dispatch rechazado en el código de salida**, responde `ok` en el stdout, así q
 **El lado de la barra**: un traslado silencioso **no emite `notify::clients`** (que es de altas y
 bajas, no de movimientos), así que `ags/modulos/barra/escritorios/Escritorios.tsx` escucha además **`client-moved`**.
 Sin eso los iconos de la barra se quedaban en el escritorio donde nació la ventana hasta que otra
-cosa forzara un refresco. Ver `ags/CLAUDE.md`.
+cosa forzara un refresco. Ver `ags/modulos/barra/CLAUDE.md`.
 
 ### Traer aquí la ventana single-instance de Steam (`gigishell/traer-steam.lua`)
 
@@ -1812,7 +1812,7 @@ que es justo cuando vuelve a hacer falta. Tres detalles que no son adorno:
 
 Y una limitación que la UI tiene prohibido disimular: **no existe ninguna «cámara por defecto» en
 Linux.** A diferencia del audio, donde WirePlumber tiene `default.configured.audio.source` (ver la
-sección de endpoints de audio del CLAUDE.md de ags), ni V4L2 ni PipeWire publican nada equivalente
+sección de endpoints de audio de `ags/servicios/multimedia/CLAUDE.md`), ni V4L2 ni PipeWire publican nada equivalente
 para vídeo: Firefox, Chrome y Zoom eligen con su propio selector interno. La «cámara preferida» de
 GiGiShell vale para la vista previa, los ajustes y el indicador — y así se dice en pantalla.
 
@@ -2261,7 +2261,7 @@ Lo elegante habría sido iniciar `hl.dsp.window.drag()` (el dispatcher del `bind
 SUPER+botón izquierdo) y llevar el cursor con la mano: Hyprland recoloca al soltar, exactamente como
 con el ratón. **No funciona.** Medido: con el arrastre iniciado, seis `hl.dsp.cursor.move` seguidos
 mueven el puntero pero la ventana **no se mueve ni un píxel**, ni durante ni al soltar. El arrastre
-sigue el movimiento REAL del puntero, no los saltos — es el mismo motivo por el que `ags/CLAUDE.md`
+sigue el movimiento REAL del puntero, no los saltos — es el mismo motivo por el que `ags/modulos/barra/indicadores/CLAUDE.md`
 advierte de que warpar el cursor no sirve para probar un hover: no se entregan eventos de cruce.
 
 Y tiene una trampa cara: `hl.dsp.window.drag()` acepta **cualquier** argumento y responde `ok`
@@ -2897,7 +2897,7 @@ Dos consecuencias que se arrastraban de aquí:
 
 **Por qué udisks y no `fsck`/`ntfsfix` directos**: van a un dispositivo `root:disk 660`, harían falta
 privilegios, y escalarlos vía pkexec desde un script de `~/.config` (escribible por el usuario) sería
-exactamente la escalada silenciosa contra la que avisa CLAUDE.md. Con udisks el
+exactamente la escalada silenciosa contra la que avisa `system/CLAUDE.md`. Con udisks el
 trabajo privilegiado lo hace `udisksd` y lo autoriza polkit — y **no hay prompt de contraseña**
 porque `modify-device` es `allow_active=yes` para dispositivos que **no** son del sistema (en un
 disco interno sí lo pediría: `modify-device-system` → `auth_admin_keep`). `Check`/`Repair` **exigen
@@ -2913,7 +2913,7 @@ El brillo **no es una sola cosa**. En un **portátil** lo maneja la GPU y el ker
 `/sys/class/backlight` → `brightnessctl`. En un **sobremesa** ese directorio está **vacío**: el
 monitor externo no aparece ahí porque su brillo vive en el firmware del propio monitor, y solo se
 habla con él por **DDC/CI** (I2C sobre el cable de vídeo) → `ddcutil setvcp 10`. Lo implementa AGS
-en `ags/servicios/pantalla/brightness.ts`, que elige backend solo; ver `ags/CLAUDE.md`.
+en `ags/servicios/pantalla/brightness.ts`, que elige backend solo; ver `ags/servicios/pantalla/CLAUDE.md`.
 
 Para el camino DDC hace falta el módulo **`i2c-dev`**, que no carga nadie por su cuenta. Sin él no
 existen los nodos `/dev/i2c-*`, `ddcutil` no ve nada y el slider **desaparece** (que es el
@@ -2940,7 +2940,7 @@ Es el mismo proceso que sostiene la luz nocturna, y por eso `applyNight()` en
 `ags/servicios/pantalla/service.ts` es el **único dueño** y reconcilia los dos canales juntos: lo
 mantiene vivo si lo pide cualquiera de los dos, y usa una temperatura neutra (6000 K) cuando solo
 hace falta para el gamma — si no, bajar el brillo encendería de paso la luz nocturna. La lógica del
-reparto es pura y probada (`ags/servicios/pantalla/atenuacion.ts`); ver `ags/CLAUDE.md` para el
+reparto es pura y probada (`ags/servicios/pantalla/atenuacion.ts`); ver `ags/servicios/pantalla/CLAUDE.md` para el
 detalle, incluida la restauración desde disco (el gamma no deja residuo: muere con la sesión, al
 revés que el valor DDC, que el monitor graba en su firmware).
 
@@ -3414,7 +3414,7 @@ que no le pisa el índice al bash. Sí lanza `clamscan` sobre lo nuevo.
   `~/.config/power-save/config.json`) /
   `dlPauseWhileGaming` (reads `~/.config/gigishell/runtime-state.json` `{gaming}`, written by AGS
   `servicios/energia/gamingState.ts`, which reuses the `isGameClient` heuristic — `ags/modulos/barra/juegos/`,
-  ver `ags/CLAUDE.md`). Deferred work marks nothing, so
+  ver `ags/servicios/juegos/CLAUDE.md`). Deferred work marks nothing, so
   it's picked up when the gate clears. The size cap is `dlMaxScanGB` (default 1 GB), also live.
 
   **`/sys/class/power_supply/` NO lista solo la batería del equipo, y creerlo rompía la pausa por
@@ -3680,14 +3680,14 @@ minuto le pide al usuario que se acuerde de algo cuando ya esté en una terminal
 notificaciones que lo reportan —el `rc == 2` del barrido de descargas (`oom-monitor.sh`), y el "no
 se pudo analizar" de `scan-file.sh` y `run-untrusted.sh`— llevan ahora
 `-A "update=Actualizar firmas"` → **`hypr/scripts/actualizar-firmas.sh`**, el lado de usuario
-del helper. Se pulsa con **clic derecho** sobre el popup (ver `ags/CLAUDE.md`, "Acciones D-Bus en el
+del helper. Se pulsa con **clic derecho** sobre el popup (ver `ags/modulos/notificaciones/CLAUDE.md`, "Acciones D-Bus en el
 popup"), y `calcularDuracionPopup()` lo acota a 60 s.
 
 **Ese aviso lo emite ahora `firmas_aviso_con_boton` (`lib/firmas.sh`) y lleva TECHO DE ESPERA, que es
 lo que le faltaba.** `notify-send --wait` no espera al popup: espera a que el **daemon** cierre la
 notificación, y con `-t 0` el daemon no la cierra nunca. O sea que a los 60 s el popup desaparecía
 —y con él la única forma de pulsar el botón, porque estas notificaciones no llegan al historial (ver
-el "peaje conocido" de `ags/CLAUDE.md`)— y el `notify-send` se quedaba colgado **hasta el fin de la
+el "peaje conocido" de `ags/modulos/notificaciones/CLAUDE.md`)— y el `notify-send` se quedaba colgado **hasta el fin de la
 sesión** esperando un clic ya imposible: un proceso zombi por arranque, invisible y para siempre.
 Ahora se manda con `-t 60000` (que el daemon y el popup caduquen a la vez) y un vigilante mata el
 `notify-send` a los 120 s. El `timeout` **no puede envolver la llamada**, porque `notificar` es una
@@ -3939,7 +3939,7 @@ de verdad —vacía búsqueda y resultados, y devuelve la sección a Inicio salv
 `orionRecordarUltimaSeccion` activado—, y aquí el usuario no ha pedido salir de ningún sitio: se le
 estaba quitando la vista por un motivo puramente técnico, así que perderle el sitio es un efecto
 colateral, no una decisión. `suspenderPanel()`/`reanudarPanel()` (`ags/modulos/orion/state.ts`)
-guardan una foto, cierran sin limpiar y la reponen. Ver `ags/CLAUDE.md` para las tres reglas que
+guardan una foto, cierran sin limpiar y la reponen. Ver `ags/modulos/orion/CLAUDE.md` para las tres reglas que
 tiene: qué pasa si el usuario reabre Orion por su cuenta, por qué la ficha del panel derecho solo se
 suelta tras un `ok`, y por qué `externo` **descarta** la foto en vez de olvidarla.
 
@@ -4792,7 +4792,7 @@ que es lo que permite tirar del rearme sin miedo a parpadeos.
 
 **Config**: `~/.config/gigishell/wallpapers.json` (`{version, franjas, grupos, fondos}`), la escribe
 solo Orion. **Ausente o vacía = el comportamiento de siempre** (todo apto, sorteo plano), así que
-esto no cambia nada hasta que se configura. Ver `ags/CLAUDE.md` para el lado de la UI.
+esto no cambia nada hasta que se configura. Ver `ags/modulos/orion/CLAUDE.md` para el lado de la UI.
 
 ### Monitores de recursos restantes (`battery-monitor.sh`, `temp-monitor.sh`, `ram-monitor.sh`, `disk-monitor.sh`, `bt-monitor.sh`)
 

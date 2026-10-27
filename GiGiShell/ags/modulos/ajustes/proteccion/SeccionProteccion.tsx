@@ -8,7 +8,7 @@
 //
 // ── «Proteger archivo…» abre un Gtk.FileDialog, y eso aquí no es gratis ─────
 // Ajustes es una layer-shell en la capa OVERLAY y el diálogo es una ventana
-// normal: el compositor lo dibujaría DEBAJO, invisible (ver ags/CLAUDE.md,
+// normal: el compositor lo dibujaría DEBAJO, invisible (ver ags/modulos/notificaciones/sonido/CLAUDE.md,
 // CampoRutaAudio). Se abre dentro de `withPrivilegedPrompt`, que baja Ajustes a
 // la capa BOTTOM mientras dura la promesa — el mismo apaño que el diálogo de
 // polkit, que es exactamente el mismo problema.

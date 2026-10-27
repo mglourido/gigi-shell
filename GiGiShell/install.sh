@@ -1146,7 +1146,7 @@ configure_default_shell() {
     # apuntar /etc a un directorio escribible por el usuario sería una escalada silenciosa.
     # Sin este paso la instalación arranca igual, pero con dos fallos mudos:
     #   • sin la regla udev, una copia a un USB "termina" con cientos de MB aún en RAM y retirar
-    #     el pendrive pierde los datos de verdad (ver CLAUDE.md, sección USB);
+    #     el pendrive pierde los datos de verdad (ver docs/hyprland-modulos.md, sección USB);
     #   • sin i2c-dev no existen los nodos /dev/i2c-*, así que ddcutil no ve el monitor y el
     #     slider de brillo desaparece en un sobremesa (en un portátil da igual: usa sysfs).
     SYSTEM_DIR="$GIGISHELL/system"
@@ -1161,7 +1161,7 @@ configure_default_shell() {
       sudo udevadm control --reload-rules \
         || warn "No pude recargar udev; la regla de USB se aplicará al reiniciar."
     else
-      warn "No pude instalar la regla udev de USB. Instálala a mano (ver CLAUDE.md, sección USB)."
+      warn "No pude instalar la regla udev de USB. Instálala a mano (ver docs/hyprland-modulos.md, sección USB)."
     fi
     if sudo install -Dm644 "$SYSTEM_DIR/modules-load.d/i2c-dev.conf" \
          /etc/modules-load.d/i2c-dev.conf; then
@@ -1196,7 +1196,7 @@ configure_default_shell() {
       sudo systemctl reload systemd-logind \
         || warn "No pude recargar systemd-logind; el botón de encendido usará la acción de logind hasta reiniciar."
     else
-      warn "No pude ceder el botón de encendido a Hyprland; seguirá apagando el equipo (ver CLAUDE.md, sección del botón de encendido)."
+      warn "No pude ceder el botón de encendido a Hyprland; seguirá apagando el equipo (ver docs/hyprland-modulos.md, sección del botón de encendido)."
     fi
     # TLP: perfiles conmutables Normal/Ahorro. Solo si TLP está instalado (en un
     # equipo sin TLP la función queda oculta en Ajustes > Energía). Todo lo que toca

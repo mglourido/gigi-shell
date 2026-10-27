@@ -13,7 +13,7 @@
 # ESTE FICHERO SE INSTALA ROOT-OWNED en /usr/local/bin/gigishell-clamav-update (install.sh paso 9).
 # NO se symlinkea desde ~/GiGiShell: corre como root vía /etc/sudoers.d/gigishell-clamav, y apuntar a un
 # script escribible por el usuario sería una escalada silenciosa (misma regla que el helper de TLP,
-# la regla udev de USB y i2c-dev; ver CLAUDE.md). La copia versionada en ~/GiGiShell/system/clamav/
+# la regla udev de USB y i2c-dev; ver system/CLAUDE.md). La copia versionada en ~/GiGiShell/system/clamav/
 # solo se vuelve efectiva al reinstalar con sudo a propósito.
 #
 # POR QUÉ ROOT: /var/lib/clamav es de `clamav:clamav` y el log de freshclam está en /var/log/clamav.

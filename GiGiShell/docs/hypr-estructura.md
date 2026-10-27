@@ -4,7 +4,7 @@ Mapa de qué hay en `hypr/` y en qué orden se carga. Para instalar, ver
 [SETUP.md](SETUP.md); para el **porqué** de cada decisión de diseño (por qué el
 arranque se escalona así, por qué un fichero se genera y no se edita a mano, qué
 falla si tocas X sin saber Y) ver las secciones de Hyprland de
-[`../CLAUDE.md`](../CLAUDE.md), que este documento no duplica.
+[`hyprland-modulos.md`](hyprland-modulos.md) y [`../hypr/CLAUDE.md`](../hypr/CLAUDE.md), que este documento no duplica.
 
 > **El config es Lua, no hyprlang.** Desde Hyprland 0.55, si existe
 > `hyprland.lua` el compositor lo carga y **no mira ningún `hyprland.conf`**. Los
@@ -45,7 +45,7 @@ hypr/                       (symlink: ~/.config/hypr)
 ## Carga de `hyprland.lua`
 
 `hyprland.lua` no configura casi nada por sí mismo: fija `render.cm_enabled = false`
-(lo gestiona `hyprsunset`, no Hyprland — ver `CLAUDE.md`) y carga los módulos de
+(lo gestiona `hyprsunset`, no Hyprland — ver `../hypr/CLAUDE.md`) y carga los módulos de
 `gigishell/` en este orden exacto. Cada uno entra por `util.carga()` (`require` +
 `pcall`): **un módulo roto avisa en pantalla y no tumba el resto**, porque un
 error de Lua sin capturar deja la sesión sin atajos.
@@ -110,7 +110,7 @@ lenguaje Turing-completo). `hypridle` lo lanza `gigishell/autostart.lua` a trav�
 (que traduce `~/.config/gigishell/inactividad.json` a las variables `$IDLE_*` del
 `.conf`, estático: AGS ya no lo reescribe), y sus
 `on-timeout` no ejecutan la acción directamente sino que pasan por
-`scripts/idle-action.sh` (la puerta del "Wake up" — ver `CLAUDE.md`).
+`scripts/idle-action.sh` (la puerta del "Wake up" — ver `hyprland-modulos.md`).
 `hyprlock.conf` no se lanza nunca por sí solo: `hypridle` (`lock_cmd`,
 `before_sleep_cmd`), `idle-action.sh` y AGS pasan por `scripts/bloquear.sh`.
 Este avanza la cola de `scripts/fondo-bloqueo.py`, incluso entre bloqueos:
@@ -165,7 +165,7 @@ pantalla; el compositor arranca igual (fail-open).
 No todos arrancan igual. Cuatro disparadores distintos:
 
 **1. Daemons de `gigishell/autostart.lua`**, con el calendario escalonado (motivo
-completo en la cabecera de ese módulo y en `CLAUDE.md`):
+completo en la cabecera de ese módulo y en `../hypr/CLAUDE.md`):
 
 | t= | Script | Por qué ahí |
 | --- | --- | --- |
@@ -216,7 +216,7 @@ es residente, así que no llevan `pkill`),
 
 `usb-monitor.sh` llama él mismo a `usb-eject.sh` (botón "Expulsar" de la
 notificación de conexión) y a `usb-repair.sh` (automático en cuanto detecta un
-volumen sucio, sin botón ni pregunta — ver `CLAUDE.md`).
+volumen sucio, sin botón ni pregunta — ver `hyprland-modulos.md`, sección USB).
 
 **4. Seguridad y sandboxing**, encadenados entre sí más que disparados desde
 fuera: `oom-monitor.sh` (el propio daemon) llama a `run-untrusted.sh` (botón
@@ -225,7 +225,7 @@ Ajustes > Seguridad); `scan-downloads.sh` es el escaneo forzado desde esa misma
 sección.
 
 `anclaje.py` es aparte: no lo lanza nadie directamente, lo importan como
-observador tanto `rofi-launch.py` como `lanzar-anclado.py` (ver `CLAUDE.md`,
+observador tanto `rofi-launch.py` como `lanzar-anclado.py` (ver `hyprland-modulos.md`,
 sección de anclaje de ventanas).
 
 `scripts/lib/gaming-gate.sh` no es un script ejecutable por sí mismo. Se carga desde
@@ -233,14 +233,14 @@ sección de anclaje de ventanas).
 `oom-monitor.sh`, para congelar ese sondeo caro mientras juegas o en modo ahorro. Con
 `gigishell-eventd` instalado, el daemon Rust cubre esos monitores y aplica sus propias reglas de
 pausa. `monitor_downloads` (también dentro de `oom-monitor.sh`) usa en cambio su pausa
-independiente (`dlPauseWhileGaming`), no esta librería — ver `CLAUDE.md` y
+independiente (`dlPauseWhileGaming`), no esta librería — ver `../eventd/CLAUDE.md` y
 `docs/rust-migracion.md`.
 
 ## Ver también
 
 - [`SETUP.md`](SETUP.md) — instalación en una máquina nueva, perfil de GPU,
   pasos manuales.
-- [`../CLAUDE.md`](../CLAUDE.md) — el porqué detrás de cada script y cada
+- [`hyprland-modulos.md`](hyprland-modulos.md), [`../hypr/CLAUDE.md`](../hypr/CLAUDE.md) y [`../CLAUDE.md`](../CLAUDE.md) — el porqué detrás de cada script y cada
   decisión no obvia (las trampas medidas de la API Lua, el hint
   `x-gigishell-source`, por qué `gaming-gate.sh` congela lo que congela y no más,
   la puerta del Wake up, USB, brillo, seguridad…).

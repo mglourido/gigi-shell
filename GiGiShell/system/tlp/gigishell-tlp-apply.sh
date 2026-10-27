@@ -4,7 +4,7 @@
 # ESTE FICHERO SE INSTALA ROOT-OWNED en /usr/local/bin/gigishell-tlp-apply (install.sh paso 6).
 # NO se symlinkea desde ~/GiGiShell: corre como root vía la regla /etc/sudoers.d/gigishell-tlp, y
 # apuntar a un script escribible por el usuario sería una escalada silenciosa (misma regla que
-# la regla udev de USB y i2c-dev; ver CLAUDE.md). Sus perfiles de confianza viven en
+# la regla udev de USB y i2c-dev; ver system/CLAUDE.md). Sus perfiles de confianza viven en
 # /etc/gigishell/tlp/, también root-owned; la copia versionada en ~/GiGiShell/system/tlp/ solo se
 # vuelve efectiva al reinstalar con sudo a propósito.
 #

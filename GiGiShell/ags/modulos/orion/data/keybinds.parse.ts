@@ -119,7 +119,7 @@ function describeExec(cmd: string): string {
 }
 
 // Los binds inlineados en Lua no ejecutan un script: llaman a una función del
-// global GiGiShell que define su propio módulo (ver el CLAUDE.md raíz).
+// global GiGiShell que define su propio módulo (ver hypr/gigishell/keybinds.lua).
 const GIGISHELL_LABELS: Record<string, string> = {
   compactar: "Compactar workspaces",
   toggle_gaps: "Pegar ventanas (toggle)",

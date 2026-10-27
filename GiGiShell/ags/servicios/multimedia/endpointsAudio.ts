@@ -112,8 +112,8 @@ export type RepartoEndpoints<T> = {
  *
  * Que devuelva las mismas referencias importa: las listas alimentan `<For>`, que
  * indexa por identidad de objeto, así que fabricar envoltorios reconstruiría
- * todas las filas en cada emisión (ver la auditoría de `<For>` en el CLAUDE.md
- * de `ags/`).
+ * todas las filas en cada emisión (ver la auditoría de `<For>` en
+ * `ags/modulos/barra/CLAUDE.md`).
  *
  * Tres reglas, y el orden entre ellas es lo único que hay que respetar:
  *  1. **Lo muerto no sale por ningún lado.** No es una elección del usuario que

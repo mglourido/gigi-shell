@@ -142,7 +142,7 @@ export function ReactiveSection(
   // Filas VIVAS por `resultado.id`, reutilizadas entre resoluciones en vez de
   // destruirse y recrearse en cada tecla (mismo criterio que el `<For>` con
   // `id` del resto del shell — ver la nota de identidad de objeto en el
-  // CLAUDE.md raíz). El id de un resultado (app o atajo) es estable de una
+  // ags/modulos/barra/CLAUDE.md). El id de un resultado (app o atajo) es estable de una
   // query a otra para la misma entidad, así que la fila —widgets, gestos,
   // handlers de foco ya conectados— sobrevive; solo se reordena.
   const filas = new Map<string, { contenedor: Gtk.Box; navegable: ElementoNavegacionBusqueda }>()

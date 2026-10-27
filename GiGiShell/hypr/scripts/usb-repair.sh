@@ -6,7 +6,7 @@
 # harían falta privilegios, y escalarlos desde aquí sería un agujero: este script
 # vive en ~/.config (escribible por el usuario), y hacerlo vía pkexec para una
 # ruta escribible por el usuario es exactamente la escalada silenciosa contra la
-# que avisa CLAUDE.md. En su lugar usamos org.freedesktop.UDisks2.Filesystem.Repair: el
+# que avisa system/CLAUDE.md. En su lugar usamos org.freedesktop.UDisks2.Filesystem.Repair: el
 # trabajo privilegiado lo hace udisksd (servicio del sistema, ya auditado) y
 # polkit lo autoriza — modify-device es allow_active=yes para dispositivos que no
 # son del sistema, así que en un USB no hay prompt; en un disco interno sí lo

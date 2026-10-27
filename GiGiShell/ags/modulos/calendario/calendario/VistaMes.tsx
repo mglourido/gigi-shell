@@ -19,7 +19,7 @@ import { DiaCalendario } from "./DiaCalendario.tsx"
  * La rejilla se **reconstruye entera** al cambiar el mes, la selección o los eventos, en vez de
  * mantener 42 celdas reactivas. Son cuarenta y dos botones sin estado: reconstruirlos cuesta menos
  * que sostener tres suscripciones por celda, y evita el `<For>` indexado por identidad de objeto que
- * en este proyecto ya provocó destrucción de widgets en pleno evento de foco (ver `ags/CLAUDE.md`,
+ * en este proyecto ya provocó destrucción de widgets en pleno evento de foco (ver `ags/servicios/pantalla/CLAUDE.md`,
  * franjas horarias). No hay sondeo periódico: nada se repinta si no cambia el estado.
  *
  * **Las tres suscripciones comparten UNA reconstrucción coalescida**, y no es un adorno: `indiceMes`

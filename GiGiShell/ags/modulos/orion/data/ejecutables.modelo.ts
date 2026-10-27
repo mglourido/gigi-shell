@@ -214,7 +214,7 @@ export function rutaDesdeCasa(ruta: string, casa: string): string {
 /**
  * Carpeta de un ejecutable lista para pintar debajo de su nombre, con techo de
  * `max` caracteres para que la fila no ensanche Orion (la layer no vuelve a
- * encogerse sola, ver la franja de Inicio en el CLAUDE.md de ags). Se conservan
+ * encogerse sola, ver la franja de Inicio en ags/modulos/orion/CLAUDE.md). Se conservan
  * el principio —dice en qué zona está: `~/Descargas`— y el final —la carpeta
  * que lo contiene—, y lo de en medio se cambia por `…`.
  */

@@ -19,7 +19,7 @@ import { crearCampoFecha, crearCampoHora } from "./campos.tsx"
  * vez al abrirse, con una copia local del borrador, y solo escribe en el estado al guardar. Si cada
  * tecla actualizara `edicion`, el `<With>` que monta este componente lo destruiría y reconstruiría
  * en mitad del evento de teclado — que es literalmente el fallo que hizo caer el shell entero al
- * editar las franjas horarias de Ajustes > Pantalla (ver `ags/CLAUDE.md`). Aquí el estado global se
+ * editar las franjas horarias de Ajustes > Pantalla (ver `ags/servicios/pantalla/CLAUDE.md`). Aquí el estado global se
  * entera al final; lo que se ve mientras tanto vive en los propios widgets.
  *
  * Lo único que sí reacciona es el mensaje de validación, que es una etiqueta y no reconstruye nada.

@@ -4,7 +4,7 @@
 -- ~/.config/gigishell/datetime.json, que es lo que guarda AGS (Ajustes > Región,
 -- fecha y hora). Antes AGS reescribía un bloque entre marcadores DENTRO de este
 -- fichero, que está versionado — estado de máquina ensuciando git, y un
--- marcador tocado a mano dejaba el bloque huérfano. Ver CLAUDE.md.
+-- marcador tocado a mano dejaba el bloque huérfano. Ver hypr/CLAUDE.md.
 
 local util = require("gigishell.util")
 

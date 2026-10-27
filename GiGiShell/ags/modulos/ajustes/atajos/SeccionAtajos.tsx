@@ -81,7 +81,7 @@ export default function SeccionAtajos() {
         <box orientation={Gtk.Orientation.VERTICAL} cssClasses={["kb-lista"]}>
           {/* `id` por fila: sin él `<For>` indexa por identidad de objeto y cada pulsación
               en el buscador reconstruiría las ~70 filas enteras — el fallo que documenta la
-              barra en el CLAUDE.md de ags y que ya evita el buscador de Almacenamiento. */}
+              barra en ags/modulos/barra/CLAUDE.md y que ya evita el buscador de Almacenamiento. */}
           <For each={filas} id={(fila: Fila) => fila.id}>
             {(fila: Fila) => fila.tipo === "grupo"
               ? <label cssClasses={["kb-ajustes-grupo"]} label={fila.texto} halign={Gtk.Align.START} />

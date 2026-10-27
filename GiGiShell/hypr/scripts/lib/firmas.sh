@@ -56,7 +56,7 @@ firmas_auto_activa() {
 FIRMAS_ESPERA_CLIC_S="${FIRMAS_ESPERA_CLIC_S:-120}"
 
 # Aviso "no puedo analizar" CON botón de actualizar (clic derecho sobre el popup, ver
-# ags/CLAUDE.md → "Acciones D-Bus en el popup"). Es el ÚNICO camino por el que se actualiza a mitad
+# ags/modulos/notificaciones/CLAUDE.md → "Acciones D-Bus en el popup"). Es el ÚNICO camino por el que se actualiza a mitad
 # de sesión, y siempre lo abre un gesto del usuario.
 #
 # BLOQUEA hasta el clic, el cierre o el techo de arriba: llámalo en segundo plano si tu script

@@ -13,7 +13,7 @@
 -- OJO — systemd-logind maneja esta MISMA tecla por su cuenta (HandlePowerKey,
 -- `poweroff` de fábrica) a nivel de asiento, sin pasar por el compositor. Si
 -- logind no está en `ignore`, gana su apagado elijas lo que elijas aquí. Ver
--- system/logind.conf.d/99-gigishell-powerkey.conf y la sección en CLAUDE.md.
+-- system/logind.conf.d/99-gigishell-powerkey.conf y la sección en docs/hyprland-modulos.md.
 --
 -- ═══ FAIL-OPEN, y la asimetría es el diseño ═══
 -- Cualquier error de Lua en el cuerpo (JSON con forma inesperada, io.popen

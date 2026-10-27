@@ -12,7 +12,7 @@ const NOMBRES_DIA = ["L", "M", "X", "J", "V", "S", "D"]
  *
  * Igual que el de eventos, **no es reactivo respecto al estado global**: se construye con una copia
  * y solo escribe al guardar. Reconstruirse desde el manejador de un campo con el foco dentro es el
- * patrón que ya costó un SIGSEGV en este proyecto (ver `ags/CLAUDE.md`).
+ * patrón que ya costó un SIGSEGV en este proyecto (ver `ags/servicios/pantalla/CLAUDE.md`).
  *
  * El tipo de alarma se decide por los días marcados y no por un selector aparte: marcar días es
  * exactamente lo que significa «que se repita», y un selector «puntual/semanal» que hay que
