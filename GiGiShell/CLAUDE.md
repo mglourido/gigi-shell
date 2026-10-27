@@ -168,6 +168,69 @@ also applies to changes made only in `install.sh`, `bin/preflight.sh`, ignore
 rules, or profile documentation; do not create an independent profile mechanism
 unless the application's limitations are documented there.
 
+## Cómo trabajar aquí
+
+**Confirma antes de decidir la experiencia de usuario.** Asegúrate de tener claro qué pide el
+usuario antes de cambiar nada. Si una elección cambia el comportamiento visible, la disposición, el
+flujo o la interacción, pregúntalo en vez de inferir la intención.
+
+**Piensa el cambio entero antes de editar.** Revisa el flujo de datos, los puntos de integración y
+los casos límite que toca, y anticipa incompatibilidades, regresiones y mantenimiento futuro. Como
+norma, cada componente va en su propio archivo: se lee menos y varios componentes pueden tocarse a
+la vez sin colisionar. Mantenlos juntos solo si de verdad mejora la cohesión.
+
+**Recursos y fiabilidad.** AGS es parte del escritorio: un fallo te deja sin interfaz.
+- La RAM, el disco y la CPU son restricciones de primera clase. Evita fugas, cachés o escrituras
+  persistentes sin un beneficio claro y el trabajo pesado en rutas calientes. Se prioriza la
+  funcionalidad y el bajo consumo sobre el «código bonito»: un poco de código extra está bien si no
+  cambia el coste en ejecución; las asignaciones extra, los objetos retenidos o decenas de MB de RAM
+  desperdiciados, no.
+- Prefiere actualizaciones por eventos (estado, suscripciones, señales existentes) a sondeos o
+  temporizadores.
+- Mantén corto lo síncrono y saca lo costoso de render y de eventos frecuentes, para no congelar la
+  interfaz.
+- Contén o trata de forma defensiva todo error posible (`try/catch`, degradar con seguridad) para
+  que un problema aislado no rompa el shell.
+- Antes de añadir una función o un elemento de interfaz, busca si ya existe algo equivalente y
+  reutilízalo o extrae un componente compartido. No fusiones a ciegas si eso encarece la memoria o
+  el tiempo de ejecución.
+- El código debe funcionar en todas las máquinas y configuraciones donde se espera que corra, no
+  solo en una.
+- Si aparece un bug recurrente, o una decisión (tomada o descartada) que evite regresiones o explique
+  por qué se eligió una solución, documéntalo donde vive el componente: `docs/hyprland-modulos.md` o
+  el `CLAUDE.md` de su carpeta.
+- Evita dependencias obsoletas si hay alternativa mantenida y compatible. Si cambian dependencias,
+  rutas o la estructura de instalación, revisa también `install.sh`, `bin/link.sh` y la
+  documentación afectada.
+
+**Estilo y nombres.** Español consistente en los nombres y la documentación orientados al código
+(variables, funciones, comentarios), salvo que una API, dependencia o interfaz externa exija otro
+idioma. En `ags/`: TypeScript/TSX con widgets funcionales, imports explícitos de `ags/gtk4` y
+`gi://...`, y módulos locales por funcionalidad. Los módulos de Hyprland son `.lua` con nombres
+descriptivos en minúsculas (`hypr/gigishell/`), y los scripts, `.sh` en kebab-case. CSS: todo en
+`ags/estilos/style.scss` y coherente con el diseño existente salvo que el usuario pida otra cosa;
+antes de crear un bloque, mira si cabe en uno existente y si los estilos pueden agruparse en el
+elemento padre en vez de duplicarse en los hijos. `~/.cache/gigishell/out.css` es una caché
+regenerada: no se edita, se recompila con `ags/scripts/compilar-css.sh`.
+
+**Control de versiones.**
+- Los archivos nuevos hay que prepararlos con `gigishell add` (ver «Git caveat»): uno sin rastrear
+  no se sube. Eso no incluye temporales, cachés ni artefactos generados.
+- Los archivos de pruebas (`*.test.*`, `*.spec.*` y los demás patrones de `.gitignore`) se quedan
+  solo en local aunque formen parte de la validación. No uses `git add -f`: el hook de pre-push los
+  rechaza.
+- Commits: resúmenes cortos y acotados en español, imperativos o descriptivos. Un pull request
+  describe los cambios visibles para el usuario, lista los comandos ejecutados, anota la
+  verificación manual en AGS/Hyprland e incluye capturas o grabaciones si cambia la interfaz.
+
+**Pruebas y desarrollo.** Las pruebas de TypeScript usan el ejecutor nativo de Node y viven junto a
+la implementación como `*.test.ts`, sobre lógica pura sin imports de GTK (reglas de notificaciones,
+historial, limpieza, migraciones de ajustes, lógica de pantalla, parseo de Spotify):
+`node --test ruta/al/archivo.test.ts`. Los cambios de interfaz se verifican a mano con `ags quit` y
+después `ags run ~/.config/ags/app.ts`. `hyprctl reload` aplica la config de Hyprland sin reiniciar
+los `exec-once`; `hyprctl reload full-reset` los reinicia y vuelve a ejecutar
+`hypr/gigishell/autostart.lua`.
+
 ## Runtime config & secrets live OUTSIDE the repo
 
 User/runtime state is **not** versioned. It lives in `~/.config/gigishell/` (`display.json`,
@@ -190,7 +253,11 @@ al arrancar, el segundo al revés; dos ficheros con un dueño cada uno, no uno c
 and `~/.local/share/jarvis/` for the Orion launcher, `~/.config/power-save/config.json`
 (umbral y filtros de modo ahorro) and `~/.local/share/orion/favorites.json` (favoritos del
 launcher — ver "What this is" para por qué estos dos últimos dejaron de vivir dentro del repo).
-These are data written/read by widgets and scripts at runtime — not code.
+These are data written/read by widgets and scripts at runtime — not code. No todo `config` es
+temporal: la configuración explícita de AGS que forma parte del código (`apps_icons`, mapeos
+internos, recursos estáticos) pertenece al repo; el estado temporal o editable por el usuario desde
+la UI (paneles, preferencias cambiables, valores de sesión) va al `~/.config` del usuario o del
+sistema.
 
 `~/.config/gigishell/spotify-creds.json` y `~/.config/gigishell/google-calendar-creds.json` son
 **secretos en texto plano** (chmod 600) y no pueden commitearse ni copiarse dentro del repo. Se
