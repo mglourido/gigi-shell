@@ -1,4 +1,4 @@
-import { createState } from "ags"
+import { createRoot, createState } from "ags"
 import { Gdk, Gtk } from "ags/gtk4"
 import GLib from "gi://GLib"
 import ElementoPopup from "./ElementoPopup.tsx"
@@ -21,6 +21,11 @@ let contenedor: Gtk.Box | null = null
 let monitor: Gdk.Monitor | null = null
 let margenSuperior = 16
 const widgets = new Map<number, Gtk.Widget>()
+// Cada popup se construye en su propio ámbito (`createRoot`): `drenarCola` corre desde la señal
+// del daemon, fuera de todo `Scope`, y sin ámbito los `onCleanup` de sus widgets (el del icono de
+// app, los del JSX) daban `out of tracking context` y nunca se ejecutaban. Desecharlo al retirar
+// el popup es lo que da de baja sus señales. Ver `utilidades/coalescer.ts`.
+const ambitos = new Map<number, () => void>()
 const alturas = new Map<number, number>()
 const temporizadores = new Map<number, number>()
 const callbacksDescarte = new Map<number, { descartar: () => void; cancelar: () => void }>()
@@ -51,6 +56,8 @@ function eliminarInmediatamente(id: number, rellenar = true): void {
     widgets.delete(id)
     alturas.delete(id)
   }
+  ambitos.get(id)?.()
+  ambitos.delete(id)
 
   setHayPopups(widgets.size > 0)
   if (rellenar) drenarCola()
@@ -97,11 +104,15 @@ function drenarCola(): void {
   while (pendientes.length > 0 && widgets.size < MAXIMO_POPUPS) {
     const notificacion = pendientes[0]
     let alturaMedida = 0
-    const elemento = ElementoPopup({
-      notificacion,
-      alDescartar: () => eliminarInmediatamente(notificacion.id),
-      registrarDescarte: (descartar, cancelar) => callbacksDescarte.set(notificacion.id, { descartar, cancelar }),
-    }) as Gtk.Widget
+    let desecharAmbito: () => void = () => {}
+    const elemento = createRoot((desechar) => {
+      desecharAmbito = desechar
+      return ElementoPopup({
+        notificacion,
+        alDescartar: () => eliminarInmediatamente(notificacion.id),
+        registrarDescarte: (descartar, cancelar) => callbacksDescarte.set(notificacion.id, { descartar, cancelar }),
+      }) as Gtk.Widget
+    })
 
     try {
       const [, alturaNatural] = elemento.measure(Gtk.Orientation.VERTICAL, ANCHO_POPUP)
@@ -118,11 +129,13 @@ function drenarCola(): void {
       ESPACIADO_POPUPS,
     )) {
       callbacksDescarte.delete(notificacion.id)
+      desecharAmbito()
       break
     }
 
     pendientes.shift()
     widgets.set(notificacion.id, elemento)
+    ambitos.set(notificacion.id, desecharAmbito)
     alturas.set(notificacion.id, alturaMedida)
     contenedor.append(elemento)
     programarDescarte(notificacion)
