@@ -50,19 +50,28 @@ forzar=0
 [[ -r "$CONFIG" ]] || exit 0
 [[ -r "$ESTADO" ]] || ESTADO=/dev/null
 
-# Salida: auto \t intervaloHoras \t umbralUso \t ultima \t notificar \t "accion accion …"
+# Salida: auto \t intervaloHoras \t umbralUso \t ultima \t ultimaAuto \t ultimaManual \t notificar
+#         \t "accion accion …"
+#
+# `ultimaAuto` y `ultimaManual` no deciden nada aquí: se leen para volver a escribirlas tal cual al
+# poner la marca (el `printf` reescribe el fichero entero) y son lo que enseña la cabecera de
+# Ajustes > Liberar espacio. `ultima` es la única que cuenta para el intervalo.
 #
 # `notificar` NO se pide como `.notificar // true`: en jq el operador `//` considera falsy a
 # **`false`, no solo a `null`**, así que con la opción desactivada devolvía `true` y la limpieza
 # avisaba igual. Las claves booleanas se preguntan con `has()`; las numéricas sí pueden usar `//`
 # porque un 0 en jq es truthy.
-IFS=$'\t' read -r auto intervalo umbral ultima notificar marcadas < <(
+IFS=$'\t' read -r auto intervalo umbral ultima ultimaAuto ultimaManual notificar marcadas < <(
     jq -rn --slurpfile c "$CONFIG" --slurpfile e "$ESTADO" '
         ($c[0] // {}) as $cfg | ($e[0] // {}) as $est |
         [ (if ($cfg | has("auto")) then $cfg.auto else false end),
           ($cfg.intervaloHoras // 24),
           ($cfg.umbralUso // 0),
           ($est.ultima // 0),
+          # Un fichero de antes de existir `ultimaAuto` solo trae `ultima`: se hereda como automática
+          # (igual que hace `servicios/disco/registroLimpieza.ts`) en vez de reescribirla a 0.
+          (if ($est | has("ultimaAuto")) then $est.ultimaAuto else ($est.ultima // 0) end),
+          ($est.ultimaManual // 0),
           (if ($cfg | has("notificar")) then $cfg.notificar else true end),
           (($cfg.acciones // {}) | to_entries
              | map(select(.value == true) | .key) | join(" "))
@@ -75,6 +84,8 @@ IFS=$'\t' read -r auto intervalo umbral ultima notificar marcadas < <(
 [[ "$intervalo" =~ ^[0-9]+$ ]] && ((intervalo > 0)) || intervalo=24
 [[ "$umbral"    =~ ^[0-9]+$ ]] || umbral=0
 [[ "$ultima"    =~ ^[0-9]+$ ]] || ultima=0
+[[ "$ultimaAuto"   =~ ^[0-9]+$ ]] || ultimaAuto=0
+[[ "$ultimaManual" =~ ^[0-9]+$ ]] || ultimaManual=0
 
 ahora=$(printf '%(%s)T' -1)   # builtin de bash: no forkea un `date`
 
@@ -105,11 +116,17 @@ done
 #
 # Va en `~/.cache` y no en el JSON de configuración porque es estado regenerable (perderlo solo
 # adelanta una limpieza) y porque AGS reescribe la configuración entera con un `replace_contents`:
-# se llevaría la marca por delante. Se escribe con `printf`, no con `jq`: es un objeto de un campo
-# y no vale otro fork.
+# se llevaría la marca por delante. Se escribe con `printf`, no con `jq`: son tres números ya
+# leídos y no vale otro fork.
+#
+# «Ejecutar ahora» (`--ahora`) también reinicia el intervalo —limpia el mismo lote que la automática,
+# repetirlo en el siguiente arranque no tendría sentido—, pero se anota como MANUAL: la cabecera de
+# Ajustes distingue las dos. Las limpiezas fila a fila de «Liberar espacio» solo tocan `ultimaManual`
+# (lo escribe AGS, `servicios/disco/registroLimpieza.ts`): una acción suelta no es el lote.
+if ((forzar)); then ultimaManual=$ahora; else ultimaAuto=$ahora; fi
 ESTADO="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/limpieza.json"
 mkdir -p "${ESTADO%/*}"
-printf '{"ultima":%d}\n' "$ahora" > "$ESTADO"
+printf '{"ultima":%d,"ultimaAuto":%d,"ultimaManual":%d}\n' "$ahora" "$ultimaAuto" "$ultimaManual" > "$ESTADO"
 
 # El aviso lo da este script a partir del JSON, y no el limpiador: así sale igual con la
 # implementación en Rust (que no notifica) que con la de bash. Dos cifras, porque no son la misma:

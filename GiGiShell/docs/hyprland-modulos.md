@@ -4447,6 +4447,15 @@ relanzar la limpieza entera en cada inicio de sesión para siempre. El umbral se
 del intervalo y sin tocar la marca: con el disco holgado no hay nada que hacer, pero un disco que
 se llena mañana no debe esperar un ciclo entero.
 
+El fichero lleva **tres** marcas: `ultima` (la única que cuenta para el intervalo; la ponen la
+autolimpieza del arranque y «Ejecutar ahora»), `ultimaAuto` (solo la del arranque) y `ultimaManual`
+(«Ejecutar ahora», que la anota el script, y cualquier botón suelto de «Liberar espacio», que la
+anota AGS en `servicios/disco/registroLimpieza.ts` sin tocar `ultima`). Son lo que enseña la
+cabecera de la tarjeta «Autolimpieza»: cuánto falta para que el intervalo deje de frenarla —que
+ocurrirá en el primer inicio de sesión a partir de esa hora, no a esa hora— y las dos últimas
+fechas. El script reescribe el fichero entero con `printf`, así que conserva las otras dos marcas
+leyéndolas en el mismo `jq`; un fichero antiguo sin `ultimaAuto` la hereda de `ultima`.
+
 **`//` de jq considera falsy a `false`, no solo a `null`.** `.notificar // true` devolvía `true`
 con la opción desactivada, o sea que la limpieza avisaba igual después de que el usuario apagara el
 aviso. Las claves **booleanas** se leen con `if (… | has("clave")) then …`; las numéricas sí pueden

@@ -30,6 +30,7 @@
 import { createState, onCleanup, type Accessor } from "ags"
 import { ejecutarLimpieza, type ResultadoLimpieza } from "../../../servicios/disco/limpieza"
 import { limpiarAhora } from "../../../servicios/disco/preferencias"
+import { marcarLimpiezaManual, releerRegistroLimpieza } from "../../../servicios/disco/registroLimpieza"
 import type { IdAccion } from "../../../servicios/disco/catalogo"
 import { caducarAnalisis } from "./usarAnalisis"
 
@@ -80,7 +81,10 @@ function ejecutar(id: IdAccion): void {
     // El mensaje sí es para la vista: si no queda ninguna, se descarta en vez de guardarse para
     // aparecer sin contexto la próxima vez que abras Ajustes.
     if (referencias > 0) setResultados(new Map(resultados.get()).set(id, r))
-    if (r.estado === "ok") caducarAnalisis()
+    if (r.estado === "ok") {
+      caducarAnalisis()
+      marcarLimpiezaManual()
+    }
   })
 }
 
@@ -100,6 +104,8 @@ export function ejecutarAutolimpieza(): void {
     .finally(() => {
       setAutolimpiezaEnCurso(false)
       caducarAnalisis()
+      // La marca manual de «Ejecutar ahora» la pone el script: aquí solo se relee.
+      releerRegistroLimpieza()
     })
 }
 

@@ -222,6 +222,16 @@
       "titulo": "Avisar al terminar",
       "descripcion": "Una notificación con el espacio liberado."
     },
+    "cabecera": {
+      "desactivada": "Automática desactivada",
+      "falta": "Próxima: en {{tiempo}}",
+      "toca": "Próxima: al iniciar sesión",
+      "tooltipFalta": "Se comprueba al iniciar sesión: tocará en el primer inicio a partir del {{fecha}}.",
+      "umbral": " (si el disco supera el {{umbral}} %)",
+      "ultimaAuto": "Última automática: {{fecha}}",
+      "ultimaManual": "Última manual: {{fecha}}",
+      "nunca": "nunca"
+    },
     "queLimpiar": "Qué limpiar automáticamente",
     "estimacion": "Se liberarían unos {{tamano}} con lo marcado.",
     "ejecutar": "Ejecutar ahora",

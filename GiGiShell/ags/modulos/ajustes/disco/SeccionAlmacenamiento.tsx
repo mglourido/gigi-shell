@@ -16,6 +16,7 @@
 // el mismo nombre a dos niveles distintos del árbol es una trampa para el siguiente que grepee.
 import { Gtk } from "ags/gtk4"
 import Pango from "gi://Pango"
+import GLib from "gi://GLib"
 import { For, With, createComputed, createState, onCleanup, type Accessor } from "ags"
 import {
   AjusteInterruptor, BotonAjustes, EntradaTextoAjustes, FilaAjuste, ListaAjustes,
@@ -34,6 +35,10 @@ import {
   setAccionAutomatica, setAutoLimpieza, setDescargasAPapelera, setDiasDescargas, setDiasPapelera,
   setIntervaloHoras, setNotificarLimpieza, setRetenerJournal, setUmbralUso, umbralUso,
 } from "../../../servicios/disco/preferencias"
+import {
+  formatearDuracion, registroLimpieza, releerRegistroLimpieza, segundosHastaAutolimpieza,
+  type RegistroLimpieza,
+} from "../../../servicios/disco/registroLimpieza"
 import { usarAnalisis } from "./usarAnalisis"
 import { autolimpiezaEnCurso, ejecutarAutolimpieza, usarLimpiezas, type Limpiezas } from "./usarLimpiezas"
 import RutasPersonalizadas, { RutasProtegidas } from "./RutasPersonalizadas"
@@ -389,6 +394,49 @@ function AccionManual({ id, limpiezas, botones }: { id: IdAccion; limpiezas: Lim
   )
 }
 
+/**
+ * Cabecera de «Autolimpieza»: cuánto falta y cuándo fue la última de cada tipo.
+ *
+ * El reloj de 60 s solo vive mientras la vista está montada, y solo mueve el «en 3 h 12 min»: las
+ * dos fechas cambian cuando alguien limpia, y eso ya lo publica `registroLimpieza`.
+ */
+function CabeceraAutolimpieza() {
+  releerRegistroLimpieza()
+  const [ahora, setAhora] = createState(Math.floor(Date.now() / 1000))
+  const reloj = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT_IDLE, 60, () => {
+    setAhora(Math.floor(Date.now() / 1000))
+    return GLib.SOURCE_CONTINUE
+  })
+  onCleanup(() => GLib.source_remove(reloj))
+
+  const t = textos.auto.cabecera
+  const proximo = createComputed(
+    [autoLimpieza, intervaloHoras, umbralUso, registroLimpieza, ahora],
+    (activa: boolean, horas: number, umbral: number, r: RegistroLimpieza, ya: number) => {
+      if (!activa) return { texto: t.desactivada, tooltip: null }
+      const falta = segundosHastaAutolimpieza(r, horas, ya)
+      const sufijo = umbral > 0 ? formatearTexto(t.umbral, { umbral }) : ""
+      if (falta === 0) return { texto: t.toca + sufijo, tooltip: null }
+      return {
+        texto: formatearTexto(t.falta, { tiempo: formatearDuracion(falta) }) + sufijo,
+        tooltip: formatearTexto(t.tooltipFalta, { fecha: formatearFecha(ya + falta) }),
+      }
+    },
+  )
+  const fecha = (epoch: number) => epoch > 0 ? formatearFecha(epoch) : t.nunca
+
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} hexpand halign={Gtk.Align.END} valign={Gtk.Align.CENTER}>
+      <TextoInformativo label={proximo((p) => p.texto)} tooltipText={proximo((p) => p.tooltip)}
+        hexpand={false} halign={Gtk.Align.END} xalign={1} />
+      <TextoInformativo label={registroLimpieza((r) => formatearTexto(t.ultimaAuto, { fecha: fecha(r.ultimaAuto) }))}
+        hexpand={false} halign={Gtk.Align.END} xalign={1} />
+      <TextoInformativo label={registroLimpieza((r) => formatearTexto(t.ultimaManual, { fecha: fecha(r.ultimaManual) }))}
+        hexpand={false} halign={Gtk.Align.END} xalign={1} />
+    </box>
+  )
+}
+
 function VistaLimpieza() {
   const [analisis] = usarAnalisis()
   const [marcadas, setMarcadas] = createState(ACCIONES_AUTOMATIZABLES.filter(id => accionAutomatica(id).get()))
@@ -406,7 +454,7 @@ function VistaLimpieza() {
   return (
     <box orientation={Gtk.Orientation.VERTICAL} spacing={14} cssClasses={["sp-section", "dev-section", "alm-section"]} hexpand>
 
-      <TarjetaAjustes titulo={textos.auto.titulo} icono="󰃢">
+      <TarjetaAjustes titulo={textos.auto.titulo} icono="󰃢" detalle={<CabeceraAutolimpieza />}>
         <AjusteInterruptor
           titulo={textos.auto.activar.titulo}
           informacion={textos.auto.activar.descripcion}
