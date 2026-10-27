@@ -134,61 +134,6 @@ alias pa="$_pkg_helper -Ss"
 alias pc="$_pkg_helper -Sc"
 unset _pkg_helper
 
-# Notifica los comandos largos cuando la terminal no tiene el foco.
-typeset -g _lc_start=0 _lc_cmd=''
-typeset -gi _LC_THRESHOLD=10
-typeset -ga _LC_SKIP=(cd ls ll la clear pwd exit history source . eval builtin)
-
-_lc_terminal_focused() {
-    command -v hyprctl >/dev/null 2>&1 || return 1
-    local class
-    class=$(hyprctl activewindow -j 2>/dev/null | jq -r '.class // ""' 2>/dev/null)
-    class="${class:l}"
-    [[ "$class" == (kitty|foot|alacritty|wezterm|ghostty) || "$class" == *terminal* ]]
-}
-
-_lc_format() {
-    local seconds=$1
-    if (( seconds >= 3600 )); then
-        printf '%dh %dm %ds' $((seconds / 3600)) $(((seconds % 3600) / 60)) $((seconds % 60))
-    elif (( seconds >= 60 )); then
-        printf '%dm %ds' $((seconds / 60)) $((seconds % 60))
-    else
-        printf '%ds' "$seconds"
-    fi
-}
-
-_lc_preexec() {
-    _lc_start=$(date +%s)
-    _lc_cmd="$1"
-}
-
-_lc_precmd() {
-    local exit_code=$?
-    (( _lc_start == 0 )) && return
-
-    local now duration base item
-    now=$(date +%s)
-    duration=$((now - _lc_start))
-    _lc_start=0
-    (( duration < _LC_THRESHOLD )) && return
-
-    base="${_lc_cmd%% *}"
-    for item in "${_LC_SKIP[@]}"; do
-        [[ "$base" == "$item" ]] && return
-    done
-    _lc_terminal_focused && return
-
-    local icon=FAIL
-    (( exit_code == 0 )) && icon=OK
-    notify-send "$icon: Comando terminado" \
-        "${_lc_cmd} — $(_lc_format "$duration")" -t 8000 2>/dev/null
-}
-
-autoload -Uz add-zsh-hook
-add-zsh-hook preexec _lc_preexec
-add-zsh-hook precmd _lc_precmd
-
 # Plugins de Arch, en el unico orden que documentan sus autores:
 #   syntax-highlighting -> history-substring-search -> autosuggestions
 # history-substring-search lo carga fish-parity.zsh por dentro, de ahi que el
