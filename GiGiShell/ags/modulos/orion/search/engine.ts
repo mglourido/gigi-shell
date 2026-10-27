@@ -7,13 +7,15 @@
 //    los handlers relevantes (apps + atajos…), intercalados, en vez de que gane
 //    uno solo y oculte a los demás. El empujón +0.3 de `defaultFor` decide quién
 //    encabeza la intercalación y quién gobierna la decisión inline. Un handler
-//    que marca `primero` (ejecutables) no se intercala: va entero delante.
+//    que marca `primero` (ejecutables) no se intercala: va entero delante. Las
+//    `filas` puntuadas (apps y ficheros sin prioridad) se ordenan juntas por
+//    parecido y entran en la intercalación como UNA sola lista.
 //
 // Cada handler puntúa en UNA pasada (`match`) y devuelve un `build` perezoso;
 // las filas solo se materializan para los handlers que aportan a la mezcla.
 
 import type { SectionId } from "../state"
-import type { SearchHandler, SearchResult } from "./types"
+import type { FilaPuntuada, HandlerMatch, SearchHandler, SearchResult } from "./types"
 
 /**
  * Tope de filas que se muestran en la lista reactiva. La lista vive dentro del
@@ -52,6 +54,17 @@ function intercalar(listas: SearchResult[][], tope: number): SearchResult[] {
   return salida
 }
 
+// Junta las filas puntuadas de todos los handlers y las ordena por parecido.
+// `sort` es estable: a igual similitud manda el orden de las fuentes (el
+// handler más confiado primero), que en Inicio deja las apps delante.
+function mezclarPorSimilitud(matches: HandlerMatch[], tope: number): SearchResult[] {
+  const todas: FilaPuntuada[] = matches.flatMap(m => m.filas ?? [])
+  return todas
+    .sort((a, b) => b.similitud - a.similitud)
+    .slice(0, tope)
+    .map(f => f.crear())
+}
+
 export function resolve(
   handlers: readonly SearchHandler[],
   query: string,
@@ -81,11 +94,24 @@ export function resolve(
     .filter(e => e.m.score > 0)
     .sort((a, b) => b.boosted - a.boosted)
 
-  const delante = fuentes.filter(e => e.m.primero).flatMap(e => e.m.build()).slice(0, MAX_RESULTADOS)
-  const results = [
-    ...delante,
-    ...intercalar(fuentes.filter(e => !e.m.primero).map(e => e.m.build()), MAX_RESULTADOS - delante.length),
-  ]
+  const delante = fuentes
+    .filter(e => e.m.primero)
+    .flatMap(e => e.m.build?.() ?? [])
+    .slice(0, MAX_RESULTADOS)
+  const tope = MAX_RESULTADOS - delante.length
+
+  // La lista mezclada por parecido ocupa el turno del primer handler que la
+  // alimenta; el resto se intercala por turnos como siempre.
+  const listas: SearchResult[][] = []
+  let mezclada = false
+  for (const e of fuentes) {
+    if (e.m.filas && !mezclada) {
+      mezclada = true
+      listas.push(mezclarPorSimilitud(fuentes.map(f => f.m), tope))
+    }
+    if (!e.m.primero && e.m.build) listas.push(e.m.build())
+  }
+  const results = [...delante, ...intercalar(listas, tope)]
   if (results.length === 0) return vacio()
 
   return { inline: false, results, handlerId: fuentes[0].h.id }

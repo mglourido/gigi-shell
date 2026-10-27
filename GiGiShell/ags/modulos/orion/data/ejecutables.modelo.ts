@@ -72,6 +72,7 @@ function directorioDe(ruta: string): string {
  * - `.sh` → directo si es ejecutable (respeta su shebang); si no, `bash`.
  * - `.AppImage` → necesita el bit sí o sí, así que se le pone si falta: es el
  *   paso que cualquiera haría a mano tras descargarlo.
+ * - Sin extensión y con el bit → directo: es un binario.
  * - Cualquier otro (un `.pdf`, un `.png`…) → `xdg-open`, o sea la app que el
  *   sistema tenga asociada a su tipo, la misma que en Dolphin.
  *
@@ -93,6 +94,9 @@ export function comandoEjecutable(
     case "jar": return `${cd}exec java -jar ${r}`
     case "sh": return esEjecutable ? `${cd}exec ${r}` : `${cd}exec bash ${r}`
     case "appimage": return esEjecutable ? `${cd}exec ${r}` : `chmod +x ${r} && ${cd}exec ${r}`
+    // Sin extensión y con bit de ejecución: un binario (o un script con
+    // shebang) que se corre tal cual. Sin el bit, es un fichero cualquiera.
+    case null: return esEjecutable ? `${cd}exec ${r}` : `exec xdg-open ${r}`
     default: return `exec xdg-open ${r}`
   }
 }
@@ -253,21 +257,37 @@ export interface FicheroEjecutable {
   ruta: string
   /** Segundos desde epoch (mtime), para ordenar lo reciente primero. */
   mtime: number
+  /** Tiene algún bit de ejecución (dueño, grupo u otros). */
+  ejecutable: boolean
 }
 
 /**
- * Parsea la salida de `find -printf '%T@\t%p\n'`. Las líneas que no tienen esa
- * forma o cuya extensión no es `ext` se descartan.
+ * Parsea la salida de `find -printf '%T@\t%m\t%p\n'` (mtime, permisos en
+ * octal, ruta). Las líneas que no tienen esa forma, o cuya extensión no es
+ * `ext` cuando se pide una, se descartan. Con `ext` a `null` vale cualquiera.
  */
-export function parsearFind(salida: string, ext: string): FicheroEjecutable[] {
+export function parsearFind(salida: string, ext: string | null): FicheroEjecutable[] {
   const out: FicheroEjecutable[] = []
   for (const linea of salida.split("\n")) {
-    const tab = linea.indexOf("\t")
-    if (tab <= 0) continue
-    const mtime = Number(linea.slice(0, tab))
-    const ruta = linea.slice(tab + 1)
-    if (!Number.isFinite(mtime) || !ruta.startsWith("/") || extensionDe(ruta) !== ext) continue
-    out.push({ ruta, mtime })
+    const [t, modo, ...resto] = linea.split("\t")
+    const ruta = resto.join("\t")
+    const mtime = Number(t)
+    const permisos = parseInt(modo ?? "", 8)
+    if (!t || !Number.isFinite(mtime) || !Number.isFinite(permisos) || !ruta.startsWith("/")) continue
+    if (ext !== null && extensionDe(ruta) !== ext) continue
+    out.push({ ruta, mtime, ejecutable: (permisos & 0o111) !== 0 })
   }
   return out
+}
+
+/**
+ * Un fichero encontrado SIN teclear extensión tiene prioridad (va delante de
+ * las apps) solo si es un programa: bit de ejecución y, o sin extensión (un
+ * binario), o una de las cuatro que se ejecutan. Un `.png` con el bit puesto
+ * —típico de un USB en FAT/NTFS, donde todo sale 777— no cuenta.
+ */
+export function tienePrioridad(f: FicheroEjecutable): boolean {
+  if (!f.ejecutable) return false
+  const ext = extensionDe(f.ruta)
+  return ext === null || esExtensionEjecutable(ext)
 }

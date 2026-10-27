@@ -707,6 +707,31 @@ déficit *a medias* con el título; acotado a 14 (con `tooltipText` para no perd
     anteriores. La primera búsqueda de cada extensión enseña primero solo las apps y un instante
     después suben los ficheros. El icono es el del tipo MIME (`Gio.content_type_guess` por nombre,
     sin leer el fichero).
+  - **SIN extensión también se buscan ficheros** (≥ 2 caracteres), contra un índice más, sin filtro
+    (`ejecutablesIndexados(null)`, clave `""`, patrón `*`). Es lo que permite encontrar **binarios**,
+    que no tienen extensión que teclear. `find` imprime además los permisos (`%m`), así que saber si
+    algo es ejecutable no cuesta un `stat` por fichero. El reparto:
+    - **Con prioridad** (filas de `build` con `primero`, delante de todo): solo los programas
+      (`tienePrioridad`: bit de ejecución y, o sin extensión, o una de las cuatro de `EXTENSIONES`;
+      un `.png` con el bit, típico de un USB en FAT, no cuenta) cuyo nombre **EMPIEZA** por lo
+      tecleado (≥ 1800 en `fuzzy`). Con «contiene» bastaría teclear `te` para el terminal y que
+      encima saliera cualquier binario con `te` en medio.
+    - **Sin prioridad** (`filas` de `HandlerMatch`): el resto de ficheros cuyo nombre **contiene**
+      lo tecleado. Una subsecuencia suelta no vale aquí: el corpus son miles de ficheros y `fx`
+      casaría con medio disco. Estas filas **compiten por parecido con las apps**: el motor junta las
+      `filas` de todos los handlers, las ordena por `similitud` (escala de `fuzzy()`, 2000 =
+      idéntico) y esa lista única ocupa UN turno de la intercalación (`mezclarPorSimilitud`). Las
+      apps devuelven `filas` con `scoreApp / PESO_NOMBRE`, o sea en la misma escala: una app y un
+      fichero que se llaman igual empatan y gana la app (sort estable, apps encabezan las fuentes:
+      el handler de ficheros puntúa 0.6 sin extensión, por debajo de su 0.75); un fichero que se
+      llama exactamente como lo tecleado sale antes que una app que solo empieza así.
+    - Un binario sin extensión con el bit se ejecuta tal cual desde su carpeta (`case null` de
+      `comandoEjecutable`), cuenta para `seEjecuta` (ofrece «como root»), se pinta con
+      `application-x-executable` (por nombre saldría `octet-stream`) y su ficha dice `BINARIO`.
+      Sin el bit, `xdg-open` como cualquier otro fichero.
+    - Las carpetas son las mismas que con extensión: **no se busca en el `PATH`**. `/usr/bin` son
+      miles de binarios que ya tienen su `.desktop` cuando son apps, y pondría `/usr/bin/firefox`
+      delante de Firefox.
   - Los cuatro **ejecutables** (`EXTENSIONES`) se lanzan con su intérprete **desde su carpeta**
     (`python3`, `java -jar`; un `.sh` sin bit de ejecución va por `bash`; a un `.AppImage` sin bit se
     le pone con `chmod +x`); **cualquier otro fichero se abre con `xdg-open`**, o sea con la app

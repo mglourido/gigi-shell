@@ -296,11 +296,12 @@ export function setQuery(query: string) {
 // El índice de ficheros se rellena en segundo plano (ver
 // `data/ejecutables.ts`): cuando termina, la búsqueda que lo pidió ya se resolvió
 // sin él. Se repite si sigue escrita una consulta de ESA extensión (mientras se
-// teclea ".p", ".pd", ".pdf" terminan escaneos de las anteriores) y Orion está a
+// teclea ".p", ".pd", ".pdf" terminan escaneos de las anteriores), o una sin
+// extensión si el que terminó es el índice sin filtro (`null`), y Orion está a
 // la vista — si no, la próxima tecla ya verá el índice nuevo.
 alActualizarEjecutables((ext) => {
   const q = searchQuery.get()
-  if (orionVisible.get() && separarConsulta(q)?.ext === ext) setQuery(q)
+  if (orionVisible.get() && q.trim() && (separarConsulta(q)?.ext ?? null) === ext) setQuery(q)
 })
 
 // ── App context / right panel ─────────────────────────────────────────────────

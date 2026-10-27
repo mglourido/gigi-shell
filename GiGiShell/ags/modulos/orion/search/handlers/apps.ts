@@ -61,6 +61,8 @@ export function fuzzy(target: string, query: string): number | null {
   return Math.max(score, 1)
 }
 
+const PESO_NOMBRE = 1.5
+
 // Score an app against a query across multiple fields with field weights
 function scoreApp(app: Gio.AppInfo, q: string): number {
   const name = app.get_name() ?? ""
@@ -69,7 +71,7 @@ function scoreApp(app: Gio.AppInfo, q: string): number {
   const id   = (app.get_id() ?? "").replace(/\.desktop$/, "")
 
   const ns = fuzzy(name, q)
-  if (ns !== null) return ns * 1.5   // name is the strongest signal
+  if (ns !== null) return ns * PESO_NOMBRE   // name is the strongest signal
 
   const es = fuzzy(exec, q)
   if (es !== null) return es * 1.2   // exec second
@@ -140,9 +142,16 @@ export const appsHandler: SearchHandler = {
     const corta = (base || q).length < 2
     const score = ranked.length > 0 ? (corta ? 0.05 : 0.75) : (corta ? 0 : 0.10)
 
+    // Compiten por parecido con los ficheros (ver `FilaPuntuada`): la
+    // similitud se lleva a la escala de `fuzzy()` deshaciendo el peso del
+    // nombre, así una app y un fichero que se llamen igual empatan, y una app
+    // que solo casa por su descripción queda por debajo.
     return {
       score,
-      build: () => ranked.slice(0, MAX_RESULTADOS).map(({ a }) => crearResultado(a)),
+      filas: ranked.slice(0, MAX_RESULTADOS).map(({ a, s }) => ({
+        similitud: s / PESO_NOMBRE,
+        crear: () => crearResultado(a),
+      })),
     }
   },
 }

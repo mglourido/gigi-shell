@@ -3,8 +3,9 @@
 // abrir algo desde el panel derecho — normal, como root y "mostrar ubicación".
 //
 // El índice NO se recorre en cada tecla: lo rellena un `find` asíncrono (uno por
-// carpeta, en paralelo) cuando la búsqueda pide una extensión y el índice tiene
-// más de `VIGENCIA_MS`. Mientras tanto el handler puntúa contra lo que haya; al
+// carpeta, en paralelo) cuando la búsqueda lo pide y el índice tiene más de
+// `VIGENCIA_MS`. Hay uno por extensión y uno más, sin filtro, para las
+// búsquedas SIN extensión (binarios y ficheros que se llamen como lo tecleado). Mientras tanto el handler puntúa contra lo que haya; al
 // terminar se avisa a los oyentes (`state.ts` repite la consulta en curso), así
 // que la primera búsqueda de la sesión enseña las apps y un instante después
 // suben los ficheros encima.
@@ -47,16 +48,18 @@ const MAX_POR_CARPETA = 4000
 // que el usuario pueda añadir `~/.local/bin` a propósito.
 const PODAR = ["node_modules", "__pycache__", "site-packages", "venv"]
 
-// Carpeta, profundidad y extensión van como argumentos posicionales: nada de lo
-// que haya escrito el usuario se interpola en la línea de shell (la extensión
-// además ya viene validada como alfanumérica por `separarConsulta`). `; true`
+// Carpeta, profundidad y patrón (`*.<ext>`, o `*` sin extensión) van como
+// argumentos posicionales: nada de lo que haya escrito el usuario se interpola
+// en la línea de shell (la extensión además ya viene validada como
+// alfanumérica por `separarConsulta`). `%m` son los permisos: dicen si es
+// ejecutable sin un `stat` por fichero. `; true`
 // porque un subdirectorio sin permiso hace salir a `find` con 1 y `execAsync`
 // tiraría también lo que sí encontró.
 const SCRIPT_FIND = [
   `timeout 5 find "$1" -mindepth 1 -maxdepth "$2"`,
   `\\( -name '.*' ${PODAR.map(n => `-o -name ${n}`).join(" ")} \\) -prune -o`,
-  `-type f -iname "*.$3"`,
-  `-printf '%T@\\t%p\\n' 2>/dev/null | head -n ${MAX_POR_CARPETA}; true`,
+  `-type f -iname "$3"`,
+  `-printf '%T@\\t%m\\t%p\\n' 2>/dev/null | head -n ${MAX_POR_CARPETA}; true`,
 ].join(" ")
 
 /**
@@ -70,11 +73,15 @@ interface IndiceExtension {
   actualizadoEn: number
   escaneando: Promise<void> | null
 }
+// Clave `""` = el índice sin filtro de extensión.
 const indices = new Map<string, IndiceExtension>()
-const oyentes = new Set<(ext: string) => void>()
+const oyentes = new Set<(ext: string | null) => void>()
 
-/** Se llama con la extensión cuyo índice acaba de cambiar (al terminar un escaneo). */
-export function alActualizarEjecutables(fn: (ext: string) => void): () => void {
+/**
+ * Se llama con la extensión cuyo índice acaba de cambiar (al terminar un
+ * escaneo), o con `null` si fue el índice sin extensión.
+ */
+export function alActualizarEjecutables(fn: (ext: string | null) => void): () => void {
   oyentes.add(fn)
   return () => oyentes.delete(fn)
 }
@@ -95,9 +102,10 @@ function carpetasAEscanear(): { ruta: string; profundidad: number }[] {
   return out
 }
 
-function escanear(ext: string, idx: IndiceExtension): void {
+function escanear(ext: string | null, idx: IndiceExtension): void {
+  const patron = ext === null ? "*" : `*.${ext}`
   idx.escaneando = Promise.all(carpetasAEscanear().map(c =>
-    execAsync(["sh", "-c", SCRIPT_FIND, "sh", c.ruta, String(c.profundidad), ext])
+    execAsync(["sh", "-c", SCRIPT_FIND, "sh", c.ruta, String(c.profundidad), patron])
       .then(salida => parsearFind(salida, ext))
       .catch(() => [] as FicheroEjecutable[]),
   )).then(listas => {
@@ -113,15 +121,16 @@ function escanear(ext: string, idx: IndiceExtension): void {
 }
 
 /**
- * Ficheros con extensión `ext` que hay en el índice ahora mismo (síncrono: lo
- * llama el motor de búsqueda en cada tecla). Si está caducado o no existe,
- * lanza un escaneo en segundo plano.
+ * Ficheros con extensión `ext` (todos, con `null`) que hay en el índice ahora
+ * mismo (síncrono: lo llama el motor de búsqueda en cada tecla). Si está
+ * caducado o no existe, lanza un escaneo en segundo plano.
  */
-export function ejecutablesIndexados(ext: string): FicheroEjecutable[] {
-  let idx = indices.get(ext)
+export function ejecutablesIndexados(ext: string | null): FicheroEjecutable[] {
+  const clave = ext ?? ""
+  let idx = indices.get(clave)
   if (!idx) {
     idx = { ficheros: [], actualizadoEn: 0, escaneando: null }
-    indices.set(ext, idx)
+    indices.set(clave, idx)
   }
   if (!idx.escaneando && Date.now() - idx.actualizadoEn > VIGENCIA_MS) escanear(ext, idx)
   return idx.ficheros
@@ -141,12 +150,14 @@ export function comandoDe(ruta: string): string {
 }
 
 /**
- * El fichero se EJECUTA (es uno de los cuatro ejecutables, o el usuario le ha
- * puesto un comando a su extensión) en vez de abrirse con su app: es lo que
- * decide si la ficha ofrece "Ejecutar como root".
+ * El fichero se EJECUTA (es uno de los cuatro ejecutables, un binario sin
+ * extensión con el bit puesto, o el usuario le ha puesto un comando a su
+ * extensión) en vez de abrirse con su app: es lo que decide si la ficha ofrece
+ * "Ejecutar como root".
  */
 export function seEjecuta(ruta: string): boolean {
   const ext = extensionDe(ruta)
+  if (ext === null) return esEjecutable(ruta)
   return esExtensionEjecutable(ext) || orionComandosArchivo.get().some(r => r.ext === ext)
 }
 

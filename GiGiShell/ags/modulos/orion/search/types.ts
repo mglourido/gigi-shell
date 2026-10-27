@@ -31,13 +31,26 @@ export interface SearchContext {
  */
 export interface HandlerMatch {
   score: number
-  build: () => SearchResult[]
+  build?: () => SearchResult[]
   /**
-   * Sus filas van TODAS antes de la intercalación del resto, en vez de
-   * repartirse por turnos. Lo usa el handler de ejecutables: quien teclea
+   * Las filas de `build` van TODAS antes de la intercalación del resto, en vez
+   * de repartirse por turnos. Lo usa el handler de ejecutables: quien teclea
    * ".jar" busca ese fichero, y las apps parecidas van detrás.
    */
   primero?: boolean
+  /**
+   * Filas que compiten POR PARECIDO con las de otros handlers en vez de por
+   * turnos: el motor junta las `filas` de todos, las ordena por `similitud` y
+   * esa lista única entra en la intercalación. Así un fichero que se llama
+   * exactamente como lo tecleado sale antes que una app que solo lo contiene,
+   * y al revés. `similitud` va en la escala de `fuzzy()` (2000 = idéntico).
+   */
+  filas?: FilaPuntuada[]
+}
+
+export interface FilaPuntuada {
+  similitud: number
+  crear: () => SearchResult
 }
 
 export interface SearchHandler {

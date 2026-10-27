@@ -36,6 +36,14 @@ interface PropiedadesPanelDerecho {
   navegacion: NavegacionBusqueda
 }
 
+// ".PDF", o "BINARIO" / "SIN EXTENSIÓN" para lo que no tiene: con el bit de
+// ejecución es un programa, sin él un fichero cualquiera (un README).
+function tipoDeFichero(ruta: string): string {
+  const ext = extensionDe(ruta)
+  if (ext) return `.${ext.toUpperCase()}`
+  return GLib.file_test(ruta, GLib.FileTest.IS_EXECUTABLE) ? "BINARIO" : "SIN EXTENSIÓN"
+}
+
 function guessConfigPath(execName: string, appId: string): string | null {
   const home = GLib.get_home_dir()
   for (const p of [
@@ -184,7 +192,7 @@ export default function RightPanel({ navegacion }: PropiedadesPanelDerecho) {
       label: app.ventana
         ? `VENTANA · ESCRITORIO ${app.ventana.escritorio.toUpperCase()}`
         : app.rutaEjecutable
-          ? `${seEjecuta(app.rutaEjecutable) ? "EJECUTABLE" : "ARCHIVO"} · .${(extensionDe(app.rutaEjecutable) ?? "").toUpperCase()}`
+          ? `${seEjecuta(app.rutaEjecutable) ? "EJECUTABLE" : "ARCHIVO"} · ${tipoDeFichero(app.rutaEjecutable)}`
           : "APLICACIÓN",
       cssClasses: ["rp-eyebrow"], halign: Gtk.Align.START,
     })
