@@ -17,6 +17,7 @@ pub struct Monitor<E: Entorno> {
     cooldown_seg: HashMap<String, Instant>,
     cooldown_io: HashMap<String, Instant>,
     cooldown_core: HashMap<String, Instant>,
+    cooldown_gpu: HashMap<String, Instant>,
     coredumps: Vec<Instant>,
     tormenta: Option<Instant>,
     aviso_reinicio: bool,
@@ -52,6 +53,7 @@ impl<E: Entorno> Monitor<E> {
         a.registrar("khw", g("hardware.error", "critical", 15000, "Error de hardware", "errores de hardware", "", ""));
         a.registrar("kmod", g("kernel.modulo-sin-firmar", "critical", 15000, "Módulo de kernel sin firmar", "módulos de kernel sin firmar", "", ""));
         a.registrar("kgpu", g("gpu.error", "critical", 15000, "Error GPU", "errores de GPU", "", ""));
+        a.registrar("kgpuapp", g("gpu.error", "normal", 10000, "Fallo de GPU en una app", "fallos de GPU en apps", "Proceso: ", ""));
         a.registrar("kthrottle", g("cpu.throttling", "normal", 10000, "CPU Throttling", "avisos de CPU throttling", "", ""));
         a.registrar("kseg", g("app.crash", "critical", 15000, "App crasheada", "apps crasheadas", "Proceso: ", ""));
         // sistema
@@ -72,6 +74,7 @@ impl<E: Entorno> Monitor<E> {
             cooldown_seg: HashMap::new(),
             cooldown_io: HashMap::new(),
             cooldown_core: HashMap::new(),
+            cooldown_gpu: HashMap::new(),
             coredumps: vec![],
             tormenta: None,
             aviso_reinicio: false,
@@ -160,11 +163,9 @@ impl<E: Entorno> Monitor<E> {
             if !self.ruido_de_drivers() {
                 self.grupos.encolar("kmod", linea, ahora);
             }
-        } else if self.on("gpuError")
-            && (has("nvrm") || (has("nvidia") && has("error")) || (has("gpu") && has("error")))
-        {
-            if !self.ruido_de_drivers() {
-                self.grupos.encolar("kgpu", linea, ahora);
+        } else if let Some(f) = self.on("gpuError").then(|| fallo_gpu(linea, &l)).flatten() {
+            if !self.ruido_de_drivers() && enfriado(&mut self.cooldown_gpu, f.clave, ahora, ENFRIAR_GPU) {
+                self.grupos.encolar(if f.de_app { "kgpuapp" } else { "kgpu" }, &f.texto, ahora);
             }
         } else if self.on("cpuThrottling") && contiene_en_orden(&l, "cpu", "throttl") {
             self.grupos.encolar("kthrottle", linea, ahora);
@@ -301,6 +302,117 @@ fn enfriado(m: &mut HashMap<String, Instant>, clave: String, ahora: Instant, seg
     }
     m.insert(clave, ahora);
     true
+}
+
+/// Un mismo fallo de GPU no se repite antes de esto. Una GPU caída o una app que falla
+/// en cada fotograma escriben la misma línea durante minutos, y la agrupación sola
+/// sacaba entonces una tarjeta crítica cada `TOPE` segundos, sin fin.
+const ENFRIAR_GPU: u64 = 300;
+
+pub struct FalloGpu {
+    /// Cooldown: un mismo suceso dice lo mismo en varias líneas (Xid 79 y «fallen off
+    /// the bus», «GPU reset begin» y «succeeded»), así que comparten clave.
+    pub clave: String,
+    pub texto: String,
+    /// Lo provocó una app (sombreador roto, acceso fuera de su memoria): el driver lo
+    /// contiene y la GPU sigue bien, así que no es un aviso crítico.
+    pub de_app: bool,
+}
+
+/// Lista blanca de fallos de GPU. La regla anterior (`nvrm`, o `gpu`/`nvidia` junto a
+/// `error`) contaba líneas que no son fallos: el `NVRM: loading …` de cada carga del
+/// módulo, las líneas `NVRM: GPU at PCI…` / `Board Serial` que acompañan a cada Xid
+/// (una caída salía como «3 errores»), el `i2c timeout error` del controlador USB-C de
+/// las NVIDIA (`nvidia-gpu`) y cualquier `*ERROR*` de pantalla de amdgpu. Y no veía los
+/// cuelgues de Intel (`GPU HANG`, sin «error»). Ninguna regla lee la GPU: solo el
+/// journal, así que no despierta una dGPU dormida.
+pub fn fallo_gpu(linea: &str, l: &str) -> Option<FalloGpu> {
+    let has = |s: &str| l.contains(s);
+    let fallo = |clave: String, texto: String, de_app: bool| Some(FalloGpu { clave, texto, de_app });
+
+    if let Some(xid) = codigo_xid(l) {
+        // `pid=…, name=…` lo añaden los drivers recientes; `<unknown>` no es un nombre.
+        let app = tras(linea, ", name=", ',').filter(|n| !n.starts_with('<'));
+        return match xid {
+            // Limpieza tras un error anterior o una app matada: eco, no un fallo.
+            45 => None,
+            // Excepción de gráficos, fallo de MMU, app detenida: error de la app.
+            13 | 31 | 43 => {
+                let app = app.unwrap_or_else(|| "desconocido".into());
+                fallo(format!("xid-app:{app}"), format!("{app} (Xid {xid})"), true)
+            }
+            79 => fallo("bus".into(), "La GPU se cayó del bus PCIe y dejó de responder (Xid 79)".into(), false),
+            48 | 63 | 64 | 92 | 94 | 95 => fallo("ecc".into(), format!("Error de memoria (ECC) en la GPU (Xid {xid})"), false),
+            61 | 62 | 119 | 120 => fallo("firmware".into(), format!("El firmware de la GPU dejó de responder (Xid {xid})"), false),
+            8 | 109 => fallo("colgada".into(), format!("La GPU se colgó (Xid {xid})"), false),
+            _ => fallo(format!("xid{xid}"), format!("Error del driver NVIDIA (Xid {xid})"), false),
+        };
+    }
+    if has("fallen off the bus") {
+        return fallo("bus".into(), "La GPU se cayó del bus PCIe y dejó de responder".into(), false);
+    }
+    if has("nvrm") && (has("rminitadapter failed") || has("rm_init_adapter failed")) {
+        return fallo("init".into(), "No se pudo inicializar la GPU NVIDIA".into(), false);
+    }
+    if has("amdgpu") && has("fatal error during gpu init") {
+        return fallo("init".into(), "No se pudo inicializar la GPU AMD".into(), false);
+    }
+    // `resume of IP block <gfx_v11_0> failed -110`: la pantalla negra al volver de suspensión.
+    if has("amdgpu")
+        && ((has("of ip block") && has("failed")) || has("amdgpu_device_ip_resume failed"))
+    {
+        return fallo("suspension".into(), "La GPU AMD falló al suspender o reanudar".into(), false);
+    }
+    // MES (RDNA3) y SMU sin responder; a veces no llega a haber reset. La respuesta
+    // `0xfffffffe` es «mensaje desconocido»: el driver pidió algo que ese firmware no
+    // tiene (pasa al cambiar el perfil de energía), no un firmware colgado.
+    if has("amdgpu")
+        && (has("mes failed to respond")
+            || has("not done with your previous command")
+            || (has("failed to send message") && !has("0xfffffffe")))
+    {
+        return fallo("firmware".into(), "El firmware de la GPU AMD dejó de responder".into(), false);
+    }
+    // El de «channel state» lo escribe al reanudar una GPU sin pantalla: no es un fallo.
+    if has("nvidia-modeset: error") && !has("display engine channel state") {
+        return fallo("modeset".into(), "Error del controlador de pantalla NVIDIA".into(), false);
+    }
+    // Cuelgue + reinicio del driver: amdgpu (timeout de un ring, «GPU reset»), radeon
+    // («GPU lockup», «GPU softreset»), i915 («GPU HANG», «Resetting rcs0 for …») y xe
+    // («Engine reset», «Timedout job»).
+    if has("gpu hang")
+        || has("gpu reset")
+        || has("gpu recovery failed")
+        || has("gpu lockup")
+        || has("gpu softreset")
+        || (has("amdgpu") && has("ring") && has("timeout"))
+        || (has("i915") && has("resetting"))
+        || (has(" xe ") && (has("engine reset") || has("timedout job")))
+    {
+        return fallo("colgada".into(), "La GPU se colgó y el driver la reinició".into(), false);
+    }
+    // amdgpu: `[gfxhub] page fault (…, for process juego pid 123 thread …)`. Las
+    // tarjetas viejas (y el driver `radeon`) dicen `GPU fault detected: 146 …`, sin proceso.
+    if (has("amdgpu") && (has("page fault") || has("vm fault"))) || has("gpu fault detected") {
+        let app = tras(linea, "for process ", ' ').unwrap_or_else(|| "desconocido".into());
+        return fallo(format!("pf:{app}"), format!("{app} (fallo de página en la GPU)"), true);
+    }
+    None
+}
+
+/// `nvrm: xid (pci:…): <n>,` — sobre la línea ya en minúsculas.
+fn codigo_xid(l: &str) -> Option<u32> {
+    let resto = &l[l.find("nvrm: xid (")?..];
+    let tras = &resto[resto.find("): ")? + 3..];
+    let n = tras.bytes().take_while(u8::is_ascii_digit).count();
+    tras[..n].parse().ok()
+}
+
+/// Texto entre `prefijo` y el siguiente `fin` (o el final), si no queda vacío.
+fn tras(linea: &str, prefijo: &str, fin: char) -> Option<String> {
+    let resto = &linea[linea.find(prefijo)? + prefijo.len()..];
+    let v = resto.split(fin).next().unwrap_or("").trim();
+    (!v.is_empty()).then(|| v.to_string())
 }
 
 // ── Extractores (sustituyen a los BASH_REMATCH) ───────────────────────────────
@@ -545,6 +657,84 @@ mod tests {
         let mut m = monitor(Falso { tx: true, ..Default::default() });
         m.procesar(true, "kernel: NVRM: Xid (PCI:0000:01:00): 79, GPU has fallen off the bus", Instant::now());
         assert!(!pendientes(&m));
+    }
+
+    #[test]
+    fn gpu_lineas_informativas_no_avisan() {
+        let mut m = monitor(Falso::default());
+        let t = Instant::now();
+        for l in [
+            "kernel: NVRM: loading NVIDIA UNIX Open Kernel Module for x86_64  615.78.08  Release Build",
+            "kernel: NVRM: GPU at PCI:0000:01:00: GPU-0a1b2c3d",
+            "kernel: NVRM: GPU Board Serial Number: 0",
+            "kernel: nvidia-gpu 0000:01:00.3: i2c timeout error e0000000",
+            "kernel: [drm:dm_helpers_dp_write_dpcd [amdgpu]] *ERROR* Failed to find connector for link!",
+            "kernel: nvidia-modeset: ERROR: GPU:0: Failed to query display engine channel state: 0x0000c67e:0:0:0x0000000f",
+            "kernel: NVRM: Xid (PCI:0000:01:00): 45, pid=900, name=juego, Ch 00000010",
+        ] {
+            m.procesar(true, l, t);
+        }
+        assert!(!pendientes(&m));
+    }
+
+    #[test]
+    fn gpu_caida_avisa_una_vez() {
+        let mut m = monitor(Falso::default());
+        let t = Instant::now();
+        // Misma caída, dos redacciones y repetida: una sola tarjeta.
+        m.procesar(true, "kernel: NVRM: Xid (PCI:0000:01:00): 79, pid='<unknown>', name=<unknown>, GPU has fallen off the bus.", t);
+        m.procesar(true, "kernel: NVRM: GPU 0000:01:00.0: GPU has fallen off the bus.", t);
+        m.procesar(true, "kernel: NVRM: Xid (PCI:0000:01:00): 79, pid='<unknown>', name=<unknown>, GPU has fallen off the bus.", t + Duration::from_secs(60));
+        assert_eq!(m.grupos.total("kgpu"), 1);
+        // Pasado el enfriamiento vuelve a avisar.
+        m.procesar(true, "kernel: NVRM: Xid (PCI:0000:01:00): 79, pid='<unknown>', name=<unknown>, GPU has fallen off the bus.", t + Duration::from_secs(ENFRIAR_GPU));
+        assert_eq!(m.grupos.total("kgpu"), 2);
+    }
+
+    #[test]
+    fn gpu_fallo_de_app_no_es_critico() {
+        let mut m = monitor(Falso::default());
+        let t = Instant::now();
+        m.procesar(true, "kernel: NVRM: Xid (PCI:0000:01:00): 13, pid=1234, name=juego.exe, Graphics Exception: ESR 0x404600=0x80000002", t);
+        m.procesar(true, "kernel: amdgpu 0000:03:00.0: amdgpu: [gfxhub] page fault (src_id:0 ring:24 vmid:3 pasid:32769, for process otro pid 55 thread otro:cs0 pid 56)", t);
+        assert_eq!(m.grupos.total("kgpuapp"), 2);
+        assert_eq!(m.grupos.total("kgpu"), 0);
+    }
+
+    #[test]
+    fn gpu_cuelgues_de_cada_fabricante() {
+        for l in [
+            "kernel: i915 0000:00:02.0: [drm] GPU HANG: ecode 12:1:85dffffb, in juego [1234]",
+            "kernel: xe 0000:00:02.0: [drm] GT0: Engine reset: engine_class=rcs, logical_mask: 0x1, guc_id=2",
+            "kernel: [drm:amdgpu_job_timedout [amdgpu]] *ERROR* ring gfx_0.0.0 timeout, signaled seq=1, emitted seq=3",
+        ] {
+            let mut m = monitor(Falso::default());
+            m.procesar(true, l, Instant::now());
+            assert_eq!(m.grupos.total("kgpu"), 1, "{l}");
+        }
+    }
+
+    #[test]
+    fn gpu_amd_init_suspension_y_firmware() {
+        let t = Instant::now();
+        for (l, clave) in [
+            ("kernel: amdgpu 0000:03:00.0: amdgpu: Fatal error during GPU init", "init"),
+            ("kernel: amdgpu 0000:03:00.0: amdgpu: resume of IP block <gfx_v11_0> failed -110", "suspension"),
+            ("kernel: amdgpu 0000:03:00.0: amdgpu: amdgpu_device_ip_resume failed (-62).", "suspension"),
+            ("kernel: amdgpu 0000:03:00.0: amdgpu: MES failed to respond to msg=REMOVE_QUEUE", "firmware"),
+            ("kernel: amdgpu 0000:03:00.0: amdgpu: SMU: I'm not done with your previous command: SMN_C2PMSG_66:0x0000000E SMN_C2PMSG_82:0x00000000", "firmware"),
+            ("kernel: radeon 0000:01:00.0: GPU lockup (current fence id 0x0000000000001234 last fence id 0x0000000000001235 on ring 0)", "colgada"),
+        ] {
+            let f = fallo_gpu(l, &l.to_lowercase()).expect(l);
+            assert_eq!(f.clave, clave, "{l}");
+            assert!(!f.de_app, "{l}");
+        }
+        let mut m = monitor(Falso::default());
+        // Mensaje que ese firmware no conoce: no es un firmware colgado.
+        m.procesar(true, "kernel: amdgpu 0000:03:00.0: amdgpu: Failed to send message 0x2b, response 0xfffffffe, param 0x0", t);
+        assert!(!pendientes(&m));
+        m.procesar(true, "kernel: radeon 0000:01:00.0: GPU fault detected: 146 0x0c0c4c0c", t);
+        assert_eq!(m.grupos.total("kgpuapp"), 1);
     }
 
     #[test]

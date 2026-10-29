@@ -343,6 +343,8 @@ monitor_kernel() {
     notif_grupo khw       hardware.error           critical 15000 "Error de hardware"              "errores de hardware"
     notif_grupo kmod      kernel.modulo-sin-firmar critical 15000 "Módulo de kernel sin firmar"    "módulos de kernel sin firmar"
     notif_grupo kgpu      gpu.error                critical 15000 "Error GPU"                      "errores de GPU"
+    # Fallo que provocó una app (el driver lo contiene, la GPU sigue bien): no crítico.
+    notif_grupo kgpuapp   gpu.error                normal   10000 "Fallo de GPU en una app"        "fallos de GPU en apps"      "Proceso: "
     notif_grupo kthrottle cpu.throttling           normal   10000 "CPU Throttling"                 "avisos de CPU throttling"
     notif_grupo kseg      app.crash                critical 15000 "App crasheada"                  "apps crasheadas"            "Proceso: "
 
@@ -358,6 +360,62 @@ monitor_kernel() {
     #     decirlo sería quitarle al usuario la única pista de qué está pasando.
     # El resto de eventos del kernel (OOM, E/S, MCE, panic) NO pasan por aquí: una
     # actualización no los provoca, así que si aparecen son de verdad.
+    # Lista blanca de fallos de GPU; mismo criterio que `fallo_gpu` en eventd/src/reglas.rs,
+    # que documenta qué contaba de más la regla anterior (`nvrm`, o `gpu`/`nvidia` junto a
+    # `error`). Deja la clave de enfriamiento en _gf_clave, el texto en _gf_texto y la
+    # categoría en _gf_cat; devuelve 1 si la línea no es un fallo. Solo lee el journal:
+    # no toca la GPU, así que no despierta una dGPU dormida.
+    declare -A _gpu_cooldown
+    _fallo_gpu() {
+        local l=$1 linea=$2 xid app
+        _gf_cat=kgpu
+        if [[ "$l" =~ nvrm:\ xid\ \([^\)]*\):\ ([0-9]+) ]]; then
+            xid=${BASH_REMATCH[1]}
+            app=""
+            [[ "$linea" =~ ,\ name=([^,]+) ]] && app=${BASH_REMATCH[1]}
+            [[ "$app" == "<"* ]] && app=""
+            case $xid in
+                45) return 1 ;;
+                13|31|43) _gf_cat=kgpuapp; _gf_clave="xid-app:${app:-desconocido}"
+                          _gf_texto="${app:-desconocido} (Xid $xid)" ;;
+                79) _gf_clave=bus; _gf_texto="La GPU se cayó del bus PCIe y dejó de responder (Xid 79)" ;;
+                48|63|64|92|94|95) _gf_clave=ecc; _gf_texto="Error de memoria (ECC) en la GPU (Xid $xid)" ;;
+                61|62|119|120) _gf_clave=firmware; _gf_texto="El firmware de la GPU dejó de responder (Xid $xid)" ;;
+                8|109) _gf_clave=colgada; _gf_texto="La GPU se colgó (Xid $xid)" ;;
+                *) _gf_clave="xid$xid"; _gf_texto="Error del driver NVIDIA (Xid $xid)" ;;
+            esac
+        elif [[ "$l" == *"fallen off the bus"* ]]; then
+            _gf_clave=bus; _gf_texto="La GPU se cayó del bus PCIe y dejó de responder"
+        elif [[ "$l" == *nvrm* && ( "$l" == *"rminitadapter failed"* || "$l" == *"rm_init_adapter failed"* ) ]]; then
+            _gf_clave=init; _gf_texto="No se pudo inicializar la GPU NVIDIA"
+        elif [[ "$l" == *amdgpu* && "$l" == *"fatal error during gpu init"* ]]; then
+            _gf_clave=init; _gf_texto="No se pudo inicializar la GPU AMD"
+        elif [[ "$l" == *amdgpu* && ( ( "$l" == *"of ip block"* && "$l" == *failed* ) || \
+                "$l" == *"amdgpu_device_ip_resume failed"* ) ]]; then
+            _gf_clave=suspension; _gf_texto="La GPU AMD falló al suspender o reanudar"
+        elif [[ "$l" == *amdgpu* && ( "$l" == *"mes failed to respond"* || \
+                "$l" == *"not done with your previous command"* || \
+                ( "$l" == *"failed to send message"* && "$l" != *0xfffffffe* ) ) ]]; then
+            # 0xfffffffe = mensaje que ese firmware no conoce, no un firmware colgado.
+            _gf_clave=firmware; _gf_texto="El firmware de la GPU AMD dejó de responder"
+        elif [[ "$l" == *"nvidia-modeset: error"* && "$l" != *"display engine channel state"* ]]; then
+            _gf_clave=modeset; _gf_texto="Error del controlador de pantalla NVIDIA"
+        elif [[ "$l" == *"gpu hang"* || "$l" == *"gpu reset"* || "$l" == *"gpu recovery failed"* || \
+                "$l" == *"gpu lockup"* || "$l" == *"gpu softreset"* || \
+                ( "$l" == *amdgpu* && "$l" == *ring* && "$l" == *timeout* ) || \
+                ( "$l" == *i915* && "$l" == *resetting* ) || \
+                ( "$l" == *" xe "* && ( "$l" == *"engine reset"* || "$l" == *"timedout job"* ) ) ]]; then
+            _gf_clave=colgada; _gf_texto="La GPU se colgó y el driver la reinició"
+        elif [[ ( "$l" == *amdgpu* && ( "$l" == *"page fault"* || "$l" == *"vm fault"* ) ) || \
+                "$l" == *"gpu fault detected"* ]]; then
+            app=desconocido
+            [[ "$linea" =~ for\ process\ ([^[:space:]]+) ]] && app=${BASH_REMATCH[1]}
+            _gf_cat=kgpuapp; _gf_clave="pf:$app"; _gf_texto="$app (fallo de página en la GPU)"
+        else
+            return 1
+        fi
+    }
+
     aviso_reinicio=false
     _ruido_de_drivers() {
         pkg_tx_activa && return 0
@@ -471,11 +529,15 @@ monitor_kernel() {
                 _ruido_de_drivers || notif_encolar kmod "$line"
 
             # --- GPU / NVIDIA error ---
-            elif [[ "$sec_gpuError" != false ]] && \
-                 [[ "$lower" == *"nvrm"* || \
-                    ( "$lower" == *"nvidia"* && "$lower" == *"error"* ) || \
-                    ( "$lower" == *"gpu"* && "$lower" == *"error"* ) ]]; then
-                _ruido_de_drivers || notif_encolar kgpu "$line"
+            elif [[ "$sec_gpuError" != false ]] && _fallo_gpu "$lower" "$line"; then
+                # Enfriamiento por suceso (300 s): una GPU caída o una app que falla en
+                # cada fotograma repiten la línea durante minutos, y agrupar solo sacaba
+                # una tarjeta crítica cada NOTIF_TOPE segundos, sin fin.
+                _now=$(date +%s)
+                if ! _ruido_de_drivers && (( _now - ${_gpu_cooldown[$_gf_clave]:-0} >= 300 )); then
+                    _gpu_cooldown[$_gf_clave]=$_now
+                    notif_encolar "$_gf_cat" "$_gf_texto"
+                fi
 
             # --- CPU throttling ---
             elif [[ "$sec_cpuThrottling" != false ]] && [[ "$lower" =~ cpu.*throttl ]]; then

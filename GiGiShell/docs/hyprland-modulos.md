@@ -3276,6 +3276,26 @@ que no le pisa el índice al bash. Sí lanza `clamscan` sobre lo nuevo.
   nada nuevo cada 200 ms), la agrupación decide **cómo se presenta**; sin cooldown, agrupar solo
   cambiaría "40 popups" por "un popup cada 20 s, para siempre". **El kernel panic no se agrupa**: el
   sistema se está yendo y la ventana de calma puede ser más de lo que le queda a la sesión.
+  **`gpuError` es una lista blanca** (`fallo_gpu` en `eventd/src/reglas.rs`, `_fallo_gpu` en el
+  bash), no subcadenas sueltas. La regla vieja (`nvrm`, o `gpu`/`nvidia` junto a `error`) avisaba
+  en crítico del `NVRM: loading …` de cada carga del módulo, contaba las líneas `NVRM: GPU at PCI…`
+  y `Board Serial` que acompañan a cada Xid (una caída salía como «3 errores»), y se tragaba el
+  `i2c timeout error` del controlador USB-C de las NVIDIA (`nvidia-gpu`) y cualquier `*ERROR*` de
+  pantalla de amdgpu. Tampoco veía los cuelgues de Intel (`GPU HANG` no lleva «error»). Ahora
+  avisa de: Xid de NVIDIA (el 45 se ignora: es limpieza tras otro error o tras matar una app),
+  «fallen off the bus», `RmInitAdapter failed`, `nvidia-modeset: ERROR` (menos el de «display
+  engine channel state», que sale al reanudar una GPU sin pantalla), cuelgue con reinicio en
+  amdgpu (timeout de ring, «GPU reset»), radeon («GPU lockup»/«softreset»), i915 y xe, y en AMD
+  además `Fatal error during GPU init`, `resume/suspend of IP block … failed` y firmware sin
+  responder (`MES failed to respond`, SMU; el `Failed to send message … 0xfffffffe` es un mensaje
+  que ese firmware no conoce y no cuenta). AMD no tiene códigos Xid, así que cada frase del driver
+  hay que reconocerla una a una. Los **fallos que provoca una app** (Xid 13, 31 y 43, page fault
+  de amdgpu, `GPU fault detected` de las tarjetas viejas) van a otra categoría, `normal` y con el nombre del proceso: el
+  driver los contiene y la GPU sigue bien. El texto de la tarjeta es una frase («La GPU se cayó
+  del bus PCIe… (Xid 79)»), no la línea del kernel. **Enfriamiento de 300 s por suceso**, con
+  clave compartida entre redacciones del mismo hecho (Xid 79 y «fallen off the bus»; «GPU reset
+  begin» y «succeeded»): sin él, una GPU caída sacaba una crítica cada 20 s mientras siguiera
+  escribiendo. Ninguna regla lee la GPU, solo el journal: no despierta una dGPU dormida.
   **`diskError` clasifica el dispositivo antes de alarmar.** Casaba `*"i/o error"*` a pelo contra
   cualquier línea del kernel, así que arrancar un pendrive sin expulsarlo (que suelta un
   `Buffer I/O error on dev sdb1 … lost async page write` por cada página no volcada) disparaba una
