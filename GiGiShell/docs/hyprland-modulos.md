@@ -3329,6 +3329,24 @@ que no le pisa el índice al bash. Sí lanza `clamscan` sobre lo nuevo.
   del journal al popup), así que encola texto vacío y lo que informa es el recuento: «5 fallos de
   sudo» + el cuerpo de siempre. **La tormenta de crashes no se agrupa**: ya es un resumen, y trae su
   propio límite de uno por minuto.
+  **Crashes: una tarjeta por crash, contados por PID.** systemd ≥ 257 escribe dos líneas por
+  volcado —`terminated abnormally with signal 6/ABRT, processing...` al empezar y `dumped core.`
+  al acabar—, y la regla casa con las dos. En un volcado grande (el de una app de 5 GB tarda ~9 s) la
+  segunda llegaba fuera del cooldown de 10 s por nombre y repetía la tarjeta, y la ventana de la
+  tormenta contaba líneas: **dos crashes en un minuto ya daban «Tormenta de crashes»**. Ahora se
+  avisa con la primera línea (inmediata, y trae la señal) y el PID, recordado 5 min, descarta la
+  segunda; la tormenta cuenta PIDs distintos. El cooldown por nombre sigue, para una app en bucle.
+  El nombre sale de `/proc/<PID>/exe` cuando el `comm` llega truncado a 15 bytes
+  (`pizarra_workspa` → `pizarra_workspace`): el proceso sigue vivo mientras se vuelca. Solo se usa
+  si prolonga el `comm`, porque el exe de un script es el intérprete. La tarjeta dice la señal
+  (`ABRT`, `SEGV`…) y de quién es el proceso si no es del usuario (`root`, `usuario N`).
+  **La línea `segfault` del kernel (`monitor_kernel`) calla si `core_pattern` es
+  `|…systemd-coredump`**: con ese manejador el coredump ya cubre todas las señales con el nombre
+  del proceso, y la del kernel trae el del hilo (`QSGRenderThread`) y daba una segunda tarjeta por
+  el mismo crash. Coste asumido: el crash de un proceso no volcable (setuid, `PR_SET_DUMPABLE=0`)
+  no llega al manejador y no avisa. **No se filtran los crashes del apagado** aunque son casi todos
+  (al cerrar Hyprland revientan `start-hyprland` y `xdg-desktop-portal`): AGS ya está cayendo y
+  `app.crash` lleva `clearOnBoot`, así que no se ven.
   **Escaladas de privilegios (`privEsc`) — solo avisa de lo que NO se autorizó con contraseña.**
   pkexec emite **dos** líneas por escalada: la de PAM (`pam_unix(polkit-1:session): session
   opened`, que no dice *qué* se ejecuta) y la de `Executing command … [COMMAND=…]`. Ninguna de las

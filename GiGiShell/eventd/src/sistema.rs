@@ -175,6 +175,13 @@ pub trait Entorno {
     fn disco_base(&self, dev: &str) -> String;
     /// ¿Disco interno presente y no extraíble?
     fn disco_interno(&self, base: &str) -> bool;
+    /// ¿Los volcados van a systemd-coredump? Entonces él ya avisa de todo crash y la
+    /// línea `segfault` del kernel sobra.
+    fn coredump_systemd(&self) -> bool;
+    /// Nombre del ejecutable de un proceso (sin truncar a 15 como `comm`).
+    fn nombre_exe(&self, pid: u32) -> Option<String>;
+    /// UID con el que corre el monitor (el usuario de la sesión).
+    fn uid(&self) -> u32;
 }
 
 const PKG_LOCKS: &[&str] = &["/var/lib/pacman/db.lck"];
@@ -240,6 +247,23 @@ impl Entorno for Real {
         }
         fs::read_to_string(dir.join("removable")).map(|s| s.trim() != "1").unwrap_or(true)
     }
+
+    fn coredump_systemd(&self) -> bool {
+        // Se lee en cada segfault (raro) y no se cachea: el patrón puede cambiar en caliente.
+        fs::read_to_string("/proc/sys/kernel/core_pattern")
+            .is_ok_and(|p| p.starts_with('|') && p.contains("systemd-coredump"))
+    }
+
+    fn nombre_exe(&self, pid: u32) -> Option<String> {
+        let ruta = fs::read_link(format!("/proc/{pid}/exe")).ok()?;
+        let nombre = ruta.file_name()?.to_str()?;
+        // Un binario reemplazado tras arrancar (actualización) sale como «x (deleted)».
+        Some(nombre.strip_suffix(" (deleted)").unwrap_or(nombre).to_string())
+    }
+
+    fn uid(&self) -> u32 {
+        unsafe { libc::getuid() }
+    }
 }
 
 fn hay_proceso(nombres: &[&str]) -> bool {
@@ -303,6 +327,8 @@ pub struct Falso {
     pub tx: bool,
     pub desync: bool,
     pub internos: HashMap<String, bool>,
+    pub coredump_systemd: bool,
+    pub exes: HashMap<u32, String>,
 }
 
 #[cfg(test)]
@@ -318,6 +344,15 @@ impl Entorno for Falso {
     }
     fn disco_interno(&self, base: &str) -> bool {
         self.internos.get(base).copied().unwrap_or(false)
+    }
+    fn coredump_systemd(&self) -> bool {
+        self.coredump_systemd
+    }
+    fn nombre_exe(&self, pid: u32) -> Option<String> {
+        self.exes.get(&pid).cloned()
+    }
+    fn uid(&self) -> u32 {
+        1000
     }
 }
 

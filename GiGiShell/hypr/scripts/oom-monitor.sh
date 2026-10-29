@@ -550,6 +550,12 @@ monitor_kernel() {
                 # viejas). Se descarta ANTES del cooldown para no gastarlo en un crash que
                 # no se va a notificar y perder así el siguiente, que sí sería real.
                 pkg_tx_activa && continue
+                # Con systemd-coredump de manejador, el mismo crash llega también como
+                # coredump (todas las señales) y con el nombre del proceso; esta línea trae
+                # el del HILO y daba una segunda tarjeta. Solo es respaldo. Ver la rama
+                # `segfault` de eventd/src/reglas.rs.
+                _cp=$(</proc/sys/kernel/core_pattern) 2>/dev/null
+                [[ "$_cp" == "|"*systemd-coredump* ]] && continue
                 app="desconocida"
                 pat_seg='kernel: ([^[]+)\[[0-9]+\]: segfault'
                 [[ "$line" =~ $pat_seg ]] && app="${BASH_REMATCH[1]}"
@@ -575,7 +581,7 @@ monitor_system() {
     fi
 
     declare -A _crash_cooldown
-    declare -a _coredump_times=()   # ventana deslizante para detectar tormentas
+    declare -A _coredump_pids=()    # PID → instante: dedupe por crash y ventana de tormenta
     _storm_last=0
     declare -A _sudo_pam=()         # PIDs de sudo cuyo fallo ya contó la línea PAM
     # journalctl -o short: "<fecha> <host> sudo[1234]: …". El espacio delante ancla al
@@ -731,29 +737,46 @@ monitor_system() {
             elif [[ "$sec_appCrash" != false || "$sec_serviceHealth" != false ]] && \
                  [[ "$lower" == *"coredump"* && \
                     ( "$lower" == *"dumped core"* || "$lower" == *"terminated abnormally"* ) ]]; then
-                app="desconocida"
                 # Mismo caso que el segfault de monitor_kernel: reemplazar bibliotecas bajo
                 # procesos vivos los tumba en cascada, y esa cascada dispararía además la
                 # "tormenta de crashes" (3 volcados en 60 s) con un crítico sin autocierre.
                 pkg_tx_activa && continue
-                pat_core='Process [0-9]+ \(([^)]+)\)'
-                [[ "$line" =~ $pat_core ]] && app="${BASH_REMATCH[1]}"
+                pat_core='Process ([0-9]+) \(([^)]+)\) of user ([0-9]+)'
+                [[ "$line" =~ $pat_core ]] || continue
+                _pid=${BASH_REMATCH[1]} app=${BASH_REMATCH[2]} _uid=${BASH_REMATCH[3]}
                 _now=$(date +%s)
+                # systemd ≥ 257 escribe DOS líneas por crash (`… processing...` al empezar y
+                # `dumped core.` al acabar, pasados los 10 s del cooldown en un volcado grande).
+                # El PID descarta la segunda y hace que la tormenta cuente crashes, no líneas.
+                for p in "${!_coredump_pids[@]}"; do
+                    (( _now - _coredump_pids[$p] >= 300 )) && unset '_coredump_pids[$p]'
+                done
+                [[ -n "${_coredump_pids[$_pid]:-}" ]] && continue
+                _coredump_pids[$_pid]=$_now
+                # comm se trunca a 15 bytes; el exe del proceso (vivo mientras se vuelca) da
+                # el nombre entero, solo si lo prolonga (el de un script es el intérprete).
+                if (( ${#app} >= 15 )); then
+                    _exe=$(readlink "/proc/$_pid/exe" 2>/dev/null) _exe=${_exe##*/} _exe=${_exe% (deleted)}
+                    [[ ${#_exe} -gt ${#app} && "$_exe" == "$app"* ]] && app=$_exe
+                fi
 
                 if [[ "$sec_appCrash" != false ]] && (( _now - ${_crash_cooldown[$app]:-0} >= 10 )); then
                     _crash_cooldown[$app]=$_now
-                    notif_encolar score "$app (coredump)"
+                    _det="coredump"
+                    pat_sig=' with signal [0-9]+/([A-Z0-9]+)'
+                    [[ "$line" =~ $pat_sig ]] && _det=${BASH_REMATCH[1]}
+                    if (( _uid == 0 )); then _det+=", root"
+                    elif (( _uid != UID )); then _det+=", usuario $_uid"; fi
+                    notif_encolar score "$app ($_det)"
                 fi
 
                 if [[ "$sec_serviceHealth" != false ]]; then
-                    _coredump_times+=("$_now")
-                    pruned=()
-                    for t in "${_coredump_times[@]}"; do (( _now - t < 60 )) && pruned+=("$t"); done
-                    _coredump_times=("${pruned[@]}")
-                    if (( ${#_coredump_times[@]} >= 3 )) && (( _now - _storm_last >= 60 )); then
+                    _n=0
+                    for p in "${!_coredump_pids[@]}"; do (( _now - _coredump_pids[$p] < 60 )) && _n=$((_n + 1)); done
+                    if (( _n >= 3 )) && (( _now - _storm_last >= 60 )); then
                         _storm_last=$_now
                         notificar app.tormenta-crashes -u critical "Tormenta de crashes" \
-                            "${#_coredump_times[@]} volcados de core en <60s. Algo va muy mal." -t 0
+                            "$_n volcados de core en <60s. Algo va muy mal." -t 0
                     fi
                 fi
 

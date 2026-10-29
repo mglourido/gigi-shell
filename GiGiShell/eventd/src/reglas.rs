@@ -18,7 +18,9 @@ pub struct Monitor<E: Entorno> {
     cooldown_io: HashMap<String, Instant>,
     cooldown_core: HashMap<String, Instant>,
     cooldown_gpu: HashMap<String, Instant>,
-    coredumps: Vec<Instant>,
+    /// Crashes recientes por PID: deduplica las líneas de un mismo volcado y cuenta la
+    /// tormenta por crashes, no por líneas (ver la rama de coredump).
+    coredumps: Vec<(u32, Instant)>,
     tormenta: Option<Instant>,
     aviso_reinicio: bool,
     /// PIDs de sudo cuyo fallo ya se contó por la línea PAM (ver `sudo()`).
@@ -170,8 +172,13 @@ impl<E: Entorno> Monitor<E> {
         } else if self.on("cpuThrottling") && contiene_en_orden(&l, "cpu", "throttl") {
             self.grupos.encolar("kthrottle", linea, ahora);
         } else if self.on("appCrash") && has("segfault") {
+            // Con systemd-coredump de manejador, el mismo crash llega también como coredump
+            // (todas las señales, no solo SEGV) y con el nombre del proceso; esta línea trae
+            // el del HILO (`QSGRenderThread`) y daba una segunda tarjeta. Solo es respaldo.
+            // Se pierde el crash de un proceso no volcable (setuid, PR_SET_DUMPABLE=0), que
+            // el kernel no pasa al manejador: raro, y antes salía duplicado en el resto.
             // Descartado ANTES del cooldown: no gastarlo en un crash que no se avisa.
-            if self.env.pkg_tx_activa() {
+            if self.env.coredump_systemd() || self.env.pkg_tx_activa() {
                 return;
             }
             let app = app_segfault(linea).unwrap_or_else(|| "desconocida".into());
@@ -277,14 +284,37 @@ impl<E: Entorno> Monitor<E> {
             if self.env.pkg_tx_activa() {
                 return;
             }
-            let app = proceso_entre_parentesis(linea, "Process ").unwrap_or_else(|| "desconocida".into());
+            let Some(c) = datos_coredump(linea) else { return };
+            // systemd ≥ 257 escribe DOS líneas por crash: `terminated abnormally with signal
+            // N/X, processing...` al empezar y `dumped core.` al acabar, que en un volcado
+            // grande llega pasados los 10 s del cooldown. Se avisa con la primera (es la
+            // inmediata y trae la señal) y el PID descarta la segunda.
+            self.coredumps.retain(|(_, t)| ahora.duration_since(*t) < VER_COREDUMP);
+            if self.coredumps.iter().any(|(p, _)| *p == c.pid) {
+                return;
+            }
+            self.coredumps.push((c.pid, ahora));
+            // `comm` se trunca a 15 bytes (`pizarra_workspa`). Mientras dura el volcado el
+            // proceso sigue vivo y su exe da el nombre entero; solo se usa si lo prolonga,
+            // porque el exe de un script es el intérprete (`python3`) y ahí manda `comm`.
+            let mut app = c.comm;
+            if app.len() >= 15 {
+                if let Some(exe) = self.env.nombre_exe(c.pid).filter(|e| e.len() > app.len() && e.starts_with(&app)) {
+                    app = exe;
+                }
+            }
             if self.on("appCrash") && enfriado(&mut self.cooldown_core, app.clone(), ahora, 10) {
-                self.grupos.encolar("score", &format!("{app} (coredump)"), ahora);
+                let mut detalle = c.senal.unwrap_or_else(|| "coredump".into());
+                // Un crash de otro usuario no es una app de esta sesión: se dice de quién es.
+                match c.uid {
+                    Some(0) => detalle.push_str(", root"),
+                    Some(u) if u != self.env.uid() => detalle.push_str(&format!(", usuario {u}")),
+                    _ => {}
+                }
+                self.grupos.encolar("score", &format!("{app} ({detalle})"), ahora);
             }
             if self.on("serviceHealth") {
-                self.coredumps.retain(|t| ahora.duration_since(*t) < Duration::from_secs(60));
-                self.coredumps.push(ahora);
-                let n = self.coredumps.len();
+                let n = self.coredumps.iter().filter(|(_, t)| ahora.duration_since(*t) < Duration::from_secs(60)).count();
                 if n >= 3 && self.tormenta.is_none_or(|t| ahora.duration_since(t) >= Duration::from_secs(60)) {
                     self.tormenta = Some(ahora);
                     notificar(self.salida, "app.tormenta-crashes", "critical", "Tormenta de crashes",
@@ -293,6 +323,36 @@ impl<E: Entorno> Monitor<E> {
             }
         }
     }
+}
+
+/// Cuánto se recuerda el PID de un crash: lo que puede tardar en acabar el volcado de
+/// un proceso de varios GB, con margen.
+const VER_COREDUMP: Duration = Duration::from_secs(300);
+
+pub struct Coredump {
+    pub pid: u32,
+    pub comm: String,
+    pub uid: Option<u32>,
+    /// `ABRT`, `SEGV`…; solo la línea `terminated abnormally with signal` la trae.
+    pub senal: Option<String>,
+}
+
+/// `Process <pid> (<comm>) of user <uid> …` de systemd-coredump.
+pub fn datos_coredump(linea: &str) -> Option<Coredump> {
+    let comm = proceso_entre_parentesis(linea, "Process ")?;
+    let tras = &linea[linea.find(&format!(" ({comm})"))?..];
+    let antes = &linea[..linea.len() - tras.len()];
+    let pid = antes.rsplit(' ').next()?.parse().ok()?;
+    let uid = tras
+        .split_once(") of user ")
+        .and_then(|(_, r)| r.split(|c: char| !c.is_ascii_digit()).next())
+        .and_then(|n| n.parse().ok());
+    let senal = tras.split_once(" with signal ").and_then(|(_, r)| {
+        let tok = r.split([',', ' ']).next()?;
+        let nombre = tok.split_once('/').map_or(tok, |(_, n)| n);
+        (!nombre.is_empty()).then(|| nombre.to_string())
+    });
+    Some(Coredump { pid, comm, uid, senal })
 }
 
 /// Cooldown por clave: true (y rearma) si han pasado `seg` segundos desde el último.
@@ -750,6 +810,50 @@ mod tests {
         assert!(!m.cooldown_io.contains_key("sdb:r"));
         assert!(m.cooldown_io.contains_key("sdb:w"));
         assert!(m.cooldown_io.contains_key("nvme0n1:r"));
+    }
+
+    #[test]
+    fn coredump_datos() {
+        let c = datos_coredump("systemd-coredump[5]: Process 15100 (pizarra_workspa) of user 1000 terminated abnormally with signal 6/ABRT, processing...").unwrap();
+        assert_eq!((c.pid, c.comm.as_str(), c.uid, c.senal.as_deref()), (15100, "pizarra_workspa", Some(1000), Some("ABRT")));
+        let c = datos_coredump("systemd-coredump[9]: Process 777 (gimp) of user 0 dumped core.").unwrap();
+        assert_eq!((c.pid, c.uid, c.senal), (777, Some(0), None));
+    }
+
+    #[test]
+    fn coredump_mismo_pid_cuenta_una_vez() {
+        let mut m = monitor(Falso::default());
+        let t = Instant::now();
+        for pid in [1, 2] {
+            m.procesar(false, &format!("systemd-coredump[9]: Process {pid} (x{pid}) of user 1000 terminated abnormally with signal 11/SEGV, processing..."), t);
+            m.procesar(false, &format!("systemd-coredump[9]: Process {pid} (x{pid}) of user 1000 dumped core."), t);
+        }
+        // Dos crashes con sus dos líneas cada uno: ni cuatro crashes ni tormenta.
+        assert_eq!(m.coredumps.len(), 2);
+        assert!(m.tormenta.is_none());
+    }
+
+    #[test]
+    fn coredump_nombre_entero_del_exe() {
+        let mut env = Falso::default();
+        env.exes.insert(7, "pizarra_workspace".into());
+        env.exes.insert(8, "python3".into());
+        let mut m = monitor(env);
+        let t = Instant::now();
+        m.procesar(false, "systemd-coredump[9]: Process 7 (pizarra_workspa) of user 1000 terminated abnormally with signal 6/ABRT, processing...", t);
+        m.procesar(false, "systemd-coredump[9]: Process 8 (mi_script_larg) of user 1000 terminated abnormally with signal 6/ABRT, processing...", t);
+        assert!(m.cooldown_core.contains_key("pizarra_workspace"));
+        assert!(m.cooldown_core.contains_key("mi_script_larg"));
+    }
+
+    #[test]
+    fn segfault_calla_con_systemd_coredump() {
+        let mut m = monitor(Falso { coredump_systemd: true, ..Falso::default() });
+        m.procesar(true, "kernel: gmain[42]: segfault at 0 ip 0 sp 0 error 4", Instant::now());
+        assert!(m.cooldown_seg.is_empty());
+        let mut m = monitor(Falso::default());
+        m.procesar(true, "kernel: gmain[42]: segfault at 0 ip 0 sp 0 error 4", Instant::now());
+        assert!(m.cooldown_seg.contains_key("gmain"));
     }
 
     #[test]
