@@ -128,7 +128,7 @@ Los `CLAUDE.md` de subcarpetas se cargan al leer un archivo de esa carpeta, pero
 | Pantalla y brillo | cola de pantallas, `display.json`, reglas horarias, luz nocturna, brillo DDC/backlight | `servicios/pantalla/CLAUDE.md` |
 | Notificaciones | daemon, popup, panel, reglas, catálogo del sistema, historial | `modulos/notificaciones/CLAUDE.md` |
 | Sonido de notificaciones | reproducción, alarmas, ruta de audio | `modulos/notificaciones/sonido/CLAUDE.md` |
-| Orion («Jarvis») | secciones, búsqueda, lanzamiento anclado, desinstalar, Temas, búsqueda de ficheros | `modulos/orion/CLAUDE.md` |
+| Orion (el lanzador) | secciones, búsqueda, lanzamiento anclado, desinstalar, Temas, búsqueda de ficheros | `modulos/orion/CLAUDE.md` |
 | Calendario y reloj | agenda, alarmas, temporizador, Google Calendar | `modulos/calendario/CLAUDE.md` |
 | Ajustes (general) | `SettingsPanel`, `preferences.ts`, atajos de teclado, Sistema | `modulos/ajustes/CLAUDE.md` |
 | Ajustes > Apps al inicio | qué se abre al entrar al escritorio | `modulos/ajustes/inicio/CLAUDE.md` |

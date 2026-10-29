@@ -23,7 +23,7 @@ Este archivo es el índice. Lo detallado vive en `CLAUDE.md` de subcarpetas y en
 **Áreas de `ags/`** (cada una con su `CLAUDE.md`; rutas desde `ags/`; el índice con más detalle está en `ags/CLAUDE.md`):
 - `modulos/barra` (barra, menú del logo Arch, Mantener despierto, escritorios) · `modulos/barra/indicadores` (actualizaciones, micrófono, cadena de estado, captura de pantalla) · `modulos/barra/multimedia/spotify` y `servicios/spotify`
 - `servicios/juegos` (detección de juegos) · `servicios/camara` · `servicios/multimedia` (audio: endpoints, presets, mezcla de apps) · `servicios/pantalla` (pantallas, reglas horarias, luz nocturna, brillo) · `servicios/energia` (ahorro, botón de encendido, tapa, GameMode) · `servicios/fondos` (franjas horarias, acento)
-- `modulos/ajustes-rapidos` (Quick Settings: Wi-Fi, Bluetooth) · `modulos/notificaciones` y `modulos/notificaciones/sonido` · `modulos/orion` (el lanzador «Jarvis») · `modulos/calendario` (calendario, reloj, Google)
+- `modulos/ajustes-rapidos` (Quick Settings: Wi-Fi, Bluetooth) · `modulos/notificaciones` y `modulos/notificaciones/sonido` · `modulos/orion` (el lanzador «Orion») · `modulos/calendario` (calendario, reloj, Google)
 - `modulos/ajustes` (general, atajos, Sistema) · `modulos/ajustes/inicio` · `modulos/ajustes/predeterminadas` · `modulos/ajustes/disco` (Almacenamiento) · `modulos/ajustes/seguridad`
 
 **Documentos de `docs/`:**
@@ -223,8 +223,8 @@ hibernar, bloquear al suspender): `hypr/hypridle.conf` es estático y los recibe
 `gestos.json` y `gestos-estado.json` —el modo gestos por cámara: el primero lo escribe Ajustes y lo lee el demonio
 al arrancar, el segundo al revés; dos ficheros con un dueño cada uno, no uno con dos escritores— y `hibernacion.json`
 —el tiempo total de inactividad hasta hibernar y **cuál de los dos mecanismos** lo cumple; lo lee
-`idle-action.sh` para decidir si suspende con alarma RTC o sin ella—, …), plus `~/.config/jarvis/`
-and `~/.local/share/jarvis/` for the Orion launcher, `~/.config/power-save/config.json`
+`idle-action.sh` para decidir si suspende con alarma RTC o sin ella—, …), plus `~/.config/orion/`
+and `~/.local/share/orion/` for the Orion launcher, `~/.config/power-save/config.json`
 (umbral y filtros de modo ahorro) and `~/.local/share/orion/favorites.json` (favoritos del
 launcher — ver "What this is" para por qué estos dos últimos dejaron de vivir dentro del repo).
 These are data written/read by widgets and scripts at runtime — not code. No todo `config` es

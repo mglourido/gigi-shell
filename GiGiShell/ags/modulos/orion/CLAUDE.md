@@ -1,8 +1,8 @@
-# CLAUDE.md — Orion (el lanzador «Jarvis»)
+# CLAUDE.md — Orion (el lanzador)
 
 Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../CLAUDE.md)). Aquí: secciones, búsqueda, lanzamiento anclado, desinstalar y Temas.
 
-- `modulos/orion/` — **the "Jarvis" launcher** (the user calls it "jarvis"; the code dir is `orion`). Bottom-slide panel with tabs, search, and sections. Toggle: `SUPER+ALT+Space`. `state.ts` holds its `SectionId` union and reactive state; `components/sections/` holds each section; `search/` is the fuzzy-search engine; `ProfileManager.ts` persists sessions.
+- `modulos/orion/` — **the Orion launcher**. Bottom-slide panel with tabs, search, and sections. Toggle: `SUPER+ALT+Space`. `state.ts` holds its `SectionId` union and reactive state; `components/sections/` holds each section; `search/` is the fuzzy-search engine; `ProfileManager.ts` persists sessions.
   **Todo lanzamiento de app pasa por `data/launch.ts` (`launchApp`), no por `sh -c` a pelo.** Los
   cuatro sitios que abren apps (Apps, Inicio, buscador y el panel derecho, que reciben el `launch`
   como closure) hacían cada uno su propio `execAsync(["sh","-c",exec])`, y por eso las apps abiertas
