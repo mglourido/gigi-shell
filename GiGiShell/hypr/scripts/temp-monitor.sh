@@ -7,10 +7,16 @@
 #     builtin `read` — no `sensors` fork, and (the big one) no `python3`
 #     interpreter startup per tick, which is what the old version forked
 #     every 10s just to parse a two-field JSON blob.
-#   - GPU temp still needs `nvidia-smi` (this driver exposes no hwmon temp
-#     sysfs node on this machine) — the one real per-tick cost left. Its
-#     presence is checked once at startup, not every tick, and the poll
-#     interval widens a lot while everything's cool so it's called rarely.
+#   - CPU sensor: Intel `coretemp` ("Package id 0") or AMD `k10temp`/`zenpower`
+#     ("Tdie", else "Tctl"). Resolved once at startup.
+#   - GPUs are found once by PCI class 0x03 in sysfs (never `lspci`: it reads
+#     config space, which wakes a dGPU in D3cold). Each one is read from its own
+#     hwmon node (amdgpu `edge`, xe…) with a builtin `read`; NVIDIA exposes no
+#     hwmon temp, so only it forks `nvidia-smi`.
+#   - A GPU whose `power/runtime_status` is `suspended` is SKIPPED, not read:
+#     reading that attribute does not wake it, but `nvidia-smi` or a hwmon read
+#     would — on a hybrid laptop that was a dGPU wake every minute. Asleep means
+#     cold, so nothing is lost.
 #   - The poll interval is adaptive: wide (idle) normally, and only tightens
 #     up once a reading gets close to WARN_TEMP.
 
@@ -38,24 +44,52 @@ POLL_ACTIVE=15   # getting close to WARN_TEMP — more responsive
 cpu_alerted=false
 gpu_alerted=false
 
-# Resolved once at startup: sysfs path for coretemp's "Package id 0", and
-# whether nvidia-smi is even worth calling on this machine.
+# Resolved once at startup: sysfs path of the CPU package sensor.
 CPU_TEMP_PATH=""
 for hwmon in /sys/class/hwmon/hwmon*; do
     read -r name < "$hwmon/name" 2>/dev/null || continue
-    [[ "$name" == "coretemp" ]] || continue
-    for label_file in "$hwmon"/temp*_label; do
-        [[ -f "$label_file" ]] || continue
-        read -r label < "$label_file" 2>/dev/null
-        if [[ "$label" == "Package id 0" ]]; then
-            CPU_TEMP_PATH="${label_file%_label}_input"
-            break 2
-        fi
+    case "$name" in
+        coretemp)         buscados=("Package id 0") ;;
+        k10temp|zenpower) buscados=("Tdie" "Tctl") ;;
+        *) continue ;;
+    esac
+    for buscado in "${buscados[@]}"; do
+        for label_file in "$hwmon"/temp*_label; do
+            [[ -f "$label_file" ]] || continue
+            read -r label < "$label_file" 2>/dev/null
+            if [[ "$label" == "$buscado" ]]; then
+                CPU_TEMP_PATH="${label_file%_label}_input"
+                break 3
+            fi
+        done
     done
 done
 
-HAS_NVIDIA=false
-command -v nvidia-smi >/dev/null 2>&1 && HAS_NVIDIA=true
+# Resolved once at startup: one entry per GPU with a temperature source.
+#   GPU_PM[i]    its runtime_status file ("" if the device has no runtime PM)
+#   GPU_TEMP[i]  hwmon temp*_input to read, or "" → use nvidia-smi
+#   GPU_ID[i]    PCI address, for `nvidia-smi -i`
+GPU_PM=(); GPU_TEMP=(); GPU_ID=()
+HAS_NVIDIA_SMI=false
+command -v nvidia-smi >/dev/null 2>&1 && HAS_NVIDIA_SMI=true
+for dispositivo in /sys/bus/pci/devices/*; do
+    IFS= read -r clase < "$dispositivo/class" 2>/dev/null || continue
+    [[ "$clase" == 0x03* ]] || continue
+    IFS= read -r fabricante < "$dispositivo/vendor" 2>/dev/null || continue
+    # temp1 is amdgpu's `edge`; its `junction` runs 20 °C hotter by design and
+    # would trip WARN_TEMP under normal load.
+    temp=""
+    for candidato in "$dispositivo"/hwmon/hwmon*/temp1_input "$dispositivo"/hwmon/hwmon*/temp*_input; do
+        [[ -r "$candidato" ]] && { temp=$candidato; break; }
+    done
+    if [[ -z "$temp" ]]; then
+        # Intel iGPU (i915) has no temp of its own: it lives in the CPU package.
+        [[ "$fabricante" == 0x10de && "$HAS_NVIDIA_SMI" == true ]] || continue
+    fi
+    pm="$dispositivo/power/runtime_status"
+    [[ -r "$pm" ]] || pm=""
+    GPU_PM+=("$pm"); GPU_TEMP+=("$temp"); GPU_ID+=("${dispositivo##*/}")
+done
 
 # Sets global $cpu_temp. Pure bash builtin read — no fork.
 get_cpu_temp() {
@@ -68,15 +102,24 @@ get_cpu_temp() {
     fi
 }
 
-# Sets global $gpu_temp. Only forks nvidia-smi if the machine actually has it.
+# Sets global $gpu_temp to the hottest awake GPU (0 if none).
 get_gpu_temp() {
-    if [[ "$HAS_NVIDIA" == false ]]; then
-        gpu_temp=0
-        return
-    fi
-    local t
-    t=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader 2>/dev/null | tr -d ' ')
-    [[ "$t" =~ ^[0-9]+$ ]] && gpu_temp=$t || gpu_temp=0
+    gpu_temp=0
+    local i estado t
+    for i in "${!GPU_ID[@]}"; do
+        if [[ -n "${GPU_PM[i]}" ]]; then
+            read -r estado < "${GPU_PM[i]}" 2>/dev/null || estado=""
+            [[ "$estado" == suspended ]] && continue
+        fi
+        if [[ -n "${GPU_TEMP[i]}" ]]; then
+            read -r t < "${GPU_TEMP[i]}" 2>/dev/null || continue
+            t=$(( t / 1000 ))
+        else
+            t=$(nvidia-smi -i "${GPU_ID[i]}" --query-gpu=temperature.gpu --format=csv,noheader 2>/dev/null)
+            t=${t//[[:space:]]/}
+        fi
+        [[ "$t" =~ ^[0-9]+$ ]] && (( t > gpu_temp )) && gpu_temp=$t
+    done
 }
 
 NOTIF_APP="Hardware"

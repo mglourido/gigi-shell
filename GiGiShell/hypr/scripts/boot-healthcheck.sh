@@ -119,12 +119,17 @@ HAS_USB=false
 ls /sys/class/power_supply/ 2>/dev/null | grep -qi "bat" \
     && HAS_BATTERY=true
 
-# NVIDIA GPU (check PCI hardware, not loaded module)
-if has_cmd lspci && lspci 2>/dev/null | grep -qi "NVIDIA"; then
-    HAS_NVIDIA=true
-elif grep -rlq "0x10de" /sys/bus/pci/devices/*/vendor 2>/dev/null; then
-    HAS_NVIDIA=true
-fi
+# NVIDIA GPU (check PCI hardware, not loaded module). Por sysfs, nunca con
+# `lspci`: lee el espacio de configuración PCI y eso despierta una dGPU que
+# duerme en D3cold. Clase 0x03 = pantalla, para no contar la función de audio HDMI.
+NVIDIA_PCI=()
+for dispositivo in /sys/bus/pci/devices/*; do
+    IFS= read -r clase < "$dispositivo/class" 2>/dev/null || continue
+    [[ "$clase" == 0x03* ]] || continue
+    IFS= read -r fabricante < "$dispositivo/vendor" 2>/dev/null || continue
+    [[ "$fabricante" == 0x10de ]] && NVIDIA_PCI+=("${dispositivo##*/}")
+done
+(( ${#NVIDIA_PCI[@]} )) && HAS_NVIDIA=true
 
 # NVMe drives
 ls /dev/nvme? &>/dev/null && HAS_NVME=true
@@ -298,13 +303,23 @@ else
 fi
 
 # ── NVIDIA ───────────────────────────────────────────────────────────────────
+# `nvidia-smi` despierta la GPU, así que solo se pregunta a una que ya está
+# despierta. Una que duerme por runtime PM ya demostró que el driver la maneja.
 if $HAS_NVIDIA; then
-    if ! lsmod 2>/dev/null | grep -q "^nvidia[[:space:]]"; then
+    if [[ ! -d /sys/module/nvidia ]]; then
         notify_problem arranque.nvidia-sin-driver critical "NVIDIA sin driver" \
             "GPU NVIDIA detectada pero el módulo 'nvidia' no está cargado en el kernel"
-    elif has_cmd nvidia-smi && ! timeout 5 nvidia-smi &>/dev/null; then
-        notify_problem arranque.nvidia-error critical "NVIDIA driver error" \
-            "nvidia-smi falla — posible corrupción del driver o del módulo"
+    elif has_cmd nvidia-smi; then
+        for pci in "${NVIDIA_PCI[@]}"; do
+            estado=""
+            read -r estado < "/sys/bus/pci/devices/$pci/power/runtime_status" 2>/dev/null
+            [[ "$estado" == suspended ]] && continue
+            if ! timeout 5 nvidia-smi -i "$pci" &>/dev/null; then
+                notify_problem arranque.nvidia-error critical "NVIDIA driver error" \
+                    "nvidia-smi falla — posible corrupción del driver o del módulo"
+                break
+            fi
+        done
     fi
 fi
 

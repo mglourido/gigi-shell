@@ -4518,9 +4518,13 @@ en el único punto de emisión. Es la red que impide que ese fallo vuelva a cola
 **Fase 1 autodescubre el hardware presente** (batería, GPU NVIDIA, NVMe, SATA, soporte SMART,
 sensores de ventilador, swap, Bluetooth, audio, red, USB) y la Fase 2 solo comprueba las categorías
 cuyo hardware existe — un sobremesa sin batería no recibe ningún chequeo de batería, ni un aviso de
-que no la tiene. La GPU NVIDIA se detecta por **PCI** (`lspci`/`vendor` sysfs), no por si el módulo
+que no la tiene. La GPU NVIDIA se detecta por **PCI** (`class`/`vendor` en sysfs), no por si el módulo
 `nvidia` está cargado: mirar el módulo primero se comería precisamente el caso que este chequeo
-existe para pillar (GPU presente, driver no cargado).
+existe para pillar (GPU presente, driver no cargado). **Nunca con `lspci`**: lee el espacio de
+configuración PCI de cada dispositivo y eso despierta una dGPU que duerme en D3cold (el kernel la
+reanuda para servir la lectura). Por lo mismo, `nvidia-smi` solo se lanza contra una GPU cuyo
+`power/runtime_status` no sea `suspended`; leer ese atributo no la despierta, y una GPU dormida por
+runtime PM ya demuestra que el driver la maneja.
 
 **Varios comandos caros se ejecutan una sola vez y se reutilizan entre chequeos** (`sensors`,
 `rfkill list bluetooth`, `aplay -l`, `ip link show`, `journalctl -b -1`): cada uno alimenta dos
@@ -4575,6 +4579,14 @@ Graba **siempre** con el audio interno del sistema: resuelve el sink por defecto
 verdad en `pactl list short sources` antes de arrancar. Tras lanzar `wf-recorder` espera 0.25 s y
 comprueba que el proceso siga vivo — así un fallo inmediato de salida, audio o códec no se anuncia
 como "grabación iniciada" cuando en realidad murió al instante.
+
+**El codificador depende de la corriente, y se decide al empezar.** Enchufado (o sin batería):
+`h264_nvenc` → `h264_vaapi` → software. En batería: `h264_vaapi` → `h264_nvenc` → software, porque
+NVENC en un portátil híbrido despierta la dGPU y le pasa cada frame por PCIe desde la integrada. El
+nodo VA-API es el `renderD*` de la GPU con `boot_vga=1` que no sea NVIDIA, nunca `renderD128` fijo
+(la numeración de `/dev/dri` cambia entre arranques). **Desenchufar a mitad no cambia el
+codificador**: wf-recorder no lo cambia en marcha, y parar, relanzar y unir los trozos deja un hueco
+de imagen y audio en el vídeo; se prefirió que la grabación siga en la dGPU.
 
 ### Portapapeles (`clipboard-history.sh`, `limpiar-portapapeles.sh`, `miniatura-portapapeles.sh`)
 
@@ -4843,10 +4855,14 @@ largo con margen de sobra) para reducir despertares. Los tres leen su interrupto
   - **El `notify-send --wait` en segundo plano cierra el descriptor del `flock` (`exec 9>&-`)**:
     heredado, retenía el cerrojo hasta que la notificación caducaba y bloqueaba en silencio el
     siguiente disparo tras un apagado cancelado al enchufar.
-- **`temp-monitor.sh`** — resuelve la ruta sysfs de `coretemp` ("Package id 0") **una sola vez** al
-  arrancar, no en cada vuelta; la GPU usa `nvidia-smi` (este driver no expone temperatura por hwmon
-  en esta máquina) solo si está presente. Histéresis 85 °C/80 °C, sondeo 15 s cerca del umbral, 60 s
-  en reposo.
+- **`temp-monitor.sh`** — resuelve **una sola vez** al arrancar el sensor de CPU (`coretemp` "Package
+  id 0" en Intel, `k10temp`/`zenpower` "Tdie" o "Tctl" en AMD; antes solo Intel, y en AMD leía 0 y no
+  avisaba nunca) y la lista de GPUs por clase PCI en sysfs. Cada GPU se lee de su propio hwmon
+  (`temp1` = `edge` en amdgpu: el `junction` va 20 °C más alto por diseño y saltaría el umbral con
+  carga normal); NVIDIA no expone hwmon y es la única que lanza `nvidia-smi`. **Una GPU con
+  `power/runtime_status` = `suspended` no se lee**: `nvidia-smi` o el hwmon la despertarían, y en un
+  portátil híbrido eso era encender la dGPU cada minuto. Leer `runtime_status` no la despierta.
+  Histéresis 85 °C/80 °C, sondeo 15 s cerca del umbral, 60 s en reposo.
 - **`ram-monitor.sh`** — usa `MemAvailable` de `/proc/meminfo`, no un porcentaje de uso: es la
   estimación del propio kernel de lo reutilizable sin llegar a swap (descuenta caché reclamable), así
   que no confunde el cacheo agresivo normal de Linux con memoria realmente agotada. Umbral absoluto en

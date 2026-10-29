@@ -9,6 +9,7 @@ import { ticInicio } from "../../../data/ticInicio"
 import { readFile } from "ags/file"
 import { createState, type Accessor } from "ags"
 import GObject from "gi://GObject"
+import GLib from "gi://GLib"
 import Pango from "gi://Pango"
 import { orionVisible, activeSection } from "../../../state"
 
@@ -89,11 +90,45 @@ function updateIGpu() {
 
 // ── NVIDIA dGPU (PRIME) ───────────────────────────────────────────────────────
 
+// Ruta sysfs de la dGPU, resuelta una vez (`null`: no hay NVIDIA y nunca se
+// lanza nvidia-smi). Por sysfs y no con lspci, que despierta una GPU en D3cold.
+let rutaNvidia: string | null | undefined
+
+function buscarNvidia(): string | null {
+  if (rutaNvidia !== undefined) return rutaNvidia
+  rutaNvidia = null
+  try {
+    const dir = GLib.Dir.open("/sys/bus/pci/devices", 0)
+    for (let n = dir.read_name(); n !== null; n = dir.read_name()) {
+      const ruta = `/sys/bus/pci/devices/${n}`
+      try {
+        if (readFile(`${ruta}/vendor`).trim() === "0x10de" && readFile(`${ruta}/class`).startsWith("0x03")) {
+          rutaNvidia = ruta
+          break
+        }
+      } catch (_) {}
+    }
+    dir.close()
+  } catch (_) {}
+  return rutaNvidia
+}
+
+// Leer runtime_status no despierta la GPU; nvidia-smi sí, y cada 2 s la tendría
+// encendida mientras Inicio esté abierto. Dormida = sin uso: tarjeta oculta.
+function nvidiaDormida(ruta: string): boolean {
+  try { return readFile(`${ruta}/power/runtime_status`).trim() === "suspended" } catch (_) { return false }
+}
+
 async function updateNvidia() {
+  const ruta = buscarNvidia()
+  if (!ruta || nvidiaDormida(ruta)) {
+    setNGpuActive(false)
+    return
+  }
   try {
     const out = await execAsync([
-      "bash", "-c",
-      "/usr/bin/nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits",
+      "nvidia-smi", "-i", ruta.slice(ruta.lastIndexOf("/") + 1),
+      "--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits",
     ])
     const [gpu, vramMb, vramTotal] = out.trim().split(", ").map(s => parseFloat(s.trim()))
     const active = gpu > 0 || vramMb > 100
@@ -107,7 +142,7 @@ async function updateNvidia() {
 }
 
 // ── Polling ───────────────────────────────────────────────────────────────────
-// Las stats (CPU/RAM/GPU) sólo se ven en la sección de inicio de Jarvis. Para no
+// Las stats (CPU/RAM/GPU) sólo se ven en la sección de inicio de Orion. Para no
 // consumir en reposo, el poll sólo corre mientras Orion está visible Y en
 // "inicio"; se para al cerrar o al cambiar de sección. En reposo el consumo es
 // cero.

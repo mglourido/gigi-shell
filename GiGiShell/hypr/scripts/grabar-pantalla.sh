@@ -162,17 +162,64 @@ ruta_grabacion="$directorio_grabaciones/${prefijo_archivo}_$(date +%Y%m%d_%H%M%S
 # del escritorio: con el libx264 por defecto una grabación de monitor costaba
 # ~175% de CPU y dejaba toda la sesión a tirones (Hyprland compone cada frame,
 # y el codificador le robaba los núcleos). El encoder por software se mantiene
-# como respaldo — sin GPU NVIDIA, con un driver que no expone NVENC o con las
-# sesiones concurrentes de NVENC agotadas, la grabación arranca igual en vez de
-# no arrancar. La cadena termina en "" (sin -c), que es el defecto de
-# wf-recorder, para que el respaldo sea exactamente el comportamiento anterior.
-codecs_grabacion=(h264_nvenc "")
+# como respaldo — sin codificador por hardware, o con las sesiones concurrentes
+# de NVENC agotadas, la grabación arranca igual en vez de no arrancar. La cadena
+# termina en "" (sin -c), que es el defecto de wf-recorder.
+#
+# En BATERÍA va primero VA-API en la GPU que pinta la pantalla (la integrada en
+# un portátil híbrido): NVENC despierta la dGPU y le manda cada frame por PCIe
+# desde la integrada, que es justo el gasto que se quiere evitar desenchufado.
+# Enchufado manda NVENC. El codificador se decide AL EMPEZAR y no cambia: si se
+# desenchufa a mitad, sigue en la dGPU. wf-recorder no cambia de codificador en
+# marcha, y hacerlo a mano (parar, relanzar y unir los trozos) deja un hueco de
+# imagen y audio en el vídeo; eso es peor que el consumo extra de una grabación.
+
+# ¿Sin corriente? Solo si hay batería y ninguna fuente de red o USB-C entrega
+# energía: un sobremesa (sin batería) cuenta como enchufado.
+en_bateria() {
+    local fuente tipo conectada hay_bateria=false
+    for fuente in /sys/class/power_supply/*; do
+        IFS= read -r tipo < "$fuente/type" 2>/dev/null || continue
+        case "$tipo" in
+            Battery) hay_bateria=true ;;
+            Mains|USB*)
+                IFS= read -r conectada < "$fuente/online" 2>/dev/null || continue
+                [[ "$conectada" == 1 ]] && return 1
+                ;;
+        esac
+    done
+    [[ "$hay_bateria" == true ]]
+}
+
+# Nodo de render para VA-API: el de la GPU arrancada como primaria (boot_vga,
+# la integrada en un híbrido) y nunca la NVIDIA, que no tiene VA-API. No se fija
+# renderD128: la numeración de /dev/dri cambia entre arranques.
+nodo_vaapi=""
+for nodo in /sys/class/drm/renderD*; do
+    IFS= read -r fabricante < "$nodo/device/vendor" 2>/dev/null || continue
+    [[ "$fabricante" == 0x10de ]] && continue
+    primaria=0
+    IFS= read -r primaria < "$nodo/device/boot_vga" 2>/dev/null
+    if [[ -z "$nodo_vaapi" || "$primaria" == 1 ]]; then
+        nodo_vaapi="/dev/dri/${nodo##*/}"
+        [[ "$primaria" == 1 ]] && break
+    fi
+done
+
+if en_bateria && [[ -n "$nodo_vaapi" ]]; then
+    codecs_grabacion=(h264_vaapi h264_nvenc "")
+else
+    codecs_grabacion=(h264_nvenc)
+    [[ -n "$nodo_vaapi" ]] && codecs_grabacion+=(h264_vaapi)
+    codecs_grabacion+=("")
+fi
 
 iniciar_grabador() {
     local codec="$1"
     local -a argumentos_codec=()
 
     [[ -n "$codec" ]] && argumentos_codec=(-c "$codec")
+    [[ "$codec" == *_vaapi ]] && argumentos_codec+=(-d "$nodo_vaapi")
 
     wf-recorder \
         "${argumentos_captura[@]}" \
@@ -205,10 +252,10 @@ for codec_grabacion in "${codecs_grabacion[@]}"; do
     iniciar_grabador "$codec_grabacion" && break
 
     detalle="$(tail -n 1 "$archivo_log" 2>/dev/null)"
-    # Degradar a software no es un error para el usuario: la grabación va a
+    # Pasar al siguiente codec no es un error para el usuario: la grabación va a
     # ocurrir igual. Queda en el log de la sesión, no en una notificación.
     [[ -n "$codec_grabacion" ]] && printf \
-        'grabar-pantalla: %s no disponible%s; se recurre al codec por software\n' \
+        'grabar-pantalla: %s no disponible%s; se prueba el siguiente codec\n' \
         "$codec_grabacion" "${detalle:+: $detalle}" >&2
 done
 
