@@ -284,7 +284,6 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 .sys-strip { padding: 5px 8px 7px; }
 .sys-strip-fixed {
   border-top: 1px solid rgba(255, 255, 255, 0.04);
-  background: $j-bg-shell-opaco;
 }
 .Orion .sys-card {
   background: fondo-control-opaco(rgba(255, 255, 255, 0.018));
@@ -303,12 +302,12 @@ $j-font-sans: 'Inter', system-ui, sans-serif;
 .sf-amber  { background: rgba($j-accent-amber, 0.55); }
 
 // ── Franja de Inicio: tema actual + carrusel ─────────────────────────────────
-// Va opaca como la de métricas (tapa el blur) y comparte su borde superior, así
-// que las dos se leen como un único pie de dos pisos.
+// Sin fondo propio, como la de métricas: la lámina se ve hasta el borde inferior y
+// solo las tarjetas son opacas. Comparten el borde superior, así que las dos se
+// leen como un único pie de dos pisos.
 .fi-contenedor {
   padding: 7px 10px 4px;
   border-top: 1px solid rgba(255, 255, 255, 0.04);
-  background: $j-bg-shell-opaco;
 }
 
 .Orion .fi-tema,
@@ -1142,13 +1141,13 @@ popover.background {
 // especificidad de todo Orion. "Negro" es el estado por defecto y no tiene bloque.
 @mixin orion-fondo-shell($clase, $bg) {
   .Orion.fondo-shell-#{$clase} {
-    .orion-panel { background: rgba($bg, 0.94); }
+    // Misma variable que los demás paneles: sin ella, el modo ahorro no volvía
+    // opaco a Orion con estos temas.
+    .orion-panel { background: c.lamina("--lamina-#{$clase}", rgba($bg, 0.94)); }
 
-    // Estas franjas deben ser opacas para tapar el blur, igual que en el tema
+    // Estos controles deben ser opacos para tapar el blur, igual que en el tema
     // histórico; se actualizan junto al fondo principal para evitar costuras.
     .ns,
-    .sys-strip-fixed,
-    .fi-contenedor,
     .apps-cat-btn,
     .apps-mode-toggle {
       background: $bg;

@@ -1,9 +1,12 @@
 import { onCleanup } from "ags"
 import { Gtk } from "ags/gtk4"
 import { fondoShell } from "../../../ajustes/preferences"
+import { transparenciaSuspendida } from "../../../../servicios/energia/powerState"
 
 const RADIO = 24
 const GROSOR_BORDE = 0.5
+const COLOR_NEGRO = [8, 12]
+const COLOR_POR_TEMA: Record<string, number[]> = { grafito: [24, 32], gris: [32, 32] }
 
 /**
  * Cuña que rellena el hueco entre el panel de Orion y su curva exterior, a
@@ -19,9 +22,8 @@ export default function CornerCurve({ left = true }: { left?: boolean }): Gtk.Dr
   area.set_draw_func((_area, cr, width, height) => {
     // La cuña es Cairo, no CSS: consulta la misma preferencia para no dejar una
     // esquina negra al cambiar el resto del shell a Grafito.
-    const canal = fondoShell.get() === "grafito" ? 24 / 255 : 8 / 255
-    const azul = fondoShell.get() === "grafito" ? 32 / 255 : 12 / 255
-    cr.setSourceRGBA(canal, canal, azul, 0.94)
+    const [rojoVerde, azul] = COLOR_POR_TEMA[fondoShell.get()] ?? COLOR_NEGRO
+    cr.setSourceRGBA(rojoVerde / 255, rojoVerde / 255, azul / 255, transparenciaSuspendida.get() ? 1 : 0.94)
 
     if (left) {
       cr.moveTo(width, height)
@@ -52,6 +54,7 @@ export default function CornerCurve({ left = true }: { left?: boolean }): Gtk.Dr
   })
 
   onCleanup(fondoShell.subscribe(() => area.queue_draw()))
+  onCleanup(transparenciaSuspendida.subscribe(() => area.queue_draw()))
 
   return area
 }
