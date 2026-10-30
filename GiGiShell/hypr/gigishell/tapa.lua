@@ -80,10 +80,11 @@ do
   --
   -- ENTRAR, no alternar: cerrar la tapa estando ya dentro tiene que dejarla puesta.
   -- Por eso el request es `suspension-falsa-entrar` y no `toggle-suspension-falsa`.
-  -- El `||` es la reserva de siempre: sin AGS no hay quien haga una suspensión falsa,
+  -- El `||` es la reserva de siempre (pedir-ags.sh: también cubre AGS congelado): sin
+  -- AGS no hay quien haga una suspensión falsa,
   -- así que la real es la degradación correcta.
   acciones.suspensionFalsa = function()
-    hl.exec_cmd("sh -c 'ags request suspension-falsa-entrar || systemctl suspend'")
+    hl.exec_cmd("sh -c '~/.config/hypr/scripts/pedir-ags.sh suspension-falsa-entrar || systemctl suspend'")
   end
 end
 

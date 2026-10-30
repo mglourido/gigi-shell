@@ -20,9 +20,9 @@ export const ACCIONES_ENERGIA: readonly AccionEnergia[] = [
   { claseCss: "logout", icono: "󰍃", etiqueta: "Salir", comando: 'hyprctl dispatch "hl.dsp.exit()"' },
   // "Suspender" NO llama a `systemctl suspend` directamente, y el rodeo tiene un motivo: el
   // ajuste «sustituir la suspensión real por la falsa» (Ajustes > Energía). Quien decide es
-  // AGS, en el `requestHandler` de app.ts. El `||` de reserva cubre el único caso en que ese
-  // request no contesta —AGS caído—, y ahí la suspensión real es la respuesta correcta: sin
-  // AGS no hay nadie capaz de hacer una suspensión falsa.
+  // AGS, en `puentes.ts`. El `||` de reserva cubre que ese request no conteste —AGS caído o
+  // congelado, por eso pedir-ags.sh y no `ags request`—, y ahí la suspensión real es la
+  // respuesta correcta: sin AGS no hay nadie capaz de hacer una suspensión falsa.
   //
   // La cadena la parte `GLib.shell_parse_argv`, que NO entiende `||`, así que hace falta el
   // `sh -c` explícito con el comando entre comillas simples.
@@ -30,7 +30,7 @@ export const ACCIONES_ENERGIA: readonly AccionEnergia[] = [
     claseCss: "suspend",
     icono: "󰏤",
     etiqueta: "Suspender",
-    comando: "sh -c 'ags request suspend || systemctl suspend'",
+    comando: "sh -c '~/.config/hypr/scripts/pedir-ags.sh suspend || systemctl suspend'",
   },
   // Suspensión falsa: apagar el escritorio SIN detener el kernel (docs/suspension-falsa.md).
   //

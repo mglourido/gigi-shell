@@ -22,7 +22,7 @@
 #
 #   1. AVISO + CUENTA ATRÁS (CUENTA_SECS). El overlay de la cuenta atrás del botón de
 #      encendido (ags/modulos/cuenta-atras/), que solo pinta: la cuenta sigue aquí. Con
-#      AGS caído, una notificación crítica con un botón «Cancelar». Enchufar el cargador
+#      AGS caído o congelado, una notificación crítica con un botón «Cancelar». Enchufar el cargador
 #      también cancela: se relee sysfs cada segundo con builtins, sin forks.
 #   2. CIERRE ORDENADO de todas las ventanas por Hyprland (el mismo `window.close`
 #      que SUPER+SHIFT+C). Es lo que da a cada app la ocasión de guardar su sesión
@@ -112,11 +112,14 @@ cancelar_si_carga() {
 # Todas las salidas cierran el overlay (trap): si no, se quedaría contando hasta su
 # cierre de seguridad con el apagado ya anulado. Va dirigido a `bateria` para no
 # cerrar una cuenta del botón.
+# Por pedir-ags.sh: con AGS congelado, `ags request` a pelo esperaría sin límite y el
+# apagado no llegaría nunca.
+PEDIR_AGS="$HOME/.config/hypr/scripts/pedir-ags.sh"
 overlay=false
 cerrar_overlay() {
     $overlay || return 0
     overlay=false
-    ags request cuenta-atras-cerrar id=bateria >/dev/null 2>&1
+    "$PEDIR_AGS" cuenta-atras-cerrar id=bateria >/dev/null
 }
 trap cerrar_overlay EXIT
 
@@ -132,9 +135,9 @@ marca_cancelar="${XDG_RUNTIME_DIR:-/tmp}/apagado-preventivo.cancelar"
 marca_id="${XDG_RUNTIME_DIR:-/tmp}/apagado-preventivo.id"
 rm -f "$marca_cancelar" "$marca_id"
 aviso_pid=
-if ags request cuenta-atras "$accion" "$CUENTA_SECS" id=bateria \
+if "$PEDIR_AGS" cuenta-atras "$accion" "$CUENTA_SECS" id=bateria \
     "ayuda=Batería al ${pct} %: conecta el cargador o cancela para seguir usando el equipo" \
-    "cancelar=touch '$marca_cancelar'" 2>/dev/null | grep -qx ok; then
+    "cancelar=touch '$marca_cancelar'" >/dev/null; then
     overlay=true
 else
     (

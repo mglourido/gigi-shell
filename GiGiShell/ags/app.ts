@@ -5,9 +5,7 @@ import Barra from "./modulos/barra/Barra"
 import Lagarto from "./modulos/mascotas/Lagarto"
 import MenuEnergia from "./modulos/menu-energia/MenuEnergia"
 import CuentaAtras from "./modulos/cuenta-atras/CuentaAtras"
-import { abrirDesdeFuera, cerrarDesdeFuera } from "./modulos/cuenta-atras/puente"
 import OSD, { showOSD } from "./modulos/osd/OSD"
-import { showMicOSD } from "./modulos/osd/MicOSD"
 import QuickSettings from "./modulos/ajustes-rapidos/QuickSettings"
 import NotificationPopup from "./modulos/notificaciones/NotificationPopup"
 import NotificationPanel from "./modulos/notificaciones/NotificationPanel"
@@ -16,7 +14,6 @@ import PanelCalendario from "./modulos/calendario/PanelCalendario"
 import SettingsPanel from "./modulos/ajustes/SettingsPanel"
 import VentanaGuardian from "./modulos/guardian/VentanaGuardian"
 import Orion from "./modulos/orion/Orion"
-import { togglePanel as alternarPanelOrion } from "./modulos/orion/state"
 import { orionEnabled } from "./modulos/ajustes/preferences"
 import { startCleanupEngine } from "./modulos/notificaciones/cleanup/cleanupEngine"
 import { runAppSettingsMigration } from "./modulos/notificaciones/settings/runMigration"
@@ -31,10 +28,8 @@ import { inicializarCamara } from "./servicios/camara/init.ts"
 import { initTlpAuto } from "./servicios/energia/tlpAuto"
 import { initInactividadAhorro } from "./servicios/pantalla/inactividadAhorro"
 import { inicializarMantenerDespierto } from "./servicios/energia/mantenerDespierto"
-import { initGamemode, toggleGamemode } from "./servicios/energia/gamemode"
-import { alternarSuspensionFalsa, entrarSuspensionFalsa, initSuspensionFalsa } from "./servicios/energia/suspensionFalsa"
-import { sfSustituirReal } from "./servicios/energia/powerState"
-import { execAsync } from "ags/process"
+import { initGamemode } from "./servicios/energia/gamemode"
+import { initSuspensionFalsa } from "./servicios/energia/suspensionFalsa"
 import { initPuenteWakeUp } from "./servicios/energia/wakeUpSuspensionFalsa"
 import { initOpacidadAhorro } from "./servicios/energia/opacidadAhorro"
 import { initOpacidadVentanas } from "./servicios/energia/opacidadVentanas"
@@ -46,7 +41,8 @@ import { initAcentoAdaptativo } from "./servicios/fondos/acento"
 import { initPresetsApps } from "./servicios/multimedia/presetsApps"
 import { initPresetsDispositivos } from "./servicios/multimedia/presetsDispositivos"
 import { initGuardian } from "./servicios/seguridad/guardian"
-import { alternarBarPorTecla, alternarMenuEnergia, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
+import { showBrightnessOSD } from "./estado/shell"
+import { atenderRequest } from "./puentes"
 
 // La hoja compilada vive en la caché, no en el repo: la genera
 // scripts/compilar-css.sh antes de cada `ags run`. Se pasa la RUTA, no un
@@ -58,136 +54,7 @@ if (!GLib.file_test(CSS, GLib.FileTest.EXISTS))
 
 app.start({
   css: CSS,
-  requestHandler(argv, response) {
-    // Cuenta atrás del botón de encendido. La abre y la cierra
-    // hypr/gigishell/boton-apagado.lua, que es quien lleva el timer y ejecuta la
-    // acción; aquí sólo se pinta. Comparación por POSICIÓN y no con `includes`: el
-    // segundo argumento es un nombre de acción ("suspender", "apagar"…) y no debe
-    // poder casar con ningún otro request de abajo. Una acción desconocida no llega
-    // (el Lua sólo manda las de su CON_CUENTA_ATRAS); si llegara, no se pinta nada
-    // pero la cuenta del Lua sigue y la acción sale igual a su hora.
-    if (argv[0] === "cuenta-atras") {
-      response(abrirDesdeFuera(argv.slice(1)))
-      return
-    }
-    if (argv[0] === "cuenta-atras-cerrar") {
-      response(cerrarDesdeFuera(argv.slice(1)))
-      return
-    }
-    if (argv.includes("volume-osd")) {
-      showOSD()
-      response("ok")
-      return
-    }
-    if (argv.includes("mic-osd")) {
-      showMicOSD()
-      response("ok")
-      return
-    }
-    if (argv.includes("brightness-osd")) {
-      showBrightnessOSD()
-      response("ok")
-      return
-    }
-    // Las teclas de brillo pasan por aquí en vez de llamar a `brightnessctl` desde el
-    // keybind: así funcionan con los dos backends (panel interno o DDC/CI) y el estado
-    // del shell no se desincroniza del monitor. Ver `servicios/pantalla/brightness.ts`.
-    if (argv.includes("brightness-up")) {
-      stepBrightness(0.1)
-      response("ok")
-      return
-    }
-    if (argv.includes("brightness-down")) {
-      stepBrightness(-0.1)
-      response("ok")
-      return
-    }
-    // Mismo interruptor que el botón de mando de Quick Settings, por si algún día
-    // se quiere una tecla. La respuesta dice en qué estado queda.
-    if (argv.includes("toggle-gamemode")) {
-      response(toggleGamemode() ? "on" : "off")
-      return
-    }
-    // Suspensión falsa. Se expone como `request` y no solo como botón porque es el punto
-    // de entrada que necesitan las otras tres superficies: el atajo de teclado (que además
-    // tiene que ser `locked = true` para existir con hyprlock delante), el menú de energía
-    // —cuyas acciones son COMANDOS de shell, `comando: string`, y no admiten una llamada
-    // interna sin cambiar el tipo— y cualquier automatismo del usuario.
-    // "Suspender" de todo el sistema pasa por aquí —el menú de energía y el botón físico de
-    // encendido— en vez de llamar a `systemctl suspend` cada uno por su cuenta. El motivo es
-    // el ajuste «sustituir la suspensión real por la falsa»: sin un punto único, encenderlo
-    // arreglaría la inactividad y dejaría el botón de encendido suspendiendo de verdad, que
-    // es exactamente el caso que el usuario quiere evitar y encima el más fácil de pulsar sin
-    // pensar. Quien llama tiene un `|| systemctl suspend` de reserva por si AGS no responde:
-    // sin AGS no hay nadie que pueda hacer una suspensión falsa, así que la real es la
-    // degradación correcta (misma REGLA DE ORO que idle-action.sh).
-    if (argv.includes("suspend")) {
-      if (sfSustituirReal.get()) {
-        entrarSuspensionFalsa().catch((e) => console.error("[suspend] suspensión falsa falló:", e))
-        response("falsa")
-      } else {
-        execAsync(["systemctl", "suspend"]).catch((e) => console.error("[suspend] falló:", e))
-        response("real")
-      }
-      return
-    }
-    // Entrada SIN alternar. La pide la TAPA del portátil («Suspensión falsa» en
-    // Ajustes > Energía, hypr/gigishell/tapa.lua): cerrar la tapa estando ya dentro
-    // tiene que dejarla puesta, y `toggle-suspension-falsa` haría justo lo
-    // contrario — sacar de ella con la tapa cerrada y nadie delante de la pantalla.
-    // Es un request aparte y no un parámetro del de arriba porque `suspend` significa
-    // otra cosa: allí la falsa solo entra si el usuario la ha puesto a sustituir a la
-    // real, y aquí la ha pedido por su nombre.
-    if (argv.includes("suspension-falsa-entrar")) {
-      entrarSuspensionFalsa().catch((e) => console.error("[suspension-falsa] entrada falló:", e))
-      response("ok")
-      return
-    }
-    if (argv.includes("toggle-suspension-falsa")) {
-      response(alternarSuspensionFalsa() ? "on" : "off")
-      return
-    }
-    if (argv.includes("toggle-orion")) {
-      alternarPanelOrion()
-      response("ok")
-      return
-    }
-    if (argv.includes("toggle-bar")) {
-      alternarBarPorTecla()
-      response("ok")
-      return
-    }
-    // Lo usa GiGiShell.boton_apagado() (hypr/gigishell/boton-apagado.lua) cuando el botón físico
-    // está configurado para abrir el menú en vez de ejecutar una acción directa.
-    if (argv.includes("toggle-power-menu")) {
-      alternarMenuEnergia()
-      response("ok")
-      return
-    }
-    if (argv.includes("toggle-quicksettings")) {
-      alternarQuickSettings()
-      response("ok")
-      return
-    }
-    if (argv.includes("toggle-settings")) {
-      alternarPanelAjustes()
-      response("ok")
-      return
-    }
-    if (argv.includes("toggle-notifications")) {
-      alternarPanelNotificaciones()
-      response("ok")
-      return
-    }
-    // El calendario era el único panel sin `request`: solo se abría pinchando el reloj de la barra.
-    // Con la barra autoocultada eso obliga a ir a buscarla, y no había forma de atarlo a una tecla.
-    if (argv.includes("toggle-calendar")) {
-      toggleCalendar()
-      response("ok")
-      return
-    }
-    response("unknown request")
-  },
+  requestHandler: atenderRequest,
   main() {
     // Cursor de texto FIJO en todo el shell. En GTK4 el parpadeo es un fundido
     // animado con el reloj de frames: mientras parpadea, la ventana se redibuja a

@@ -76,8 +76,9 @@ M.acciones = {
   -- inactividad y dejaría el BOTÓN FÍSICO suspendiendo de verdad — el camino más fácil de
   -- pulsar sin pensar y justo el que el usuario quiere evitar en un equipo cuyo S3 no
   -- vuelve. El `||` es la reserva para AGS caído: allí no hay quien haga una suspensión
-  -- falsa, así que la real es la degradación correcta.
-  suspender = function() hl.exec_cmd("sh -c 'ags request suspend || systemctl suspend'") end,
+  -- falsa, así que la real es la degradación correcta. pedir-ags.sh hace que salte también
+  -- con AGS congelado, que `ags request` a pelo esperaría sin límite.
+  suspender = function() hl.exec_cmd("sh -c '~/.config/hypr/scripts/pedir-ags.sh suspend || systemctl suspend'") end,
   hibernar = function() hl.exec_cmd("systemctl hibernate") end,
   cerrarSesion = function() hl.dispatch(hl.dsp.exit()) end,
   reiniciar = function() hl.exec_cmd("systemctl reboot") end,
@@ -98,7 +99,7 @@ M.acciones = {
 -- Sin cuenta atrás, y a propósito:
 --   · con la sesión bloqueada — hyprlock tapa cualquier overlay, así que sería una
 --     espera invisible; ahí el botón actúa al momento, como siempre;
---   · con AGS caído — el `||` del request confirma en el acto (fail-open: un botón
+--   · con AGS caído o congelado — el `||` de pedir-ags.sh confirma en el acto (como mucho a los 2 s) (fail-open: un botón
 --     que no hace nada es peor que uno sin confirmación);
 --   · en las acciones que no hay que proteger (bloquear, pantalla, menú, nada).
 --
@@ -117,13 +118,14 @@ local CON_CUENTA_ATRAS = {
 local pendiente = nil
 
 -- El puente del overlay (ags/modulos/cuenta-atras/puente.ts).
-local CERRAR_OVERLAY = "ags request cuenta-atras-cerrar id=boton"
+local PEDIR_AGS = util.HOGAR .. "/.config/hypr/scripts/pedir-ags.sh"
+local CERRAR_OVERLAY = PEDIR_AGS .. " cuenta-atras-cerrar id=boton"
 
 --- `accion` viene de CON_CUENTA_ATRAS (identificadores sin espacios ni comillas), así
---- que interpolarla en la línea de shell es seguro. Con AGS caído confirma en el acto.
+--- que interpolarla en la línea de shell es seguro. Si AGS no atiende, confirma.
 local function abrir_overlay(accion)
   hl.exec_cmd(string.format(
-    [[sh -c 'ags request cuenta-atras %s %d id=boton "ayuda=Vuelve a pulsar el botón de encendido para cancelar" "cancelar=hyprctl eval \"GiGiShell.boton_cancelar()\"" || hyprctl eval "GiGiShell.boton_confirmar()"']],
+    [[sh -c '$HOME/.config/hypr/scripts/pedir-ags.sh cuenta-atras %s %d id=boton "ayuda=Vuelve a pulsar el botón de encendido para cancelar" "cancelar=hyprctl eval \"GiGiShell.boton_cancelar()\"" || hyprctl eval "GiGiShell.boton_confirmar()"']],
     accion, SEGUNDOS_CUENTA_ATRAS))
 end
 

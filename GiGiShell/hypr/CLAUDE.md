@@ -71,6 +71,11 @@ Puntos que conviene recordar sin abrir el documento:
   [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md) antes de tocar nada de esto — documenta
   también por qué el inhibidor se ata a un `tail --pid` y no a un `sleep`, y por qué «no hacer nada
   si hay una pantalla externa» tiene que reimplementarse a mano.
+- **Puente con AGS.** Los requests se registran en `ags/puentes.ts`, y se buscan solo por el
+  primer argumento. Un atajo sin reserva usa `ags request` directo. **Quien tenga reserva usa
+  `hypr/scripts/pedir-ags.sh`**: `ags request` solo falla con AGS caído, espera sin límite con AGS
+  congelado, y `unknown request` o `error: …` salen con código 0, así que un `||` no los ve. Límite:
+  al agotarse los 2 s, AGS aún puede atender el request cuando se descongele.
 - **Editar un `*-monitor.sh` no afecta al que ya está corriendo**: hace falta `pkill -f
   <script>` + relanzarlo, o `hyprctl reload full-reset` (que sí re-ejecuta el autostart; un
   `hyprctl reload` normal no).

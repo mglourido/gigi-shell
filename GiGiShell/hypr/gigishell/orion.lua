@@ -28,7 +28,7 @@ local RUTA_PREFS = util.HOGAR .. "/.config/gigishell/preferences.json"
 -- atajo inservible en esa breve ventana. Va por hl.exec_cmd (asíncrono): un
 -- `ags request` dentro del callback del bind lo bloquearía, y los callbacks
 -- tienen 100 ms.
-local CMD = [[r=$(ags request toggle-orion 2>/dev/null); [ "$r" = ok ] || ags toggle orion]]
+local CMD = [[$HOME/.config/hypr/scripts/pedir-ags.sh toggle-orion >/dev/null || timeout 2 ags toggle orion]]
 
 function GiGiShell.toggle_orion()
   local ok = pcall(function()

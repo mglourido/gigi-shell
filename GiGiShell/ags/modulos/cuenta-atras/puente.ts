@@ -6,6 +6,8 @@
 //   ags request cuenta-atras <accion> <segundos> id=<id> ayuda="<texto>" cancelar="<comando>"
 //   ags request cuenta-atras-cerrar id=<id>
 //
+// Con reserva, por hypr/scripts/pedir-ags.sh. Se registran en ags/puentes.ts.
+//
 // Son `clave=valor` y no `--clave valor` porque `ags request` rechaza las banderas que no
 // conoce («unknown flag»). El comando de cancelar lo ejecuta AGS con `sh -c`: no da ningún
 // privilegio nuevo, porque el request solo lo puede mandar el mismo usuario.

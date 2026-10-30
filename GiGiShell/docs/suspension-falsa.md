@@ -50,7 +50,7 @@ añadir mecanismo nuevo, comprobar que no esté aquí.
 | Silenciar popups sin perder notificaciones | `notifd.dontDisturb` con la disciplina `autoOwned` de `modulos/notificaciones/autoDnd/watcher.ts` |
 | Silenciar el **sonido** de notificaciones y alarmas | `decidirSonido()` en `modulos/notificaciones/sonido/decision.ts` — es el único punto por el que suena algo en todo el shell (ver «Alarmas y No molestar») |
 | Parar los procesos de fondo de GiGiShell que no hacen falta mientras nadie mira | el sondeo caro lo congela el mismo `gaming-gate.sh` de la fila 3; los timers de los widgets **no se paran solos** al desmapear la ventana y hay que soltar `refrescar` a mano (ver «El lever más grande») |
-| Punto de entrada scriptable (menú de energía, atajos, cron) | `requestHandler` de `ags/app.ts` → `ags request toggle-suspension-falsa`, como `toggle-bar` o `toggle-power-menu` |
+| Punto de entrada scriptable (menú de energía, atajos, cron) | `ags/puentes.ts` → `ags request toggle-suspension-falsa`, como `toggle-bar` o `toggle-power-menu` |
 
 ### El lever más grande, y es gratis
 
@@ -588,7 +588,7 @@ en horas.
   (`modulos/menu-energia/acciones.ts`) es una lista de **comandos de shell** (`comando: string`)
   que se ejecutan con `execAsync`, y una acción interna del shell no cabe en ese tipo sin cambiarlo.
   Solución: exponer la entrada como comando —`ags request toggle-suspension-falsa`, registrado en el
-  `requestHandler` de `app.ts` igual que `toggle-bar`, `toggle-orion` o `toggle-power-menu`—, que
+  `ags/puentes.ts` igual que `toggle-bar`, `toggle-orion` o `toggle-power-menu`—, que
   además da de regalo el punto de entrada scriptable para el atajo y para cualquier automatismo.
   Recordar que `claseCss` es la clave con la que se guarda en `preferences.json`: elegirla bien a la
   primera, renombrarla luego obliga a migrar la preferencia.
