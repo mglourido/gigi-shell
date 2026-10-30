@@ -189,22 +189,72 @@ const PKG_LOCKS: &[&str] = &["/var/lib/pacman/db.lck"];
 const PKG_PROCS: &[&str] = &[
     "apt", "apt-get", "aptitude", "dpkg", "unattended-upgr", "dnf", "dnf5", "zypper", "rpm",
 ];
-const PKG_GRACIA: Duration = Duration::from_secs(90);
+/// Quienes pueden tener tomado el lock de pacman. No entran en `PKG_PROCS`: un `pacman -Q`
+/// no es una transacción, y aquí solo se pregunta si un lock antiguo sigue teniendo dueño.
+const PKG_GESTORES: &[&str] = &[
+    "pacman", "yay", "paru", "pikaur", "trizen", "aura", "pakku", "pamac-daemon", "pamac",
+    "shelly", "octopi", "packagekitd",
+];
+/// Edad a partir de la cual un lock sin ningún gestor vivo se da por huérfano. Es lo que
+/// tarda en recuperarse la vigilancia si pacman cae sin reiniciar.
+const LOCK_ANTIGUO: Duration = Duration::from_secs(3600);
+/// Holgura contra ajustes del reloj en los primeros segundos del arranque.
+const LOCK_MARGEN_ARRANQUE: Duration = Duration::from_secs(60);
+pub const PKG_GRACIA: Duration = Duration::from_secs(90);
 const DESYNC_TTL: Duration = Duration::from_secs(60);
+
+/// ¿Este `db.lck` corresponde a una transacción de verdad? Si pacman cae, el fichero se
+/// queda, y mientras exista todo lo de /etc se trataba como actualización, en silencio y
+/// para siempre. Anterior al arranque es huérfano seguro: nada sobrevive a un reinicio.
+/// De esta sesión y reciente se le cree. De esta sesión y antiguo, solo si hay gestor
+/// vivo: el `pacman -Syu` que lleva horas esperando en «¿Continuar?» sigue siendo válido.
+fn lock_vigente(mtime: SystemTime, ahora: SystemTime, arranque: Option<SystemTime>, gestor_vivo: impl FnOnce() -> bool) -> bool {
+    if arranque.is_some_and(|a| mtime + LOCK_MARGEN_ARRANQUE < a) {
+        return false;
+    }
+    if ahora.duration_since(mtime).unwrap_or(Duration::ZERO) < LOCK_ANTIGUO {
+        return true;
+    }
+    gestor_vivo()
+}
+
+/// Hora de arranque (`btime` de /proc/stat). Se mantiene estable al suspender.
+fn arranque() -> Option<SystemTime> {
+    let stat = fs::read_to_string("/proc/stat").ok()?;
+    let seg = stat.lines().find_map(|l| l.strip_prefix("btime "))?.trim().parse().ok()?;
+    Some(SystemTime::UNIX_EPOCH + Duration::from_secs(seg))
+}
 
 #[derive(Default)]
 pub struct Real {
     pkg_hasta: Option<Instant>,
     procs_ts: Option<Instant>,
     procs_res: bool,
+    gestor_ts: Option<Instant>,
+    gestor_res: bool,
     desync: Option<bool>,
     desync_ts: Option<Instant>,
+}
+
+impl Real {
+    fn lock_en_uso(&mut self, lock: &Path, ahora: Instant) -> bool {
+        let Ok(meta) = fs::metadata(lock) else { return false };
+        let Ok(mtime) = meta.modified() else { return true };
+        lock_vigente(mtime, SystemTime::now(), arranque(), || {
+            // Mismo límite que `PKG_PROCS`: recorrer /proc no se paga por evento.
+            if self.gestor_ts.is_none_or(|t| ahora.duration_since(t) >= Duration::from_secs(2)) {
+                self.gestor_ts = Some(ahora);
+                self.gestor_res = hay_proceso(PKG_GESTORES);
+            }
+            self.gestor_res
+        })
+    }
 }
 
 impl Entorno for Real {
     fn pkg_tx_activa(&mut self) -> bool {
         let ahora = Instant::now();
-        let mut activa = PKG_LOCKS.iter().any(|l| Path::new(l).exists());
+        let mut activa = PKG_LOCKS.iter().any(|l| self.lock_en_uso(Path::new(l), ahora));
         if !activa {
             // Sustituye al `pgrep -x` limitado a una vez cada 2 s: leer /proc/*/comm.
             if self.procs_ts.is_none_or(|t| ahora.duration_since(t) >= Duration::from_secs(2)) {
@@ -359,6 +409,31 @@ impl Entorno for Falso {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lock_de_pacman() {
+        let t = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
+        let hora = Duration::from_secs(3600);
+        let boot = Some(t);
+        // Reciente: se le cree sin mirar procesos.
+        assert!(lock_vigente(t + hora, t + hora * 2 - Duration::from_secs(1), boot, || panic!()));
+        // Antiguo: decide si hay gestor vivo.
+        assert!(lock_vigente(t + hora, t + hora * 5, boot, || true));
+        assert!(!lock_vigente(t + hora, t + hora * 5, boot, || false));
+        // Anterior al arranque: huérfano, aunque haya un gestor (otra transacción no puede
+        // tenerlo: pacman se negaría a arrancar con él puesto).
+        assert!(!lock_vigente(t - hora, t, boot, || true));
+        // Dentro de la holgura del arranque, y sin poder leer el arranque: no se descarta.
+        assert!(lock_vigente(t - Duration::from_secs(30), t, boot, || panic!()));
+        assert!(lock_vigente(t, t, None, || panic!()));
+        // Reloj atrasado respecto al fichero: como reciente.
+        assert!(lock_vigente(t + hora, t, boot, || panic!()));
+    }
+
+    #[test]
+    fn arranque_real_es_pasado() {
+        assert!(arranque().unwrap() < SystemTime::now());
+    }
 
     #[test]
     fn base_textual() {

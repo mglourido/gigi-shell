@@ -813,17 +813,51 @@ PKG_LOCKS=(/var/lib/pacman/db.lck)
 # `pgrep -x` ancla el patrón al NOMBRE completo del proceso (sin -f: la línea de
 # órdenes de un `sudo apt install …` no casaría con un nombre suelto).
 PKG_PROCS='apt|apt-get|aptitude|dpkg|unattended-upgr|dnf|dnf5|zypper|rpm'
+# Quienes pueden tener tomado el lock de pacman. Aparte de PKG_PROCS: un `pacman -Q` no es una
+# transacción, y aquí solo se pregunta si un lock antiguo sigue teniendo dueño.
+PKG_GESTORES='pacman|yay|paru|pikaur|trizen|aura|pakku|pamac-daemon|pamac|shelly|octopi|packagekitd'
+PKG_LOCK_ANTIGUO=3600       # edad desde la que un lock sin gestor vivo se da por huérfano
+PKG_LOCK_MARGEN_ARRANQUE=60 # holgura contra ajustes del reloj al arrancar
+_pkg_gestor_ts=0
+_pkg_gestor_res=1
 PKG_GRACIA=90       # segundos de margen tras soltarse el lock
 PKG_CALMA=30        # ventana de calma ANCHA mientras dura la actualización (ver monitor_files)
 PKG_TOPE=900        # tope de esa ventana: una actualización larga cabe entera en un resumen
+ARCHIVOS_REVISION=600   # segundos sin eventos hasta repasar las carpetas (ver monitor_files)
+ARCHIVOS_LOG_PACMAN=/var/log/pacman.log
+ARCHIVOS_LOG_FINAL=262144   # una carpeta ciega se mira 10 min tarde como mucho: basta el final
 _pkg_hasta=0        # epoch hasta el que se sigue considerando "en actualización"
 _pkg_pgrep_ts=0     # última vez que se consultó pgrep (limitador de ráfaga)
 _pkg_pgrep_res=1    # último veredicto de pgrep (0 = había gestor corriendo)
+# ¿Este lock corresponde a una transacción de verdad? Si pacman cae, el fichero se queda, y
+# mientras exista todo lo de /etc se trataba como actualización, en silencio y para siempre.
+# Anterior al arranque es huérfano seguro: nada sobrevive a un reinicio. De esta sesión y
+# reciente se le cree. De esta sesión y antiguo, solo si hay gestor vivo: el `pacman -Syu`
+# que lleva horas esperando en «¿Continuar?» sigue siendo válido.
+_pkg_lock_en_uso() {   # <lock> <ahora>
+    local m clave valor
+    m=$(stat -c %Y "$1" 2>/dev/null) || return 1
+    while read -r clave valor _; do
+        if [[ "$clave" == btime ]]; then
+            (( m + PKG_LOCK_MARGEN_ARRANQUE < valor )) && return 1
+            break
+        fi
+    done </proc/stat
+    (( $2 - m < PKG_LOCK_ANTIGUO )) && return 0
+    # Mismo límite que el otro `pgrep`: una vez cada 2 s como mucho.
+    if (( $2 - _pkg_gestor_ts >= 2 )); then
+        _pkg_gestor_ts=$2
+        pgrep -x "$PKG_GESTORES" >/dev/null 2>&1 && _pkg_gestor_res=0 || _pkg_gestor_res=1
+    fi
+    return "$_pkg_gestor_res"
+}
+
 pkg_tx_activa() {
     local ahora l
     printf -v ahora '%(%s)T' -1
     for l in "${PKG_LOCKS[@]}"; do
         [[ -e "$l" ]] || continue
+        _pkg_lock_en_uso "$l" "$ahora" || continue
         _pkg_hasta=$(( ahora + PKG_GRACIA ))
         return 0
     done
@@ -880,7 +914,21 @@ pkg_sesion_desincronizada() {
 # Se vigilan los DIRECTORIOS padre y se filtra por nombre: así se detectan también
 # los reemplazos atómicos (write-temp + rename) que hacen passwd/visudo/editores,
 # que un watch sobre el inodo del archivo se perdería. Cubre configs de auth,
-# claves SSH y los sitios típicos de persistencia (systemd, autostart, cron).
+# claves SSH y los sitios típicos de persistencia (systemd, autostart, cron, PAM, udev,
+# polkit, hooks de pacman, profile.d…).
+#
+# inotify no ve tres cosas, y de ellas se encarga _archivos_revisar cada ARCHIVOS_REVISION
+# segundos sin eventos (`inotifywait -t` termina y se relanza con la lista al día):
+#   · Subcarpetas: `systemctl enable` escribe en `multi-user.target.wants/`, no en
+#     `/etc/systemd/system`. Sin vigilarlas, la persistencia más típica no avisaba.
+#   · Carpetas que aparecen después (`~/.ssh`, `~/.config/systemd/user`): lo que ya tengan
+#     dentro al verlas se avisa como cambio, porque se escribió sin watch.
+#   · Las que no se pueden leer sin root (`/etc/sudoers.d`, `/etc/polkit-1/rules.d`):
+#     inotifywait no puede con ellas y ABORTA entero si le pasas una, pero `stat` sí ve
+#     su fecha, que cambia con altas, bajas y renombrados (no con una edición dentro).
+# El daemon Rust hace lo mismo y además repasa en cuanto se crea una carpeta; aquí una
+# carpeta nueva espera a la revisión, porque matar el inotifywait a mitad no compensa en
+# un respaldo. Tampoco se recoge lo que caiga en los milisegundos del relanzamiento.
 #
 # Los eventos se AGRUPAN antes de notificar (lib/notif-agrupar.sh): un solo
 # `pacman -Syu` toca decenas de rutas vigiladas en segundos, y una notificación
@@ -896,21 +944,17 @@ monitor_files() {
         return
     fi
 
-    # inotifywait ABORTA entero si no puede vigilar UNA sola ruta, así que solo
-    # añadimos las que el usuario puede vigilar de verdad: existentes y con permiso
-    # de lectura+ejecución sobre el directorio (-r -x). Esto excluye dirs root-only
-    # como /etc/sudoers.d (750 root) o /boot (700) cuando corremos sin privilegios
-    # — no se puede vigilar lo que el kernel no nos deja ver. La vigilancia del
-    # propio /etc (755) sí capta modificaciones de /etc/passwd, sudoers, shadow…
-    # porque el evento se entrega a nivel de directorio (no hace falta leer el
-    # fichero). Las subcarpetas root-only quedan sin cubrir sin ejecutar como root.
-    local watch_paths=()
-    local d
-    for d in /etc /etc/pam.d /etc/sudoers.d /etc/ssh /etc/cron.d /etc/systemd/system \
-             /boot "$HOME/.ssh" "$HOME/.config/autostart" "$HOME/.config/systemd/user"; do
-        [[ -d "$d" && -r "$d" && -x "$d" ]] && watch_paths+=("$d")
-    done
-    [[ ${#watch_paths[@]} -gt 0 ]] || return
+    local -a raices_planas=(
+        /etc /etc/pam.d /etc/sudoers.d /etc/ssh /etc/ssh/sshd_config.d /etc/polkit-1/rules.d
+        /etc/cron.d /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly
+        /etc/udev/rules.d /etc/pacman.d/hooks /etc/profile.d /etc/xdg/autostart /etc/ld.so.conf.d
+        /boot "$HOME/.ssh" "$HOME/.config/autostart"
+    )
+    # Con sus subcarpetas. /var/spool/cron porque Debian guarda los crontabs en `crontabs/`.
+    local -a raices_arbol=(/etc/systemd/system /etc/systemd/user /var/spool/cron "$HOME/.config/systemd/user")
+    local -a watch_paths=()
+    local -A vistos=() fechas=()
+    local inicial=1
 
     # Un mismo cambio genera DOS eventos (create + close_write) sobre la misma
     # ruta: la deduplicación de la librería los colapsa en uno.
@@ -918,23 +962,24 @@ monitor_files() {
     notif_grupo fpersist archivos.persistencia       critical 0     "Posible persistencia"               "cambios de posible persistencia" "Nuevo/modificado: "
     notif_grupo fssh     archivos.clave-ssh          critical 0     "Clave SSH autorizada modificada"    "cambios en claves SSH autorizadas" "Archivo: "
     notif_grupo fboot    archivos.boot               normal   15000 "Cambio en /boot"                    "cambios en /boot"                "Archivo: " " (kernel/initramfs)"
-    # Durante una actualización de paquetes los tres grupos de arriba se desvían a
-    # este, que es informativo y se autocierra (ver pkg_tx_activa). No se callan del
-    # todo a propósito: si algo tocó /etc mientras actualizabas, sigue constando.
+    # Durante una actualización de paquetes lo sensible que un paquete rara vez toca
+    # (cuentas, PAM, sudoers, units) se desvía a este, que es informativo y se autocierra
+    # (ver pkg_tx_activa y _archivos_atender). No se calla a propósito: sigue constando.
     notif_grupo fpkg     archivos.actualizacion      low      15000 "Actualización del sistema"          "archivos de sistema actualizados" "Archivo: "
     # Un cambio = create + close_write: la misma ruta dos veces es UN cambio, no dos.
     notif_grupo_unico fcrit; notif_grupo_unico fpersist
     notif_grupo_unico fssh;  notif_grupo_unico fboot
     notif_grupo_unico fpkg
+    # El primero sale en el acto y un resumen posterior sustituye esa tarjeta: sin esto un
+    # crítico durante una actualización esperaba los PKG_CALMA de su ventana ancha.
+    notif_grupo_inmediato fcrit; notif_grupo_inmediato fpersist; notif_grupo_inmediato fssh
 
     # Ventana de agrupación: la normal, y la ANCHA que se usa mientras dura una
     # actualización. Con la normal (calma 4 s / tope 20 s) un `pacman -Syu` de tres
     # minutos escupiría un resumen cada 20 s — quince tarjetas en vez de una. Con la
-    # ancha sale UNA al terminar, ~30 s después del último fichero tocado. Ojo al
-    # efecto colateral: la ventana es de TODAS las categorías de este bucle, así que
-    # un cambio en `authorized_keys` justo mientras actualizas —lo único que NO se
-    # desvía a fpkg— avisa hasta PKG_CALMA segundos tarde. Se acepta: llega igual, y
-    # el aviso sirve para enterarse, no para interrumpir el ataque en curso.
+    # ancha sale UNA al terminar, ~30 s después del último fichero tocado. La ventana es
+    # de TODAS las categorías de este bucle, pero las críticas son inmediatas: solo su
+    # resumen, si llegan más, espera a que se cierre.
     local calma_base=$NOTIF_CALMA tope_base=$NOTIF_TOPE en_tx=false
     # Nested a propósito: ve `en_tx`/`calma_base` por ámbito dinámico, igual que
     # _dl_sweep en monitor_downloads.
@@ -949,66 +994,207 @@ monitor_files() {
         return 0
     }
 
-    local path rc
+    # Temporales de editor (`.foo.swp` y `4913` de vim, `.foo.kate-swp`, `.#foo` de emacs y
+    # de `systemctl edit`): lo que vale es el fichero que se guarda después. Ningún lector
+    # de estas rutas carga un oculto, pero cron sí ejecutaría un `4913`: ahí no se descarta.
+    _archivos_es_temporal() {
+        case "${1##*/}" in
+            .*.sw[a-z]|.*.kate-swp|.\#*) return 0 ;;
+            4913) case "$1" in /etc/cron*|/var/spool/cron*) return 1 ;; esac; return 0 ;;
+        esac
+        return 1
+    }
+
+    # ¿El instante $1 cae en una transacción del registro de pacman? 0 sí, 1 no, 2 sin datos.
+    # Vale el intervalo started..completed y, además, el entorno de cualquier línea `[ALPM]`,
+    # porque los hooks se registran fuera de ese intervalo: unos antes de `started` y otros
+    # después de `completed`. No se alarga el intervalo hasta la línea siguiente: el hook
+    # previo de la próxima actualización abriría una ventana de horas.
+    _archivos_en_tx_pacman() {
+        local t=$1 ini=0 i dif msg
+        local -a lineas fechas
+        mapfile -t lineas < <(tail -c "$ARCHIVOS_LOG_FINAL" "$ARCHIVOS_LOG_PACMAN" 2>/dev/null |
+            sed -nE 's/^\[([^]]+)\] \[ALPM\] (.*)$/\1 \2/p')
+        (( ${#lineas[@]} )) || return 2
+        mapfile -t fechas < <(printf '%s\n' "${lineas[@]%% *}" | date -f - +%s 2>/dev/null)
+        (( ${#fechas[@]} == ${#lineas[@]} )) || return 2
+        for i in "${!lineas[@]}"; do
+            dif=$(( t - fechas[i] )); (( dif < 0 )) && dif=$(( -dif ))
+            (( dif <= PKG_GRACIA )) && return 0
+            msg=${lineas[i]#* }
+            case "$msg" in
+                'transaction started'*)
+                    # Una anterior sin cerrar (pacman cayó): se le concede el tope.
+                    (( ini && ini <= t && t <= ini + PKG_TOPE )) && return 0
+                    ini=${fechas[i]} ;;
+                'transaction '*)
+                    (( ini && ini <= t && t <= fechas[i] )) && return 0
+                    ini=0 ;;
+            esac
+        done
+        (( ini && ini <= t && t <= ini + PKG_TOPE )) && return 0
+        return 1
+    }
+
+    # De una carpeta sin permiso de lectura solo se sabe CUÁNDO cambió, y se mira hasta 10
+    # min después: la transacción ya pasó, así que se busca en su registro si coincide con
+    # aquella fecha. Sin registro (otros gestores) se usa un margen sobre su base de datos,
+    # ventana ciega aceptada por la misma razón que PKG_GRACIA: escribir ahí exige ser root.
+    _archivos_obra_de_paquetes() {
+        local base m dif rc
+        _archivos_en_tx_pacman "$1"; rc=$?
+        (( rc != 2 )) && return "$rc"
+        for base in /var/lib/pacman/local /var/lib/dpkg/status /var/lib/rpm; do
+            m=$(stat -c %Y "$base" 2>/dev/null) || continue
+            dif=$(( m - $1 )); (( dif < 0 )) && dif=$(( -dif ))
+            (( dif <= PKG_TOPE )) && return 0
+        done
+        return 1
+    }
+
+    _archivos_atender() {   # <ruta> [true = tratar como obra de una actualización]
+        local path=$1 forzar=${2:-false} cat
+        # Artefactos del gestor de paquetes: NUNCA son el evento. Un `.pacnew` es un
+        # fichero de referencia que pacman deja al lado del tuyo justamente para NO
+        # tocar el activo — avisar de él como "posible persistencia" es exactamente
+        # al revés de lo que significa. Se descartan pase lo que pase (llegan también
+        # fuera de la ventana de la transacción, p. ej. al hacer `pacdiff` después).
+        case "$path" in
+            *.pacnew|*.pacsave|*.pacorig|*.pacsave.[0-9]|\
+            *.dpkg-new|*.dpkg-dist|*.dpkg-old|*.dpkg-tmp|\
+            *.rpmnew|*.rpmsave|*.rpmorig|*~)
+                return 0 ;;
+        esac
+        _archivos_es_temporal "$path" && return 0
+
+        case "$path" in
+            /etc/passwd|/etc/shadow|/etc/group|/etc/gshadow|/etc/hosts|/etc/sudoers|/etc/ld.so.preload|/etc/ld.so.conf|/etc/nsswitch.conf|/etc/environment|/etc/ssh/sshd_config)
+                cat=fcrit ;;
+            /etc/crontab|/etc/profile|/etc/bash.bashrc|\
+            /etc/sudoers.d/*|/etc/pam.d/*|/etc/ssh/sshd_config.d/*|/etc/polkit-1/rules.d/*|\
+            /etc/cron.d/*|/etc/cron.hourly/*|/etc/cron.daily/*|/etc/cron.weekly/*|/etc/cron.monthly/*|\
+            /var/spool/cron/*|/etc/systemd/system/*|/etc/systemd/user/*|/etc/udev/rules.d/*|\
+            /etc/pacman.d/hooks/*|/etc/profile.d/*|/etc/xdg/autostart/*|/etc/ld.so.conf.d/*|\
+            "$HOME"/.config/autostart/*|"$HOME"/.config/systemd/user/*)
+                cat=fpersist ;;
+            "$HOME"/.ssh/authorized_keys|"$HOME"/.ssh/authorized_keys2)
+                cat=fssh ;;
+            /boot/*)
+                cat=fboot ;;
+            # Antes de mirar si hay transacción: esa comprobación (y a veces un `pgrep`) no
+            # se paga por un /etc/resolv.conf que no se va a avisar. Y un /etc/ld.so.cache
+            # tampoco cuenta como «archivo actualizado», que era el grueso de esa tarjeta.
+            *) return 0 ;;
+        esac
+
+        _ventana_paquetes
+        if [[ "$en_tx" == true || "$forzar" == true ]]; then
+            case "$path" in
+                # Lo que ninguna actualización debe tocar sigue siendo crítico. Las rutas del
+                # usuario no solo por eso: «hay una actualización» lo decide también un
+                # proceso llamado `apt`, y eso lo puede fingir cualquiera sin ser root.
+                /etc/ld.so.preload|"$HOME"/*) ;;
+                # Lo que los paquetes reescriben en cada actualización suya (kernel,
+                # `gawk.sh`, los `.desktop` de Plasma) no dice nada, y mantenerlo en la
+                # tarjeta la haría salir casi siempre: enseña a no leerla.
+                /boot/*|/etc/profile.d/*|/etc/xdg/autostart/*|/etc/ld.so.conf.d/*|\
+                /etc/cron.d/*|/etc/cron.hourly/*|/etc/cron.daily/*|/etc/cron.weekly/*|/etc/cron.monthly/*)
+                    return 0 ;;
+                *) cat=fpkg ;;
+            esac
+        fi
+        notif_encolar "$cat" "$path"
+    }
+
+    _archivos_raiz() {   # <carpeta> <true = con subcarpetas>
+        local d=$1 sub f m forzar
+        local -a lista
+        if [[ ! -d "$d" ]]; then
+            unset "fechas[$d]"
+            return 0
+        fi
+        if [[ -r "$d" && -x "$d" ]]; then
+            lista=("$d")
+            [[ "$2" == true ]] && mapfile -t lista < <(find "$d" -maxdepth 4 -type d 2>/dev/null)
+            for sub in "${lista[@]}"; do
+                # Sin esto una subcarpeta root-only abortaría el inotifywait entero.
+                [[ -r "$sub" && -x "$sub" ]] || continue
+                watch_paths+=("$sub")
+                actuales[$sub]=1
+                (( inicial )) && continue
+                [[ -n "${vistos[$sub]+x}" ]] && continue
+                while IFS= read -r f; do
+                    _archivos_atender "$f"
+                done < <(find "$sub" -mindepth 1 -maxdepth 1 ! -type d 2>/dev/null)
+            done
+        else
+            m=$(stat -c %Y "$d" 2>/dev/null) || return 0
+            if [[ -n "${fechas[$d]+x}" ]]; then
+                [[ "${fechas[$d]}" == "$m" ]] && return 0
+            elif (( inicial )); then
+                fechas[$d]=$m
+                return 0
+            fi
+            fechas[$d]=$m
+            forzar=false
+            _archivos_obra_de_paquetes "$m" && forzar=true
+            _archivos_atender "$d/" "$forzar"
+        fi
+    }
+
+    # Lista al día en watch_paths. Lo encontrado se vuelca aquí mismo: la tubería de abajo
+    # es otro proceso y no ve estas colas.
+    _archivos_revisar() {
+        local d k
+        local -A actuales=()
+        watch_paths=()
+        for d in "${raices_planas[@]}"; do _archivos_raiz "$d" false; done
+        for d in "${raices_arbol[@]}"; do _archivos_raiz "$d" true; done
+        vistos=()
+        for k in "${!actuales[@]}"; do vistos[$k]=1; done
+        inicial=0
+        notif_pendiente && notif_volcar
+        return 0
+    }
+
+    local linea rc inicio
     # La tubería va en SEGUNDO PLANO y se espera con `wait`, y no es un capricho de estilo:
     # bash **aplaza las señales mientras espera a un hijo en primer plano**, así que con un
-    # `inotifywait -m` delante —que puede bloquearse para siempre— el SIGTERM del `pkill` quedaba
-    # pendiente hasta que ese hijo terminara, o sea nunca: el trap no corría y el nieto se
+    # `inotifywait -m` delante —que puede bloquearse para siempre— el SIGTERM del `pkill`
+    # quedaba pendiente hasta que ese hijo terminara, o sea nunca: el trap no corría y el nieto se
     # quedaba huérfano (ver "Apagado limpio" al final del script). Esperando con `wait`, la
     # señal se atiende al instante. Mismo patrón que el envoltorio `blocking` de
     # updates-monitor.sh, que ya lo documenta para su `inotifywait`.
     trap '_matar_descendientes "$_tuberia" 2>/dev/null; exit 0' TERM INT HUP
-    {
-        inotifywait -m -e close_write,moved_to,create --format '%w%f' \
-            "${watch_paths[@]}" 2>/dev/null |
-        while :; do
-            notif_leer path; rc=$?
-            if (( rc != 0 )); then
-                notif_volcar
-                (( rc == 2 )) || break   # 1 = se acabó el stream de inotifywait
-                _ventana_paquetes        # volcado hecho: si la actualización acabó, ventana normal
-                continue
-            fi
-
-            # Artefactos del gestor de paquetes: NUNCA son el evento. Un `.pacnew` es un
-            # fichero de referencia que pacman deja al lado del tuyo justamente para NO
-            # tocar el activo — avisar de él como "posible persistencia" es exactamente
-            # al revés de lo que significa. Se descartan pase lo que pase (llegan también
-            # fuera de la ventana de la transacción, p. ej. al hacer `pacdiff` después).
-            case "$path" in
-                *.pacnew|*.pacsave|*.pacorig|*.pacsave.[0-9]|\
-                *.dpkg-new|*.dpkg-dist|*.dpkg-old|*.dpkg-tmp|\
-                *.rpmnew|*.rpmsave|*.rpmorig|*~)
-                    continue ;;
-            esac
-
-            _ventana_paquetes
-            if [[ "$en_tx" == true ]]; then
-                case "$path" in
-                    # Las claves SSH del usuario NO las escribe ningún paquete: si cambian
-                    # en mitad de una actualización, sigue siendo la alerta crítica de
-                    # siempre. Todo lo demás (/etc, /boot, units) es el gestor trabajando.
-                    "$HOME"/.ssh/authorized_keys|"$HOME"/.ssh/authorized_keys2)
-                        notif_encolar fssh "$path"; continue ;;
-                    *)
-                        notif_encolar fpkg "$path"; continue ;;
-                esac
-            fi
-
-            case "$path" in
-                /etc/passwd|/etc/shadow|/etc/group|/etc/gshadow|/etc/hosts|/etc/sudoers|/etc/ld.so.preload|/etc/ssh/sshd_config)
-                    notif_encolar fcrit "$path" ;;
-                /etc/sudoers.d/*|/etc/pam.d/*|/etc/cron.d/*|/etc/systemd/system/*|"$HOME"/.config/autostart/*|"$HOME"/.config/systemd/user/*)
-                    notif_encolar fpersist "$path" ;;
-                "$HOME"/.ssh/authorized_keys|"$HOME"/.ssh/authorized_keys2)
-                    notif_encolar fssh "$path" ;;
-                /boot/*)
-                    notif_encolar fboot "$path" ;;
-            esac
-        done
-    } &
-    _tuberia=$!
-    wait "$_tuberia"
+    while :; do
+        _archivos_revisar
+        inicio=$SECONDS
+        {
+            inotifywait -q -m -t "$ARCHIVOS_REVISION" -e close_write,moved_to,create --format '%e|%w%f' \
+                "${watch_paths[@]}" 2>/dev/null |
+            while :; do
+                notif_leer linea; rc=$?
+                if (( rc != 0 )); then
+                    notif_volcar
+                    (( rc == 2 )) || break   # 1 = se acabó el stream de inotifywait
+                    _ventana_paquetes        # volcado hecho: si la actualización acabó, ventana normal
+                    continue
+                fi
+                # Una carpeta creada no es un cambio por sí misma; lo que tenga dentro lo
+                # recoge la revisión.
+                [[ "${linea%%|*}" == *ISDIR* ]] && continue
+                _archivos_atender "${linea#*|}"
+            done
+        } &
+        _tuberia=$!
+        wait "$_tuberia"
+        # Un inotifywait que muere nada más nacer (límite de watches) no debe girar en vacío.
+        if (( SECONDS - inicio < 5 )); then
+            sleep 60 &
+            _tuberia=$!
+            wait "$_tuberia"
+        fi
+    done
 }
 
 # ── Disk health monitor (SMART, polling) ──────────────────────────────────────
@@ -1608,10 +1794,10 @@ monitor_downloads() {
 # ── Apagado limpio: no dejar hijos sueltos ────────────────────────────────────
 # **Sin esto, cada muerte del script dejaba un `inotifywait -m` vivo PARA SIEMPRE.** Los seis
 # monitores son hijos directos (`func &`) y `pkill -f oom-monitor.sh` sí se los lleva, pero sus
-# NIETOS no casan con ese patrón: el `inotifywait -m` de monitor_files no tiene `-t`, así que se
-# queda bloqueado esperando eventos, lo adopta init y ahí sigue — vigilando /etc, /boot y ~/.ssh y
-# ocupando ~3,7 MB de RSS y sus watches de inotify, sin nadie al otro lado de la tubería. Medido en
-# esta máquina: un huérfano de 1 h 48 min de una instancia anterior. Y se acumulan, porque tanto
+# NIETOS no casan con ese patrón: el `inotifywait -m` de monitor_files se queda bloqueado esperando
+# eventos (hoy con un `-t` de revisión, pero entonces sin él), lo adopta init y ahí sigue — vigilando
+# /etc, /boot y ~/.ssh y ocupando ~3,7 MB de RSS y sus watches de inotify, sin nadie al otro lado de
+# la tubería. Medido en esta máquina: un huérfano de 1 h 48 min de una instancia anterior. Y se acumulan, porque tanto
 # `hyprctl reload full-reset` como el ciclo documentado de "editar un *-monitor.sh y relanzarlo"
 # pasan por ahí.
 #
@@ -1660,8 +1846,9 @@ _recoger_huerfanos() {
     # Los patrones son las líneas de órdenes EXACTAS que emite este script (ver monitor_files,
     # monitor_system y monitor_kernel). Nada genérico: un `pgrep -f inotifywait` a secas se llevaría
     # por delante el vigilante de pacman de updates-monitor.sh, o el de cualquier otra app.
+    # Son regex: el `|` del --format va entre corchetes o el patrón se parte en dos alternativas.
     for patron in \
-        "inotifywait -m -e close_write,moved_to,create --format %w%f /etc " \
+        "inotifywait -q -m -t $ARCHIVOS_REVISION -e close_write,moved_to,create --format %e[|]%w%f /etc " \
         "journalctl -f -n 0 --no-pager -t sudo -t sshd -t su" \
         "journalctl -kf -n 0 --no-pager"
     do

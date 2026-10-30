@@ -3366,10 +3366,45 @@ que no le pisa el índice al bash. Sí lanza `clamscan` sobre lo nuevo.
   removibles — ver la sección de USB para por qué esa ruta deliberadamente NO pasa por pkexec),
   esa escalada también callaría sin haber pasado por una contraseña.
 - `monitor_files` — `inotifywait` on the *parent directories* of critical paths (not the files
-  themselves, so atomic write+rename replacements like `visudo`/`passwd` are still caught):
-  `/etc/passwd`, `shadow`, `sudoers`, `ld.so.preload`, `sshd_config`, plus persistence
-  locations (`sudoers.d/`, `pam.d/`, `cron.d/`, `systemd/system/`, `~/.config/autostart/`,
-  `~/.ssh/authorized_keys`, `/boot/`).
+  themselves, so atomic write+rename replacements like `visudo`/`passwd` are still caught). Críticos:
+  `/etc/passwd`, `shadow`, `group`, `gshadow`, `hosts`, `sudoers`, `ld.so.preload`, `ld.so.conf`,
+  `nsswitch.conf`, `environment`, `ssh/sshd_config`. Persistencia: `crontab`, `profile`,
+  `bash.bashrc`, y las carpetas `sudoers.d/`, `pam.d/`, `ssh/sshd_config.d/`, `polkit-1/rules.d/`,
+  `cron.{d,hourly,daily,weekly,monthly}/`, `/var/spool/cron/`, `systemd/{system,user}/`,
+  `udev/rules.d/`, `pacman.d/hooks/`, `profile.d/`, `xdg/autostart/`, `ld.so.conf.d/`,
+  `~/.config/autostart/` y `~/.config/systemd/user/`. Además `~/.ssh/authorized_keys` y `/boot/`.
+  **`.bashrc`/`.zshrc` del usuario se dejan fuera a propósito**: los edita el propio usuario a
+  menudo y volverían a saturar la categoría.
+
+  **Es por eventos: no hay nada que espaciar.** Parado consume 0 de CPU. Lo único periódico es la
+  **revisión de 10 min** (`REVISION` / `ARCHIVOS_REVISION`, unos pocos `stat`), que existe por lo que
+  inotify no puede ver, tres agujeros reales de cuando la lista se fijaba al arrancar y sin recursión:
+  1. **Subcarpetas.** `systemctl enable` crea el enlace en `multi-user.target.wants/`, no en
+     `/etc/systemd/system`: la persistencia más típica no avisaba. Los dos `systemd/` y
+     `/var/spool/cron` se vigilan en árbol (hasta 4 niveles). Crear la carpeta no avisa; su contenido sí.
+  2. **Carpetas que aparecen después.** `~/.ssh` o `~/.config/systemd/user` no existían al arrancar y
+     no se vigilaban nunca: `mkdir ~/.ssh` + `authorized_keys` no daba aviso. Al descubrir una carpeta
+     nueva, lo que ya tenga dentro **se avisa** (se escribió sin watch); lo que había al arrancar, no.
+  3. **Carpetas sin permiso de lectura** (`/etc/sudoers.d`, `/etc/polkit-1/rules.d`, 750 root): no
+     admiten watch, pero `stat` ve su fecha, que cambia con altas, bajas y renombrados. **No con una
+     edición dentro de un fichero**: eso sigue sin verse sin root. Como se mira hasta 10 min tarde, para
+     saber si fue una actualización se busca esa fecha en `/var/log/pacman.log`: el intervalo
+     `started`..`completed` más ±`PKG_GRACIA` alrededor de cada línea `[ALPM]`, porque los hooks se
+     registran fuera de él. **No se alarga el intervalo hasta la línea siguiente**: el hook previo de la
+     próxima actualización abriría una ventana ciega de horas. Una transacción sin cerrar dura
+     `PKG_TOPE`. Sin ese registro (otros gestores), margen de ±`PKG_TOPE` sobre su base de datos.
+
+  El daemon repasa también al instante si inotify avisa de una carpeta creada (y suelta el watch de
+  una renombrada, que seguiría informando con la ruta vieja). El bash espera a la revisión: `inotifywait
+  -m -t 600` termina tras 10 min sin eventos y se relanza con la lista al día, con un hueco de unos ms
+  sin vigilancia en cada relanzamiento, aceptado por ser un respaldo. Sus patrones de
+  `_recoger_huerfanos` copian esa línea de órdenes: **si cambia el `inotifywait`, cambia el patrón**,
+  que además es regex (el `|` del `--format` va entre corchetes).
+
+  **Temporales de editor** (`.foo.swp`, `4913`, `.foo.kate-swp`, `.#foo`) se descartan: editar un
+  `.desktop` daba un crítico sin autocierre por el `.swp`. Ningún lector de estas rutas carga un oculto;
+  cron sí ejecutaría un `4913`, así que ahí no se filtra.
+
   **Notifica por ráfaga, no por fichero** (vía `lib/notif-agrupar.sh`, ver su sección). Emitía una
   notificación **por cada ruta**, y todas las de `/etc` son críticas con `-t 0` (sin autocierre):
   un `pacman -Syu` normal dejaba decenas de tarjetas críticas apiladas del mismo tema, que se
@@ -3390,11 +3425,22 @@ que no le pisa el índice al bash. Sí lanza `clamscan` sobre lo nuevo.
      es justo la prueba de que pacman **no** tocó tu fichero activo — anunciarlo como persistencia
      dice lo contrario de lo que significa. Es el fichero de las capturas del usuario
      (`/etc/pam.d/chpasswd.pacnew`).
-  2. Mientras hay **transacción de paquetes en curso** (`pkg_tx_activa`), `fcrit`/`fpersist`/`fboot`
-     se encolan en `fpkg` → `archivos.actualizacion`, urgencia `low` y autocierre a 15 s: un solo
-     "Actualización del sistema · N archivos" en vez de decenas de críticas. **No se callan del
-     todo a propósito**: si algo tocó `/etc` mientras actualizabas, sigue constando. `~/.ssh/authorized_keys`
-     es la excepción que **nunca** se desvía — ningún paquete la escribe.
+  2. Mientras hay **transacción de paquetes en curso** (`pkg_tx_activa`) cada ruta vigilada cae en uno
+     de tres sitios (`destino()` en `eventd/src/archivos.rs`, `_archivos_atender` en el bash):
+     - **Se calla** lo que los paquetes reescriben en cada actualización suya: `/boot`, `profile.d`,
+       `xdg/autostart`, `ld.so.conf.d`, `cron.*`.
+     - **`archivos.actualizacion`** (`low`, autocierre a 15 s) lo que un paquete rara vez toca: cuentas,
+       PAM, sudoers, units. No se calla a propósito: si algo tocó `/etc` mientras actualizabas, consta.
+     - **Crítico como siempre** lo que ninguna actualización debe tocar: todo lo de `$HOME`
+       (`authorized_keys`, autostart, units de usuario) y `/etc/ld.so.preload`. Lo de `$HOME` es además
+       una defensa: «hay una actualización» lo decide también un proceso llamado `apt`, y cualquiera
+       puede fingirlo sin ser root (medido: `~/.config/autostart/malo.desktop` salía como `low`).
+
+     **Lo que se ignora fuera de una actualización también se ignora dentro.** Antes todo lo que
+     pasara por una carpeta vigilada contaba como «archivo de sistema actualizado» (`/etc/ld.so.cache`,
+     `/etc/.updated`, hasta `~/.ssh/known_hosts`), así que la tarjeta salía en casi cualquier
+     transacción. Y la clasificación va **antes** de mirar si hay transacción, para no pagar esa
+     comprobación por un `/etc/resolv.conf`.
 
   La detección es el **lock** (`/var/lib/pacman/db.lck`), no el proceso: existe exactamente durante
   la transacción *incluidos los hooks* —que es cuando llegan la mayoría de los eventos— y mirarlo
@@ -3405,10 +3451,20 @@ que no le pisa el índice al bash. Sí lanza `clamscan` sobre lo nuevo.
   volvía por ese hueco. Eso **es** una ventana ciega de 90 s por operación de paquetes, aceptada a
   sabiendas: quien puede correr pacman como root no necesita esconder nada en `/etc`.
 
+  **Un `db.lck` no siempre es una transacción.** Si pacman cae, el fichero se queda y, mientras
+  exista, todo lo de `/etc` se trataba como actualización, en silencio. `lock_vigente` lo descarta si
+  es anterior al arranque (nada sobrevive a un reinicio) o si tiene más de `LOCK_ANTIGUO` (1 h) y no
+  hay ningún gestor vivo (`PKG_GESTORES`). Reciente se le cree sin mirar procesos, y un `pacman -Syu`
+  que lleva horas en «¿Continuar?» sigue valiendo. Límite: un gestor fuera de la lista con una
+  transacción de más de 1 h daría avisos críticos desde ese momento; y si pacman cae sin reiniciar,
+  esa primera hora sigue ciega. `PKG_GESTORES` es lista aparte de `PKG_PROCS` porque un `pacman -Q` no
+  es una transacción.
+
   Durante la transacción la ventana de agrupación se ensancha (`PKG_CALMA`=30 s / `PKG_TOPE`=900 s)
   y se restaura al acabar. Sin eso, el tope normal de 20 s partiría una actualización de tres
-  minutos en quince resúmenes. Efecto colateral asumido: la ventana es de todo el bucle, así que la
-  alerta de clave SSH puede llegar hasta 30 s tarde si coincide con una actualización.
+  minutos en quince resúmenes. **`fcrit`, `fpersist` y `fssh` son inmediatas**: el primer aviso sale
+  en el acto, también fuera de una actualización, y un resumen posterior sustituye esa tarjeta
+  (`-r`), así que una ráfaga sigue siendo una sola. Solo ese resumen espera a la ventana.
 
 - `monitor_smart` — hourly `smartctl -H -A` polling per physical disk (zram/loop/dm-/sr
   excluded); warns once if it can't read SMART (permissions), alerts on `FAILED`/`FAILING_NOW`.
