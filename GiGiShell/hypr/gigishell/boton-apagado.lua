@@ -116,6 +116,17 @@ local CON_CUENTA_ATRAS = {
 -- ya no es la misma, alguien la canceló o la confirmó antes.
 local pendiente = nil
 
+-- El puente del overlay (ags/modulos/cuenta-atras/puente.ts).
+local CERRAR_OVERLAY = "ags request cuenta-atras-cerrar id=boton"
+
+--- `accion` viene de CON_CUENTA_ATRAS (identificadores sin espacios ni comillas), así
+--- que interpolarla en la línea de shell es seguro. Con AGS caído confirma en el acto.
+local function abrir_overlay(accion)
+  hl.exec_cmd(string.format(
+    [[sh -c 'ags request cuenta-atras %s %d id=boton "ayuda=Vuelve a pulsar el botón de encendido para cancelar" "cancelar=hyprctl eval \"GiGiShell.boton_cancelar()\"" || hyprctl eval "GiGiShell.boton_confirmar()"']],
+    accion, SEGUNDOS_CUENTA_ATRAS))
+end
+
 local function ejecutar(accion)
   local fn = M.acciones[accion] or M.acciones[ACCION_POR_DEFECTO]
   fn()
@@ -127,7 +138,7 @@ function M.confirmar_pendiente()
   local p = pendiente
   if not p then return false end
   pendiente = nil
-  pcall(hl.exec_cmd, "ags request cuenta-atras-cerrar")
+  pcall(hl.exec_cmd, CERRAR_OVERLAY)
   ejecutar(p.accion)
   return true
 end
@@ -136,7 +147,7 @@ end
 function M.cancelar_pendiente()
   if not pendiente then return false end
   pendiente = nil
-  pcall(hl.exec_cmd, "ags request cuenta-atras-cerrar")
+  pcall(hl.exec_cmd, CERRAR_OVERLAY)
   return true
 end
 
@@ -155,10 +166,7 @@ local function iniciar_cuenta_atras(accion)
   -- Se marca DESPUÉS de crear el timer: si hl.timer lanza, el pcall de fuera
   -- ejecuta la acción de fábrica y no queda una cuenta fantasma sin timer.
   pendiente = p
-  -- `accion` viene de CON_CUENTA_ATRAS (identificadores sin espacios ni comillas),
-  -- así que interpolarla en la línea de shell es seguro.
-  hl.exec_cmd("sh -c 'ags request cuenta-atras " .. accion .. " " .. SEGUNDOS_CUENTA_ATRAS
-    .. " || hyprctl eval \"GiGiShell.boton_confirmar()\"'")
+  abrir_overlay(accion)
 end
 
 local function cuerpo()

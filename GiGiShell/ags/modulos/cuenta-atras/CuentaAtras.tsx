@@ -7,8 +7,8 @@
 // hypr/gigishell/boton-apagado.lua (un hl.timer), porque la segunda pulsación y
 // la tapa del portátil tienen que consultar el estado dentro de los 100 ms de un
 // callback de Hyprland, y preguntarle a este proceso no cabe ahí. Por eso:
-//   · `ags request cuenta-atras <accion> <segundos>` la abre (lo manda el Lua);
-//   · `ags request cuenta-atras-cerrar` la cierra (el Lua, al cancelar o ejecutar);
+//   · `ags request cuenta-atras …` la abre (lo manda el Lua; formato en ./puente.ts);
+//   · `ags request cuenta-atras-cerrar …` la cierra (el Lua, al cancelar o ejecutar);
 //   · «Cancelar» / Esc no se cierran solos: le piden al Lua que cancele
 //     (`GiGiShell.boton_cancelar()`), y es el Lua quien cierra — si lo cerrásemos
 //     aquí sin más, la acción saldría igual al llegar a 0 con la ventana ya quitada.
@@ -18,10 +18,16 @@
 // Y hay un cierre de seguridad a los `segundos + MARGEN_CIERRE_MS`: si el Lua no
 // llega a mandar el cierre (un `hyprctl reload` a media cuenta cancela su timer),
 // la ventana no se queda puesta para siempre.
+//
+// La abre también el APAGADO PREVENTIVO por batería (hypr/scripts/apagado-preventivo.sh).
+// Código de AGS: importa mostrarCuentaAtras. Desde fuera de AGS: ./puente.ts. Lo que
+// cambia por llamador llega en los parámetros; este archivo no conoce a ninguno.
+//
+// Con dos cuentas a la vez queda visible la que termina más tarde: la otra sigue
+// corriendo en su dueño, y su cierre no puede quitar la visible porque lleva otro id.
 import { createComputed, createState } from "ags"
 import { Astal, Gdk, Gtk } from "ags/gtk4"
 import app from "ags/gtk4/app"
-import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import AstalHyprland from "gi://AstalHyprland"
 
@@ -39,8 +45,22 @@ const ACCIONES: Record<string, DescripcionAccion> = {
   cerrarSesion: { icono: "󰍃", texto: "Cerrando la sesión" },
 }
 
+export interface OpcionesCuentaAtras {
+  /** Clave de ACCIONES. */
+  accion: string
+  segundos: number
+  /** Identifica al dueño: cerrarCuentaAtras solo cierra la cuenta con su mismo id. */
+  id: string
+  ayuda: string
+  /** Pide cancelar a quien lleva la cuenta. Si falla, el overlay sigue: la acción también. */
+  cancelar: () => unknown
+}
+
 interface CuentaActiva {
   accion: DescripcionAccion
+  id: string
+  ayuda: string
+  cancelar: () => unknown
   /** Monotónico, en µs (GLib.get_monotonic_time). */
   fin: number
   totalUs: number
@@ -69,30 +89,39 @@ function monitorEnfocado(): string {
 }
 
 /** Abre (o reinicia) la cuenta atrás. Devuelve false si la acción no se conoce. */
-export function mostrarCuentaAtras(accion: string, segundos: number): boolean {
+export function mostrarCuentaAtras({ accion, segundos, id, ayuda, cancelar }: OpcionesCuentaAtras): boolean {
   const descripcion = ACCIONES[accion]
   if (!descripcion || !Number.isFinite(segundos) || segundos <= 0) return false
-  pararTemporizadores()
   const totalUs = Math.round(segundos * 1_000_000)
   const fin = GLib.get_monotonic_time() + totalUs
+  const activa = cuenta.get()
+  if (activa && activa.id !== id && activa.fin > fin) return true
+  pararTemporizadores()
   setRestanteUs(totalUs)
-  setCuenta({ accion: descripcion, fin, totalUs, monitor: monitorEnfocado() })
+  setCuenta({ accion: descripcion, id, ayuda, cancelar, fin, totalUs, monitor: monitorEnfocado() })
   tick = setInterval(() => {
     setRestanteUs(Math.max(0, fin - GLib.get_monotonic_time()))
   }, TICK_MS)
-  cierreSeguridad = setTimeout(cerrarCuentaAtras, segundos * 1000 + MARGEN_CIERRE_MS)
+  cierreSeguridad = setTimeout(() => cerrarCuentaAtras(id), segundos * 1000 + MARGEN_CIERRE_MS)
   return true
 }
 
-export function cerrarCuentaAtras() {
+export function cerrarCuentaAtras(id: string) {
+  if (cuenta.get()?.id !== id) return
   pararTemporizadores()
   setCuenta(null)
 }
 
-/** «Cancelar» / Esc: se lo pide al Lua, que es quien tiene el timer (ver cabecera). */
-function pedirCancelacion() {
-  execAsync(["hyprctl", "eval", "GiGiShell.boton_cancelar()"])
-    .catch((e) => console.error("[cuenta-atras] no se pudo cancelar:", e))
+/** «Cancelar» / Esc: se lo pide a quien tiene la cuenta, y cierra solo si lo ha aceptado. */
+async function pedirCancelacion() {
+  const c = cuenta.get()
+  if (!c) return
+  try {
+    await c.cancelar()
+    cerrarCuentaAtras(c.id)
+  } catch (e) {
+    console.error("[cuenta-atras] no se pudo cancelar:", e)
+  }
 }
 
 export default function CuentaAtras(monitorGdk: Gdk.Monitor) {
@@ -146,7 +175,7 @@ export default function CuentaAtras(monitorGdk: Gdk.Monitor) {
           <Gtk.ProgressBar cssClasses={["cuenta-atras-progreso"]} fraction={fraccion} />
           <label
             cssClasses={["cuenta-atras-ayuda"]}
-            label="Vuelve a pulsar el botón de encendido para cancelar"
+            label={cuenta((c) => c?.ayuda ?? "")}
             wrap
             justify={Gtk.Justification.CENTER}
           />

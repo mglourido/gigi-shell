@@ -4,7 +4,8 @@ import GLib from "gi://GLib"
 import Barra from "./modulos/barra/Barra"
 import Lagarto from "./modulos/mascotas/Lagarto"
 import MenuEnergia from "./modulos/menu-energia/MenuEnergia"
-import CuentaAtras, { cerrarCuentaAtras, mostrarCuentaAtras } from "./modulos/cuenta-atras/CuentaAtras"
+import CuentaAtras from "./modulos/cuenta-atras/CuentaAtras"
+import { abrirDesdeFuera, cerrarDesdeFuera } from "./modulos/cuenta-atras/puente"
 import OSD, { showOSD } from "./modulos/osd/OSD"
 import { showMicOSD } from "./modulos/osd/MicOSD"
 import QuickSettings from "./modulos/ajustes-rapidos/QuickSettings"
@@ -66,13 +67,11 @@ app.start({
     // (el Lua sólo manda las de su CON_CUENTA_ATRAS); si llegara, no se pinta nada
     // pero la cuenta del Lua sigue y la acción sale igual a su hora.
     if (argv[0] === "cuenta-atras") {
-      if (mostrarCuentaAtras(argv[1] ?? "", Number(argv[2]))) response("ok")
-      else response("error: acción o segundos no válidos")
+      response(abrirDesdeFuera(argv.slice(1)))
       return
     }
     if (argv[0] === "cuenta-atras-cerrar") {
-      cerrarCuentaAtras()
-      response("ok")
+      response(cerrarDesdeFuera(argv.slice(1)))
       return
     }
     if (argv.includes("volume-osd")) {

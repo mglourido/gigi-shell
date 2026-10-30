@@ -492,7 +492,7 @@ pulsación, Esc o el botón «Cancelar» la anulan; **cerrar la tapa durante la 
 Ajustes > Energía (`botonCuentaAtras`; solo un `false` explícito la desactiva). Reparto:
 - **El estado y el timer viven en Lua** (`pendiente` + `hl.timer` en `boton-apagado.lua`), no en
   AGS: la tapa y la segunda pulsación tienen que consultarlo dentro de los 100 ms de un callback.
-  AGS solo pinta (`ags request cuenta-atras <accion> <s>` / `cuenta-atras-cerrar`), y su
+  AGS solo pinta (`ags request cuenta-atras <accion> <s> id=boton ayuda=… cancelar=…` / `cuenta-atras-cerrar id=boton`), y su
   «Cancelar» llama a `GiGiShell.boton_cancelar()` por `hyprctl eval` en vez de cerrarse solo — si
   no, la acción saldría igual con la ventana ya quitada.
 - **Con la sesión bloqueada no hay cuenta atrás**: hyprlock tapa el overlay y sería una espera
@@ -4865,7 +4865,8 @@ largo con margen de sobra) para reducir despertares. Los tres leen su interrupto
   **Apagado preventivo** (Ajustes > Energía, `apagadoPreventivo`/`apagadoPreventivoPct` en
   `preferences.json`, encendido al 3 % de fábrica). Al llegar a ese porcentaje descargando, el
   monitor lanza `apagado-preventivo.sh` con `setsid` (un `pkill` del monitor no debe cancelar un
-  apagado en curso): notificación crítica con botón «Cancelar» y 60 s de cuenta atrás, cierre
+  apagado en curso): overlay de cuenta atrás de 60 s con «Cancelar» (el del botón de encendido;
+  con AGS caído, notificación crítica con ese botón), cierre
   ordenado de todas las ventanas por `hl.dsp.window.close` (lo que deja a cada app guardar su
   sesión o preguntar por lo no guardado; se espera hasta 20 s) y `systemctl poweroff`. Enchufar
   el cargador aborta en cualquier punto anterior al apagado. El disparo queda latcheado hasta que

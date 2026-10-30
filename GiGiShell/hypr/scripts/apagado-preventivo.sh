@@ -20,9 +20,10 @@
 # Este script actúa ANTES que UPower —por eso el mínimo del ajuste es 3 %— y en tres
 # tiempos:
 #
-#   1. AVISO + CUENTA ATRÁS (CUENTA_SECS). Notificación crítica con un botón
-#      «Cancelar». Enchufar el cargador también cancela: se relee sysfs cada segundo
-#      con builtins, sin forks.
+#   1. AVISO + CUENTA ATRÁS (CUENTA_SECS). El overlay de la cuenta atrás del botón de
+#      encendido (ags/modulos/cuenta-atras/), que solo pinta: la cuenta sigue aquí. Con
+#      AGS caído, una notificación crítica con un botón «Cancelar». Enchufar el cargador
+#      también cancela: se relee sysfs cada segundo con builtins, sin forks.
 #   2. CIERRE ORDENADO de todas las ventanas por Hyprland (el mismo `window.close`
 #      que SUPER+SHIFT+C). Es lo que da a cada app la ocasión de guardar su sesión
 #      —un navegador guarda las pestañas, un editor pregunta por lo no guardado—, a
@@ -108,6 +109,17 @@ cancelar_si_carga() {
 }
 
 # ── 1. Aviso y cuenta atrás ───────────────────────────────────────────────────
+# Todas las salidas cierran el overlay (trap): si no, se quedaría contando hasta su
+# cierre de seguridad con el apagado ya anulado. Va dirigido a `bateria` para no
+# cerrar una cuenta del botón.
+overlay=false
+cerrar_overlay() {
+    $overlay || return 0
+    overlay=false
+    ags request cuenta-atras-cerrar id=bateria >/dev/null 2>&1
+}
+trap cerrar_overlay EXIT
+
 # `--wait` bloquea hasta que la notificación se cierra y, con `-A`, imprime la
 # acción pulsada (`-p` imprime antes su id, para poder reemplazarla). Va en segundo
 # plano y deja marcas en ficheros: la cuenta atrás no puede quedarse esperando a que
@@ -119,19 +131,26 @@ cancelar_si_carga() {
 marca_cancelar="${XDG_RUNTIME_DIR:-/tmp}/apagado-preventivo.cancelar"
 marca_id="${XDG_RUNTIME_DIR:-/tmp}/apagado-preventivo.id"
 rm -f "$marca_cancelar" "$marca_id"
-(
-    exec 9>&-
-    notificar bateria.apagado-preventivo --urgency=critical --icon=battery-empty \
-        --expire-time=$(( CUENTA_SECS * 1000 )) \
-        -p -A cancelar=Cancelar --wait \
-        "Batería al ${pct} %: ${verbo} en ${CUENTA_SECS} s" \
-        "$detalle" |
-    {
-        read -r id && printf '%s\n' "$id" > "$marca_id"
-        read -r accion && [[ "$accion" == "cancelar" ]] && : > "$marca_cancelar"
-    }
-) &
-aviso_pid=$!
+aviso_pid=
+if ags request cuenta-atras "$accion" "$CUENTA_SECS" id=bateria \
+    "ayuda=Batería al ${pct} %: conecta el cargador o cancela para seguir usando el equipo" \
+    "cancelar=touch '$marca_cancelar'" 2>/dev/null | grep -qx ok; then
+    overlay=true
+else
+    (
+        exec 9>&-
+        notificar bateria.apagado-preventivo --urgency=critical --icon=battery-empty \
+            --expire-time=$(( CUENTA_SECS * 1000 )) \
+            -p -A cancelar=Cancelar --wait \
+            "Batería al ${pct} %: ${verbo} en ${CUENTA_SECS} s" \
+            "$detalle" |
+        {
+            read -r id && printf '%s\n' "$id" > "$marca_id"
+            read -r accion && [[ "$accion" == "cancelar" ]] && : > "$marca_cancelar"
+        }
+    ) &
+    aviso_pid=$!
+fi
 
 for (( s = 0; s < CUENTA_SECS; s++ )); do
     sleep 1
@@ -145,7 +164,8 @@ for (( s = 0; s < CUENTA_SECS; s++ )); do
     fi
     cancelar_si_carga
 done
-kill "$aviso_pid" 2>/dev/null
+cerrar_overlay
+[[ -n "$aviso_pid" ]] && kill "$aviso_pid" 2>/dev/null
 
 # ── Hibernar ──────────────────────────────────────────────────────────────────
 # `systemctl hibernate` vuelve con 0 al DESPERTAR, así que ahí se termina: seguir
