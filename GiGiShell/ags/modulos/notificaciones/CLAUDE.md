@@ -35,6 +35,14 @@ que visualmente es de las secundarias. De ahí un `Gtk.GestureClick({button: 0})
 `set_state(CLAIMED)`. **En BUBBLE, no en CAPTURE**: en CAPTURE se adelantaría a los botones y los
 dejaría muertos.
 
+**`lines` de Pango limita POR PÁRRAFO: el cuerpo del popup se aplana antes de pintarlo.** Un `lines={2}` a pelo no acota la altura si el cuerpo trae saltos de línea, porque Pango aplica el tope a cada párrafo. `aplanarParrafos()` (`marcado.ts`) los une, incluidas las entidades numéricas que `escaparPango` deja pasar. El cuerpo usa `WORD_CHAR` para que una URL larga también parta. La pila tiene un presupuesto de altura (`POPUPS_GARANTIZADOS` × `ALTURA_POPUP_LLENO`, 64 px medidos): las tres primeras tarjetas entran siempre, y la cuarta y la quinta solo si caben en él. Con cuerpo, una tarjeta mide de 51 a 64 px, así que en la práctica solo las de título suelto llegan a cuatro. Si cambian la fuente o el padding del popup, hay que volver a medir la constante.
+
+**La pila de popups decide por prioridad y agrupa.** Toda la lógica pura está en `popup/logica.ts`. La cola ordena por `prioridadPopup` (crítica o alarma > con acciones > normal > baja), una crítica expulsa a la tarjeta menos importante si no cabe, y lo no crítico caduca tras 30 s en cola (sigue en el panel). Una idéntica a otra visible o en cola no da popup ni sonido. Se sustituyen en su sitio, con `×N`, los avisos con el mismo `event` y los de la misma conversación (app de `popupsConversacion` + mismo título). `EVENTOS_QUE_ANULA` retira el aviso que el nuevo deja sin sentido. Al volver de suspensión, 10 s de lo no urgente se resumen en un popup. Con el cursor encima el temporizador sigue, pero la tarjeta no se va hasta que salga.
+
+**El silencio automático ya no toca `notifd.dontDisturb`.** `autoDnd/watcher.ts` publica las condiciones activas y `autoDnd/politica.ts` aplica una política por condición (`silencioAuto` en `preferences.json`). Una ventana cuenta solo por su condición más específica: juego > app marcada > pantalla completa. Por eso el icono de No molestar solo refleja el manual.
+
+**Sonido: `sonido/arbitro.ts` deja un solo sonido.** Agrupa lo que llega en 250 ms, suena el de mayor prioridad y separa dos sonidos al menos 2 s. El botón «Probar» no pasa por él.
+
 **El título del popup se cortaba SIEMPRE a mitad de ancho, y la culpa era de `maxWidthChars`.** Con
 28 la elipsis caía ahí hubiera sitio o no, porque `maxWidthChars` tapa el ancho natural de la
 etiqueta y GTK nunca le ofrecía más. Son **50** (los 336 px útiles del popup entre los ~6,6 px/car.

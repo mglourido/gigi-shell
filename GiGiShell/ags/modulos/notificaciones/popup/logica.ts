@@ -109,6 +109,70 @@ export function calcularDuracionPopup(
   )
 }
 
+// ── Cola de prioridad ─────────────────────────────────────────────────────────
+export const PRIORIDAD_CRITICA = 3
+const ESPERA_MAXIMA_COLA_MS = 30000
+
+export function prioridadPopup(n: StoredNotification): number {
+  if (n.urgency >= 2 || n.source === "alarm") return PRIORIDAD_CRITICA
+  if (obtenerAccionesVisibles(n).length > 0) return 2
+  return n.urgency <= 0 ? 0 : 1
+}
+
+/** Inserta por prioridad, conservando el orden de llegada dentro de cada una. */
+export function insertarPorPrioridad(cola: StoredNotification[], n: StoredNotification): void {
+  const prioridad = prioridadPopup(n)
+  const indice = cola.findIndex((otra) => prioridadPopup(otra) < prioridad)
+  if (indice < 0) cola.push(n)
+  else cola.splice(indice, 0, n)
+}
+
+/** Un aviso normal que lleva demasiado en cola ya no aporta: sigue en el panel. */
+export function esObsoletaEnCola(n: StoredNotification, ahora: number): boolean {
+  return prioridadPopup(n) < PRIORIDAD_CRITICA && ahora - n.timestamp > ESPERA_MAXIMA_COLA_MS
+}
+
+export function sonIdenticas(a: StoredNotification, b: StoredNotification): boolean {
+  return a.appName === b.appName && a.summary === b.summary && a.body === b.body
+}
+
+// Avisos del sistema que el nuevo deja sin sentido: «Wi-Fi reconectado» cierra «Wi-Fi desconectado».
+const EVENTOS_QUE_ANULA: Record<string, string[]> = {
+  "wifi.reconectado": ["wifi.desconectado"],
+  "wifi.desconectado": ["wifi.reconectado"],
+  "bluetooth.conectado": ["bluetooth.perdido"],
+  "bluetooth.perdido": ["bluetooth.conectado"],
+  "usb.conectado": ["usb.desconectado"],
+  "usb.desconectado": ["usb.conectado", "usb.almacenamiento"],
+  "usb.reparado": ["usb.reparando"],
+  "usb.reparacion-incompleta": ["usb.reparando"],
+  "usb.reparar-fallo": ["usb.reparando"],
+  "bateria.cargando": ["bateria.descargando", "bateria.baja"],
+  "bateria.descargando": ["bateria.cargando", "bateria.completa"],
+  "temperatura.cpu-normal": ["temperatura.cpu-alta"],
+  "temperatura.gpu-normal": ["temperatura.gpu-alta"],
+}
+
+export function anulaEvento(nueva: StoredNotification, vieja: StoredNotification): boolean {
+  return !!nueva.event && !!vieja.event
+    && (EVENTOS_QUE_ANULA[nueva.event]?.includes(vieja.event) ?? false)
+}
+
+/** Avisos con la misma clave comparten tarjeta. Un aviso del sistema se agrupa por su id; una app
+ *  de conversación, por el título, que es el contacto o el grupo. */
+export function claveAgrupacion(n: StoredNotification, esConversacion: boolean): string | null {
+  if (n.event) return `evento:${n.event}`
+  return esConversacion && n.summary ? `conversacion:${n.appName}|${n.summary}` : null
+}
+
+export function crearResumenReanudacion(id: number, cantidad: number): StoredNotification {
+  return {
+    ...crearResumenRafaga(id, cantidad),
+    summary: "Avisos al volver de la suspensión",
+    body: `Han llegado ${cantidad} notificaciones. Revísalas en el panel de notificaciones.`,
+  }
+}
+
 export function crearResumenRafaga(id: number, cantidad: number): StoredNotification {
   return {
     id,

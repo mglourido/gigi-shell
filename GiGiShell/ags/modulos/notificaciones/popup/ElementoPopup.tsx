@@ -1,6 +1,7 @@
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
+import Pango from "gi://Pango"
 import {
   getAppIcon,
   openNotifPanel,
@@ -9,7 +10,7 @@ import {
 } from "../store"
 import { invocarAccionViva } from "../panel/item/acciones"
 import IconoAppNotificacion from "../panel/item/IconoAplicacion"
-import { aMarcadoPango, limpiarMarcado } from "../marcado"
+import { aMarcadoPango, aplanarParrafos, limpiarMarcado } from "../marcado"
 import { resolverAccionesPopup } from "./logica.ts"
 
 const DURACION_ANIMACION_SALIDA_MS = 220
@@ -19,8 +20,14 @@ const DURACION_ANIMACION_SALIDA_MS = 220
 // superficie entera y descolocaría la pila. Se recorta la etiqueta, no el popup.
 const MAXIMO_CARACTERES_BOTON = 14
 
+// Un popup puede aparecer justo bajo el cursor mientras se hace clic en otra cosa.
+const GRACIA_CLIC_US = 300_000
+
 interface PropiedadesElementoPopup {
   notificacion: StoredNotification
+  /** Mensajes agrupados en esta tarjeta. Con más de uno se pinta `×N`. */
+  contador: number
+  alCambiarCursor: (dentro: boolean) => void
   alDescartar: () => void
   registrarDescarte: (descartar: () => void, cancelar: () => void) => void
 }
@@ -40,6 +47,8 @@ function enfocarVentanaAplicacion(nombreAplicacion: string): void {
 
 export default function ElementoPopup({
   notificacion,
+  contador,
+  alCambiarCursor,
   alDescartar,
   registrarDescarte,
 }: PropiedadesElementoPopup) {
@@ -59,7 +68,11 @@ export default function ElementoPopup({
   const { principal: accionPrincipal, botones, mostrarPista } = resolverAccionesPopup(notificacion)
   const hayBotones = botones.length > 0
 
+  const instanteCreacion = GLib.get_monotonic_time()
+  const clicPrematuro = () => GLib.get_monotonic_time() - instanteCreacion < GRACIA_CLIC_US
+
   function invocarYDescartar(idAccion: string): void {
+    if (clicPrematuro()) return
     // Invocar SIEMPRE antes de descartar: `dismiss()` cierra la notificación en el
     // daemon y a partir de ahí `get_notification(id)` ya no la encuentra.
     invocarAccionViva(notificacion.id, idAccion)
@@ -128,32 +141,49 @@ export default function ElementoPopup({
             vuelve a ocurrir solo cuando el texto de verdad no cabe. */}
         <label
           cssClasses={["notif-popup-summary"]}
-          label={limpiarMarcado(notificacion.summary)}
+          label={aplanarParrafos(limpiarMarcado(notificacion.summary))}
           hexpand
           halign={Gtk.Align.START}
           ellipsize={3}
           maxWidthChars={50}
           visible={!!notificacion.summary}
         />
+        <label
+          cssClasses={["notif-popup-contador"]}
+          label={`×${contador}`}
+          visible={contador > 1}
+        />
       </box>
       <label
+        $={(cuerpo: Gtk.Label) => {
+          // El texto cortado se lee entero al pasar el ratón, que además retiene la tarjeta.
+          cuerpo.set_has_tooltip(true)
+          cuerpo.connect("query-tooltip", (_w, _x, _y, _teclado, tooltip) => {
+            if (!cuerpo.get_layout().is_ellipsized()) return false
+            tooltip.set_text(limpiarMarcado(notificacion.body))
+            return true
+          })
+        }}
         cssClasses={["notif-popup-body"]}
-        label={aMarcadoPango(notificacion.body)}
+        label={aplanarParrafos(aMarcadoPango(notificacion.body))}
         useMarkup={true}
         halign={Gtk.Align.START}
         xalign={0}
         wrap={true}
+        wrapMode={Pango.WrapMode.WORD_CHAR}
         ellipsize={3}
-        lines={4}
+        lines={2}
         maxWidthChars={48}
         visible={!!notificacion.body}
       />
       {filaAcciones}
       <label
         cssClasses={["notif-popup-action-hint"]}
-        label={accionPrincipal ? `▸ clic derecho · ${accionPrincipal.label}` : ""}
+        label={accionPrincipal ? aplanarParrafos(`▸ clic derecho · ${accionPrincipal.label}`) : ""}
         halign={Gtk.Align.START}
         xalign={0}
+        ellipsize={3}
+        maxWidthChars={50}
         visible={mostrarPista}
       />
     </box>
@@ -183,19 +213,23 @@ export default function ElementoPopup({
 
   const clicAbrir = new Gtk.GestureClick({ button: 1 })
   clicAbrir.connect("pressed", () => {
+    if (clicPrematuro()) return
     descartar()
     openNotifPanel()
   })
   caja.add_controller(clicAbrir)
 
   const clicDescartar = new Gtk.GestureClick({ button: 2 })
-  clicDescartar.connect("pressed", () => descartar())
+  clicDescartar.connect("pressed", () => {
+    if (!clicPrematuro()) descartar()
+  })
   caja.add_controller(clicDescartar)
 
   // Se invoca antes de descartar porque, una vez cerrada en el daemon, ya no puede
   // recuperarse por id. Sin acción se conserva el gesto de enfocar la aplicación.
   const clicDerecho = new Gtk.GestureClick({ button: 3 })
   clicDerecho.connect("pressed", () => {
+    if (clicPrematuro()) return
     if (accionPrincipal) invocarYDescartar(accionPrincipal.id)
     else {
       enfocarVentanaAplicacion(notificacion.appName)
@@ -203,6 +237,11 @@ export default function ElementoPopup({
     }
   })
   caja.add_controller(clicDerecho)
+
+  const cursor = new Gtk.EventControllerMotion()
+  cursor.connect("enter", () => alCambiarCursor(true))
+  cursor.connect("leave", () => alCambiarCursor(false))
+  caja.add_controller(cursor)
 
   // ── Por qué un botón dentro de la caja no abre además el panel ───────────────
   // Los tres gestos de arriba cuelgan de la CAJA y están en fase BUBBLE (la de

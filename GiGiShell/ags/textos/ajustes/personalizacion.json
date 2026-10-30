@@ -267,16 +267,37 @@
     }
   },
   "noMolestar": {
-    "titulo": "No molestar automático",
-    "descripcion": "Oculta los avisos mientras juegas o usas a pantalla completa una app de la lista.\nLas notificaciones siguen guardándose en el historial.",
+    "titulo": "Silencio automático",
+    "descripcion": "Decide qué avisos aparecen en cada situación.\nLas notificaciones siguen guardándose en el panel.",
     "lista": {
-      "titulo": "Apps que silencian en pantalla completa",
-      "ayuda": "Usa Ventana para añadir la app abierta sin escribir su clase.",
-      "vacia": "Sin apps: sólo los juegos activan el No molestar.",
+      "titulo": "Apps marcadas",
+      "ayuda": "Cuentan como «Apps marcadas» cuando están a pantalla completa.",
+      "vacia": "Sin apps marcadas.",
       "placeholder": "clase de la ventana (p. ej. mpv)",
       "anadir": "Añadir",
       "ventana": "Ventana",
       "anadirVentana": "Añade una ventana en pantalla completa; si no hay ninguna, usa la enfocada",
+      "quitar": "Quitar de la lista"
+    },
+    "condiciones": {
+      "juego": "Al jugar",
+      "apps": "Con apps marcadas",
+      "pantallaCompleta": "Con otra ventana a pantalla completa"
+    },
+    "modos": {
+      "todo": "Mostrar todo",
+      "sistema": "Solo sistema",
+      "apps": "Elegir apps",
+      "nada": "Silenciar todo"
+    },
+    "permitidas": {
+      "titulo": "Apps permitidas",
+      "ayuda": "Solo estas apps mostrarán avisos en esta situación.",
+      "vacia": "Sin apps: no aparecerá ningún aviso.",
+      "placeholder": "nombre de la app (p. ej. discord)",
+      "anadir": "Añadir",
+      "ventana": "Ventana",
+      "anadirVentana": "Añade la ventana enfocada",
       "quitar": "Quitar de la lista"
     }
   },
@@ -299,5 +320,15 @@
     },
     "guardar": "Guardar",
     "unidad": "s"
+  },
+  "popupsConversacion": {
+    "titulo": "Sustituir popups por conversación",
+    "ayuda": "En estas apps, un mensaje nuevo del mismo contacto o grupo reemplaza a su popup anterior.",
+    "vacia": "Sin apps: cada mensaje tendrá su popup.",
+    "placeholder": "nombre de la app (p. ej. zapzap)",
+    "anadir": "Añadir",
+    "ventana": "Ventana",
+    "anadirVentana": "Añade la ventana enfocada",
+    "quitar": "Quitar de la lista"
   }
 }

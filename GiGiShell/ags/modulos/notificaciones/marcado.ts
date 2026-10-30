@@ -84,6 +84,16 @@ export function aMarcadoPango(texto: string): string {
   return salida
 }
 
+// Pango cuenta `lines` POR PÁRRAFO: con `lines={2}`, un cuerpo con diez saltos de línea
+// pinta diez líneas o más. También son párrafos los separadores Unicode y las entidades
+// numéricas, que `escaparPango` deja pasar y Pango resuelve después.
+const SEPARADORES_PARRAFO = /\s*(?:[\n\r\f\v\u0085\u2028\u2029]|&#0*1[0-3];|&#[xX]0*[a-dA-D];)(?:\s|&#0*1[0-3];|&#[xX]0*[a-dA-D];)*/g
+
+/** Une los párrafos en uno solo, para que el límite de líneas del popup sea real. */
+export function aplanarParrafos(texto: string): string {
+  return texto.replace(SEPARADORES_PARRAFO, " ").trim()
+}
+
 /**
  * Texto plano equivalente: quita el marcado y resuelve las entidades. Se usa donde
  * no cabe estilo (tooltips, medida de líneas para decidir si la tarjeta expande).

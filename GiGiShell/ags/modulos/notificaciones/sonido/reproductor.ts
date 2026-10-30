@@ -10,6 +10,7 @@ import GLib from "gi://GLib"
 import { execAsync } from "ags/process"
 import { candidatosTema, comandoReproduccion, decidirSonido, expandirRuta } from "./decision.ts"
 import type { DecisionSonido, EntradaSonido } from "./decision.ts"
+import { ArbitroSonido } from "./arbitro.ts"
 import { RAIZ_REPO } from "../../../utilidades/rutas"
 
 /**
@@ -17,6 +18,13 @@ import { RAIZ_REPO } from "../../../utilidades/rutas"
  * igual que `Wallpapers/`: es contenido del repositorio, no configuración XDG.
  */
 export const DIR_AUDIO = `${RAIZ_REPO}/audio`
+
+const arbitro = new ArbitroSonido((ms, ejecutar) => {
+  GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+    ejecutar()
+    return GLib.SOURCE_REMOVE
+  })
+})
 
 const cacheProgramas = new Map<string, boolean>()
 
@@ -47,9 +55,7 @@ function disponible(programa: string): boolean {
 /**
  * Reproduce el sonido que pida la notificación, si procede.
  *
- * No espera al proceso ni encadena reproducciones: una ráfaga de notificaciones sonoras se solapa,
- * que es lo que hace también cualquier otro escritorio. Serializar obligaría a mantener una cola y
- * a decidir qué hacer con la que llega la número quince.
+ * No espera al proceso. Lo que llega a la vez lo reduce `arbitro` a un solo sonido.
  */
 export function reproducirSonidoNotificacion(entrada: EntradaSonido): void {
   // El `~` se expande aquí y no en `decision.ts`: la decisión es pura y no puede preguntar por el
@@ -75,9 +81,14 @@ export function reproducirSonidoNotificacion(entrada: EntradaSonido): void {
     return
   }
 
-  execAsync(comando).catch((e) => {
-    console.warn(`[notif sonido] ${comando[0]} falló:`, e)
-  })
+  arbitro.ofrecer({
+    prioridad: entrada.origen === "alarm" ? 3 : entrada.urgencia ?? 1,
+    reproducir: () => {
+      execAsync(comando).catch((e) => {
+        console.warn(`[notif sonido] ${comando[0]} falló:`, e)
+      })
+    },
+  }, Date.now())
 }
 
 /**

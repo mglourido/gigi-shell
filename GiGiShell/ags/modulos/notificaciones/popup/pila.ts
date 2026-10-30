@@ -2,17 +2,28 @@ import { createRoot, createState } from "ags"
 import { Gdk, Gtk } from "ags/gtk4"
 import GLib from "gi://GLib"
 import ElementoPopup from "./ElementoPopup.tsx"
-import { calcularDuracionPopup } from "./logica.ts"
+import {
+  anulaEvento, calcularDuracionPopup, claveAgrupacion, esObsoletaEnCola, insertarPorPrioridad,
+  PRIORIDAD_CRITICA, prioridadPopup, sonIdenticas,
+} from "./logica.ts"
+import { appCoincide } from "../autoDnd/politica.ts"
 import { canFitPopup } from "./disposicion.ts"
 import { notifPanelVisible, type StoredNotification } from "../store"
 import {
-  popupDuracionNormalMs, popupDuracionSistemaMs, popupDuracionAccionesMs,
+  popupDuracionNormalMs, popupDuracionSistemaMs, popupDuracionAccionesMs, popupsConversacion,
 } from "../../ajustes/preferences.ts"
 
 const MAXIMO_POPUPS = 5
+// Tres tarjetas con el cuerpo lleno agotan el presupuesto; las cortas dejan sitio hasta
+// MAXIMO_POPUPS. Las tres primeras entran siempre, aunque traigan botones y midan más.
+const POPUPS_GARANTIZADOS = 3
+// Medido con `hyprctl layers`: 64 px con dos líneas de cuerpo, sin botones.
+const ALTURA_POPUP_LLENO = 64
 const ANCHO_POPUP = 360
 const ESPACIADO_POPUPS = 8
 const MARGEN_INFERIOR_PANTALLA = 16
+const PRESUPUESTO_PILA = POPUPS_GARANTIZADOS * ALTURA_POPUP_LLENO
+  + (POPUPS_GARANTIZADOS - 1) * ESPACIADO_POPUPS
 
 const [hayPopups, setHayPopups] = createState(false)
 export { hayPopups }
@@ -30,6 +41,12 @@ const alturas = new Map<number, number>()
 const temporizadores = new Map<number, number>()
 const callbacksDescarte = new Map<number, { descartar: () => void; cancelar: () => void }>()
 const pendientes: StoredNotification[] = []
+const visibles = new Map<number, StoredNotification>()
+const contadores = new Map<number, number>()
+// El tiempo sigue corriendo con el ratón encima, pero la tarjeta no se va hasta que salga.
+const bajoCursor = new Set<number>()
+const caducadas = new Set<number>()
+const contadoresPendientes = new Map<number, number>()
 
 function cancelarTemporizador(id: number): void {
   const temporizador = temporizadores.get(id)
@@ -56,6 +73,10 @@ function eliminarInmediatamente(id: number, rellenar = true): void {
     widgets.delete(id)
     alturas.delete(id)
   }
+  visibles.delete(id)
+  contadores.delete(id)
+  bajoCursor.delete(id)
+  caducadas.delete(id)
   ambitos.get(id)?.()
   ambitos.delete(id)
 
@@ -83,7 +104,9 @@ function programarDescarte(notificacion: StoredNotification): void {
       conAcciones: popupDuracionAccionesMs.get(),
     }),
     () => {
-      iniciarDescarte(notificacion.id)
+      temporizadores.delete(notificacion.id)
+      if (bajoCursor.has(notificacion.id)) caducadas.add(notificacion.id)
+      else iniciarDescarte(notificacion.id)
       return GLib.SOURCE_REMOVE
     },
   )
@@ -98,49 +121,119 @@ function alturaDisponible(): number {
   )
 }
 
+function construirElemento(notificacion: StoredNotification, contador: number) {
+  let desecharAmbito: () => void = () => {}
+  const elemento = createRoot((desechar) => {
+    desecharAmbito = desechar
+    return ElementoPopup({
+      notificacion,
+      contador,
+      alDescartar: () => eliminarInmediatamente(notificacion.id),
+      registrarDescarte: (descartar, cancelar) => callbacksDescarte.set(notificacion.id, { descartar, cancelar }),
+      alCambiarCursor: (dentro) => {
+        if (dentro) {
+          bajoCursor.add(notificacion.id)
+          return
+        }
+        bajoCursor.delete(notificacion.id)
+        if (caducadas.delete(notificacion.id)) iniciarDescarte(notificacion.id)
+      },
+    }) as Gtk.Widget
+  })
+  return { elemento, desecharAmbito }
+}
+
+function medirAltura(elemento: Gtk.Widget): number {
+  try {
+    const [, alturaNatural] = elemento.measure(Gtk.Orientation.VERTICAL, ANCHO_POPUP)
+    return alturaNatural
+  } catch {
+    return 96
+  }
+}
+
+function registrarVisible(
+  notificacion: StoredNotification,
+  elemento: Gtk.Widget,
+  desecharAmbito: () => void,
+  contador: number,
+): void {
+  widgets.set(notificacion.id, elemento)
+  ambitos.set(notificacion.id, desecharAmbito)
+  alturas.set(notificacion.id, medirAltura(elemento))
+  visibles.set(notificacion.id, notificacion)
+  contadores.set(notificacion.id, contador)
+  programarDescarte(notificacion)
+  setHayPopups(true)
+}
+
+/** Hace sitio a una crítica retirando la tarjeta menos importante que no esté bajo el cursor. */
+function expulsarPara(notificacion: StoredNotification): boolean {
+  if (prioridadPopup(notificacion) < PRIORIDAD_CRITICA) return false
+  let candidata: StoredNotification | null = null
+  for (const visible of visibles.values()) {
+    if (bajoCursor.has(visible.id) || prioridadPopup(visible) >= PRIORIDAD_CRITICA) continue
+    if (!candidata || prioridadPopup(visible) < prioridadPopup(candidata)) candidata = visible
+  }
+  if (!candidata) return false
+  eliminarInmediatamente(candidata.id, false)
+  return true
+}
+
 function drenarCola(): void {
   if (!contenedor || notifPanelVisible.get()) return
 
-  while (pendientes.length > 0 && widgets.size < MAXIMO_POPUPS) {
-    const notificacion = pendientes[0]
-    let alturaMedida = 0
-    let desecharAmbito: () => void = () => {}
-    const elemento = createRoot((desechar) => {
-      desecharAmbito = desechar
-      return ElementoPopup({
-        notificacion,
-        alDescartar: () => eliminarInmediatamente(notificacion.id),
-        registrarDescarte: (descartar, cancelar) => callbacksDescarte.set(notificacion.id, { descartar, cancelar }),
-      }) as Gtk.Widget
-    })
-
-    try {
-      const [, alturaNatural] = elemento.measure(Gtk.Orientation.VERTICAL, ANCHO_POPUP)
-      alturaMedida = alturaNatural
-    } catch {
-      alturaMedida = 96
+  const ahora = Date.now()
+  for (let i = pendientes.length - 1; i >= 0; i--) {
+    if (esObsoletaEnCola(pendientes[i], ahora)) {
+      contadoresPendientes.delete(pendientes[i].id)
+      pendientes.splice(i, 1)
     }
+  }
+
+  while (pendientes.length > 0) {
+    const notificacion = pendientes[0]
+    if (widgets.size >= MAXIMO_POPUPS) {
+      if (expulsarPara(notificacion)) continue
+      break
+    }
+
+    const contador = contadoresPendientes.get(notificacion.id) ?? 1
+    const { elemento, desecharAmbito } = construirElemento(notificacion, contador)
 
     if (!canFitPopup(
       Array.from(alturas.values()),
-      alturaMedida,
+      medirAltura(elemento),
       alturaDisponible(),
       MAXIMO_POPUPS,
       ESPACIADO_POPUPS,
+      POPUPS_GARANTIZADOS,
+      PRESUPUESTO_PILA,
     )) {
       callbacksDescarte.delete(notificacion.id)
       desecharAmbito()
+      if (expulsarPara(notificacion)) continue
       break
     }
 
     pendientes.shift()
-    widgets.set(notificacion.id, elemento)
-    ambitos.set(notificacion.id, desecharAmbito)
-    alturas.set(notificacion.id, alturaMedida)
+    contadoresPendientes.delete(notificacion.id)
+    registrarVisible(notificacion, elemento, desecharAmbito, contador)
     contenedor.append(elemento)
-    programarDescarte(notificacion)
-    setHayPopups(true)
   }
+}
+
+function claveDe(notificacion: StoredNotification): string | null {
+  return claveAgrupacion(notificacion, appCoincide(notificacion.appName, popupsConversacion.get()))
+}
+
+/** Sustituye la tarjeta sin cambiarla de sitio, para que no salte al final de la pila. */
+function reemplazarVisible(vieja: StoredNotification, nueva: StoredNotification, contador: number): void {
+  const anterior = widgets.get(vieja.id)?.get_prev_sibling() ?? null
+  eliminarInmediatamente(vieja.id, false)
+  const { elemento, desecharAmbito } = construirElemento(nueva, contador)
+  registrarVisible(nueva, elemento, desecharAmbito, contador)
+  contenedor?.insert_child_after(elemento, anterior)
 }
 
 export function configurarPilaPopups(
@@ -159,11 +252,42 @@ export function actualizarMargenPila(margen: number): void {
   drenarCola()
 }
 
+/** ¿Ya se está enseñando o espera en cola una idéntica? Entonces no hay popup ni sonido. */
+export function esPopupDuplicado(notificacion: StoredNotification): boolean {
+  for (const visible of visibles.values()) if (sonIdenticas(visible, notificacion)) return true
+  return pendientes.some((pendiente) => sonIdenticas(pendiente, notificacion))
+}
+
 export function agregarPopup(notificacion: StoredNotification): void {
-  const indicePendiente = pendientes.findIndex(({ id }) => id === notificacion.id)
-  if (indicePendiente >= 0) pendientes.splice(indicePendiente, 1)
-  if (widgets.has(notificacion.id)) eliminarInmediatamente(notificacion.id, false)
-  pendientes.push(notificacion)
+  if (esPopupDuplicado(notificacion)) return
+
+  for (const visible of Array.from(visibles.values())) {
+    if (anulaEvento(notificacion, visible)) iniciarDescarte(visible.id)
+  }
+  for (let i = pendientes.length - 1; i >= 0; i--) {
+    if (anulaEvento(notificacion, pendientes[i])) pendientes.splice(i, 1)
+  }
+
+  const clave = claveDe(notificacion)
+  const coincide = (otra: StoredNotification) =>
+    otra.id === notificacion.id || (clave !== null && claveDe(otra) === clave)
+
+  const visible = Array.from(visibles.values()).find(coincide)
+  if (visible) {
+    reemplazarVisible(visible, notificacion, (contadores.get(visible.id) ?? 1) + (visible.id === notificacion.id ? 0 : 1))
+    return
+  }
+
+  let contador = 1
+  const indicePendiente = pendientes.findIndex(coincide)
+  if (indicePendiente >= 0) {
+    const pendiente = pendientes[indicePendiente]
+    contador = (contadoresPendientes.get(pendiente.id) ?? 1) + (pendiente.id === notificacion.id ? 0 : 1)
+    contadoresPendientes.delete(pendiente.id)
+    pendientes.splice(indicePendiente, 1)
+  }
+  if (contador > 1) contadoresPendientes.set(notificacion.id, contador)
+  insertarPorPrioridad(pendientes, notificacion)
   drenarCola()
 }
 
@@ -171,12 +295,14 @@ export function descartarTodosLosPopups(): void {
   for (const id of Array.from(widgets.keys())) eliminarInmediatamente(id, false)
 }
 
-// Como si a todos se les acabara el tiempo a la vez: salida animada, no retirada en seco.
-// La cola se vacía ANTES porque cada salida, al terminar, rellena con la siguiente
-// pendiente — y quien llama a esto es porque ya no debe aparecer ninguna.
-export function expirarTodosLosPopups(): void {
-  pendientes.splice(0)
-  for (const id of Array.from(widgets.keys())) iniciarDescarte(id)
+/** Al activarse una condición de silencio, retira lo que su política ya no deja pasar. */
+export function expirarPopupsNoPermitidos(permitida: (n: StoredNotification) => boolean): void {
+  for (let i = pendientes.length - 1; i >= 0; i--) {
+    if (!permitida(pendientes[i])) pendientes.splice(i, 1)
+  }
+  for (const visible of Array.from(visibles.values())) {
+    if (!permitida(visible)) iniciarDescarte(visible.id)
+  }
 }
 
 export function reiniciarPilaPorRafaga(): void {

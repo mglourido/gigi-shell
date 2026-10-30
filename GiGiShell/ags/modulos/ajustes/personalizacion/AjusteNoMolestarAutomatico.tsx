@@ -1,54 +1,62 @@
 // modulos/ajustes/personalizacion/AjusteNoMolestarAutomatico.tsx
-// Bloque "No molestar automático" de Notificaciones > General.
-// Un toggle maestro + una lista editable de clases de ventana que, al ponerse en
-// pantalla completa, también activan el No molestar (además de los juegos).
+// Bloque "Silencio automático" de Notificaciones > General: una política por condición (juego,
+// apps marcadas, pantalla completa), cada una con su modo y su lista de apps permitidas.
 // La lógica vive en modulos/notificaciones/autoDnd/; aquí sólo persiste preferencias.
-// La lista es el componente compartido `ListaClasesVentana` (el mismo que usa la pausa
-// de la luz nocturna al jugar), con `preferirPantallaCompleta` porque aquí la condición
-// ES la pantalla completa: al pulsar "ventana actual" interesa esa antes que la enfocada.
 import { Gtk } from "ags/gtk4"
-import Interruptor from "../../../componentes/Interruptor"
 import { EncabezadoAjuste, ListaClasesVentana } from "../componentes"
 import textos from "../../../textos/ajustes/personalizacion.json" with { type: "json" }
 import {
-  autoDndEnabled, setAutoDndEnabled,
-  autoDndFullscreenApps, addAutoDndApp, removeAutoDndApp,
+  CONDICIONES_SILENCIO, MODOS_SILENCIO, type CondicionSilencio,
+} from "../../notificaciones/autoDnd/politica"
+import {
+  addAppSilencio, addAutoDndApp, autoDndFullscreenApps, removeAppSilencio, removeAutoDndApp,
+  setModoSilencio, silencioAuto,
 } from "../preferences"
+
+const t = textos.noMolestar
+
+function BloqueCondicion({ condicion }: { condicion: CondicionSilencio }) {
+  const politica = silencioAuto((p) => p[condicion])
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={6}>
+      <label cssClasses={["re-section"]} label={t.condiciones[condicion]} halign={Gtk.Align.START} />
+      <box spacing={4}>
+        {MODOS_SILENCIO.map((modo) => (
+          <button
+            cssClasses={politica((p) => p.modo === modo ? ["re-seg", "active"] : ["re-seg"])}
+            onClicked={() => setModoSilencio(condicion, modo)}
+          >
+            <label label={t.modos[modo]} />
+          </button>
+        ))}
+      </box>
+      <ListaClasesVentana
+        clases={politica((p) => p.apps)}
+        alAnadir={(app: string) => addAppSilencio(condicion, app)}
+        alQuitar={(app: string) => removeAppSilencio(condicion, app)}
+        visible={politica((p) => p.modo === "apps")}
+        textos={t.permitidas}
+      />
+    </box>
+  )
+}
 
 export default function AutoDndSetting() {
   return (
-    <box orientation={Gtk.Orientation.VERTICAL} spacing={8} cssClasses={["sp-field"]} hexpand>
-      {/* Toggle maestro */}
-      <box spacing={8} valign={Gtk.Align.CENTER}>
-        <EncabezadoAjuste
-          titulo={textos.noMolestar.titulo}
-          informacion={textos.noMolestar.descripcion}
-          halign={Gtk.Align.START}
-          propiedadesInformacion={{ wrap: true, lines: 2, maxWidthChars: 62, xalign: 0 }}
-        />
-        <Interruptor
-          activo={autoDndEnabled}
-          alAlternar={() => setAutoDndEnabled(!autoDndEnabled.get())}
-        />
-      </box>
-
-      {/* Lista de apps que silencian en pantalla completa (sólo si está activo) */}
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-field"]} hexpand>
+      <EncabezadoAjuste
+        titulo={t.titulo}
+        informacion={t.descripcion}
+        halign={Gtk.Align.START}
+        propiedadesInformacion={{ wrap: true, lines: 2, maxWidthChars: 62, xalign: 0 }}
+      />
+      {CONDICIONES_SILENCIO.map((condicion) => <BloqueCondicion condicion={condicion} />)}
       <ListaClasesVentana
         clases={autoDndFullscreenApps}
         alAnadir={addAutoDndApp}
         alQuitar={removeAutoDndApp}
         preferirPantallaCompleta
-        visible={autoDndEnabled((v: boolean) => v)}
-        textos={{
-          titulo: textos.noMolestar.lista.titulo,
-          ayuda: textos.noMolestar.lista.ayuda,
-          vacia: textos.noMolestar.lista.vacia,
-          placeholder: textos.noMolestar.lista.placeholder,
-          anadir: textos.noMolestar.lista.anadir,
-          quitar: textos.noMolestar.lista.quitar,
-          ventana: textos.noMolestar.lista.ventana,
-          anadirVentana: textos.noMolestar.lista.anadirVentana,
-        }}
+        textos={t.lista}
       />
     </box>
   )

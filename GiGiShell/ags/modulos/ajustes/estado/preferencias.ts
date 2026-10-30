@@ -14,6 +14,10 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import { createComputed, createState } from "ags"
 import { execAsync } from "ags/process"
+import {
+  MODOS_SILENCIO,
+  type CondicionSilencio, type ModoSilencio, type PoliticaSilencio, type PoliticasSilencio,
+} from "../../notificaciones/autoDnd/politica"
 import { normalizarModoDaltonismo, type ModoDaltonismo } from "../accesibilidad/daltonismo"
 import {
   normalizarCarpeta, normalizarExtension, sanitizarComandos, type ComandoArchivo,
@@ -416,15 +420,20 @@ export { pausaLuzNocturnaJuegos }
 const [pausaLuzNocturnaApps, _setPausaLuzNocturnaApps] = createState<string[]>([])
 export { pausaLuzNocturnaApps }
 
-// No molestar automático: cuando está activo, un watcher en el shell
-// (modulos/notificaciones/autoDnd) enciende notifd.dontDisturb mientras haya un
-// juego corriendo o una app de la lista de abajo en pantalla completa. Silencia
-// SOLO los popups para el usuario; el procesamiento e historial siguen. Default: desactivado.
-const [autoDndEnabled, _setAutoDndEnabled] = createState(false)
-export { autoDndEnabled }
+// Silencio automático: qué avisos pasan en cada condición (modulos/notificaciones/autoDnd).
+// Solo filtra popups y sonido; el procesamiento e historial siguen.
+const [silencioAuto, _setSilencioAuto] = createState<PoliticasSilencio>({
+  juego: { modo: "todo", apps: [] },
+  apps: { modo: "todo", apps: [] },
+  pantallaCompleta: { modo: "sistema", apps: [] },
+})
+export { silencioAuto }
 
-// Lista de clases de ventana que, al ponerse en pantalla completa, también
-// disparan el No molestar automático (además de los juegos). Se guarda como
+// Apps cuyo popup de una misma conversación (mismo título) se sustituye por el último mensaje.
+const [popupsConversacion, _setPopupsConversacion] = createState<string[]>(["discord", "zapzap"])
+export { popupsConversacion }
+
+// Lista de clases de ventana que, en pantalla completa, activan la condición "apps". Se guarda como
 // substrings en minúsculas y se compara contra class/initialClass. Default: vacía.
 const [autoDndFullscreenApps, _setAutoDndFullscreenApps] = createState<string[]>([])
 export { autoDndFullscreenApps }
@@ -656,7 +665,21 @@ function load() {
     if (Array.isArray(saved.pausaLuzNocturnaApps)) {
       _setPausaLuzNocturnaApps(sanitizeApps(saved.pausaLuzNocturnaApps))
     }
-    if (typeof saved.autoDnd === "boolean") _setAutoDndEnabled(saved.autoDnd)
+    // `autoDnd` es el interruptor único anterior: solo se lee si aún no hay políticas.
+    const modoAntiguo: ModoSilencio = saved.autoDnd === true ? "nada" : "todo"
+    const politicaGuardada = (condicion: CondicionSilencio, modoInicial: ModoSilencio): PoliticaSilencio => {
+      const guardada = saved.silencioAuto?.[condicion]
+      return {
+        modo: MODOS_SILENCIO.includes(guardada?.modo) ? guardada.modo : modoInicial,
+        apps: Array.isArray(guardada?.apps) ? sanitizeApps(guardada.apps) : [],
+      }
+    }
+    _setSilencioAuto({
+      juego: politicaGuardada("juego", modoAntiguo),
+      apps: politicaGuardada("apps", modoAntiguo),
+      pantallaCompleta: politicaGuardada("pantallaCompleta", "sistema"),
+    })
+    if (Array.isArray(saved.popupsConversacion)) _setPopupsConversacion(sanitizeApps(saved.popupsConversacion))
     if (Array.isArray(saved.autoDndFullscreenApps)) {
       _setAutoDndFullscreenApps(sanitizeApps(saved.autoDndFullscreenApps))
     }
@@ -744,7 +767,8 @@ function save() {
       escanerJuegos: escanerJuegos.get(),
       pausaLuzNocturnaJuegos: pausaLuzNocturnaJuegos.get(),
       pausaLuzNocturnaApps: pausaLuzNocturnaApps.get(),
-      autoDnd: autoDndEnabled.get(),
+      silencioAuto: silencioAuto.get(),
+      popupsConversacion: popupsConversacion.get(),
       autoDndFullscreenApps: autoDndFullscreenApps.get(),
       popupDuracionNormalMs: popupDuracionNormalMs.get(),
       popupDuracionSistemaMs: popupDuracionSistemaMs.get(),
@@ -1140,8 +1164,26 @@ export function setAccionEnergiaOculta(id: string, oculta: boolean) {
   _setAccionesEnergiaOcultas(siguiente)
   save()
 }
-export function setAutoDndEnabled(on: boolean) {
-  _setAutoDndEnabled(on)
+function actualizarSilencio(condicion: CondicionSilencio, cambios: Partial<PoliticaSilencio>) {
+  const actual = silencioAuto.get()
+  _setSilencioAuto({ ...actual, [condicion]: { ...actual[condicion], ...cambios } })
+  save()
+}
+export function setModoSilencio(condicion: CondicionSilencio, modo: ModoSilencio) {
+  actualizarSilencio(condicion, { modo })
+}
+export function addAppSilencio(condicion: CondicionSilencio, app: string) {
+  actualizarSilencio(condicion, { apps: sanitizeApps([...silencioAuto.get()[condicion].apps, app]) })
+}
+export function removeAppSilencio(condicion: CondicionSilencio, app: string) {
+  actualizarSilencio(condicion, { apps: silencioAuto.get()[condicion].apps.filter((a) => a !== app) })
+}
+export function addPopupConversacion(app: string) {
+  _setPopupsConversacion(sanitizeApps([...popupsConversacion.get(), app]))
+  save()
+}
+export function removePopupConversacion(app: string) {
+  _setPopupsConversacion(popupsConversacion.get().filter((a) => a !== app))
   save()
 }
 // No hay setter "maestro" que relance nada: los scripts releen `gamingFreeze` del

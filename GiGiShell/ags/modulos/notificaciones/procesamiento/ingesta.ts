@@ -11,6 +11,8 @@ import { getCondition } from "../rules/conditions.ts"
 import type { NotifInput } from "../rules/types.ts"
 import { recordNotification } from "../history/historyStore.ts"
 import { reproducirSonidoNotificacion } from "../sonido/reproductor.ts"
+import { notificacionPermitida } from "../autoDnd/watcher.ts"
+import { esPopupDuplicado } from "../popup/pila.ts"
 // El estado de la suspensión falsa entra por la puerta más estrecha posible: una función del
 // EFECTOR (`servicios/energia/suspensionFalsa/dnd.ts`), no el orquestador. Importar
 // `suspensionFalsa.ts` desde aquí arrastraría `estado/shell` —que monta los paneles, y algunos
@@ -183,14 +185,15 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
   // Audio. Va DESPUÉS de almacenar y de las reglas: `meta.muteAudio` es su entrada, y una
   // notificación suprimida (`suppress`) o deduplicada ya salió por arriba sin llegar aquí. Suena
   // aunque `dontShow` la oculte del popup — «no la enseñes» no es «no me avises».
-  reproducirSonidoNotificacion({
+  // Una idéntica que ya está en pantalla no da aviso nuevo, tampoco por el altavoz.
+  if (!esPopupDuplicado(stored)) reproducirSonidoNotificacion({
     soundName: readStringHint(n, "sound-name"),
     soundFile: readStringHint(n, "sound-file"),
     suppressSound: readBoolHint(n, "suppress-sound"),
     // Sonido puesto a mano en una regla o en un aviso del sistema. Es lo único capaz de hacer
     // sonar una notificación que no pedía sonido, y de cambiar el que pedía.
     sonidoRegla,
-    noMolestar: noMolestarActivo(),
+    noMolestar: noMolestarActivo() || !notificacionPermitida(stored),
     // Suspensión falsa: el DND que pone al entrar dejaría MUDAS las alarmas —No molestar calla
     // el sonido y una crítica no se lo salta—, así que se marca como motivo propio y el sonido
     // pasa a gobernarlo los dos ajustes. Con el DND manual del usuario esto viene a false y no

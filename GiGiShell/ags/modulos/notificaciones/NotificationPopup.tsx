@@ -17,7 +17,11 @@ import {
 } from "../../estado/visibilidadBarra"
 import { barAutoHideEnabled, clasesFondoShell } from "../ajustes/preferences"
 import { ingest } from "./procesamiento/ingesta.ts"
-import { crearResumenRafaga } from "./popup/logica.ts"
+import {
+  crearResumenRafaga, crearResumenReanudacion, PRIORIDAD_CRITICA, prioridadPopup,
+} from "./popup/logica.ts"
+import { notificacionPermitida } from "./autoDnd/watcher.ts"
+import { alReanudar } from "../../servicios/sistema/reanudacion"
 import { PopupBurstGuard } from "./popup/rafaga.ts"
 import {
   agregarPopup,
@@ -125,7 +129,35 @@ function programarResumenRafaga(): void {
   )
 }
 
+// Al despertar llegan de golpe los avisos acumulados. Lo que no sea urgente ni pida una decisión
+// va directo al panel, y al terminar la ventana se resume en un solo popup.
+const VENTANA_REANUDACION_MS = 10000
+let tragadasReanudacion: StoredNotification[] | null = null
+
+function abrirVentanaReanudacion(): void {
+  if (tragadasReanudacion) return
+  tragadasReanudacion = []
+  GLib.timeout_add(GLib.PRIORITY_DEFAULT, VENTANA_REANUDACION_MS, () => {
+    const tragadas = tragadasReanudacion ?? []
+    tragadasReanudacion = null
+    if (tragadas.length === 1) agregarPopup(tragadas[0])
+    else if (tragadas.length > 1) agregarPopup(crearResumenReanudacion(siguienteIdSintetico--, tragadas.length))
+    return GLib.SOURCE_REMOVE
+  })
+}
+
 function gestionarPopupEntrante(notificacion: StoredNotification): void {
+  const prioridad = prioridadPopup(notificacion)
+  // Una crítica no espera a ningún resumen.
+  if (prioridad >= PRIORIDAD_CRITICA) {
+    agregarPopup(notificacion)
+    return
+  }
+  if (tragadasReanudacion && prioridad < 2) {
+    tragadasReanudacion.push(notificacion)
+    return
+  }
+
   const rafaga = protectorRafaga.record(Date.now())
   if (!rafaga.bursting) {
     agregarPopup(notificacion)
@@ -148,12 +180,14 @@ export default function NotificationPopup(monitor: Gdk.Monitor) {
 
   if (!senalNotificacionConectada) {
     senalNotificacionConectada = true
+    alReanudar(abrirVentanaReanudacion)
     daemonNotificaciones.connect("notified", (_daemon, id) => {
       const notificacionActiva = daemonNotificaciones.get_notification(id)
       if (!notificacionActiva) return
 
       const notificacion = ingest(notificacionActiva)
       if (!notificacion || daemonNotificaciones.dontDisturb) return
+      if (!notificacionPermitida(notificacion)) return
       gestionarPopupEntrante(notificacion)
     })
   }

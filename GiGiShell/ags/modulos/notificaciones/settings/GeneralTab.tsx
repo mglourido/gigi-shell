@@ -1,3 +1,4 @@
+import AjustePopupsConversacion from "../../ajustes/personalizacion/AjustePopupsConversacion.tsx"
 import { Gtk } from "ags/gtk4"
 import AutoDndSetting from "../../ajustes/AutoDndSetting"
 import DuracionPopupsSetting from "../../ajustes/DuracionPopupsSetting"
@@ -8,6 +9,7 @@ export default function GeneralTab() {
     <box orientation={Gtk.Orientation.VERTICAL} spacing={10} hexpand>
       <DuracionPopupsSetting />
       <AutoDndSetting />
+      <AjustePopupsConversacion />
     </box>
   )
 }
