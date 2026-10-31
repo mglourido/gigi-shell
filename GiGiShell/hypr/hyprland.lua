@@ -52,7 +52,8 @@ util.carga("gigishell.tapa")           -- GiGiShell.tapa_cerrada() / tapa_abiert
 util.carga("gigishell.daltonismo")     -- GiGiShell.daltonismo(modo)
 util.carga("gigishell.orion")          -- GiGiShell.toggle_orion()
 util.carga("gigishell.ancla-escritorio") -- GiGiShell.anclar_escritorio() / saltar_ancla()
-util.carga("gigishell.keybinds")       -- los atajos reales (+ GiGiShell.toggle_gaps)
+util.carga("gigishell.vista-en-vivo") -- GiGiShell.vista_en_vivo(): miniatura de escritorio oculto
+util.carga("gigishell.keybinds")     -- los atajos reales (+ GiGiShell.toggle_gaps)
 util.carga("gigishell.autostart")      -- arranque escalonado (hl.on "hyprland.start")
 util.carga("gigishell.escaner-apps")   -- salto al escritorio de las apps de autostart
 util.carga("gigishell.reparto-ventanas") -- que una ventana nueva no nazca estrujada

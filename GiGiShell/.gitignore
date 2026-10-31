@@ -56,6 +56,7 @@ eventd/target/
 # que son de esta máquina/kernel — build.rs los regenera desde BTF en cada checkout
 guardian/target/
 almacenamiento/target/
+vista-escritorio/target/
 
 # --- Desechable ---
 

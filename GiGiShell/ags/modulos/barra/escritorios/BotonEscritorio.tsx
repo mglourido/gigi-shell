@@ -30,7 +30,6 @@ interface PropiedadesBotonEscritorio {
   direccionEnfocada: Accessor<string>
   vistaPrevia: GestorVistaPreviaEscritorios
   vistaPreviaActiva: () => boolean
-  rutaVistaPrevia: (idEscritorio: number) => string
   interacciones: InteraccionesBotonEscritorio
   alIntercambiar: (primerId: number, segundoId: number) => void
   alDesplazar: (idOrigen: number, idDestino: number) => void
@@ -50,7 +49,6 @@ export default function BotonEscritorio({
   direccionEnfocada,
   vistaPrevia,
   vistaPreviaActiva,
-  rutaVistaPrevia,
   interacciones,
   alIntercambiar,
   alDesplazar,
@@ -366,11 +364,7 @@ export default function BotonEscritorio({
           button={Gdk.BUTTON_SECONDARY}
           onPressed={(gesto) => {
             if (!vistaPreviaActiva()) return
-            vistaPrevia.mostrar(
-              gesto.get_widget(),
-              escritorio.id,
-              rutaVistaPrevia(escritorio.id),
-            )
+            vistaPrevia.mostrar(gesto.get_widget(), escritorio.id, escritorio.nombre)
           }}
         />
         <label cssClasses={["ws-id"]} label={etiquetaEscritorio(escritorio.id)} />

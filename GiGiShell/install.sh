@@ -1723,6 +1723,11 @@ configure_default_shell() {
     info "Compilando gigishell-almacenamiento (pasa los tests antes de instalar) ..."
     bash "$GIGISHELL/almacenamiento/instalar.sh" \
       || warn "No se pudo compilar gigishell-almacenamiento; Ajustes > Almacenamiento seguirá en bash. Reintento: bash ~/GiGiShell/almacenamiento/instalar.sh"
+    # Vista previa en vivo de los escritorios de la barra. Opcional igual: sin el binario, la
+    # miniatura solo muestra una foto con grim del escritorio activo.
+    info "Compilando gigishell-vista-escritorio (pasa los tests antes de instalar) ..."
+    bash "$GIGISHELL/vista-escritorio/instalar.sh" \
+      || warn "No se pudo compilar gigishell-vista-escritorio; las miniaturas de escritorios no irán en vivo. Reintento: bash ~/GiGiShell/vista-escritorio/instalar.sh"
     fi
 
     GUARDIAN_ESTADO="fallido"

@@ -288,6 +288,26 @@ if [[ "$mode" == "--installed" ]]; then
     ok "gigishell-almacenamiento instalado y al día"
   fi
 
+  # gigishell-vista-escritorio: opcional; sin él, la miniatura de la barra es una foto con grim
+  # del escritorio activo. Comprueba el compositor, así que fuera de una sesión (código 1 sin
+  # WAYLAND_DISPLAY) no hay veredicto sobre el protocolo y basta con la frescura del binario.
+  vista_bin="$HOME/.local/bin/gigishell-vista-escritorio"
+  if [[ ! -x "$vista_bin" ]]; then
+    warn "gigishell-vista-escritorio no instalado: las miniaturas de escritorios no van en vivo (bash $GIGISHELL/vista-escritorio/instalar.sh)"
+  else
+    vista_rc=0
+    "$vista_bin" --comprobar >/dev/null 2>&1 || vista_rc=$?
+    if [[ $vista_rc -eq 3 ]]; then
+      warn "el compositor no ofrece hyprland_workspace_image_capture_source_v1 (Hyprland < 0.57): las miniaturas de escritorios no van en vivo"
+    elif [[ $vista_rc -ne 0 && ( $vista_rc -ne 1 || -n "${WAYLAND_DISPLAY:-}" ) ]]; then
+      fail "gigishell-vista-escritorio no arranca: recompila con $GIGISHELL/vista-escritorio/instalar.sh o quítalo con --quitar"
+    elif [[ -n "$(find "$GIGISHELL/vista-escritorio/src" "$GIGISHELL/vista-escritorio/Cargo.toml" -newer "$vista_bin" -print -quit 2>/dev/null)" ]]; then
+      warn "gigishell-vista-escritorio es más viejo que su código: recompila con $GIGISHELL/vista-escritorio/instalar.sh"
+    else
+      ok "gigishell-vista-escritorio instalado y al día"
+    fi
+  fi
+
   # gigishell-guardian (protección de archivos) también es opcional y viene APAGADO.
   # Lo que se vigila es que el binario o las categorías instaladas no se queden atrás
   # del repo: el servicio seguiría aplicando las reglas viejas sin ningún síntoma.

@@ -1,0 +1,24 @@
+[package]
+name = "gigishell-vista-escritorio"
+version = "0.1.0"
+edition = "2021"
+description = "Vista previa en vivo de un escritorio de Hyprland (hyprland_workspace_image_capture_source_v1)"
+publish = false
+
+[dependencies]
+libc = "0.2"
+wayland-backend = "0.3"
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+wayland-scanner = "0.31"
+
+[profile.release]
+# Reducir la imagen es la ruta caliente: optimiza por velocidad, no por tamaño.
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+debug = "line-tables-only"

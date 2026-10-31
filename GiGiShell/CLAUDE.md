@@ -17,6 +17,7 @@ Este archivo es el índice. Lo detallado vive en `CLAUDE.md` de subcarpetas y en
 | `eventd/` | daemon Rust que sustituye a los sub-monitores de `oom-monitor.sh` | `eventd/CLAUDE.md`, `docs/rust-migracion.md` |
 | `almacenamiento/` | binario Rust de análisis y limpieza de disco | `almacenamiento/CLAUDE.md` |
 | `guardian/` | daemon Rust root de protección de archivos | `guardian/CLAUDE.md` |
+| `vista-escritorio/` | binario Rust de la miniatura en vivo de los escritorios de la barra | `vista-escritorio/CLAUDE.md` |
 | `audio/` | sonidos de alarmas y notificaciones | `audio/README.md` |
 | `bin/`, `install.sh` | symlinks, preflight, bootstrap | secciones «Symlinks» y «Per-machine profiles» de este archivo; `docs/SETUP.md` |
 
@@ -59,6 +60,7 @@ Directorios de apoyo (cada uno con su `CLAUDE.md` o README donde importa; ver el
 - `bin/link.sh` (gestor de symlinks), `bin/preflight.sh`, `install.sh` (bootstrap de una máquina nueva) y `docs/` (specs, planes y guías).
 - `eventd/` — daemon Rust `gigishell-eventd`: sustituye a los seis sub-monitores de `oom-monitor.sh` cuando está instalado en `~/.local/bin`; una regla de seguridad cambiada en un sitio hay que cambiarla en el otro. Ver `eventd/CLAUDE.md` y `docs/rust-migracion.md`.
 - `almacenamiento/` — binario Rust `gigishell-almacenamiento`: análisis y limpieza de Ajustes > Almacenamiento; los scripts de `hypr/scripts/` le ceden el proceso con `exec` y, sin binario, corren su respaldo bash. Ver `almacenamiento/CLAUDE.md`.
+- `vista-escritorio/` — binario Rust `gigishell-vista-escritorio`: la miniatura en vivo de un escritorio de la barra, incluidos los ocultos; solo existe mientras esa miniatura está abierta y, sin binario, la barra enseña una foto con `grim` del escritorio activo. Ver `vista-escritorio/CLAUDE.md`.
 - `guardian/` — daemon Rust root `gigishell-guardian`, la **protección de archivos** (BPF LSM + fanotify); se instala **apagado** y su política vive en `/var/lib/gigishell-guardian/`, no en `~/.config`. Ver `guardian/CLAUDE.md`.
 - `system/` — ficheros para `/etc` y `/usr/local/bin` que **no** se symlinkean: se instalan con `sudo`. Ver `system/CLAUDE.md`; la plantilla de SDDM y su tema, en `system/sddm/CLAUDE.md`; la hibernación, en `system/hibernacion/CLAUDE.md`.
 

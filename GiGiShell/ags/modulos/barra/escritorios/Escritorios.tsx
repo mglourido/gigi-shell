@@ -22,10 +22,6 @@ import {
 import BotonEscritorio, {
   type InteraccionesBotonEscritorio,
 } from "./BotonEscritorio"
-import {
-  crearCapturadorEscritorios,
-  rutaVistaPreviaEscritorio,
-} from "./capturas"
 import { obtenerIconosClientesEscritorio } from "./iconos"
 import { sonEscritoriosEquivalentes } from "./modelo"
 import { esEscritorioEspecial } from "../../../servicios/escritorios/especiales"
@@ -79,7 +75,6 @@ export default function Escritorios(
     obtenerMonitorHyprland()?.activeWorkspace?.id ?? -1
 
   let idsEscritoriosRecientes = recordarEscritorioReciente([], obtenerIdEscritorioActivo())
-  let ultimoIdEscritorioActivo = obtenerIdEscritorioActivo()
   // Igualdad por CONTENIDO, no por identidad de array. `actualizar()` corre ante
   // cualquier señal de escritorios —incluida `notify::focused-client`, que con
   // `follow_mouse = 1` salta cada vez que el puntero cruza de una ventana a otra— y
@@ -90,7 +85,7 @@ export default function Escritorios(
     createState<EscritorioVisible[]>([], { equals: sonEscritoriosEquivalentes })
   const [escritoriosRenderizados, fijarEscritoriosRenderizados] =
     createState<EscritorioVisible[]>([], { equals: sonEscritoriosEquivalentes })
-  const [idEnfocado, fijarIdEnfocado] = createState(ultimoIdEscritorioActivo)
+  const [idEnfocado, fijarIdEnfocado] = createState(obtenerIdEscritorioActivo())
   const [direccionEnfocada, fijarDireccionEnfocada] = createState("")
 
   /** Clientes de un escritorio como accessor vivo. `<For>` está indexado por id, así
@@ -102,15 +97,9 @@ export default function Escritorios(
       lista.find((escritorio) => escritorio.id === idEscritorio)?.clientes ?? SIN_CLIENTES,
     )
 
-  // Sin connector se mantiene la lista por geometría, pero grim queda desactivado:
-  // no se puede seleccionar con seguridad una salida mediante `-o`.
-  const capturador = crearCapturadorEscritorios(
-    nombreSalida,
-    obtenerIdEscritorioActivo,
-    vistaPreviaActiva,
-  )
   const vistaPrevia = crearGestorVistaPreviaEscritorios(
     monitorGdk,
+    obtenerIdEscritorioActivo,
     interaccion.cambiarVistaPrevia,
   )
   const interaccionesBoton: InteraccionesBotonEscritorio = {
@@ -122,7 +111,6 @@ export default function Escritorios(
   const actualizar = () => {
     const monitor = obtenerMonitorHyprland()
     if (!monitor) {
-      capturador.conservarEscritorios(new Set())
       fijarEscritorios([])
       if (visibilidad.visible.get()) fijarEscritoriosRenderizados([])
       fijarIdEnfocado(-1)
@@ -131,10 +119,6 @@ export default function Escritorios(
     }
 
     const idActivo = monitor.activeWorkspace?.id ?? -1
-    if (idActivo !== ultimoIdEscritorioActivo) {
-      ultimoIdEscritorioActivo = idActivo
-      capturador.solicitar(idActivo)
-    }
     idsEscritoriosRecientes = recordarEscritorioReciente(idsEscritoriosRecientes, idActivo)
     fijarIdEnfocado(idActivo)
 
@@ -147,7 +131,6 @@ export default function Escritorios(
       .filter((escritorio) => escritorio.monitor?.id === monitor.id)
       .sort((primero, segundo) => primero.id - segundo.id)
     const idsLocales = new Set(escritoriosLocales.map((escritorio) => escritorio.id))
-    capturador.conservarEscritorios(idsLocales)
     const clientesPorEscritorio = new Map<number, ClienteEscritorio[]>()
 
     for (const cliente of hyprland.get_clients() as ClienteEscritorio[]) {
@@ -259,14 +242,9 @@ export default function Escritorios(
   })
   const alCambiarPreferenciaVistaPrevia = () => {
     if (!vistaPreviaActiva()) vistaPrevia.cerrar()
-    else capturador.solicitar(obtenerIdEscritorioActivo())
   }
   const dejarVistaPrevia = wsPreviewEnabled.subscribe(alCambiarPreferenciaVistaPrevia)
   const dejarSuspension = wsPreviewSuspended.subscribe(alCambiarPreferenciaVistaPrevia)
-  const capturaInicial = setTimeout(
-    () => capturador.solicitar(obtenerIdEscritorioActivo(), 0),
-    800,
-  )
 
   onCleanup(() => {
     dejarDatos()
@@ -274,8 +252,6 @@ export default function Escritorios(
     dejarVisibilidad()
     dejarVistaPrevia()
     dejarSuspension()
-    clearTimeout(capturaInicial)
-    capturador.eliminar()
     vistaPrevia.eliminar()
     interaccion.cambiarArrastre(false)
     interaccion.cambiarVistaPrevia(false)
@@ -299,9 +275,6 @@ export default function Escritorios(
             direccionEnfocada={direccionEnfocada}
             vistaPrevia={vistaPrevia}
             vistaPreviaActiva={vistaPreviaActiva}
-            rutaVistaPrevia={(idEscritorio) =>
-              rutaVistaPreviaEscritorio(nombreSalida, idEscritorio)
-            }
             interacciones={interaccionesBoton}
             alIntercambiar={intercambiar}
             alDesplazar={desplazar}

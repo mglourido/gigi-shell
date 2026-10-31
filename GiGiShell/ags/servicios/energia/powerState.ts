@@ -24,7 +24,7 @@ interface PowerConfig {
   thresholdPct: number         // battery % at/under which power-save turns on (0..100)
   forcePowerSave: boolean      // when true, power-save is ON regardless of battery level/charging/presence
   suspendNotifFilters: boolean // when true, notification filter timers pause during power-save
-  pauseWsPreview: boolean      // when true, the workspace preview (grim capture) pauses during power-save
+  pauseWsPreview: boolean      // when true, the workspace preview pauses during power-save
   hideSpotifyBar: boolean      // when true, the Spotify pill is unmounted during power-save
   freezeBackground: boolean    // when true, background maintenance polling freezes during power-save
   fallbackWave: boolean        // when true, the Spotify wave drops cava for its procedural animation

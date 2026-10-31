@@ -250,8 +250,9 @@ Qué usa cada cosa:
 
 - **`hyprshot`** (capturas, `Print` / `Ctrl+Print` en `gigishell/keybinds.lua`) ya trae como
   dependencias `grim`, `slurp`, `jq`, `libnotify`, `wl-clipboard` — pero como AGS también
-  llama a `grim` directamente (preview de workspace al clic-derecho sobre el número, ver
-  `modulos/barra/escritorios/Escritorios.tsx`), instálalo igual explícitamente. Opcional: `hyprpicker`
+  llama a `grim` directamente (respaldo de la miniatura de escritorio cuando falta
+  `gigishell-vista-escritorio`, ver `modulos/barra/escritorios/respaldoGrim.ts`), instálalo igual
+  explícitamente. Opcional: `hyprpicker`
   (congela pantalla durante la captura).
 - **`rofi`** — lanzador de apps (`SUPER+SPACE` → `hypr/scripts/rofi-launch.py`, requiere
   además `python3`, ya lo trae el sistema base — que es también lo que necesita
@@ -897,7 +898,6 @@ Las fuentes manuales son las únicas entradas de esta tabla que hay que copiar p
 
 | Ruta | Para qué es |
 |---|---|
-| `/tmp/ags-ws-preview-*.png` | capturas de `grim` para el preview de workspace al clic-derecho |
 | `$XDG_RUNTIME_DIR/gigishell-gaps-disabled` | marca si el toggle está en modo "sin gaps" |
 | `~/.cache/ags/media` | carátulas de álbum cacheadas por el reproductor multimedia |
 | `~/.config/hypr/logs/boot-healthcheck.log` | log propio; rota solo y no es necesario para funcionar |

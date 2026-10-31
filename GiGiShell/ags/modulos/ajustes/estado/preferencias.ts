@@ -44,8 +44,8 @@ import {
 const PREFS_PATH = `${GLib.get_user_config_dir()}/gigishell/preferences.json`
 
 // ── Estado reactivo ───────────────────────────────────────────────────────────
-// Preview de workspace: captura con grim al cambiar de workspace + popover al
-// hacer clic derecho sobre el número. Default: activada (comportamiento actual).
+// Preview de workspace: miniatura en vivo al hacer clic derecho sobre el número.
+// Default: activada (comportamiento actual).
 const [wsPreviewEnabled, _setWsPreviewEnabled] = createState(true)
 export { wsPreviewEnabled }
 
