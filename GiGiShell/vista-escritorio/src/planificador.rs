@@ -29,6 +29,8 @@ pub struct Ajustes {
     pub activo: Duration,
     pub activo_respaldo: Option<Duration>,
     pub modo: Modo,
+    /// La vista grande: mejor calidad también con la imagen en movimiento, aunque baje a su respaldo.
+    pub solo_refinado: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -118,13 +120,14 @@ enum Fase {
 pub struct Plan {
     fase: Fase,
     modo: Modo,
+    solo_refinado: bool,
     proxima: Instant,
     anterior: Option<Instant>,
 }
 
 impl Plan {
     pub fn new(ahora: Instant, ajustes: &Ajustes) -> Self {
-        Self { fase: Fase::Inicial, modo: ajustes.modo, proxima: ahora, anterior: None }
+        Self { fase: Fase::Inicial, modo: ajustes.modo, solo_refinado: ajustes.solo_refinado, proxima: ahora, anterior: None }
     }
 
     pub fn proxima(&self) -> Instant {
@@ -144,6 +147,12 @@ impl Plan {
         let periodo = self.anterior.map(|a| ahora.duration_since(a));
         self.anterior = Some(ahora);
         let (fase, accion) = self.transicion(ahora, cambio);
+        let accion = match accion {
+            Accion::EnviarRapido if self.solo_refinado => Accion::EnviarRefinado,
+            // Lo último enviado ya es refinado: reenviarlo al congelarse repintaría lo mismo.
+            Accion::EnviarRefinado if self.solo_refinado && self.fase != Fase::Inicial => Accion::Nada,
+            otra => otra,
+        };
         if let Some(periodo) = periodo {
             match self.fase {
                 Fase::Congelada => ritmos.anotar_comprobacion(ahora, periodo),
@@ -183,7 +192,22 @@ mod pruebas {
     const fn ms(n: u64) -> Duration { Duration::from_millis(n) }
 
     fn ajustes() -> Ajustes {
-        Ajustes { activo: ms(33), activo_respaldo: None, modo: Modo::Congelable }
+        Ajustes { activo: ms(33), activo_respaldo: None, modo: Modo::Congelable, solo_refinado: false }
+    }
+
+    #[test]
+    fn solo_refinado_no_usa_el_filtro_rapido_ni_repite_el_fotograma_al_congelarse() {
+        let t0 = Instant::now();
+        let a = Ajustes { solo_refinado: true, ..ajustes() };
+        let mut ritmos = Ritmos::new(&a);
+        let mut plan = Plan::new(t0, &a);
+        assert_eq!(plan.tras_captura(t0, true, &mut ritmos), Accion::EnviarRefinado);
+        assert_eq!(plan.tras_captura(t0 + ms(100), true, &mut ritmos), Accion::EnviarRefinado);
+        assert_eq!(plan.tras_captura(t0 + ms(200), false, &mut ritmos), Accion::Nada);
+        // Al congelarse, la imagen enviada ya es la refinada.
+        assert_eq!(plan.tras_captura(t0 + ms(10_101), false, &mut ritmos), Accion::Nada);
+        assert_eq!(plan.proxima(), t0 + ms(10_401));
+        assert_eq!(plan.tras_captura(t0 + ms(10_401), true, &mut ritmos), Accion::EnviarRefinado);
     }
 
     #[test]
@@ -258,7 +282,7 @@ mod pruebas {
     #[test]
     fn la_vista_grande_baja_a_30_si_no_sostiene_50_fps() {
         let t0 = Instant::now();
-        let a = Ajustes { activo: ms(16), activo_respaldo: Some(ms(33)), modo: Modo::Congelable };
+        let a = Ajustes { activo: ms(16), activo_respaldo: Some(ms(33)), modo: Modo::Congelable, solo_refinado: false };
         let mut ritmos = Ritmos::new(&a);
         for i in 1..=100 {
             ritmos.anotar_activo(t0 + ms(i * 25), ms(25));
@@ -269,7 +293,7 @@ mod pruebas {
     #[test]
     fn la_barra_nunca_se_congela() {
         let t0 = Instant::now();
-        let a = Ajustes { activo: ms(33), activo_respaldo: None, modo: Modo::Fijo };
+        let a = Ajustes { activo: ms(33), activo_respaldo: None, modo: Modo::Fijo, solo_refinado: false };
         let mut ritmos = Ritmos::new(&a);
         let mut plan = Plan::new(t0, &a);
         plan.tras_captura(t0, true, &mut ritmos);
@@ -291,7 +315,7 @@ mod pruebas {
     #[test]
     fn la_imagen_fija_termina_tras_el_primer_fotograma() {
         let t0 = Instant::now();
-        let a = Ajustes { activo: ms(33), activo_respaldo: None, modo: Modo::UnaVez };
+        let a = Ajustes { activo: ms(33), activo_respaldo: None, modo: Modo::UnaVez, solo_refinado: false };
         let mut ritmos = Ritmos::new(&a);
         let mut plan = Plan::new(t0, &a);
         assert_eq!(plan.tras_captura(t0, true, &mut ritmos), Accion::EnviarRefinado);
@@ -311,7 +335,7 @@ mod pruebas {
     #[test]
     fn un_hueco_largo_no_activa_el_respaldo_de_activo() {
         let t0 = Instant::now();
-        let a = Ajustes { activo: ms(16), activo_respaldo: Some(ms(33)), modo: Modo::Congelable };
+        let a = Ajustes { activo: ms(16), activo_respaldo: Some(ms(33)), modo: Modo::Congelable, solo_refinado: false };
         let mut ritmos = Ritmos::new(&a);
         ritmos.anotar_activo(t0, ms(25));
         ritmos.anotar_activo(t0 + ms(60_000), ms(1000));

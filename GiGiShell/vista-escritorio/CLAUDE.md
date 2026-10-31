@@ -22,6 +22,10 @@ Medidas, límites y respaldo en [`ags/modulos/barra/CLAUDE.md`](../ags/modulos/b
   volver a verlo hay que mandar otro `+`. Todo el proceso comparte una medida de búfer, la de la primera
   sesión lista: vale porque el menú solo enseña el monitor enfocado. Un cambio de modo del monitor con
   el menú abierto hace fallar sus capturas, y hay que relanzarlo.
+- **`--solo-refinado` (vista grande del menú): siempre Lanczos, nunca la caja.** Con caja, un escritorio
+  con algo moviéndose (un spinner, un cursor) se veía borroso hasta 10 s después del último cambio. Lanczos
+  cuesta 21-24 ms por fotograma a 1520-1900 de ancho desde 1440p (caja: 6-8 ms), así que con movimiento
+  continuo la vista grande cae a su respaldo de 30 fps. Solo se paga con fotogramas que cambian.
 - **Búferes: 3 para las miniaturas.** Medido en 1440p a 760×428 con 3 sesiones animadas: 1 → 24 fps,
   2 → 26, 3 → 28, 4 → 28 (lo que da la app). RSS 34/48/62/75 MB: cada búfer son 14 MB. CPU ~105 % de un
   núcleo en todos: unos 13 ms por miniatura, con la caja a dos hilos y la firma.

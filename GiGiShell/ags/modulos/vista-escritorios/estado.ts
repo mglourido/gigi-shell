@@ -1,6 +1,6 @@
 import { createState } from "ags"
 import { execAsync } from "ags/process"
-import { closeAllPanels, cerrarPanelesNoBarra } from "../../estado/shell"
+import { closeAllPanels, setCalendarVisible } from "../../estado/shell"
 import { suspensionFalsaActiva } from "../../servicios/energia/suspensionFalsa"
 import { transicion, type EstadoCierre, type EventoCierre } from "./cierre"
 
@@ -29,7 +29,8 @@ export function avisarVistaEscritorios(evento: EventoCierre) {
     for (const accion of paso.acciones) {
       if (accion === "abrir") {
         closeAllPanels()
-        cerrarPanelesNoBarra()
+        // Solo el calendario: Orion se queda abierto y utilizable al cerrar este menú.
+        setCalendarVisible(false)
         setVistaEscritoriosVisible(true)
       } else if (accion === "cerrar") {
         setVistaEscritoriosVisible(false)

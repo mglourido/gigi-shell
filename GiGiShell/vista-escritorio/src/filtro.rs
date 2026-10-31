@@ -95,12 +95,13 @@ impl Filtro {
         self.ancho * self.alto * 4
     }
 
-    /// Mientras la imagen cambia.
+    /// Mientras la imagen cambia, en las miniaturas.
     pub fn caja(&self, origen: &[u8], destino: &mut [u8], intermedio: &mut Vec<u8>) {
         self.filtrar(&self.caja_x, &self.caja_y, origen, destino, intermedio);
     }
 
-    /// Una sola pasada, al congelarse: el texto quieto es lo que se quiere leer.
+    /// En las miniaturas, una sola pasada al congelarse: el texto quieto es lo que se quiere leer. En
+    /// la vista grande, siempre.
     pub fn lanczos(&self, origen: &[u8], destino: &mut [u8], intermedio: &mut Vec<u8>) {
         self.filtrar(&self.lanczos_x, &self.lanczos_y, origen, destino, intermedio);
     }

@@ -5,7 +5,11 @@
 }
 
 .ve-fondo {
-  background-color: rgba(20, 20, 20, 0.55);
+  background-color: rgba(20, 20, 20, 0.25);
+  // Sin esto NO hay blur, y no da error. GTK 4.24 pide la región al compositor con
+  // ext_background_effect, y una superficie que usa ese protocolo hace que Hyprland ignore su regla
+  // de capa (CLayerSurface::shouldBlur). La intensidad no sale de aquí, sino de decoration.blur.
+  backdrop-filter: blur(14px);
   padding: 32px;
   animation: ve-aparecer 120ms ease-out;
 }
@@ -16,13 +20,13 @@
 
 .ve-miniatura,
 .ve-grande {
-  border-radius: 12px;
+  border-radius: 3px;
   background-color: c.$bg-bar;
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .ve-miniatura:hover,
-.ve-grande:hover {
+.ve-grande {
   border-color: c.$violet;
 }
 
@@ -34,19 +38,26 @@
   color: c.$text;
 }
 
-.ve-numero {
+// Pastilla del rótulo: número + iconos de las ventanas. Margen y padding horizontales deben
+// coincidir con MARGEN_ROTULO y PADDING_ROTULO de disposicion.ts, que fijan cuántos iconos caben.
+.ve-rotulo {
   margin: 8px;
   padding: 2px 10px;
   border-radius: 8px;
-  color: c.$text;
-  background-color: rgba(8, 8, 12, 0.7);
-}
-
-// El rótulo se aparta al pasar el ratón por la miniatura para dejar ver su contenido.
-.ve-miniatura .ve-numero {
+  background-color: rgba(8, 8, 12, 0.85);
   transition: opacity 120ms ease-out;
 }
 
-.ve-miniatura:hover .ve-numero {
+.ve-numero {
+  color: c.$text;
+}
+
+.ve-icono-glifo {
+  color: c.$text;
+  font-size: 16px;
+}
+
+// El rótulo entero se aparta al pasar el ratón por la miniatura para dejar ver su contenido.
+.ve-miniatura:hover .ve-rotulo {
   opacity: 0;
 }

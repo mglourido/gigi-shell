@@ -46,6 +46,7 @@ pub struct Opciones {
     pub recorte: Recorte,
     pub buferes: usize,
     pub imagen_fija: bool,
+    pub solo_refinado: bool,
 }
 
 pub enum Fallo {
@@ -297,6 +298,7 @@ pub fn ejecutar(opciones: &Opciones) -> Result<(), Fallo> {
         } else {
             Modo::Fijo
         },
+        solo_refinado: opciones.solo_refinado,
     };
     let mut ritmos = Ritmos::new(&ajustes);
 

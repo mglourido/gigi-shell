@@ -17,6 +17,7 @@ export interface OpcionesCapturaEscritorios {
   recorte: readonly number[]
   buferes: number
   imagenFija: boolean
+  soloRefinado?: boolean
   alFotograma: (clave: number, textura: Gdk.Texture) => void
   alNoDisponible: () => void
 }
@@ -36,6 +37,7 @@ export function iniciarCapturaEscritorios(o: OpcionesCapturaEscritorios) {
   ]
   if (o.intervaloRespaldoMs) argumentos.push("--intervalo-respaldo-ms", String(o.intervaloRespaldoMs))
   if (o.imagenFija) argumentos.push("--imagen-fija")
+  if (o.soloRefinado) argumentos.push("--solo-refinado")
 
   let proceso: Gio.Subprocess
   try {

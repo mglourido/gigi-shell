@@ -20,7 +20,7 @@ mod reducir;
 
 use std::process::ExitCode;
 
-const USO: &str = "uso: gigishell-vista-escritorio --comprobar\n       gigishell-vista-escritorio --escritorio NOMBRE --ancho N --alto N [--intervalo-ms N] [--recorte IZQ,ARR,DER,ABA]\n       gigishell-vista-escritorio --sesiones --ancho N --alto N --intervalo-ms N [--intervalo-respaldo-ms N] [--recorte IZQ,ARR,DER,ABA] [--buferes N] [--imagen-fija]";
+const USO: &str = "uso: gigishell-vista-escritorio --comprobar\n       gigishell-vista-escritorio --escritorio NOMBRE --ancho N --alto N [--intervalo-ms N] [--recorte IZQ,ARR,DER,ABA]\n       gigishell-vista-escritorio --sesiones --ancho N --alto N --intervalo-ms N [--intervalo-respaldo-ms N] [--recorte IZQ,ARR,DER,ABA] [--buferes N] [--imagen-fija] [--solo-refinado]";
 
 fn main() -> ExitCode {
     let mut argumentos = std::env::args().skip(1);
@@ -33,6 +33,7 @@ fn main() -> ExitCode {
         recorte: reducir::Recorte::default(),
         buferes: 1,
         imagen_fija: false,
+        solo_refinado: false,
     };
     let mut comprobar = false;
     let mut sesiones = false;
@@ -45,6 +46,7 @@ fn main() -> ExitCode {
             "--intervalo-respaldo-ms" => opciones.intervalo_respaldo_ms = valor().parse().ok(),
             "--buferes" => opciones.buferes = valor().parse().unwrap_or(1),
             "--imagen-fija" => opciones.imagen_fija = true,
+            "--solo-refinado" => opciones.solo_refinado = true,
             "--ancho" => opciones.ancho = valor().parse().unwrap_or(0),
             "--alto" => opciones.alto = valor().parse().unwrap_or(0),
             "--intervalo-ms" => opciones.intervalo_ms = valor().parse().unwrap_or(0),

@@ -10,8 +10,14 @@ import { wsPreviewSuspended } from "../../servicios/energia/powerState"
 import { obtenerHyprland, suscribirDatosEscritorios } from "../../servicios/escritorios/controlador"
 import { esEscritorioEspecial } from "../../servicios/escritorios/especiales"
 import { enfocarEscritorio } from "../../servicios/escritorios/operaciones"
+import { filtrarVentanasDeUsuario } from "../../servicios/ventanas/emergentesX11"
+import { obtenerIconosClientesEscritorio } from "../barra/escritorios/iconos"
+import type { ClienteEscritorio, IconoClienteEscritorio } from "../barra/escritorios/modelo"
+import { ordenarClientesEscritorio } from "../barra/escritorios/orden"
 import { iniciarCapturaEscritorios } from "./capturaEscritorios"
-import { repartirFilas, tamanoMiniatura, tamanoVistaGrande } from "./disposicion"
+import {
+  maximoIconos, repartirFilas, SEPARACION_ICONOS, TAMANO_ICONO, tamanoMiniatura, tamanoVistaGrande, valorFilaSiguiente,
+} from "./disposicion"
 import { cerrarVistaEscritorios, vistaEscritoriosFijada, vistaEscritoriosVisible } from "./estado"
 
 const SEPARACION = 32
@@ -42,12 +48,41 @@ interface Miniatura {
   imagen: Gtk.Picture
   fondo: Gtk.Picture
   etiqueta: Gtk.Label
+  /** Fila de iconos del rótulo y la firma con la que se pintó (ver `actualizarIconos`). */
+  iconos: Gtk.Box
+  firmaIconos: string
 }
 
-function crearRotulo(id: number): Gtk.Label {
-  const rotulo = new Gtk.Label({ label: `Escritorio ${id}`, halign: Gtk.Align.START, valign: Gtk.Align.START })
-  rotulo.add_css_class("ve-numero")
-  return rotulo
+/** Pastilla «1» + un icono por ventana. Sin medida propia que empuje: va en un overlay, que no
+ * cuenta para el tamaño de la miniatura, y recorta lo que sobre aunque falle `maximoIconos`. */
+function crearRotulo(id: number): { rotulo: Gtk.Box; iconos: Gtk.Box } {
+  const rotulo = new Gtk.Box({
+    spacing: SEPARACION_ICONOS,
+    halign: Gtk.Align.START,
+    valign: Gtk.Align.START,
+    overflow: Gtk.Overflow.HIDDEN,
+  })
+  rotulo.add_css_class("ve-rotulo")
+  const numero = new Gtk.Label({ label: String(id) })
+  numero.add_css_class("ve-numero")
+  const iconos = new Gtk.Box({ spacing: SEPARACION_ICONOS, valign: Gtk.Align.CENTER, overflow: Gtk.Overflow.HIDDEN })
+  rotulo.append(numero)
+  rotulo.append(iconos)
+  return { rotulo, iconos }
+}
+
+/** Glifo, icono Gio o icono de tema, como `botonIcono` de la barra. */
+function crearIconoVentana(icono: IconoClienteEscritorio): Gtk.Widget {
+  if (icono.esGlifo) {
+    const glifo = new Gtk.Label({ label: icono.icono, width_request: TAMANO_ICONO, halign: Gtk.Align.CENTER })
+    glifo.add_css_class("ve-icono-glifo")
+    return glifo
+  }
+  const imagen = icono.iconoGio
+    ? new Gtk.Image({ gicon: icono.iconoGio, pixel_size: TAMANO_ICONO })
+    : new Gtk.Image({ icon_name: icono.icono, pixel_size: TAMANO_ICONO })
+  imagen.set_halign(Gtk.Align.CENTER)
+  return imagen
 }
 
 /** Reclama la pulsación: sin eso también llega al clic de fondo, que al ver el sitio ya vacío
@@ -71,9 +106,10 @@ function crearMiniatura(id: number, ancho: number, alto: number, alClic: (boton:
   const imagen = new Gtk.Picture({ can_shrink: true, content_fit: Gtk.ContentFit.FILL })
   raiz.add_overlay(fondo)
   raiz.add_overlay(imagen)
-  raiz.add_overlay(crearRotulo(id))
+  const { rotulo, iconos } = crearRotulo(id)
+  raiz.add_overlay(rotulo)
   alPulsar(raiz, alClic)
-  return { raiz, imagen, fondo, etiqueta }
+  return { raiz, imagen, fondo, etiqueta, iconos, firmaIconos: "" }
 }
 
 export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
@@ -117,6 +153,25 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
     valign: Gtk.Align.CENTER,
   })
   desplazable.set_child(cuadricula)
+
+  // La rueda salta una fila entera por paso y queda alineada a su inicio. En fase de captura el
+  // ScrolledWindow no llega a verla. Un panel táctil manda deltas pequeños: se acumulan.
+  let acumuladoRueda = 0
+  const rueda = new Gtk.EventControllerScroll({ flags: Gtk.EventControllerScrollFlags.VERTICAL })
+  rueda.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+  rueda.connect("scroll", (_c, _dx, dy) => {
+    const ajuste = desplazable.get_vadjustment()
+    const maximo = ajuste.get_upper() - ajuste.get_page_size()
+    const primera = cuadricula.get_first_child()
+    if (maximo <= 0 || !primera) return false
+    acumuladoRueda += dy
+    if (Math.abs(acumuladoRueda) < 1) return true
+    const delta = acumuladoRueda > 0 ? 1 : -1
+    acumuladoRueda -= delta
+    ajuste.set_value(valorFilaSiguiente(ajuste.get_value(), primera.get_height() + SEPARACION, delta, maximo))
+    return true
+  })
+  desplazable.add_controller(rueda)
   raiz.append(contenedorGrande)
   raiz.append(desplazable)
   ventana.set_child(raiz)
@@ -225,7 +280,7 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
       idGrande = id
       // La miniatura se queda en su sitio y en vivo: solo se marca cuál está abierta.
       miniaturas.get(id)?.raiz.add_css_class("ve-seleccionada")
-      const tam = tamanoVistaGrande(geometria.width, geometria.height, proporcion, ancho)
+      const tam = tamanoVistaGrande(proporcion, ancho, alto, geometria.height, SEPARACION, MARGEN)
       const marco = new Gtk.Overlay({ width_request: tam.ancho, height_request: tam.alto, overflow: Gtk.Overflow.HIDDEN })
       marco.add_css_class("ve-grande")
       const fondo = new Gtk.Picture({ can_shrink: true, content_fit: Gtk.ContentFit.COVER })
@@ -237,7 +292,6 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
       marco.set_child(new Gtk.Box())
       marco.add_overlay(fondo)
       marco.add_overlay(imagen)
-      marco.add_overlay(crearRotulo(id))
       alPulsar(marco, (boton) => {
         if (boton === Gdk.BUTTON_PRIMARY) irA(id)
         else if (boton === Gdk.BUTTON_SECONDARY) cerrarGrande()
@@ -258,6 +312,7 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
         recorte,
         buferes: BUFERES_GRANDE,
         imagenFija,
+        soloRefinado: true,
         alFotograma: (_clave, textura) => {
           if (grandeVigente) imagen.set_paintable(textura)
         },
@@ -275,12 +330,54 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
       cerrarVistaEscritorios()
     }
 
+    const maxIconos = maximoIconos(ancho)
+
+    /** Rehace los iconos de una miniatura solo si cambió su firma (direcciones, clases y orden de
+     * sus ventanas): un título cambiante o un cambio de foco no tocan nada. La firma usa datos
+     * baratos del cliente; el icono se resuelve solo cuando esa firma cambia. */
+    const actualizarIconos = () => {
+      const porEscritorio = new Map<number, ClienteEscritorio[]>()
+      try {
+        for (const cliente of filtrarVentanasDeUsuario(hyprland.get_clients() as ClienteEscritorio[])) {
+          const id = cliente.workspace?.id ?? cliente.get_workspace?.()?.id
+          if (typeof id !== "number" || !miniaturas.has(id) || !cliente.class) continue
+          const lista = porEscritorio.get(id) ?? []
+          lista.push(cliente)
+          porEscritorio.set(id, lista)
+        }
+      } catch (e) {
+        console.error("[vista-escritorios] no se pudieron leer las ventanas:", e)
+        return
+      }
+      for (const [id, miniatura] of miniaturas) {
+        const clientes = ordenarClientesEscritorio(porEscritorio.get(id))
+        const firma = clientes
+          .map((c) => `${c.address}|${c.class}|${c.initialClass ?? c.initial_class ?? ""}`)
+          .join(",")
+        if (firma === miniatura.firmaIconos) continue
+        miniatura.firmaIconos = firma
+        // Si falla la resolución, la miniatura se queda con su número.
+        try {
+          const iconos = obtenerIconosClientesEscritorio(clientes.slice(0, maxIconos))
+          for (let hijo = miniatura.iconos.get_first_child(); hijo; hijo = miniatura.iconos.get_first_child()) {
+            miniatura.iconos.remove(hijo)
+          }
+          for (const icono of iconos) miniatura.iconos.append(crearIconoVentana(icono))
+        } catch (e) {
+          console.error(`[vista-escritorios] iconos del escritorio ${id}:`, e)
+        }
+      }
+    }
+
     const actualizar = () => {
       const propios = hyprland.get_workspaces()
         .filter((e) => e.get_monitor()?.name === nombreSalida && !esEscritorioEspecial(e.id))
         .sort((a, b) => a.id - b.id)
       const ids = propios.map((e) => e.id)
-      if (ids.join() === filasActuales.join()) return
+      if (ids.join() === filasActuales.join()) {
+        actualizarIconos()
+        return
+      }
       for (const e of propios) nombres.set(e.id, e.name)
       for (const id of [...miniaturas.keys()]) {
         if (!ids.includes(id)) {
@@ -316,6 +413,7 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
         cuadricula.append(caja)
       }
       filasActuales = ids
+      actualizarIconos()
     }
 
     // Antes de suscribir nada: si algo de lo que sigue falla, `abrir` aún puede soltar lo ya creado.

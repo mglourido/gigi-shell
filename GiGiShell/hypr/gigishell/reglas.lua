@@ -249,13 +249,6 @@ hl.layer_rule({
     ignore_alpha = 0.1,
 })
 
-hl.layer_rule({
-    name  = "blur-vista-escritorios",
-    match = { namespace = "vista-escritorios" },
-    blur  = true,
-    ignore_alpha = 0.1,
-})
-
 -- Ref https://wiki.hypr.land/Configuring/Workspace-Rules/
 -- "Smart gaps" / "No gaps when only" — descomenta todo si lo quieres usar.
 -- hl.workspace_rule({ workspace = "w[tv1]", gaps_out = 0, gaps_in = 0 })
