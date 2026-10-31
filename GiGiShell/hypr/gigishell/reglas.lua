@@ -133,22 +133,29 @@ hl.window_rule({
 -- uno por uno): todo lo que sea class=steam salvo la ventana principal
 -- ("Steam" a secas) nace flotante.
 --
--- Deliberadamente SIN `size`: Steam pide su propia geometría por ventana (la
--- que usa fuera de Hyprland) y la regla, al aplicarse en el map, deja que la
--- conserve. Cuidado con el falso negativo que llevó aquí: flotar a mano una
+-- Deliberadamente SIN `size` ni `center`: Steam pide su propia geometría por
+-- ventana (la que usa fuera de Hyprland) y la regla, al aplicarse en el map, deja
+-- que la conserve. Sin `persistent_size`: Hyprland no recuerda el tamaño de
+-- ventanas X11 (`!isX11` al cerrar en Window.cpp) y aquí no haría nada.
+-- Cuidado con el falso negativo que llevó aquí: flotar a mano una
 -- ventana YA mapeada tiled (hl.dsp.window.float sobre una existente) le deja
 -- la geometría del tiling, que en este monitor es casi media pantalla — se ve
 -- como si la regla forzara "tamaño máximo" cuando en realidad no había regla
 -- actuando. Hay que juzgar la regla con una ventana recién abierta.
---
--- `persistent_size` guarda el tamaño al que TÚ la dejes y lo restaura en la
--- siguiente apertura, que es lo que hace Steam por su cuenta en otros WMs.
 hl.window_rule({
     name  = "steam-ventanas-secundarias",
     match = { class = "steam" },
     float  = true,
-    center = true,
-    persistent_size = true,
+})
+
+-- Avisos de Steam ("X está jugando a…"): son ventanas X11 normales, no
+-- notificaciones. Desde 0.57 (#16336) una ventana X11 que abre en 0,0 la coloca
+-- el compositor, centrada: se fija la esquina inferior derecha de siempre.
+hl.window_rule({
+    name  = "steam-avisos",
+    match = { class = "steam", title = "^notificationtoasts_.*" },
+    move  = "monitor_w-window_w-8 monitor_h-window_h-8",
+    no_initial_focus = true,
 })
 
 -- La regla anterior también atraparía la ventana principal de Steam; esta

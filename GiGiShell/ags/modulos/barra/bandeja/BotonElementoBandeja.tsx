@@ -2,6 +2,7 @@ import AstalTray from "gi://AstalTray"
 import type Gio from "gi://Gio"
 import { createBinding } from "ags"
 import { Gtk } from "ags/gtk4"
+import { execAsync } from "ags/process"
 
 import { crearCicloVida } from "../../../utilidades/cicloVida"
 import { panelAutoClose } from "../../../estado/shell"
@@ -64,6 +65,13 @@ export default function BotonElementoBandeja({
     movimiento.connect("motion", autoCierre.onEnter)
     movimiento.connect("leave", autoCierre.onLeave)
     popover.add_controller(movimiento)
+    // Pedir una ventana desde aquí no da el foco a la app: sin este aviso,
+    // `hypr/gigishell/traer-steam.lua` no distingue el pedido de una ventana que pide atención.
+    const pulsacion = new Gtk.GestureClick({ propagation_phase: Gtk.PropagationPhase.CAPTURE })
+    pulsacion.connect("pressed", () => {
+      void execAsync(["hyprctl", "eval", "GiGiShell.traer_pedido_bandeja()"]).catch(() => {})
+    })
+    popover.add_controller(pulsacion)
     popover.connect("closed", () => {
       // Un cambio de menuModel puede sustituir el popover antes de que el viejo
       // termine de cerrar. Ese evento tardío no pertenece al menú actual.

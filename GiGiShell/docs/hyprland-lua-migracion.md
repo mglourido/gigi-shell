@@ -35,6 +35,10 @@ llega a commitearse.
   legacy la forma Lua responde `Invalid dispatcher` **con rc=0**, y en sesión Lua la legacy también
   falla sin rc útil — **hay que mirar el stdout (`ok`), nunca el código de salida**. Los scripts
   migrados (`idle-action.sh`, `anclaje.py`, `lanzar-anclado.py`) llevan por eso fallback inline.
+- **Desde 0.57 los dispatchers rechazan argumentos de más**, como error de runtime en pantalla y solo
+  al ejecutarse: `configerrors` no lo ve si la llamada está dentro de un callback. El límite está en
+  `setDispatcherFn` (`LuaBindingsDispatchers.cpp`): `bring_to_top`, `drag`, `exit`, `no_op` y
+  `toggle_swallow` admiten 0.
 - **UN DISPATCHER CONMUTABLE CON ARGUMENTO DE CADENA ES UN TOGGLE, Y RESPONDE `ok`.** El caso
   medido: `hl.dsp.dpms('on')`. `Internal::tableToggleAction()` (`LuaBindingsInternal.cpp:444`)
   empieza por `if (!lua_istable(L, idx)) return CA::TOGGLE_ACTION_TOGGLE` — un string no es una

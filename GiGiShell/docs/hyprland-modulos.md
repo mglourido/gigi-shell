@@ -1411,12 +1411,23 @@ salto molesta igual venga de donde venga, así que afecta por igual al anclaje d
 atajos de foco. Verificado tras el cambio: el cursor se queda quieto durante los tres dispatch y la
 ventana llega igual.
 
-**`silent` promete menos de lo que parece: no impide que la vista siga a la ventana si la que mueves
-es la ACTIVA.** Medido: mover con `silent` la ventana enfocada se llevó `activews` con ella. Lo que
-garantiza que aquí no haya salto **no es la bandera**, es que la ventana urgente por definición no es
-la activa — si lo fuera, ya estarías mirándola y no habría nada que traer. Se mantiene `silent`
-porque en ese caso degenerado es justo lo que evita el rebote, no porque sea lo que arregla el
-parpadeo.
+**La clave `silent` no existe en `hl.dsp.window.move` y se ignora sin error**: lo que se lee es
+`follow = false`. Lo que garantiza que aquí no haya salto es que la ventana urgente por definición no
+es la activa — si lo fuera, ya estarías mirándola y no habría nada que traer.
+
+**Desde 0.57 `urgent` ya no basta (#16205):** `_NET_WM_STATE_DEMANDS_ATTENTION` también lo dispara en
+X11, así que un chat que pide atención parecería un pedido tuyo. El módulo exige además que la ventana
+activa sea de Steam.
+
+**El menú de la bandeja es la excepción, para cualquier app:** pulsar en él no da el foco a la app, así
+que AGS avisa con `GiGiShell.traer_pedido_bandeja()` y abre un margen de 5 s en el que se trae **una
+sola** ventana urgente, sea de la clase que sea. No se empareja la app con la ventana porque el id de
+bandeja no tiene por qué coincidir con la clase. Límite: si otra app pide atención en ese margen, viaja
+ella en lugar de la pedida. Pulsar una entrada que no abre nada (Salir, Ajustes de otra cosa) abre el
+margen igualmente.
+
+**`bring_to_top` no admite selector** y actúa sobre la activa: desde 0.57 pasarle un argumento es un
+error de runtime en pantalla. Por eso va `focus` y después `bring_to_top()`.
 
 **Acotado a `class = "steam"` a propósito**, no a cualquier `urgent`. La sección de `anclaje.py` ya
 midió el precio de generalizar: cualquier ventana que pida atención acaba viajando al escritorio del
@@ -1429,8 +1440,10 @@ fuera, mismo criterio que `ancla-escritorio.lua` y `compactar.lua`. Y ojo al toc
 tienen **timeout de 100 ms**, los dos `dispatch` son inmediatos y no debe entrar nada que espere.
 
 La regla que las hace flotantes vive aparte, en `gigishell/reglas.lua` (`steam-ventanas-secundarias`).
-Va **sin `size`**: Steam pide su propia geometría por ventana y `persistent_size` recuerda la que tú
-le dejes. Cuidado con el falso negativo de ahí: **flotar a mano una ventana ya mapeada en mosaico**
+Va **sin `size` ni `center`**: Steam pide su propia geometría por ventana, y `persistent_size` no sirve
+porque Hyprland no recuerda el tamaño de ventanas X11. Los avisos (`notificationtoasts_*`) tienen su
+regla `steam-avisos`, que los fija abajo a la derecha: desde 0.57 (#16336) una ventana X11 que abre en
+0,0 la coloca el compositor. Cuidado con el falso negativo de ahí: **flotar a mano una ventana ya mapeada en mosaico**
 le deja la geometría del tiling —casi media pantalla— y parece que la regla fuerza "tamaño máximo"
 cuando en realidad no había regla actuando. Hay que juzgarla con una ventana **recién abierta**.
 

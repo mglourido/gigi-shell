@@ -36,13 +36,10 @@
 -- Comprobado en vivo: estando en el escritorio 2 con kitty enfocado y la ventana
 -- de Steam en el 3, este único dispatch la trajo al 2 dejando `activews` en 2.
 --
--- OJO con `silent`, que promete menos de lo que parece: NO impide que la vista
--- siga a la ventana si la que mueves es la ACTIVA (medido: mover con silent la
--- ventana enfocada se llevó `activews` con ella). Lo que garantiza que aquí no
--- haya salto no es la bandera, es que la ventana urgente por definición NO es la
--- activa — si lo fuera, ya estarías mirándola y no habría nada que traer. Se
--- mantiene `silent` porque en ese caso degenerado es justo lo que evita el
--- rebote; no porque sea lo que arregla el parpadeo.
+-- OJO: la clave `silent` no existe en esta API y se ignora sin error; lo que el
+-- código lee es `follow = false`. Lo que garantiza que aquí no haya salto es que
+-- la ventana urgente por definición NO es la activa — si lo fuera, ya estarías
+-- mirándola y no habría nada que traer.
 --
 -- ── Acotado a Steam a propósito ──────────────────────────────────────────────
 -- Se limita a class = "steam" en vez de valer para cualquier urgent. anclaje.py
@@ -50,8 +47,25 @@
 -- viajando al escritorio del usuario, y el síntoma es "ventanas que aparecen de
 -- repente y se van solas". Un urgent puede venir de un diálogo de fondo, y
 -- teletransportarlo sería peor que el problema que arregla.
+-- La excepción es el menú de la bandeja, para cualquier app: ahí acabas de pedirlo
+-- tú, y no se compara la app con la clase porque el id de bandeja no tiene por qué
+-- coincidir con ella (las apps Electron suelen anunciar `chrome_status_icon_1`).
 
 local M = {}
+
+-- Margen tras pulsar en el menú de una app de la bandeja: lo que puede tardar en
+-- responder. Se compara el objeto para que un timer viejo no corte uno nuevo.
+local MARGEN_BANDEJA_MS = 5000
+local pedido_bandeja = nil
+
+--- Lo llama AGS (modulos/barra/bandeja/BotonElementoBandeja.tsx) con `hyprctl eval`.
+function GiGiShell.traer_pedido_bandeja()
+  local pedido = {}
+  pedido_bandeja = pedido
+  hl.timer(function()
+    if pedido_bandeja == pedido then pedido_bandeja = nil end
+  end, { timeout = MARGEN_BANDEJA_MS, type = "oneshot" })
+end
 
 --- Escritorio donde dejar la ventana: nil si no es un sitio válido.
 --- Los especiales (id <= 0, el scratchpad) quedan fuera, mismo criterio que
@@ -77,10 +91,23 @@ hl.on("window.urgent", function(ventana)
     -- respaldo por si esta versión no lo pasa. Sin ninguno de los dos no hay
     -- nada que mover.
     local w = ventana or hl.get_urgent_window()
-    if not w or w.class ~= "steam" then return end
+    if not w then return end
+
+    -- Desde 0.57 (#16205) _NET_WM_STATE_DEMANDS_ATTENTION también llega como
+    -- urgent en X11: un chat que pide atención ya no significa "lo he pedido".
+    -- Un pedido sale de la UI de Steam, con Steam enfocado, o del menú de una app
+    -- en la bandeja, que no le da el foco y por eso lo avisa AGS. Si no es ninguno,
+    -- la ventana se queda donde está y sigue marcada.
+    if not pedido_bandeja then
+      local activa = hl.get_active_window()
+      if w.class ~= "steam" or not activa or activa.class ~= "steam" then return end
+    end
 
     local aqui = destino()
     if not aqui then return end
+
+    -- Un pedido trae una sola ventana: lo que pida atención después se queda.
+    pedido_bandeja = nil
 
     local sel = "address:" .. tostring(w.address)
 
@@ -91,9 +118,14 @@ hl.on("window.urgent", function(ventana)
     -- Medido con dos ventanas flotantes idénticamente colocadas y grim sobre la
     -- zona solapada: tras focus() el píxel seguía siendo el de la ventana de
     -- arriba; solo tras bring_to_top() pasó a ser el de la traída.
+    --
+    -- bring_to_top NO admite selector y actúa sobre la activa: desde 0.57 pasarle
+    -- argumentos es un error de runtime que además sale en pantalla (el factory
+    -- devuelve nil y el hl.dispatch siguiente también protesta). Por eso el orden
+    -- focus -> bring_to_top no es opcional.
     local function traer_al_frente()
       hl.dispatch(hl.dsp.focus({ window = sel }))
-      hl.dispatch(hl.dsp.window.bring_to_top({ window = sel }))
+      hl.dispatch(hl.dsp.window.bring_to_top())
     end
 
     -- Ya está donde estás: no hay nada que mover, pero sí que elevar — este es
@@ -103,7 +135,7 @@ hl.on("window.urgent", function(ventana)
       return
     end
 
-    hl.dispatch(hl.dsp.window.move({ workspace = aqui, window = sel, silent = true }))
+    hl.dispatch(hl.dsp.window.move({ workspace = aqui, window = sel, follow = false }))
 
     -- El move ya la deja enfocada (observado), pero eso es un efecto colateral,
     -- no una garantía de la API. Se enfoca explícitamente: llegados aquí la
