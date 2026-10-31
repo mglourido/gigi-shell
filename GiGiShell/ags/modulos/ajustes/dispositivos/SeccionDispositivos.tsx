@@ -186,6 +186,7 @@ export default function SeccionDispositivos({ vista }: { vista: VistaDispositivo
           <CursorThemeRow />
           <SliderRow setting="tamanoCursor" label={textos.puntero.tamano.titulo} min={16} max={64} step={1} format={v => formatearTexto(textos.formatos.pixeles, { valor: v })} />
           <SelectRow setting="followMouse" label={textos.puntero.foco.titulo} hint={textos.puntero.foco.descripcion} choices={[{ value: 0, label: textos.puntero.foco.opciones.soloClic }, { value: 1, label: textos.puntero.foco.opciones.seguirPuntero }, { value: 2, label: textos.puntero.foco.opciones.focoLibre }, { value: 3, label: textos.puntero.foco.opciones.seguirSinTeclado }]} />
+          <SelectRow setting="warpCambioMonitor" label={textos.puntero.cambioMonitor.titulo} hint={textos.puntero.cambioMonitor.descripcion} choices={[{ value: 0, label: textos.puntero.cambioMonitor.opciones.noMover }, { value: 2, label: textos.puntero.cambioMonitor.opciones.llevarAVentana }]} />
         </TarjetaAjustes>}
 
         {vista === "impresoras" && <PrintersCard />}

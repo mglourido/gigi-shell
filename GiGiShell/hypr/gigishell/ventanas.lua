@@ -167,6 +167,9 @@ hl.config({
 
     blur = {
       enabled = true,
+      -- `proportional` (0.57) se dejó apagado: solo actúa con
+      -- render.use_shader_blur_blend, y aun con los dos encendidos, sobre un PDF
+      -- blanco, Quick Settings y Orion cambian menos del 0,5 % de sus píxeles.
       -- Borra el detalle tras los paneles de AGS conservando el color del fondo.
       -- La intensidad se comparte con las ventanas transparentes.
       size    = 6,

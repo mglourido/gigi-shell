@@ -10,6 +10,8 @@ export interface DeviceSettings {
   repeatDelay: number
   numlock: boolean
   followMouse: number
+  /** `cursor:warp_on_monitor_change`: 0 no lo mueve, 2 lo lleva a la última ventana del monitor. */
+  warpCambioMonitor: 0 | 2
   tamanoCursor: number
   /** Tema de puntero, o "" = no fijar ninguno (ver DEFAULT_DEVICE_SETTINGS). */
   temaCursor: string
@@ -36,7 +38,7 @@ export interface DeviceSettings {
 // y encima nombraría un tema que puede no existir en ella.
 export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
   kbLayout: "es", kbVariant: "", repeatRate: 25, repeatDelay: 600,
-  numlock: true, followMouse: 1, tamanoCursor: 24, temaCursor: "",
+  numlock: true, followMouse: 1, warpCambioMonitor: 0, tamanoCursor: 24, temaCursor: "",
   sensitivity: 0, accelProfile: "adaptive", forceNoAccel: false,
   leftHanded: false, mouseNaturalScroll: false, mouseScrollFactor: 1,
   touchpadNaturalScroll: true, touchpadScrollFactor: 0.4,
@@ -65,6 +67,7 @@ function normalize(raw: Partial<DeviceSettings> = {}): DeviceSettings {
     repeatRate: Math.round(clamp(raw.repeatRate, 1, 100, d.repeatRate)),
     repeatDelay: Math.round(clamp(raw.repeatDelay, 100, 2000, d.repeatDelay)),
     followMouse: Math.round(clamp(raw.followMouse, 0, 3, d.followMouse)),
+    warpCambioMonitor: raw.warpCambioMonitor === 2 ? 2 : 0,
     tamanoCursor: Math.round(clamp(raw.tamanoCursor, 16, 64, d.tamanoCursor)),
     // El nombre acaba en `hyprctl setcursor` y en un literal Lua de hl.env(), así
     // que se valida aquí una vez en vez de escaparlo en cada punto de uso. NO se
@@ -187,6 +190,10 @@ function luaValue(value: DeviceSettings[keyof DeviceSettings]): string {
 // `hl.config({ input = {…} })` con SOLO los campos del patch que tienen mapeo,
 // anidados donde toca. Devuelve null si el patch no toca nada aplicable en vivo.
 function liveConfigLua(patch: Partial<DeviceSettings>, next: DeviceSettings): string | null {
+  // Vive en `cursor`, no en `input`: no cabe en LIVE_LUA_PATHS.
+  if (patch.warpCambioMonitor !== undefined) {
+    return `hl.config({ cursor = { warp_on_monitor_change = ${next.warpCambioMonitor} } })`
+  }
   const input: Record<string, unknown> = {}
   for (const key of Object.keys(patch) as (keyof DeviceSettings)[]) {
     const path = LIVE_LUA_PATHS[key]

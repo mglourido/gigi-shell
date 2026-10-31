@@ -142,6 +142,14 @@
         "focoLibre": "Foco libre",
         "seguirSinTeclado": "Seguir sin cambiar teclado"
       }
+    },
+    "cambioMonitor": {
+      "titulo": "Al cambiar a un escritorio de otro monitor",
+      "descripcion": "Solo se nota con más de una pantalla",
+      "opciones": {
+        "noMover": "No mover el puntero",
+        "llevarAVentana": "Llevarlo a la última ventana"
+      }
     }
   },
   "impresoras": {

@@ -94,4 +94,9 @@ hl.config({
       drag_lock = bool(d.dragLock, false),
     },
   },
+  -- Solo 0 o 2: con `cursor.no_warps = true` (gigishell/input.lua) el valor 1 no
+  -- mueve nada, porque warpTo ignora el warp si no es forzado; el 2 sí lo fuerza.
+  cursor = {
+    warp_on_monitor_change = d.warpCambioMonitor == 2 and 2 or 0,
+  },
 })
