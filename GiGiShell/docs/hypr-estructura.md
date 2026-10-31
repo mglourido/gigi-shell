@@ -65,18 +65,21 @@ error de Lua sin capturar deja la sesión sin atajos.
 | 11 | `gigishell/daltonismo.lua` | `GiGiShell.daltonismo(modo)` — shader de accesibilidad | a mano |
 | 12 | `gigishell/orion.lua` | `GiGiShell.toggle_orion()` — el atajo del launcher | a mano |
 | 13 | `gigishell/ancla-escritorio.lua` | `GiGiShell.anclar_escritorio()` / `GiGiShell.saltar_ancla()` — ir al escritorio ancla y volver | a mano |
-| 14 | `gigishell/keybinds.lua` | Todos los atajos + `GiGiShell.toggle_gaps()` | a mano |
-| 15 | `gigishell/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
-| 16 | `gigishell/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
-| 17 | `gigishell/reparto-ventanas.lua` | Que una ventana no acabe estrujada: al abrirse (elige qué se parte y por qué lado) y al soltarla arrastrada (le hace hueco a costa de los vecinos) | a mano |
-| 18 | `gigishell/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
-| 19 | `gigishell/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
-| 20 | `gigishell/gpu.lua` | Elige el perfil de GPU y carga `gigishell/gpu/<perfil>.lua` | **fichero local**, ver abajo |
-| 21 | `gigishell/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
-| 22 | `gigishell/userprefs.lua` | Overrides personales sueltos | a mano |
-| 23 | `gigishell/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
-| 24 | `gigishell/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
-| 25 | `gigishell/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
+| 14 | `gigishell/vista-en-vivo.lua` | `GiGiShell.vista_en_vivo()` — que las apps de escritorios ocultos sigan pintando mientras se capturan | a mano |
+| 15 | `gigishell/blur-suave.lua` | `GiGiShell.blur_suave()` — blur más suave con el menú de escritorios, Ajustes o el de energía abiertos | a mano |
+| 16 | `gigishell/vista-escritorios.lua` | `GiGiShell.vista_escritorios_abrir()` — submap de SUPER+Tab | a mano |
+| 17 | `gigishell/keybinds.lua` | Todos los atajos + `GiGiShell.toggle_gaps()` | a mano |
+| 18 | `gigishell/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
+| 19 | `gigishell/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
+| 20 | `gigishell/reparto-ventanas.lua` | Que una ventana no acabe estrujada: al abrirse (elige qué se parte y por qué lado) y al soltarla arrastrada (le hace hueco a costa de los vecinos) | a mano |
+| 21 | `gigishell/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
+| 22 | `gigishell/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
+| 23 | `gigishell/gpu.lua` | Elige el perfil de GPU y carga `gigishell/gpu/<perfil>.lua` | **fichero local**, ver abajo |
+| 24 | `gigishell/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
+| 25 | `gigishell/userprefs.lua` | Overrides personales sueltos | a mano |
+| 26 | `gigishell/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
+| 27 | `gigishell/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
+| 28 | `gigishell/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
 
 **El orden no es estético**: `gigishell/pantalla` pisa al comodín de monitores,
 `gigishell/dispositivos` pisa a `userprefs`, y `nop-binds` va el último porque

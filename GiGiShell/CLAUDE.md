@@ -17,14 +17,14 @@ Este archivo es el índice. Lo detallado vive en `CLAUDE.md` de subcarpetas y en
 | `eventd/` | daemon Rust que sustituye a los sub-monitores de `oom-monitor.sh` | `eventd/CLAUDE.md`, `docs/rust-migracion.md` |
 | `almacenamiento/` | binario Rust de análisis y limpieza de disco | `almacenamiento/CLAUDE.md` |
 | `guardian/` | daemon Rust root de protección de archivos | `guardian/CLAUDE.md` |
-| `vista-escritorio/` | binario Rust de la miniatura en vivo de los escritorios de la barra | `vista-escritorio/CLAUDE.md` |
+| `vista-escritorio/` | binario Rust de la miniatura en vivo de los escritorios de la barra y del menú de SUPER+Tab | `vista-escritorio/CLAUDE.md` |
 | `audio/` | sonidos de alarmas y notificaciones | `audio/README.md` |
 | `bin/`, `install.sh` | symlinks, preflight, bootstrap | secciones «Symlinks» y «Per-machine profiles» de este archivo; `docs/SETUP.md` |
 
 **Áreas de `ags/`** (cada una con su `CLAUDE.md`; rutas desde `ags/`; el índice con más detalle está en `ags/CLAUDE.md`):
 - `modulos/barra` (barra, menú del logo Arch, Mantener despierto, escritorios) · `modulos/barra/indicadores` (actualizaciones, micrófono, cadena de estado, captura de pantalla) · `modulos/barra/multimedia/spotify` y `servicios/spotify`
 - `servicios/juegos` (detección de juegos) · `servicios/camara` · `servicios/multimedia` (audio: endpoints, presets, mezcla de apps) · `servicios/pantalla` (pantallas, reglas horarias, luz nocturna, brillo) · `servicios/energia` (ahorro, botón de encendido, tapa, GameMode) · `servicios/fondos` (franjas horarias, acento)
-- `modulos/ajustes-rapidos` (Quick Settings: Wi-Fi, Bluetooth) · `modulos/notificaciones` y `modulos/notificaciones/sonido` · `modulos/orion` (el lanzador «Orion») · `modulos/calendario` (calendario, reloj, Google)
+- `modulos/ajustes-rapidos` (Quick Settings: Wi-Fi, Bluetooth) · `modulos/notificaciones` y `modulos/notificaciones/sonido` · `modulos/vista-escritorios` (menú de SUPER+Tab: escritorios en vivo) · `modulos/orion` (el lanzador «Orion») · `modulos/calendario` (calendario, reloj, Google)
 - `modulos/ajustes` (general, atajos, Sistema) · `modulos/ajustes/inicio` · `modulos/ajustes/predeterminadas` · `modulos/ajustes/disco` (Almacenamiento) · `modulos/ajustes/seguridad`
 
 **Documentos de `docs/`:**
@@ -60,7 +60,7 @@ Directorios de apoyo (cada uno con su `CLAUDE.md` o README donde importa; ver el
 - `bin/link.sh` (gestor de symlinks), `bin/preflight.sh`, `install.sh` (bootstrap de una máquina nueva) y `docs/` (specs, planes y guías).
 - `eventd/` — daemon Rust `gigishell-eventd`: sustituye a los seis sub-monitores de `oom-monitor.sh` cuando está instalado en `~/.local/bin`; una regla de seguridad cambiada en un sitio hay que cambiarla en el otro. Ver `eventd/CLAUDE.md` y `docs/rust-migracion.md`.
 - `almacenamiento/` — binario Rust `gigishell-almacenamiento`: análisis y limpieza de Ajustes > Almacenamiento; los scripts de `hypr/scripts/` le ceden el proceso con `exec` y, sin binario, corren su respaldo bash. Ver `almacenamiento/CLAUDE.md`.
-- `vista-escritorio/` — binario Rust `gigishell-vista-escritorio`: la miniatura en vivo de un escritorio de la barra, incluidos los ocultos; solo existe mientras esa miniatura está abierta y, sin binario, la barra enseña una foto con `grim` del escritorio activo. Ver `vista-escritorio/CLAUDE.md`.
+- `vista-escritorio/` — binario Rust `gigishell-vista-escritorio`: la miniatura en vivo de un escritorio de la barra y el menú de SUPER+Tab, incluidos los ocultos; solo existe mientras se ven y, sin binario, la barra enseña una foto con `grim` del escritorio activo. Ver `vista-escritorio/CLAUDE.md`.
 - `guardian/` — daemon Rust root `gigishell-guardian`, la **protección de archivos** (BPF LSM + fanotify); se instala **apagado** y su política vive en `/var/lib/gigishell-guardian/`, no en `~/.config`. Ver `guardian/CLAUDE.md`.
 - `system/` — ficheros para `/etc` y `/usr/local/bin` que **no** se symlinkean: se instalan con `sudo`. Ver `system/CLAUDE.md`; la plantilla de SDDM y su tema, en `system/sddm/CLAUDE.md`; la hibernación, en `system/hibernacion/CLAUDE.md`.
 
@@ -276,7 +276,7 @@ imprescindible para no romper la sesión:
   negra al salir de suspensión — ver la sección de suspensión en
   [`docs/hyprland-modulos.md`](docs/hyprland-modulos.md).
 - `hyprctl binds -j` devuelve JSON válido desde Hyprland 0.56.1; en 0.56.0 usa la salida de texto por el fallo de esa versión.
-- Los callbacks (`hl.on`, binds con función) tienen **timeout de 100 ms**: nada bloqueante dentro.
+- Los callbacks tienen **timeout**, y no es el mismo en todos (`LuaCaller.hpp`, 0.57.0): 50 ms en `hl.on`, `hl.timer` y layouts; 100 ms en binds con función. Nada bloqueante dentro.
 - **Todo atajo nuevo debe pasar por el envoltorio `bind()`** de `gigishell/keybinds.lua`, no por
   `hl.bind` directo — si no, no da error, solo deja un bind sordo duplicado (ver
   `gigishell/nop-binds.lua` en el documento enlazado).

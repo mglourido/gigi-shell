@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 An [AGS v2](https://github.com/Aylur/ags) (Astal) desktop shell for Hyprland/Wayland, written in TypeScript + JSX targeting GTK4. It renders a per-monitor bar plus a collection of panels and overlays.
 
-La estructura separa responsabilidades: `modulos/` agrupa funcionalidades completas de interfaz (una carpeta por funcionalidad: `barra/`, `notificaciones/`, `orion/`, `calendario/`, `ajustes/`, `ajustes-rapidos/`, `osd/`, `cuenta-atras/`, `menu-energia/`, `guardian/`, `mascotas/`); `componentes/` contiene los controles visuales compartidos; `estado/`, la orquestación global; `servicios/`, la integración con el sistema (Bluetooth, dispositivos, energía, multimedia, pantalla, Spotify…); `utilidades/`, los helpers sin dominio propio; y `config/`, la configuración versionada que forma parte del código (ver «User-editable config»). Mantén la lógica específica dentro de su módulo y muévela a una raíz transversal solo cuando tenga consumidores de varias funcionalidades.
+La estructura separa responsabilidades: `modulos/` agrupa funcionalidades completas de interfaz (una carpeta por funcionalidad: `barra/`, `notificaciones/`, `orion/`, `calendario/`, `ajustes/`, `ajustes-rapidos/`, `osd/`, `vista-escritorios/`, `cuenta-atras/`, `menu-energia/`, `guardian/`, `mascotas/`); `componentes/` contiene los controles visuales compartidos; `estado/`, la orquestación global; `servicios/`, la integración con el sistema (Bluetooth, dispositivos, energía, multimedia, pantalla, Spotify…); `utilidades/`, los helpers sin dominio propio; y `config/`, la configuración versionada que forma parte del código (ver «User-editable config»). Mantén la lógica específica dentro de su módulo y muévela a una raíz transversal solo cuando tenga consumidores de varias funcionalidades.
 
 There is no `package.json`, `tsconfig.json`, or test suite — AGS itself owns bundling, transpilation, and the runtime. `@girs/` holds generated GObject type stubs for editor support only.
 
@@ -128,6 +128,7 @@ Los `CLAUDE.md` de subcarpetas se cargan al leer un archivo de esa carpeta, pero
 | Pantalla y brillo | cola de pantallas, `display.json`, reglas horarias, luz nocturna, brillo DDC/backlight | `servicios/pantalla/CLAUDE.md` |
 | Notificaciones | daemon, popup, panel, reglas, catálogo del sistema, historial | `modulos/notificaciones/CLAUDE.md` |
 | Sonido de notificaciones | reproducción, alarmas, ruta de audio | `modulos/notificaciones/sonido/CLAUDE.md` |
+| Vista de escritorios | menú de SUPER+Tab: miniaturas en vivo, vista grande, filtro, blur suave y lo que falta medir | `modulos/vista-escritorios/CLAUDE.md` |
 | Orion (el lanzador) | secciones, búsqueda, lanzamiento anclado, desinstalar, Temas, búsqueda de ficheros | `modulos/orion/CLAUDE.md` |
 | Calendario y reloj | agenda, alarmas, temporizador, Google Calendar | `modulos/calendario/CLAUDE.md` |
 | Ajustes (general) | `SettingsPanel`, `preferences.ts`, atajos de teclado, Sistema | `modulos/ajustes/CLAUDE.md` |

@@ -5,7 +5,7 @@ Parte de la guía de GiGiShell (mapa de zonas en el [`CLAUDE.md` raíz](../CLAUD
 `vista-escritorio/` (binario Rust `gigishell-vista-escritorio`: la miniatura en vivo de un escritorio
 de la barra, con `hyprland_workspace_image_capture_source_v1` + `ext-image-copy-capture`. Vive solo
 mientras la miniatura está abierta: `ags/modulos/barra/escritorios/vistaEnVivo.ts` lo lanza y lo mata.
-El menú de escritorios usa el modo `--sesiones`.
+El menú de escritorios usa el modo `--sesiones`; ver [`ags/modulos/vista-escritorios/CLAUDE.md`](../ags/modulos/vista-escritorios/CLAUDE.md).
 Medidas, límites y respaldo en [`ags/modulos/barra/CLAUDE.md`](../ags/modulos/barra/CLAUDE.md)).
 
 - **Captura `windows_only`, no `everything`:** el segundo mete en la imagen todas las capas de AGS

@@ -52,7 +52,7 @@ llega a commitearse.
   solo cuando el estado de partida no era el que suponías. Ver la sección de suspensión en
   [`hyprland-modulos.md`](hyprland-modulos.md).
 - **`hyprctl binds -j` devuelve JSON válido desde 0.56.1**; en 0.56.0 usa la salida de texto por el fallo de esa versión.
-- **Los callbacks (`hl.on`, binds con función) tienen timeout de 100 ms**: nada bloqueante dentro.
+- **Los callbacks tienen timeout, y no es el mismo en todos** (`LuaCaller.hpp`, 0.57.0): 50 ms en `hl.on`, `hl.timer` y layouts; 100 ms en binds con función. Nada bloqueante dentro.
   Los `*-monitor.sh` siguen en bash por eso, lanzados igual desde `gigishell/autostart.lua`.
 - **Lo que se inlineó** (ya no se invocan sus scripts, que quedan solo para la config legacy):
   `toggle-gaps-borders.sh` → `GiGiShell.toggle_gaps()`, `aplicar-filtro-daltonismo.sh` →
