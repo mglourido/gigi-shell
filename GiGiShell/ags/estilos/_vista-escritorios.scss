@@ -1,0 +1,52 @@
+@use 'colores' as c;
+
+.ve-ventana {
+  background: transparent;
+}
+
+.ve-fondo {
+  background-color: rgba(20, 20, 20, 0.55);
+  padding: 32px;
+  animation: ve-aparecer 120ms ease-out;
+}
+
+@keyframes ve-aparecer {
+  from { opacity: 0; }
+}
+
+.ve-miniatura,
+.ve-grande {
+  border-radius: 12px;
+  background-color: c.$bg-bar;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.ve-miniatura:hover,
+.ve-grande:hover {
+  border-color: c.$violet;
+}
+
+.ve-miniatura.ve-seleccionada {
+  border: 2px solid c.$violet;
+}
+
+.ve-etiqueta {
+  color: c.$text;
+}
+
+.ve-numero {
+  margin: 8px;
+  padding: 2px 10px;
+  border-radius: 8px;
+  color: c.$text;
+  background-color: rgba(8, 8, 12, 0.7);
+}
+
+// El rótulo se aparta al pasar el ratón por la miniatura para dejar ver su contenido.
+.ve-miniatura .ve-numero {
+  transition: opacity 120ms ease-out;
+}
+
+.ve-miniatura:hover .ve-numero {
+  opacity: 0;
+}

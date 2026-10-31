@@ -4,6 +4,7 @@ import GLib from "gi://GLib"
 import Barra from "./modulos/barra/Barra"
 import Lagarto from "./modulos/mascotas/Lagarto"
 import MenuEnergia from "./modulos/menu-energia/MenuEnergia"
+import VistaEscritorios from "./modulos/vista-escritorios/VistaEscritorios"
 import CuentaAtras from "./modulos/cuenta-atras/CuentaAtras"
 import OSD, { showOSD } from "./modulos/osd/OSD"
 import QuickSettings from "./modulos/ajustes-rapidos/QuickSettings"
@@ -76,6 +77,7 @@ app.start({
     // si el sprite no carga en una máquina nueva.
     try { app.get_monitors().map(Lagarto) } catch (e) { console.error("[app] Lagarto failed:", e) }
     app.get_monitors().map(MenuEnergia)
+    try { app.get_monitors().map(VistaEscritorios) } catch (e) { console.error("[app] VistaEscritorios failed:", e) }
     try { app.get_monitors().map(CuentaAtras) } catch (e) { console.error("[app] CuentaAtras failed:", e) }
     app.get_monitors().map(OSD)
     // Resumen inicial simultáneo: cada tarjeta aplica su propia condición (el

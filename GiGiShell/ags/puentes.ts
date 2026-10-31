@@ -17,6 +17,7 @@ import { toggleGamemode } from "./servicios/energia/gamemode"
 import { alternarSuspensionFalsa, entrarSuspensionFalsa } from "./servicios/energia/suspensionFalsa"
 import { sfSustituirReal } from "./servicios/energia/powerState"
 import { alternarBarPorTecla, alternarMenuEnergia, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
+import { avisarVistaEscritorios } from "./modulos/vista-escritorios/estado"
 
 type Atender = (args: string[]) => string
 
@@ -90,6 +91,11 @@ const PUENTES = new Map<string, Atender>([
   // El calendario era el único panel sin `request`: solo se abría pinchando el reloj de la barra.
   // Con la barra autoocultada eso obliga a ir a buscarla, y no había forma de atarlo a una tecla.
   ["toggle-calendar", sinRespuesta(toggleCalendar)],
+
+  // Los manda hypr/gigishell/vista-escritorios.lua al pulsar y soltar teclas.
+  ["vista-escritorios-tab", sinRespuesta(() => avisarVistaEscritorios("tab"))],
+  ["vista-escritorios-soltar-tab", sinRespuesta(() => avisarVistaEscritorios("soltarTab"))],
+  ["vista-escritorios-soltar-super", sinRespuesta(() => avisarVistaEscritorios("soltarSuper"))],
 ])
 
 export function atenderRequest(argv: string[], responder: (respuesta: string) => void) {

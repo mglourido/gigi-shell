@@ -74,6 +74,11 @@ bind(mod .. " + ALT + C", function()
   if GiGiShell.compactar then GiGiShell.compactar() end
 end)
 
+-- Vista de escritorios: enlace TARDÍO; si el módulo no cargó, el atajo calla.
+bind(mod .. " + Tab", function()
+  if GiGiShell.vista_escritorios_abrir then GiGiShell.vista_escritorios_abrir() end
+end)
+
 ------------------------------------------------------------------ herramientas
 -- capturas y grabaciones: la TECLA dice el alcance y el SHIFT dice si es foto o
 -- vídeo, así que no hay que recordar cuatro combinaciones sueltas:

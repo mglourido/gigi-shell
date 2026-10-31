@@ -5059,3 +5059,16 @@ largo con margen de sobra) para reducir despertares. Los tres leen su interrupto
   que hay otros dos a punto de decir lo mismo. Efecto lateral bueno: una reconexión dentro de la
   gracia ahora **anula** la pérdida pendiente en memoria en vez de resolverse con dos consultas más
   a `bluetoothctl`.
+
+### Vista de escritorios (SUPER+Tab)
+
+`hypr/gigishell/vista-escritorios.lua` define el submap `vista-escritorios`; `keybinds.lua` lo abre con SUPER+Tab (enlace tardío, por el envoltorio `bind`, que esquiva el bind sordo de `nop-binds.lua`). Con SUPER pulsado, los binds de ratón de `keybinds.lua` (arrastrar, rueda) son del submap normal: dentro del submap no casan y el clic y la rueda llegan a la superficie de AGS (lectura de `src/keybinds/Manager.cpp` de 0.57.0: la pulsación y la rueda se emparejan con `currentSubmap()`; sin bind que case, `passEvent` es true). Medido con `wtype` (sin AGS, con un registro temporal ya retirado):
+
+- **Un soltar se empareja con el submap que había al PULSAR la tecla** (`submap = pressedInput->submapAtPress`), no con el de ahora. SUPER y el primer Tab se pulsan en el submap normal y se sueltan en este: un `release` definido solo dentro del submap no llega nunca, no da error y el submap se queda activo sin salida. Solo llegaba `tab`. Solución: los soltados llevan `submap_universal = true` y cada callback comprueba `hl.get_current_submap()`.
+- **`non_consuming` y `transparent`, los dos hacen falta.** Sin `non_consuming`, el soltar se traga la pulsación de Tab/SUPER sueltos en el submap normal (es universal). Sin `transparent`, pulsar Tab con SUPER sujeta «ensombrece» (`shadowBinds`) el release de SUPER y no llega.
+- **`SUPER + Super_L` y `Super_L` solo funcionan igual de bien** cuando no hay otra tecla sujeta. Se dejó `Super_L`/`Super_R` a secas (con `ignore_mods`).
+- **SUPER soltado ANTES que Tab no emite release de SUPER** (con Tab sujeta, el release de un modificador no casa con ningún bind; `Tab + Super_L` lo rechaza el parser: «Modifiers cannot appear after keys»). Se resuelve al soltar Tab: si `hl.is_key_down("Super_L")` y `("Super_R")` son falsos, se sale. Consecuencia: en ese orden el submap sigue activo hasta soltar Tab.
+- Escape sale siempre. `hyprctl dispatch "hl.dsp.submap('reset')"` funciona con cualquier submap activo.
+- Sin `repeating`, mantener Tab no repite `tab` (no simulable con `wtype`: un teclado virtual no genera autorrepetición; se razona por el código, `scheduleRepeat` solo se arma con `BIND_FLAG_REPEAT`).
+
+**Probar con `wtype`**: sus teclas llevan códigos propios y Hyprland resuelve los binds con la distribución real, así que no casa ningún atajo salvo con `input:resolve_binds_by_sym` (`hyprctl eval "hl.config({input={resolve_binds_by_sym=true}})"`, se pierde con el siguiente reload). Con `-M logo` solo se manda el modificador, sin evento de tecla: el release de SUPER hay que simularlo con `-P Super_L … -p Super_L`. Ejemplo: `wtype -P Super_L -M logo -P Tab -s 300 -p Tab -s 200 -p Super_L -m logo`.
