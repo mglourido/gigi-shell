@@ -53,6 +53,7 @@ util.carga("gigishell.daltonismo")     -- GiGiShell.daltonismo(modo)
 util.carga("gigishell.orion")          -- GiGiShell.toggle_orion()
 util.carga("gigishell.ancla-escritorio") -- GiGiShell.anclar_escritorio() / saltar_ancla()
 util.carga("gigishell.vista-en-vivo") -- GiGiShell.vista_en_vivo(): miniatura de escritorio oculto
+util.carga("gigishell.blur-suave") -- GiGiShell.blur_suave(): blur suave con el menú de escritorios o Ajustes abiertos
 util.carga("gigishell.vista-escritorios") -- GiGiShell.vista_escritorios_abrir(): submap de SUPER+Tab
 util.carga("gigishell.keybinds")     -- los atajos reales (+ GiGiShell.toggle_gaps)
 util.carga("gigishell.autostart")      -- arranque escalonado (hl.on "hyprland.start")

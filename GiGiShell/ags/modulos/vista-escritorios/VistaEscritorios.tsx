@@ -10,6 +10,7 @@ import { wsPreviewSuspended } from "../../servicios/energia/powerState"
 import { obtenerHyprland, suscribirDatosEscritorios } from "../../servicios/escritorios/controlador"
 import { esEscritorioEspecial } from "../../servicios/escritorios/especiales"
 import { enfocarEscritorio } from "../../servicios/escritorios/operaciones"
+import { blurSuave } from "../../utilidades/blurSuave"
 import { filtrarVentanasDeUsuario } from "../../servicios/ventanas/emergentesX11"
 import { obtenerIconosClientesEscritorio } from "../barra/escritorios/iconos"
 import type { ClienteEscritorio, IconoClienteEscritorio } from "../barra/escritorios/modelo"
@@ -425,7 +426,7 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
       cerrarGrande()
       captura.detener()
       for (const id of miniaturas.keys()) vistaEnVivo(`vista_en_vivo(${id}, false)`)
-      vistaEnVivo("vista_escritorios_blur(false)")
+      blurSuave("escritorios", false)
       miniaturas.clear()
       for (let hijo = cuadricula.get_first_child(); hijo; hijo = cuadricula.get_first_child()) cuadricula.remove(hijo)
       // Las recolecciones de la captura van por bytes: sin esta, lo último quedaría retenido con
@@ -441,7 +442,7 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
       })
     }
 
-    vistaEnVivo("vista_escritorios_blur(true)")
+    blurSuave("escritorios", true)
     vistaEnVivo(`vista_en_vivo_fps(${FPS_MINIATURAS})`)
     dejarDatos = suscribirDatosEscritorios(actualizar)
     construyendo = false
@@ -450,7 +451,7 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
   }
 
   // Deshace el blur que haya dejado un AGS caído con el menú abierto.
-  vistaEnVivo("vista_escritorios_blur(false)")
+  blurSuave("escritorios", false)
 
   vistaEscritoriosVisible.subscribe(() => {
     const apertura = ++secuenciaApertura

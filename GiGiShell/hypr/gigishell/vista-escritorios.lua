@@ -58,26 +58,3 @@ function GiGiShell.vista_escritorios_abrir()
   hl.dispatch(hl.dsp.submap(SUBMAP))
   avisar("tab")
 end
-
--- BLUR MÁS SUAVE MIENTRAS EL MENÚ ESTÁ ABIERTO. Hyprland 0.57 no tiene intensidad de blur por capa,
--- así que `decoration.blur` es global y se baja mientras dura el menú: el radio crece con
--- size * 2^passes, y con los valores normales (6 y 3) las ventanas de detrás no se distinguen.
--- `base` guarda los valores vigentes para devolverlos. Un `hyprctl reload` reaplica el config y
--- recarga este módulo, así que `base` vuelve a nil.
-local BLUR_MENU = { size = 3, passes = 2 }
-local base_blur = nil
-
-function GiGiShell.vista_escritorios_blur(activar)
-  if activar then
-    -- Idempotente: un segundo «activar» no pisa los valores guardados con los del menú.
-    if base_blur ~= nil then return end
-    local size = hl.get_config("decoration.blur.size")
-    local passes = hl.get_config("decoration.blur.passes")
-    if type(size) ~= "number" or type(passes) ~= "number" then return end
-    base_blur = { size = size, passes = passes }
-    hl.config({ decoration = { blur = BLUR_MENU } })
-  elseif base_blur ~= nil then
-    hl.config({ decoration = { blur = base_blur } })
-    base_blur = nil
-  end
-end

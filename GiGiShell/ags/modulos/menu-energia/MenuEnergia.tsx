@@ -3,10 +3,16 @@ import { Astal, Gdk, Gtk } from "ags/gtk4"
 import app from "ags/gtk4/app"
 import { execAsync } from "ags/process"
 import { closeAllPanels, panelAutoClose, powerMenuVisible } from "../../estado/shell"
+import { blurSuave } from "../../utilidades/blurSuave"
 import { crearCicloVida } from "../../utilidades/cicloVida"
 import { accionesVisibles, type AccionEnergia } from "./acciones"
 import { accionesEnergiaOcultas } from "../ajustes/preferences.ts"
 import BotonAccion from "./BotonAccion"
+
+// Una vez, no por monitor: la visibilidad es la misma en todos. El primero deshace lo que deje un AGS
+// caído con el menú abierto.
+blurSuave("energia", false)
+powerMenuVisible.subscribe(() => blurSuave("energia", powerMenuVisible.get()))
 
 export default function MenuEnergia(monitorGdk: Gdk.Monitor) {
   const cicloVida = crearCicloVida()

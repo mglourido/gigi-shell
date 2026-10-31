@@ -147,3 +147,14 @@ $colores-evento: (
   "blue": #378add,
   "pink": #d4537e,
 );
+
+// Fondo a pantalla completa que deja ver lo de detrás: menú de escritorios, Ajustes y menú de energía. Vive aquí porque
+// `_colores` no emite CSS: usarlo desde un parcial no altera el orden de la cascada.
+@mixin fondo-bloqueo {
+  background-color: rgba(20, 20, 20, 0.25);
+  // Sin esto NO hay blur, y no da error. GTK 4.24 pide la región al compositor con
+  // ext_background_effect, y una superficie que usa ese protocolo hace que Hyprland ignore su regla
+  // de capa (CLayerSurface::shouldBlur). La intensidad no sale de aquí, sino de decoration.blur.
+  // El modo ahorro anula el filtro con la variable.
+  backdrop-filter: var(--filtro-fondo-paneles, blur(14px));
+}

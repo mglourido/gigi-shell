@@ -4,7 +4,7 @@
 
 /* ── General settings window (QuickSettings gear) — left vertical nav ── */
 .sp-window { background: transparent; }
-.sp-backdrop { background: rgba(0, 0, 0, 0.5); }
+.sp-backdrop { @include fondo-bloqueo; }
 .sp-panel {
   /* Sin min-width/min-height: el tamaño lo pide SettingsPanel.tsx recortado a la
      pantalla del monitor. Un mínimo en CSS es un suelo que GTK nunca baja, así que

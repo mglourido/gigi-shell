@@ -5,11 +5,7 @@
 }
 
 .ve-fondo {
-  background-color: rgba(20, 20, 20, 0.25);
-  // Sin esto NO hay blur, y no da error. GTK 4.24 pide la región al compositor con
-  // ext_background_effect, y una superficie que usa ese protocolo hace que Hyprland ignore su regla
-  // de capa (CLayerSurface::shouldBlur). La intensidad no sale de aquí, sino de decoration.blur.
-  backdrop-filter: blur(14px);
+  @include c.fondo-bloqueo;
   padding: 32px;
   animation: ve-aparecer 120ms ease-out;
 }

@@ -1212,8 +1212,7 @@ popover.tray-overflow-popover.closing > contents {
 }
 
 .power-menu-overlay {
-  background-color: rgba(20, 20, 20, 0.3);
-  backdrop-filter: blur(14px);
+  @include fondo-bloqueo;
 }
 
 .power-menu-strip {

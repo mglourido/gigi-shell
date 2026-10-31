@@ -8,6 +8,7 @@
 import app from "ags/gtk4/app"
 import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { With, createState, createComputed } from "ags"
+import { blurSuave } from "../../utilidades/blurSuave"
 import { settingsPanelVisible, setSettingsPanelVisible, privilegedPromptActive } from "../../estado/shell"
 import NavegacionAjustes from "./panel/NavegacionAjustes.tsx"
 import { crearContenidoSeccion, SECCIONES_POR_ID, type IdSeccion } from "./panel/secciones.tsx"
@@ -50,6 +51,11 @@ function desactivarDesplazarAlFoco(desplazable: Gtk.ScrolledWindow) {
   aplicar()
   desplazable.connect("notify::child", aplicar)
 }
+
+// Una vez, no por monitor: la visibilidad es la misma en todos. El primero deshace lo que deje un AGS
+// caído con Ajustes abierto.
+blurSuave("ajustes", false)
+settingsPanelVisible.subscribe(() => blurSuave("ajustes", settingsPanelVisible.get()))
 
 export default function SettingsPanel(gdkmonitor: Gdk.Monitor) {
   const { TOP, BOTTOM, LEFT, RIGHT } = Astal.WindowAnchor
