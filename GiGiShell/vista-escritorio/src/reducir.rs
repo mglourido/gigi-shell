@@ -83,7 +83,7 @@ impl Reductor {
 
     /// Reduce `origen` sobre `destino` (BGRA ambos). `destino` mide `bytes_destino()`.
     pub fn reducir(&self, origen: &[u8], destino: &mut [u8]) {
-        let mut salida = destino.chunks_exact_mut(4);
+        let mut salida = destino.as_chunks_mut::<4>().0.iter_mut();
         for fila in &self.filas {
             for columna in &self.columnas {
                 let mut suma = [0u32; 4];
