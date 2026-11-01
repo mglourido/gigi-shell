@@ -53,6 +53,15 @@ function M.leer_json(ruta)
   return v
 end
 
+--- Clases de ventana que se tratan como juego en el compositor. Son dos formas del
+--- MISMO criterio y hay que cambiarlas juntas: las reglas de ventana usan regex, y
+--- Lua, sus propios patrones.
+M.REGEX_CLASE_JUEGO = [[^(steam_app_.*|gamescope|.*\.exe)$]]
+function M.es_clase_juego(clase)
+  if type(clase) ~= "string" then return false end
+  return clase:find("^steam_app_") ~= nil or clase == "gamescope" or clase:find("%.exe$") ~= nil
+end
+
 local _prefs_cache = nil
 --- ~/.config/gigishell/preferences.json, cacheado durante esta ejecución del config
 --- (cada `hyprctl reload` re-ejecuta el Lua desde cero, así que la caché no

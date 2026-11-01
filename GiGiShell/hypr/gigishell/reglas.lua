@@ -9,11 +9,13 @@
 -- Los regex con backslash van en [[...]]: en un string con comillas, Lua
 -- rechaza escapes desconocidos como `\.` en tiempo de compilación.
 
--- Tearing en juegos (requiere general.allow_tearing = true, en gaming.lua).
--- Ajusta el match a tus juegos; steam_app_* cubre casi todo lo de Steam.
+local util = require("gigishell.util")
+
+-- Tearing en juegos. Sin efecto salvo con general.allow_tearing activo, que decide
+-- Ajustes > Juegos (global.allowTearing en display.json, aplicado por gaming.lua).
 hl.window_rule({
     name  = "tearing-games",
-    match = { class = [[^(steam_app_.*|gamescope|.*\.exe)$]] },
+    match = { class = util.REGEX_CLASE_JUEGO },
     immediate = true,
 })
 

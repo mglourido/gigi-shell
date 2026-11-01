@@ -35,7 +35,7 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../CLAUDE.md
 - **El blur no sale del CSS,** sino de `decoration.blur`, global. Por eso `blurSuave` lo baja mientras haya abierto un menú con `fondo-bloqueo`.
 - **Reponer el blur al cerrar hay que retrasarlo** (`ESPERA_REPONER_MS`, 200 ms). Al instante hace parpadear el fundido de salida, que dura unos 150 ms: el brillo saltaba de 23 a 25 a los 30 ms en vez de bajar de 23 a 18 sin saltos.
 - **El blur ocurre detrás de la superficie,** así que no puede desenfocar la miniatura bajo su rótulo. El rótulo solo sube la opacidad.
-- **Una app oculta puede dejar de pintar:** Hyprland le pone `SUSPENDED` y kitty se para. Lo resuelve `despertar()` en `hypr/gigishell/vista-en-vivo.lua`; sin la solución, 12 de 12 atascos, y con ella, 0 de 50.
+- **Una app oculta puede dejar de pintar:** Hyprland le pone `SUSPENDED` y kitty se para. Lo resuelve `despertar()` en `hypr/gigishell/vista-en-vivo.lua`; sin la solución, 12 de 12 atascos, y con ella, 0 de 50. **Los juegos quedan fuera a propósito** (`steam_app_*`, `gamescope`, `*.exe`): lo que se hace a una ventana para que pinte no se puede deshacer, así que su miniatura enseña el último fotograma en vez de vídeo en vivo.
 - **Probar en vivo sin molestar:** `"9 silent"` en Lua es un **nombre** de escritorio, no un modificador. Unas pruebas cambiaron así el escritorio activo 24 veces. Usa `follow=false`, y no más de 2 ventanas: 20 desbordaron `limite-ventanas.lua`.
 
 ## Medidas

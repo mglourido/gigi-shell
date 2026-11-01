@@ -23,6 +23,16 @@
 --    perderlo: 0 fotogramas/s. `resize` relativo de 0,0 lo quita, porque acaba en
 --    setHidden(false) y este en setSuspended(false). Medido con dos kitty ocultos: 0/s
 --    los dos, y al aplicarlo a uno solo, 30/s ese y 0/s el otro. Ver despertar().
+--
+-- ── Los juegos quedan FUERA, y es una decisión ───────────────────────────────
+-- Por las trampas 2 y el `min_size` de despertar(), lo que se hace a una ventana no se
+-- puede deshacer: un juego visto una vez seguiría recibiendo frame callbacks estando
+-- oculto. Ni se etiqueta ni se despierta, así que su miniatura enseña el último
+-- fotograma en vez de vídeo en vivo. El criterio es la clase (util.es_clase_juego), el
+-- mismo de la regla `tearing-games`; una ventana que reciba su clase después de abrirse
+-- no se reconoce al abrirse, pero sí la siguiente vez que se abra la miniatura.
+
+local util = require("gigishell.util")
 
 local ETIQUETA = "vista-en-vivo"
 local FPS_VISTA = 30
@@ -44,6 +54,7 @@ hl.window_rule({
 })
 
 local function marcar(ventana, activar)
+  if activar and util.es_clase_juego(ventana.class) then return end
   hl.dispatch(hl.dsp.window.tag({
     tag = (activar and "+" or "-") .. ETIQUETA,
     window = ventana,
@@ -56,6 +67,7 @@ end
 -- (medido: 0/s -> 30/s, misma geometría). Esa forma deja el mínimo de 1x1 mientras viva
 -- la ventana y no se puede deshacer; solo se nota al encogerla a mano estando flotante.
 local function despertar(ventana)
+  if util.es_clase_juego(ventana.class) then return end
   if ventana.hidden or (ventana.workspace and ventana.workspace.visible) then return end
   if ventana.fullscreen ~= 0 then
     hl.dispatch(hl.dsp.window.set_prop({ prop = "min_size", value = "1 1", window = ventana }))

@@ -126,10 +126,6 @@ hl.config({
     -- true = redimensionar ventanas arrastrando desde bordes y huecos.
     resize_on_border = false,
 
-    -- Ver https://wiki.hypr.land/Configuring/Tearing/ antes de activarlo.
-    -- (gaming.lua lo pone a true después; ver allí.)
-    allow_tearing = false,
-
     layout = "dwindle",
   },
 
