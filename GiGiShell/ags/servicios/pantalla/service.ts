@@ -26,7 +26,7 @@ import { pausaLuzNocturnaApps, pausaLuzNocturnaJuegos } from "../../modulos/ajus
 const DISPLAY_CONFIG_PATH = `${GLib.get_user_config_dir()}/gigishell/display.json`
 
 export interface GlobalDisplay {
-  vrrMode: number             // 0 off, 1 on, 2 solo fullscreen
+  vrrMode: number             // 0 off, 1 on, 2 pantalla completa, 3 solo videojuegos (fullscreen_game)
   allowTearing: boolean
   nightRulesEnabled: boolean  // ¿programación por horas activada?
   nightRules: NightRule[]     // reglas hora→{luz nocturna, brillo}
@@ -87,6 +87,11 @@ const config = loadDisplayConfig()
 // Preferencias de monitor persistidas, clave = description (estable entre
 // reconexiones/arranques, a diferencia de "HDMI-A-1").
 export const monitorPrefs: Record<string, MonitorPref> = config.monitors
+
+// `monitorPrefs` es un objeto plano, sin reactividad: la interfaz que lo lee (profundidad de
+// color, gestión de color) no se enteraba de un cambio que no alterase `monitors()`. Esto lo
+// avisa; leerlo dentro de un createComputed basta para suscribirse.
+export const [revisionPrefs, setRevisionPrefs] = createState(0)
 
 // Estado global reactivo
 export const [globalVrrMode, setGlobalVrrMode] = createState(config.global.vrrMode)
@@ -163,6 +168,7 @@ export function saveDisplayConfigNow() {
 export function saveMonitorPref(description: string, pref: MonitorPref) {
   if (!description) return
   monitorPrefs[description] = pref
+  setRevisionPrefs(revisionPrefs.get() + 1)
   // Síncrono, no debounced: ver saveDisplayConfigNow().
   saveDisplayConfigNow()
 }
@@ -182,7 +188,7 @@ export function refreshMonitors() {
     let list: any[] = []
     try { list = JSON.parse(out) } catch { return }
     const sig = list.map((m: any) =>
-      `${m.name}|${m.width}x${m.height}@${Math.round(m.refreshRate)}|${m.scale}|${m.vrr}|${m.disabled}|${m.mirrorOf}|${m.focused}|${m.transform}|${(m.availableModes || []).join(",")}`
+      `${m.name}|${m.width}x${m.height}@${Math.round(m.refreshRate)}|${m.scale}|${m.vrr}|${m.currentFormat}|${m.disabled}|${m.mirrorOf}|${m.focused}|${m.transform}|${(m.availableModes || []).join(",")}`
     ).join(";")
     if (sig !== lastSig) { lastSig = sig; setMonitors(list) }
   }).catch(() => {})
@@ -254,10 +260,14 @@ export function applyPatch(mon: any, patch: Partial<MonitorPref>) {
     enabled: patch.enabled ?? !mon.disabled,
     mirrorOf: patch.mirrorOf ?? (mon.mirrorOf ?? "none"),
     transform: patch.transform ?? (mon.transform ?? 0),
-    bitdepth: patch.bitdepth ?? undefined,
-    cm: patch.cm ?? undefined,
-    sdrBrightness: patch.sdrBrightness ?? undefined,
-    sdrSaturation: patch.sdrSaturation ?? undefined,
+    // Profundidad y color NO salen del monitor en vivo: si el patch no los trae (cambiar la
+    // escala, el modo o el VRR) hay que conservar lo guardado. Antes se tiraban, la spec salía
+    // sin `bitdepth` y Hyprland volvía a 8 bits, y display.json lo olvidaba para el siguiente
+    // arranque.
+    bitdepth: patch.bitdepth ?? monitorPrefs[mon.description]?.bitdepth,
+    cm: patch.cm ?? monitorPrefs[mon.description]?.cm,
+    sdrBrightness: patch.sdrBrightness ?? monitorPrefs[mon.description]?.sdrBrightness,
+    sdrSaturation: patch.sdrSaturation ?? monitorPrefs[mon.description]?.sdrSaturation,
     position: patch.position ?? undefined,
   }
   const position = resolved.position && resolved.position !== "auto"

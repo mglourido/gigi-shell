@@ -11,7 +11,7 @@ import Interruptor from "../../../componentes/Interruptor"
 import { TextoInformativo, TituloAjuste, TituloSubseccion } from "../componentes"
 import {
   monitors, monitorPrefs, monitorCaps, applyPatch, acquirePoll, releasePoll,
-  globalVrrMode, applyGlobalVrr,
+  globalVrrMode, applyGlobalVrr, revisionPrefs,
   nightRules, setNightRulesAndSave, nightRulesEnabled, setNightRulesEnabled,
   luzPausadaPorJuego,
 } from "../../../servicios/pantalla/service"
@@ -291,8 +291,8 @@ export default function SeccionPantalla() {
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0} visible={admiteDiezBits}>
           <TituloAjuste label={textos.monitor.profundidadColor.titulo} halign={Gtk.Align.START} />
           <DisplaySelect compact={false}
-            current={createComputed(() => `${curBitdepth(selected())}-bit`)}
-            options={createComputed(() => { const bd = curBitdepth(selected()); return [
+            current={createComputed(() => { revisionPrefs(); return `${curBitdepth(selected())}-bit` })}
+            options={createComputed(() => { revisionPrefs(); const bd = curBitdepth(selected()); return [
               { label: "8-bit", value: "8", active: bd === 8 },
               { label: "10-bit", value: "10", active: bd === 10 },
             ] })}
@@ -307,8 +307,8 @@ export default function SeccionPantalla() {
         <box orientation={Gtk.Orientation.VERTICAL} spacing={0} visible={admiteHdr}>
           <TituloAjuste label={textos.monitor.gestionColor.titulo} halign={Gtk.Align.START} />
           <DisplaySelect compact={false}
-            current={createComputed(() => etiquetaColor(curCm(selected())))}
-            options={createComputed(() => { const cm = curCm(selected()); return CM_MODES.map(c => ({ label: etiquetaColor(c.value), value: c.value, active: c.value === cm })) })}
+            current={createComputed(() => { revisionPrefs(); return etiquetaColor(curCm(selected())) })}
+            options={createComputed(() => { revisionPrefs(); const cm = curCm(selected()); return CM_MODES.map(c => ({ label: etiquetaColor(c.value), value: c.value, active: c.value === cm })) })}
             onSelect={(value) => { const s = selected(); if (s) applyPatch(s, { cm: value }) }}
           />
         </box>
@@ -412,11 +412,14 @@ export default function SeccionPantalla() {
               ? textos.globales.vrr.opciones.desactivado
               : v === 1
                 ? textos.globales.vrr.opciones.activado
-                : textos.globales.vrr.opciones.soloPantallaCompleta)}
+                : v === 3
+                  ? textos.globales.vrr.opciones.soloVideojuegos
+                  : textos.globales.vrr.opciones.soloPantallaCompleta)}
             options={globalVrrMode((v: number) => [
               { label: textos.globales.vrr.opciones.desactivado, value: "0", active: v === 0 },
               { label: textos.globales.vrr.opciones.activado, value: "1", active: v === 1 },
               { label: textos.globales.vrr.opciones.soloPantallaCompleta, value: "2", active: v === 2 },
+              { label: textos.globales.vrr.opciones.soloVideojuegos, value: "3", active: v === 3 },
             ])}
             onSelect={(value) => applyGlobalVrr(Number(value))}
           />

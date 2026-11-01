@@ -115,7 +115,8 @@
       "opciones": {
         "desactivado": "Desactivado",
         "activado": "Activado",
-        "soloPantallaCompleta": "Solo pantalla completa"
+        "soloPantallaCompleta": "Solo pantalla completa",
+        "soloVideojuegos": "Solo videojuegos"
       }
     }
   },

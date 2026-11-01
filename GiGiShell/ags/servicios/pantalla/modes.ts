@@ -192,6 +192,7 @@ interface MonitorState {
   mirrorOf: string
   transform?: number
   bitdepth?: number
+  currentFormat?: string   // 'XRGB2101010' = 10 bits; es lo único que informa Hyprland
   cm?: string
 }
 
@@ -212,7 +213,10 @@ export function monitorNeedsUpdate(monitor: MonitorState, pref: MonitorPref): bo
   const wantMirror = pref.mirrorOf || "none"
   if ((monitor.mirrorOf || "none") !== wantMirror) return true
   if (pref.transform != null && (monitor.transform ?? 0) !== pref.transform) return true
-  if (pref.bitdepth != null && (monitor.bitdepth ?? 8) !== pref.bitdepth) return true
+  // `hyprctl monitors -j` no trae `bitdepth`, solo `currentFormat`: sin derivarlo de ahí, una
+  // preferencia de 10 bits parecía siempre sin cumplir y cada arranque de AGS repetía el modeset.
+  const bitsReales = monitor.bitdepth ?? (/2101010/.test(monitor.currentFormat ?? "") ? 10 : 8)
+  if (pref.bitdepth != null && bitsReales !== pref.bitdepth) return true
   if (pref.cm != null && (monitor.cm ?? "auto") !== pref.cm) return true
   return false
 }
