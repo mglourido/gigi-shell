@@ -256,7 +256,6 @@ export function applyPatch(mon: any, patch: Partial<MonitorPref>) {
   const resolved: MonitorPref = {
     mode: patch.mode ?? modoAntesDelAhorro.get(mon.name) ?? `${mon.width}x${mon.height}@${mon.refreshRate.toFixed(2)}Hz`,
     scale: patch.scale ?? mon.scale,
-    vrr: patch.vrr ?? mon.vrr,
     enabled: patch.enabled ?? !mon.disabled,
     mirrorOf: patch.mirrorOf ?? (mon.mirrorOf ?? "none"),
     transform: patch.transform ?? (mon.transform ?? 0),
@@ -292,7 +291,6 @@ export function aplicarModoTemporal(mon: any, modeString: string): Promise<unkno
     ...monitorPrefs[mon.description],
     mode: modeString,
     scale: mon.scale,
-    vrr: mon.vrr,
     enabled: !mon.disabled,
     mirrorOf: mon.mirrorOf ?? "none",
     transform: mon.transform ?? 0,

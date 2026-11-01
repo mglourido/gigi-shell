@@ -133,9 +133,8 @@ export default function SeccionPantalla() {
 
   // Capacidad del monitor seleccionado (para ocultar lo no soportado). Mientras no
   // se hayan detectado (arranque), los ajustes inciertos quedan ocultos.
-  const capOf = (key: "vrr" | "bitdepth10" | "hdr") =>
+  const capOf = (key: "bitdepth10" | "hdr") =>
     createComputed(() => { const s = selected(); return !!s && !!(monitorCaps()[s.name]?.[key]) })
-  const admiteVrr = capOf("vrr")
   const admiteDiezBits = capOf("bitdepth10")
   const admiteHdr = capOf("hdr")
   const admiteColor = createComputed(() => admiteDiezBits() || admiteHdr())
@@ -383,27 +382,10 @@ export default function SeccionPantalla() {
       </box>
 
       {/* ── Globales ── */}
-      {/* Todo lo que hay dentro es VRR, y ambos bloques ya se ocultan sin monitor compatible;
-          el título no, así que en un equipo sin VRR quedaba «Fluidez y juegos» encabezando un
-          grupo vacío. La condición va en el grupo entero, no repetida en el título: `admiteVrr`
-          (el monitor seleccionado) implica `anyVrr` (alguno lo admite). */}
+      {/* Solo hay VRR dentro: sin ningún monitor compatible se oculta el grupo con su título. */}
       <box orientation={Gtk.Orientation.VERTICAL} spacing={10} cssClasses={["sp-field"]}
         visible={anyVrr}>
         <TituloSubseccion label={textos.globales.titulo} halign={Gtk.Align.START} />
-
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={admiteVrr}>
-          <box spacing={8} valign={Gtk.Align.CENTER}>
-            <TituloAjuste label={textos.monitor.vrr.titulo} hexpand halign={Gtk.Align.START} />
-            <Interruptor
-              activo={createComputed(() => Boolean(selected()?.vrr))}
-              alAlternar={() => { const s = selected(); if (s) applyPatch(s, { vrr: !s.vrr }) }}
-            />
-          </box>
-          <TextoInformativo
-            label={textos.monitor.vrr.descripcion}
-            halign={Gtk.Align.START} wrap xalign={0}
-          />
-        </box>
 
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2} visible={anyVrr}>
           <TextoInformativo label={textos.globales.vrr.titulo} halign={Gtk.Align.START} />

@@ -46,7 +46,7 @@ for descripcion, pref in pairs(monitores) do
         position = (type(pref.position) == "string" and pref.position ~= "") and pref.position or "auto",
         scale = type(pref.scale) == "number" and num(pref.scale) or "auto",
       }
-      if type(pref.vrr) == "boolean" then spec.vrr = pref.vrr and 1 or 0 end
+      -- Sin `vrr` a propósito: una regla con él pisa a misc:vrr, que es el único ajuste (gaming.lua).
       if type(pref.mirrorOf) == "string" and pref.mirrorOf ~= "" and pref.mirrorOf ~= "none" then
         spec.mirror = pref.mirrorOf
       end

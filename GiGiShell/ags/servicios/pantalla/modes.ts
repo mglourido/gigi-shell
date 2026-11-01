@@ -101,7 +101,6 @@ export function computeRelativePosition(ref: RefBox, self: Dims, side: "left" | 
 export interface MonitorPref {
   mode?: string       // modeString completo "1920x1200@144.00Hz"
   scale?: number
-  vrr?: boolean
   enabled?: boolean   // false => regla "disable"
   mirrorOf?: string   // "none" o nombre de otro monitor
   transform?: number  // 0–7 (Hyprland: normal/90/180/270 + volteados)
@@ -148,7 +147,6 @@ export function buildMonitorSpecLua(r: RuleInput): string {
     `position = ${luaString(position || "auto")}`,
     `scale = ${luaString(scale)}`,
   ]
-  if (pref.vrr != null) campos.push(`vrr = ${pref.vrr ? 1 : 0}`)
   if (pref.mirrorOf && pref.mirrorOf !== "none") campos.push(`mirror = ${luaString(pref.mirrorOf)}`)
   if (pref.transform != null) campos.push(`transform = ${pref.transform}`)
   if (pref.bitdepth != null) campos.push(`bitdepth = ${pref.bitdepth}`)
@@ -165,7 +163,6 @@ export function buildMonitorRule(r: RuleInput): string {
   const pos = position || "auto"
   const scale = pref.scale != null ? String(pref.scale) : "auto"
   let rule = `${name},${mode},${pos},${scale}`
-  if (pref.vrr != null) rule += `,vrr,${pref.vrr ? 1 : 0}`
   if (pref.mirrorOf && pref.mirrorOf !== "none") rule += `,mirror,${pref.mirrorOf}`
   if (pref.transform != null) rule += `,transform,${pref.transform}`
   if (pref.bitdepth != null) rule += `,bitdepth,${pref.bitdepth}`
@@ -187,7 +184,6 @@ interface MonitorState {
   height: number
   refreshRate: number
   scale: number
-  vrr: boolean
   disabled: boolean
   mirrorOf: string
   transform?: number
@@ -209,7 +205,6 @@ export function monitorNeedsUpdate(monitor: MonitorState, pref: MonitorPref): bo
     }
   }
   if (pref.scale != null && Math.abs(pref.scale - monitor.scale) > 0.01) return true
-  if (pref.vrr != null && Boolean(pref.vrr) !== Boolean(monitor.vrr)) return true
   const wantMirror = pref.mirrorOf || "none"
   if ((monitor.mirrorOf || "none") !== wantMirror) return true
   if (pref.transform != null && (monitor.transform ?? 0) !== pref.transform) return true

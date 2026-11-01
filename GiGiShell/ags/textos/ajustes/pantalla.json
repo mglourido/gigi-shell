@@ -85,10 +85,6 @@
         "encima": "encima de {{monitor}}"
       }
     },
-    "vrr": {
-      "titulo": "VRR / FreeSync",
-      "descripcion": "Adapta la frecuencia de esta pantalla a los fotogramas para reducir cortes. Este interruptor activa VRR de forma continua."
-    },
     "duplicar": {
       "titulo": "Duplicar en",
       "ninguno": "Ninguno",
@@ -110,8 +106,8 @@
   "globales": {
     "titulo": "Fluidez y juegos",
     "vrr": {
-      "titulo": "Modo VRR global",
-      "descripcion": "Define cuándo usa Hyprland la frecuencia variable en las pantallas compatibles.",
+      "titulo": "VRR / FreeSync",
+      "descripcion": "Adapta la frecuencia de la pantalla a los fotogramas para reducir cortes, en todas las pantallas compatibles. «Activado» lo usa siempre, «Solo pantalla completa» con cualquier ventana a pantalla completa, y «Solo videojuegos» cuando esa ventana es un juego o un vídeo.",
       "opciones": {
         "desactivado": "Desactivado",
         "activado": "Activado",
