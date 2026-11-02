@@ -195,7 +195,11 @@ function atender(tipo: TipoMezcla, stream: any) {
   const clave = clavePreset(tipo, nombreDeProps(propsDeStream(stream)))
   const preset = audioPresets.get()[clave]
 
-  if (preset !== undefined) fijarVolumenEndpoint(stream, preset)
+  // Con `volume` aún a 0 el nodo no ha publicado sus Props: escribir ahí es un no-op que
+  // AstalWp avisa con "astal_wp_node_set_volume: could not get current volume for node N".
+  // No se pierde nada al saltarlo: el `notify::volume` de inicialización llega dentro de
+  // la gracia y el manejador de abajo aplica el preset entonces.
+  if (preset !== undefined && stream.volume > 0) fijarVolumenEndpoint(stream, preset)
 
   // El manejador se engancha AUNQUE no haya preset, y no sobra: la clave la crea el
   // deslizador de Quick Settings a mitad de la vida del stream, y sin estar ya escuchando no

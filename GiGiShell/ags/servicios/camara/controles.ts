@@ -24,7 +24,10 @@ export async function leerControles(nodo: string): Promise<Control[]> {
     const salida = await execAsync(["v4l2-ctl", "-d", nodo, "--list-ctrls-menus"])
     return ordenarControles(parsearControles(salida))
   } catch (e) {
-    console.error("[camara] list-ctrls:", e)
+    // Con la cámara bloqueada (gigishell-camara deja los nodos en modo 000) el
+    // "Permission denied" es el estado esperado, no un fallo: la UI ya pinta el
+    // cartel de bloqueada. Registrarlo solo llenaba la consola en cada recarga.
+    if (!/Permission denied/.test(String(e))) console.error("[camara] list-ctrls:", e)
     return []
   }
 }
