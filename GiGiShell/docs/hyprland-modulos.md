@@ -2957,11 +2957,11 @@ reparto es pura y probada (`ags/servicios/pantalla/atenuacion.ts`); ver `ags/ser
 detalle, incluida la restauración desde disco (el gamma no deja residuo: muere con la sesión, al
 revés que el valor DDC, que el monitor graba en su firmware).
 
-**`brightnessctl` no se invoca desde ningún otro sitio, y es a propósito.** Sin dispositivos de clase
+**`brightnessctl` solo se invoca desde `brightness.ts` y desde el respaldo `brillo/` (`gigishell-brillo`, para cuando AGS no atiende), los dos con `-c backlight`, y es a propósito.** Sin dispositivos de clase
 `backlight` **no falla**: cae al primer dispositivo de clase `leds` y acaba encendiendo el **LED de
 scroll-lock del teclado**, devolviendo 0 — un fallo mudo que la UI no podía detectar. Por eso las
 teclas `XF86MonBrightness*` de `gigishell/keybinds.lua` ya **no** lo llaman (van por `ags request
-brightness-up|down`, que aplica al backend que haya y enseña el OSD) y la llamada que queda en
+brightness-up|down` vía `pedir-ags.sh`, que aplica al backend que haya y enseña el OSD; si AGS no atiende, `gigishell-brillo`) y la llamada que queda en
 `init.sh` lleva `-c backlight` explícito.
 
 ### Puntero: hyprcursor y XCursor son DOS MITADES, no una migración (`bin/generar-hyprcursor.sh`)

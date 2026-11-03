@@ -1,0 +1,18 @@
+[package]
+name = "gigishell-brillo"
+version = "0.1.0"
+edition = "2021"
+description = "Respaldo de las teclas de brillo cuando AGS no responde (panel interno por brightnessctl, monitor externo por DDC/CI)"
+publish = false
+
+[dependencies]
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+debug = "line-tables-only"

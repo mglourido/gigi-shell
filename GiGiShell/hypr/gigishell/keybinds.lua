@@ -324,26 +324,34 @@ end, { release = true })
 
 -------------------------------------------------------- teclas multimedia (bindel)
 bind("XF86AudioRaiseVolume",
-  hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+; ags request volume-osd"),
+  hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+; timeout 2 ags request volume-osd"),
   { repeating = true, locked = true })
 bind("XF86AudioLowerVolume",
-  hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-; ags request volume-osd"),
+  hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-; timeout 2 ags request volume-osd"),
   { repeating = true, locked = true })
 bind("XF86AudioMute",
-  hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle; ags request volume-osd"),
+  hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle; timeout 2 ags request volume-osd"),
   { repeating = true, locked = true })
 bind("XF86AudioMicMute",
-  hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle; ags request mic-osd"),
+  hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle; timeout 2 ags request mic-osd"),
   { repeating = true, locked = true })
 -- El brillo lo aplica AGS (servicios/pantalla/brightness.ts), no brightnessctl
 -- desde aquí: el hardware depende de la máquina — panel interno (sysfs) en el
--- portátil, DDC/CI sobre el cable de vídeo en el sobremesa — y solo el shell
--- sabe cuál hay. Llamar a `brightnessctl` a pelo era además activamente dañino
--- en un sobremesa: sin dispositivos de clase `backlight` no falla, cae al
--- primer dispositivo `leds` y enciende el LED de scroll-lock.
-bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("ags request brightness-up"),
+-- portátil, DDC/CI sobre el cable de vídeo en el sobremesa — y AGS además
+-- reparte el tramo oscuro (gamma), sincroniza el estado y enseña el OSD.
+-- Llamar a `brightnessctl` a pelo era además activamente dañino en un sobremesa:
+-- sin dispositivos de clase `backlight` no falla, cae al primer dispositivo
+-- `leds` y enciende el LED de scroll-lock.
+-- Si AGS no atiende (caído, congelado 2 s, `unknown request` o `error:`) entra el
+-- respaldo `gigishell-brillo` (brillo/, Rust), que detecta el hardware por su
+-- cuenta y mueve solo el tramo de hardware, sin OSD ni gamma. Va por pedir-ags.sh
+-- y no por `ags request … ||` a pelo: esos tres casos salen con código 0 y el `||`
+-- no se enteraría (ver «Puente con AGS» en hypr/CLAUDE.md). Ver brillo/CLAUDE.md.
+bind("XF86MonBrightnessUp",
+  hl.dsp.exec_cmd("~/.config/hypr/scripts/pedir-ags.sh brightness-up >/dev/null || ~/.local/bin/gigishell-brillo up"),
   { repeating = true, locked = true })
-bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("ags request brightness-down"),
+bind("XF86MonBrightnessDown",
+  hl.dsp.exec_cmd("~/.config/hypr/scripts/pedir-ags.sh brightness-down >/dev/null || ~/.local/bin/gigishell-brillo down"),
   { repeating = true, locked = true })
 bind("XF86Calculator", hl.dsp.exec_cmd("qalculate-gtk"))
 

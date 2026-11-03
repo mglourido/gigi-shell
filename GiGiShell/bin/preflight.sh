@@ -299,6 +299,25 @@ if [[ "$mode" == "--installed" ]]; then
     ok "gigishell-almacenamiento instalado y al día"
   fi
 
+  # gigishell-brillo: respaldo de las teclas de brillo sin AGS. Opcional; sus constantes copian
+  # DIM_FLOOR (atenuacion.ts) y el salto (puentes.ts): si difieren, el slider salta al volver AGS.
+  bri_bin="$HOME/.local/bin/gigishell-brillo"
+  if [[ ! -x "$bri_bin" ]]; then
+    warn "gigishell-brillo no instalado: sin AGS las teclas de brillo no hacen nada (bash $GIGISHELL/brillo/instalar.sh)"
+  elif ! bri_const=$("$bri_bin" --constantes 2>/dev/null); then
+    fail "gigishell-brillo no arranca: recompila con $GIGISHELL/brillo/instalar.sh o quítalo con --quitar"
+  elif [[ -n "$(find "$GIGISHELL/brillo/src" "$GIGISHELL/brillo/Cargo.toml" -newer "$bri_bin" -print -quit 2>/dev/null)" ]]; then
+    warn "gigishell-brillo es más viejo que su código: recompila con $GIGISHELL/brillo/instalar.sh"
+  else
+    ts_floor=$(sed -nE 's/^export const DIM_FLOOR = ([0-9.]+).*/\1/p' "$GIGISHELL/ags/servicios/pantalla/atenuacion.ts")
+    ts_salto=$(sed -nE 's/.*"brightness-up", sinRespuesta\(\(\) => stepBrightness\(([0-9.]+)\)\).*/\1/p' "$GIGISHELL/ags/puentes.ts")
+    if [[ "$bri_const" != "$ts_floor $ts_salto" ]]; then
+      warn "gigishell-brillo usa '$bri_const' (suelo salto) y AGS '$ts_floor $ts_salto': actualiza brillo/src/main.rs y recompila"
+    else
+      ok "gigishell-brillo instalado, al día y con las constantes de AGS"
+    fi
+  fi
+
   # gigishell-vista-escritorio: opcional; sin él, la miniatura de la barra es una foto con grim
   # del escritorio activo. Comprueba el compositor, así que fuera de una sesión (código 1 sin
   # WAYLAND_DISPLAY) no hay veredicto sobre el protocolo y basta con la frescura del binario.

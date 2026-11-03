@@ -218,10 +218,9 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../CLAUDE.md
   0, así que cada arrastre del slider en el sobremesa encendía el **LED de scroll-lock del teclado**
   mientras el `.catch(() => {})` no veía error alguno y la UI seguía tan campante (el valor lo fijaba
   `setBrightness(v)` en local y el watcher de udev que lo habría desmentido consultaba una ruta
-  inexistente). Por eso la llamada lleva `-c backlight` explícito y **nadie invoca `brightnessctl`
-  fuera de este módulo**: las teclas `XF86MonBrightness*` de `hypr/gigishell/keybinds.lua` ya no lo llaman, van
+  inexistente). Por eso la llamada lleva `-c backlight` explícito y **fuera de este módulo solo lo invoca el respaldo `brillo/`, también con `-c backlight`**: las teclas `XF86MonBrightness*` de `hypr/gigishell/keybinds.lua` ya no lo llaman, van
   por `ags request brightness-up|down` → `stepBrightness()`, que aplica al backend que toque y enseña
-  el OSD. `inicializador/init.sh` **no restaura brillo en un sobremesa** (sale si `/sys/class/backlight`
+  el OSD. Si `ags request` falla (AGS caído), el bind cae a `brillo/` (`gigishell-brillo`, solo tramo hardware, sin OSD ni gamma). `inicializador/init.sh` **no restaura brillo en un sobremesa** (sale si `/sys/class/backlight`
   está vacío) y tampoco hace falta: el monitor guarda su brillo en su propia firmware.
 
   **⚠️ `showBrightnessOSD()` RELEE sysfs, y llamarlo justo después de `applyBrightness` deshacía el

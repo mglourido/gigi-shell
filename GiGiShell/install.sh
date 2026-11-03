@@ -1723,6 +1723,10 @@ configure_default_shell() {
     info "Compilando gigishell-almacenamiento (pasa los tests antes de instalar) ..."
     bash "$GIGISHELL/almacenamiento/instalar.sh" \
       || warn "No se pudo compilar gigishell-almacenamiento; Ajustes > Almacenamiento seguirá en bash. Reintento: bash ~/GiGiShell/almacenamiento/instalar.sh"
+    # Respaldo de las teclas de brillo cuando AGS no corre. Opcional: sin el binario, sin AGS la tecla no hace nada.
+    info "Compilando gigishell-brillo (pasa los tests antes de instalar) ..."
+    bash "$GIGISHELL/brillo/instalar.sh" \
+      || warn "No se pudo compilar gigishell-brillo; sin AGS las teclas de brillo no harán nada. Reintento: bash ~/GiGiShell/brillo/instalar.sh"
     # Vista previa en vivo de los escritorios de la barra. Opcional igual: sin el binario, la
     # miniatura solo muestra una foto con grim del escritorio activo.
     info "Compilando gigishell-vista-escritorio (pasa los tests antes de instalar) ..."
