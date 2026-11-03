@@ -16,6 +16,8 @@ import { keepAfterBoot, keepUnexpired, keepWithin7Days } from "./partitions.ts"
 import { nextWakeAt } from "./schedule.ts"
 import { notifProcessingSuspended } from "../../../servicios/energia/powerState.ts"
 
+// Un día: tras él el barrido simplemente recalcula y se vuelve a armar.
+const MAX_DELAY_MS = 24 * 60 * 60 * 1000
 let started = false
 let sweepTimer: number | null = null
 let sweeping = false
@@ -27,11 +29,18 @@ function stopTimer(): void {
 /** Remove everything that has expired or aged out right now. */
 function runSweep(): void {
   sweeping = true
-  const now = Date.now()
-  const all = notifications.get()
-  const kept = all.filter(n => keepUnexpired(n, now) && keepWithin7Days(n, now))
-  if (kept.length !== all.length) replaceNotifications(kept)
-  sweeping = false
+  try {
+    const now = Date.now()
+    const all = notifications.get()
+    const kept = all.filter(n => keepUnexpired(n, now) && keepWithin7Days(n, now))
+    if (kept.length !== all.length) replaceNotifications(kept)
+  } catch (e) {
+    console.error("[notif] barrido de limpieza falló:", e)
+  } finally {
+    // Sin `finally`, una excepción dejaba `sweeping` en true y `scheduleNext` no volvía a
+    // armar el temporizador en toda la sesión.
+    sweeping = false
+  }
   scheduleNext()
 }
 
@@ -43,7 +52,8 @@ function scheduleNext(): void {
   const now = Date.now()
   const wake = nextWakeAt(notifications.get(), now)
   if (wake === null) return
-  const delay = Math.max(0, wake - now)
+  // Acotado: un `expiresAt` absurdo daba NaN o un retardo fuera del rango de `guint` de GLib.
+  const delay = Number.isFinite(wake - now) ? Math.min(Math.max(0, wake - now), MAX_DELAY_MS) : MAX_DELAY_MS
   sweepTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
     sweepTimer = null
     runSweep()

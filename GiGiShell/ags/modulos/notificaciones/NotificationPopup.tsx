@@ -181,14 +181,20 @@ export default function NotificationPopup(monitor: Gdk.Monitor) {
   if (!senalNotificacionConectada) {
     senalNotificacionConectada = true
     alReanudar(abrirVentanaReanudacion)
+    // Barrera de todo el camino de entrada: lo que llegue por D-Bus lo manda cualquier proceso
+    // de la sesión, y un fallo con UNA notificación no puede dejar el handler a medias.
     daemonNotificaciones.connect("notified", (_daemon, id) => {
-      const notificacionActiva = daemonNotificaciones.get_notification(id)
-      if (!notificacionActiva) return
+      try {
+        const notificacionActiva = daemonNotificaciones.get_notification(id)
+        if (!notificacionActiva) return
 
-      const notificacion = ingest(notificacionActiva)
-      if (!notificacion || daemonNotificaciones.dontDisturb) return
-      if (!notificacionPermitida(notificacion)) return
-      gestionarPopupEntrante(notificacion)
+        const notificacion = ingest(notificacionActiva)
+        if (!notificacion || daemonNotificaciones.dontDisturb) return
+        if (!notificacionPermitida(notificacion)) return
+        gestionarPopupEntrante(notificacion)
+      } catch (e) {
+        console.error(`[notif] no se pudo procesar la notificación ${id}:`, e)
+      }
     })
   }
 

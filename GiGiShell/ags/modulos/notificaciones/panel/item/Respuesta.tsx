@@ -36,21 +36,19 @@ export default function RespuestaItemNotificacion({
       try {
         notificacionViva.invoke(accionRespuesta.id)
       } catch (_) {
-        execAsync([
-          "bash",
-          "-c",
-          `xdg-open ${notificacion.appName.toLowerCase()} || true`,
-        ]).catch(() => {})
+        // El nombre de app viaja como ARGUMENTO, nunca interpolado en el script: lo elige
+        // quien manda la notificación, y dentro de `bash -c` un `$(…)` se ejecutaría.
+        execAsync(["xdg-open", notificacion.appName.toLowerCase()]).catch(() => {})
       }
     } else {
       execAsync(["bash", "-c", `
-        app="${notificacion.appName.toLowerCase()}"
+        app="$1"
         if command -v "$app" &>/dev/null; then
           "$app" &
         else
           xdg-open . 2>/dev/null || true
         fi
-      `]).catch(() => {})
+      `, "_", notificacion.appName.toLowerCase()]).catch(() => {})
     }
 
     establecerTextoRespuesta("")

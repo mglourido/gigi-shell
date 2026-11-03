@@ -77,7 +77,7 @@ function eliminarInmediatamente(id: number, rellenar = true): void {
   contadores.delete(id)
   bajoCursor.delete(id)
   caducadas.delete(id)
-  ambitos.get(id)?.()
+  try { ambitos.get(id)?.() } catch (e) { console.error(`[notif popup] al desechar ${id}:`, e) }
   ambitos.delete(id)
 
   setHayPopups(widgets.size > 0)
@@ -199,7 +199,19 @@ function drenarCola(): void {
     }
 
     const contador = contadoresPendientes.get(notificacion.id) ?? 1
-    const { elemento, desecharAmbito } = construirElemento(notificacion, contador)
+    // Si la tarjeta no se puede construir, se descarta ESA: quedarse en cabeza de la cola la
+    // haría fallar en cada `drenarCola()` y no volvería a salir ningún popup en la sesión.
+    let construido: ReturnType<typeof construirElemento>
+    try {
+      construido = construirElemento(notificacion, contador)
+    } catch (e) {
+      console.error(`[notif popup] no se pudo construir el popup ${notificacion.id}:`, e)
+      callbacksDescarte.delete(notificacion.id)
+      pendientes.shift()
+      contadoresPendientes.delete(notificacion.id)
+      continue
+    }
+    const { elemento, desecharAmbito } = construido
 
     if (!canFitPopup(
       Array.from(alturas.values()),
@@ -231,9 +243,15 @@ function claveDe(notificacion: StoredNotification): string | null {
 function reemplazarVisible(vieja: StoredNotification, nueva: StoredNotification, contador: number): void {
   const anterior = widgets.get(vieja.id)?.get_prev_sibling() ?? null
   eliminarInmediatamente(vieja.id, false)
-  const { elemento, desecharAmbito } = construirElemento(nueva, contador)
-  registrarVisible(nueva, elemento, desecharAmbito, contador)
-  contenedor?.insert_child_after(elemento, anterior)
+  try {
+    const { elemento, desecharAmbito } = construirElemento(nueva, contador)
+    registrarVisible(nueva, elemento, desecharAmbito, contador)
+    contenedor?.insert_child_after(elemento, anterior)
+  } catch (e) {
+    console.error(`[notif popup] no se pudo sustituir el popup ${vieja.id}:`, e)
+    callbacksDescarte.delete(nueva.id)
+    drenarCola()
+  }
 }
 
 export function configurarPilaPopups(

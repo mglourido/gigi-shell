@@ -33,7 +33,11 @@ interface PropiedadesElementoPopup {
 }
 
 function enfocarVentanaAplicacion(nombreAplicacion: string): void {
-  const nombreNormalizado = nombreAplicacion.toLowerCase().replace(/\s+/g, "")
+  // El nombre lo pone quien manda la notificación (cualquier proceso de la sesión) y acaba
+  // dentro de un `bash -c` y de una cadena Lua: solo pasan caracteres que no significan nada
+  // en ninguno de los dos. Sin esto, un `app_name` con `$(…)` se ejecutaba con un clic derecho.
+  const nombreNormalizado = nombreAplicacion.toLowerCase().replace(/[^a-z0-9._-]/g, "")
+  if (!nombreNormalizado) return
   // Forma Lua de `focuswindow class:… || focuswindow title:…`. El fallback ya no
   // puede colgar del código de salida: un hl.dsp.focus sin match imprime
   // «warning: … window not found» en stdout pero sale con rc 0 (verificado en
@@ -211,8 +215,12 @@ export default function ElementoPopup({
 
   registrarDescarte(descartar, cancelarDescarte)
 
+  // Los tres gestos actúan al SOLTAR, no en `pressed`: `descartar()` oculta la tarjeta a
+  // los DURACION_ANIMACION_SALIDA_MS, y si el botón sigue pulsado entonces GTK desmapea un
+  // widget que aún tiene el grab implícito del puntero → SIGSEGV en `gtk_widget_unmap`
+  // (medido con coredumpctl: un clic derecho algo largo sobre «Ejecutable nuevo» tumbaba AGS).
   const clicAbrir = new Gtk.GestureClick({ button: 1 })
-  clicAbrir.connect("pressed", () => {
+  clicAbrir.connect("released", () => {
     if (clicPrematuro()) return
     descartar()
     openNotifPanel()
@@ -220,7 +228,7 @@ export default function ElementoPopup({
   caja.add_controller(clicAbrir)
 
   const clicDescartar = new Gtk.GestureClick({ button: 2 })
-  clicDescartar.connect("pressed", () => {
+  clicDescartar.connect("released", () => {
     if (!clicPrematuro()) descartar()
   })
   caja.add_controller(clicDescartar)
@@ -228,7 +236,7 @@ export default function ElementoPopup({
   // Se invoca antes de descartar porque, una vez cerrada en el daemon, ya no puede
   // recuperarse por id. Sin acción se conserva el gesto de enfocar la aplicación.
   const clicDerecho = new Gtk.GestureClick({ button: 3 })
-  clicDerecho.connect("pressed", () => {
+  clicDerecho.connect("released", () => {
     if (clicPrematuro()) return
     if (accionPrincipal) invocarYDescartar(accionPrincipal.id)
     else {
