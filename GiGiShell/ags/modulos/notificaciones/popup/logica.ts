@@ -1,4 +1,6 @@
 import type { StoredNotification } from "../store"
+// Qué aviso cierra a cuál lo declara cada aviso en `config/avisos-sistema.json` (`anula`).
+import { anulaA, idCanonico } from "../rules/catalogoSistema.ts"
 
 const DURACION_POPUP_MS = 5500
 const DURACION_POPUP_SISTEMA_MS = 10000
@@ -136,26 +138,9 @@ export function sonIdenticas(a: StoredNotification, b: StoredNotification): bool
   return a.appName === b.appName && a.summary === b.summary && a.body === b.body
 }
 
-// Avisos del sistema que el nuevo deja sin sentido: «Wi-Fi reconectado» cierra «Wi-Fi desconectado».
-const EVENTOS_QUE_ANULA: Record<string, string[]> = {
-  "wifi.reconectado": ["wifi.desconectado"],
-  "wifi.desconectado": ["wifi.reconectado"],
-  "bluetooth.conectado": ["bluetooth.perdido"],
-  "bluetooth.perdido": ["bluetooth.conectado"],
-  "usb.conectado": ["usb.desconectado"],
-  "usb.desconectado": ["usb.conectado", "usb.almacenamiento"],
-  "usb.reparado": ["usb.reparando"],
-  "usb.reparacion-incompleta": ["usb.reparando"],
-  "usb.reparar-fallo": ["usb.reparando"],
-  "bateria.cargando": ["bateria.descargando", "bateria.baja"],
-  "bateria.descargando": ["bateria.cargando", "bateria.completa"],
-  "temperatura.cpu-normal": ["temperatura.cpu-alta"],
-  "temperatura.gpu-normal": ["temperatura.gpu-alta"],
-}
-
 export function anulaEvento(nueva: StoredNotification, vieja: StoredNotification): boolean {
   return !!nueva.event && !!vieja.event
-    && (EVENTOS_QUE_ANULA[nueva.event]?.includes(vieja.event) ?? false)
+    && anulaA(nueva.event).includes(idCanonico(vieja.event))
 }
 
 /** Avisos con la misma clave comparten tarjeta. Un aviso del sistema se agrupa por su id; una app

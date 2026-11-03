@@ -205,6 +205,7 @@
       "evento": "aviso del sistema"
     },
     "expresion": "Expresión regular inválida en {{campo}}: \"{{valor}}\".",
+    "expresionPeligrosa": "Expresión regular demasiado lenta en {{campo}}: \"{{valor}}\". Tiene un cuantificador dentro de otro (como (a+)+), y eso puede congelar el escritorio con un texto largo. Quita uno de los dos.",
     "color": "Color inválido: \"{{valor}}\" (usa un hex como #89b4fa).",
     "sonido": "Sonido inválido: \"{{valor}}\" (indica la ruta de un fichero, como ~/GiGiShell/audio/message.oga).",
     "estilo": "Estilo de popup desconocido: \"{{valor}}\" (usa {{opciones}}).",

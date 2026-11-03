@@ -333,7 +333,7 @@ fi
 # quede en la ruta vieja; no se pisa lo ya migrado.
 #
 # ags/config/ NO desapareció: sigue siendo la carpeta de datos versionados del
-# shell (app_icons.json). Solo migran los JSON de usuario, así que KEEP_IN_REPO
+# shell (app_icons.json, avisos-sistema.json). Solo migran los JSON de usuario, así que KEEP_IN_REPO
 # se queda donde está — sin esta lista la migración se lo llevaba a
 # ~/.config/gigishell/ y AGS dejaba de encontrarlo (workspaces sin iconos).
 #
@@ -344,7 +344,10 @@ fi
 # dejaría un fichero que el panel no entiende.
 old_cfg="$HOME/.config/ags/config"
 new_cfg="$HOME/.config/gigishell"
-KEEP_IN_REPO=(app_icons.json)
+# avisos-sistema.json es el catálogo de avisos del sistema (modulos/notificaciones/rules/
+# catalogoSistema.ts): migrado, Ajustes > Notificaciones > Sistema saldría vacía y ningún
+# aviso tendría sus efectos de fábrica.
+KEEP_IN_REPO=(app_icons.json avisos-sistema.json)
 if [[ "$mode" != check ]]; then
   mkdir -p "$new_cfg"
 fi

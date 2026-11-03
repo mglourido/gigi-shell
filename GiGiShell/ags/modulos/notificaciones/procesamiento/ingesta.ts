@@ -8,6 +8,7 @@ import { evaluate } from "../rules/engine.ts"
 import { applyTemplate } from "../rules/template.ts"
 import { buildNotifFields, type RawNotif } from "../rules/notifFields.ts"
 import { getCondition } from "../rules/conditions.ts"
+import { idCanonico } from "../rules/catalogoSistema.ts"
 import type { NotifInput } from "../rules/types.ts"
 import { recordNotification } from "../history/historyStore.ts"
 import { reproducirSonidoNotificacion } from "../sonido/reproductor.ts"
@@ -72,6 +73,13 @@ function noMolestarActivo(): boolean {
   } catch (_) { return false }
 }
 
+/** Ejecuta un paso SECUNDARIO de la ingesta. La notificación ya está guardada cuando corren
+ *  (historial, condiciones, sonido): si uno falla se registra y se sigue, en vez de perder el
+ *  popup y dejar a medias los pasos de detrás. */
+function pasoSecundario(nombre: string, paso: () => void): void {
+  try { paso() } catch (e) { console.error(`[notif ingesta] ${nombre} falló:`, e) }
+}
+
 const conditionDisposers = new Map<number, (() => void)[]>()
 
 export function disposeConditions(id: number): void {
@@ -97,7 +105,11 @@ function scheduleConditions(stored: StoredNotification): void {
   for (const name of stored.meta.conditions) {
     const provider = getCondition(name)
     if (!provider) continue
-    disposers.push(provider.watch(stored, () => { removeNotification(stored.id); disposeConditions(stored.id) }))
+    try {
+      disposers.push(provider.watch(stored, () => { removeNotification(stored.id); disposeConditions(stored.id) }))
+    } catch (e) {
+      console.error(`[notif] condición «${name}» no pudo vigilarse:`, e)
+    }
   }
   if (disposers.length) conditionDisposers.set(stored.id, disposers)
 }
@@ -114,7 +126,10 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
   // `match.event`). Del primero depende la builtin que da el skin dunst a lo que sale de
   // hypr/scripts; del segundo, la configuración individual de cada aviso del sistema.
   const source = readSourceHint(n)
-  const event = readStringHint(n, "x-gigishell-event")
+  // Un emisor que aún mande un id antiguo (`antes` en `config/avisos-sistema.json`) se traduce
+  // al vigente AQUÍ, antes de evaluar: así casa con su regla, se agrupa y se anula como el nuevo.
+  const eventoCrudo = readStringHint(n, "x-gigishell-event")
+  const event = eventoCrudo ? idCanonico(eventoCrudo) : undefined
 
   const input: NotifInput = {
     appName: n.app_name || "Sistema",
@@ -132,12 +147,13 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
   let appName = input.appName
   let summary = input.summary
   let body = input.body
-  if (rewrite) {
+  // Una plantilla rota no puede costar la notificación: se queda con el texto original.
+  if (rewrite) pasoSecundario("reescritura", () => {
     const fields = buildNotifFields(n as RawNotif, Date.now(), extractHints(n))
     if (rewrite.appName !== undefined) appName = applyTemplate(rewrite.appName, fields)
     if (rewrite.summary !== undefined) summary = applyTemplate(rewrite.summary, fields)
     if (rewrite.body !== undefined) body = applyTemplate(rewrite.body, fields)
-  }
+  })
 
   const stored: StoredNotification = {
     id: n.id,
@@ -148,7 +164,9 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
     timestamp: Date.now(),
     read: false,
     urgency: input.urgency,
-    actions: (n.actions ?? []).map((a: any) => ({ id: a.id, label: a.label })),
+    actions: (n.actions ?? [])
+      .filter((a: any) => typeof a?.id === "string")
+      .map((a: any) => ({ id: a.id, label: typeof a.label === "string" ? a.label : a.id })),
     // Lo pide NotificationPopup para dar más vida al popup cuando trae acciones: el
     // botón solo existe mientras el popup está en pantalla (las notificaciones de
     // hypr/scripts no llegan al historial), así que con los 5,5 s fijos de siempre no
@@ -179,14 +197,14 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
 
   setNotifications(capped)
   scheduleStoreSave()
-  recordNotification(stored)
-  scheduleConditions(stored)
+  pasoSecundario("historial", () => recordNotification(stored))
+  pasoSecundario("condiciones", () => scheduleConditions(stored))
 
   // Audio. Va DESPUÉS de almacenar y de las reglas: `meta.muteAudio` es su entrada, y una
   // notificación suprimida (`suppress`) o deduplicada ya salió por arriba sin llegar aquí. Suena
   // aunque `dontShow` la oculte del popup — «no la enseñes» no es «no me avises».
   // Una idéntica que ya está en pantalla no da aviso nuevo, tampoco por el altavoz.
-  if (!esPopupDuplicado(stored)) reproducirSonidoNotificacion({
+  pasoSecundario("sonido", () => { if (!esPopupDuplicado(stored)) reproducirSonidoNotificacion({
     soundName: readStringHint(n, "sound-name"),
     soundFile: readStringHint(n, "sound-file"),
     suppressSound: readBoolHint(n, "suppress-sound"),
@@ -206,7 +224,7 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
     origen: source,
     muteAudio: meta.muteAudio,
     urgencia: input.urgency,
-  })
+  }) })
 
   return stored.meta.dontShow ? null : stored
 }

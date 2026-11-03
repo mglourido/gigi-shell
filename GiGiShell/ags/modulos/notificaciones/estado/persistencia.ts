@@ -10,8 +10,15 @@ import {
   saveJsonAsync as saveJsonAsyncBase,
 } from "../../../servicios/almacenamiento/json.ts"
 
+import { mismaForma } from "./saneado.ts"
+
+/** Un JSON válido con otra forma (`null`, un array donde se esperaba objeto) cuenta como
+ *  ilegible: los almacenes lo leen al importarse y un `null.userRules` tumbaba el arranque. */
 export function cargarJson<T>(path: string, fallback: T, label: string): T {
-  return cargarJsonBase(path, fallback, `notif ${label}`)
+  const leido = cargarJsonBase<unknown>(path, fallback, `notif ${label}`)
+  if (mismaForma(leido, fallback)) return leido as T
+  console.error(`[notif ${label}] forma inesperada en ${path}; se usa el valor por defecto`)
+  return fallback
 }
 
 export function saveJsonAsync(path: string, data: unknown, label: string): void {

@@ -1,10 +1,11 @@
 // modulos/notificaciones/rules/validate.ts
 // Pure validation of a rule before saving. Returns a list of human-readable error messages
-// (empty array = valid). No imports beyond types.
-import type { NotifRule, StringMatch } from "./types.ts"
-import { POPUP_STYLES } from "./types.ts"
-import { isValidHex } from "./color.ts"
-import { esRuta } from "../sonido/decision.ts"
+// (empty array = valid). Lo que se valida de cada campo y de cada efecto lo declara su entrada en
+// `coincidencias.ts` y en `efectos/`: aquí solo se recorren.
+import type { NotifRule } from "./types.ts"
+import { COINCIDENCIAS } from "./coincidencias.ts"
+import { EFECTOS } from "./efectos/index.ts"
+import { esRegexPeligrosa } from "./regexSegura.ts"
 import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
 import { formatearTexto } from "../../../textos/formatear.ts"
 
@@ -14,54 +15,23 @@ function regexValid(value: string): boolean {
 
 export function validateRule(rule: NotifRule): string[] {
   const errors: string[] = []
-  const e = rule.effects
+  const efectos = rule.effects ?? {}
 
-  // A "timed" rule needs a positive duration.
-  if (e.lifetime === "timed" && !(typeof e.ttlMs === "number" && e.ttlMs > 0)) {
-    errors.push(textos.validacion.duracion)
-  }
-
-  // Una duración de popup, si se indica, tiene que ser un número positivo: el campo del
-  // editor deja `undefined` cuando no se entiende lo tecleado, así que un valor presente y
-  // no válido solo puede venir del JSON editado a mano.
-  if (e.popupMs !== undefined && !(typeof e.popupMs === "number" && e.popupMs > 0)) {
-    errors.push(textos.validacion.duracionPopup)
-  }
-
-  // Regex match fields must compile.
-  const fields: [string, StringMatch | undefined][] = [
-    [textos.validacion.campos.aplicacion, rule.match.app],
-    [textos.validacion.campos.titulo, rule.match.summary],
-    [textos.validacion.campos.cuerpo, rule.match.body],
-    [textos.validacion.campos.origen, rule.match.source],
-    [textos.validacion.campos.evento, rule.match.event],
-  ]
-  for (const [label, sm] of fields) {
-    if (sm && sm.op === "regex" && !regexValid(sm.value)) {
-      errors.push(formatearTexto(textos.validacion.expresion, { campo: label, valor: sm.value }))
+  // Una expresión regular que no compila no casaría nunca, y en silencio.
+  for (const c of COINCIDENCIAS) {
+    const spec = rule.match?.[c.campo]
+    if (spec && spec.op === "regex" && !regexValid(spec.value)) {
+      errors.push(formatearTexto(textos.validacion.expresion, { campo: c.etiquetaValidacion, valor: spec.value }))
+    } else if (spec && spec.op === "regex" && esRegexPeligrosa(spec.value)) {
+      // Compila, pero puede congelar el escritorio: `regexSegura.ts` la ignoraría al evaluar, así
+      // que guardarla sería una regla que en silencio no hace nada.
+      errors.push(formatearTexto(textos.validacion.expresionPeligrosa, { campo: c.etiquetaValidacion, valor: spec.value }))
     }
   }
 
-  // El sonido propio tiene que ser una RUTA, absoluta o desde `~`. Se comprueba la forma y no
-  // que el fichero exista: un audio en un disco que ahora no está montado sigue siendo una regla
-  // válida, y bloquear el guardado por eso obligaría a borrar la configuración para poder salir.
-  // El editor avisa aparte de que la ruta no existe, que es donde ese aviso sirve de algo.
-  if (e.soundFile !== undefined && !esRuta(e.soundFile.trim())) {
-    errors.push(formatearTexto(textos.validacion.sonido, { valor: e.soundFile }))
+  for (const def of EFECTOS) {
+    if (!def.validar) continue
+    errors.push(...def.validar((efectos as Record<string, unknown>)[def.clave], efectos))
   }
-
-  // A color effect, if present, must be a valid hex.
-  if (e.color !== undefined && !isValidHex(e.color)) {
-    errors.push(formatearTexto(textos.validacion.color, { valor: e.color }))
-  }
-
-  // A style effect, if present, must be a known skin (el JSON de reglas es editable a mano).
-  if (e.style !== undefined && !POPUP_STYLES.includes(e.style)) {
-    errors.push(formatearTexto(textos.validacion.estilo, {
-      valor: e.style,
-      opciones: POPUP_STYLES.join(textos.validacion.separadorOpciones),
-    }))
-  }
-
   return errors
 }

@@ -4,6 +4,7 @@ import type { NotifMeta } from "../rules/types.ts"
 import type { AppSettings, StoredNotification } from "./modelos.ts"
 import { cargarJson, crearGuardadoJsonProgramado } from "./persistencia.ts"
 import { selectedIds, setSelectedIds } from "./panel.ts"
+import { sanearMapaObjetos, sanearNotificaciones } from "./saneado.ts"
 
 interface DatosAlmacen {
   notifications?: StoredNotification[]
@@ -37,10 +38,11 @@ function completarMeta(notificacion: StoredNotification): StoredNotification {
 
 const datosIniciales = cargarJson<DatosAlmacen>(RUTA_ALMACEN, {}, "store")
 export const [notifications, setNotifications] = createState<StoredNotification[]>(
-  (datosIniciales.notifications ?? []).map(completarMeta),
+  (sanearNotificaciones(datosIniciales.notifications, Date.now()) as unknown as StoredNotification[])
+    .map(completarMeta),
 )
 export const [appSettings, setAppSettings] = createState<Record<string, AppSettings>>(
-  datosIniciales.appSettings ?? {},
+  sanearMapaObjetos(datosIniciales.appSettings) as unknown as Record<string, AppSettings>,
 )
 
 export const scheduleStoreSave = crearGuardadoJsonProgramado(

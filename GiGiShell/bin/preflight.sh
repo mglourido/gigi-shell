@@ -202,6 +202,17 @@ elif command -v jq >/dev/null 2>&1; then
     "$app_icons" >/dev/null 2>&1 \
     || warn "ags/config/app_icons.json no es un mapa válido (se usarán iconos gráficos)"
 fi
+# Catálogo de avisos del sistema: sin él la pestaña Sistema sale vacía y ningún aviso trae
+# sus efectos de fábrica. La validación completa (ids, alias, anulaciones) es el test
+# modulos/notificaciones/rules/catalogoSistema.test.ts; aquí basta con la forma.
+avisos_sistema="$GIGISHELL/ags/config/avisos-sistema.json"
+if [[ ! -s "$avisos_sistema" ]]; then
+  fail "sin ags/config/avisos-sistema.json (catálogo de avisos del sistema)"
+elif command -v jq >/dev/null 2>&1; then
+  jq -e '(.categorias | type == "array" and length > 0) and all(.categorias[]; (.avisos | type == "array"))' \
+    "$avisos_sistema" >/dev/null 2>&1 \
+    || fail "ags/config/avisos-sistema.json no tiene la forma esperada"
+fi
 if [[ -e "$HOME/.local/share/gigishell/face.png" ]]; then
   ok "avatar opcional presente"
 else

@@ -9,6 +9,7 @@ import { cargarJson, crearGuardadoJsonProgramado } from "../estado/persistencia.
 import { ruleIndex } from "../rules/rulesStore.ts"
 import { evaluate } from "../rules/engine.ts"
 import { computeDedupKey } from "../rules/dedup.ts"
+import { sanearHistorial } from "../estado/saneado.ts"
 import {
   type HistoryEntry, type HistoryInput, HISTORY_CAP,
   upsertEntry, collapseDuplicates, trimByRecency, sortByRecency, applyRuleExclusion,
@@ -21,7 +22,7 @@ const historialCargado = cargarJson<{ entries?: HistoryEntry[] }>(HISTORY_PATH, 
 // solo quedaban ordenados de rebote al desbordar el tope, así que por debajo de él se leían del
 // revés (lo más viejo arriba). `upsertEntry` mantiene el orden a partir de aquí.
 export const [historyEntries, setHistoryEntries] = createState<HistoryEntry[]>(
-  sortByRecency(historialCargado.entries ?? []),
+  sortByRecency(sanearHistorial(historialCargado.entries, Date.now()) as unknown as HistoryEntry[]),
 )
 
 const scheduleSave = crearGuardadoJsonProgramado(

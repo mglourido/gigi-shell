@@ -37,8 +37,9 @@
 import { createState } from "ags"
 import GLib from "gi://GLib"
 import type { EffectSpec, NotifRule } from "./types.ts"
-import { CATALOGO_SISTEMA, eventoSistema } from "./catalogoSistema.ts"
+import { aliasDelCatalogo, CATALOGO_SISTEMA, eventoSistema } from "./catalogoSistema.ts"
 import { cargarJson, crearGuardadoJsonProgramado } from "../estado/persistencia.ts"
+import { sanearEfectos, sanearMapaObjetos } from "../estado/saneado.ts"
 
 const SISTEMA_PATH = `${GLib.get_user_config_dir()}/gigishell/notif-sistema.json`
 
@@ -58,8 +59,32 @@ const VERSION_ACTUAL = 1
 const cargado = cargarJson<Partial<ArchivoSistema>>(SISTEMA_PATH, {}, "sistema")
 const inicial: ArchivoSistema = {
   version: typeof cargado.version === "number" ? cargado.version : VERSION_ACTUAL,
-  eventos: cargado.eventos && typeof cargado.eventos === "object" ? cargado.eventos : {},
+  // Un valor que no sea objeto (`"kernel.oom": null`) reventaba el plegado de efectos; uno con
+  // efectos de otro tipo llegaba al motor y al editor. Cada aviso pasa por `sanearEfectos`.
+  eventos: Object.fromEntries(Object.entries(sanearMapaObjetos(cargado.eventos)).map(([id, efectos]) => {
+    const descartes: string[] = []
+    const limpios = sanearEfectos(efectos, descartes)
+    for (const d of descartes) console.warn(`[notif sistema] ${SISTEMA_PATH}, aviso «${id}»: ${d}`)
+    return [id, limpios]
+  })) as Record<string, EffectSpec>,
 }
+
+/** Mueve la configuración guardada con un id antiguo (`antes` del catálogo) a su id vigente.
+ *  Sin esto, renombrar un aviso tiraba en silencio lo que el usuario hubiera ajustado en él.
+ *  Si ya hay entrada con el id nuevo, gana esa: es la más reciente. */
+function migrarAlias(eventos: Record<string, EffectSpec>): Record<string, EffectSpec> | null {
+  let migrados: Record<string, EffectSpec> | null = null
+  for (const [viejo, nuevo] of aliasDelCatalogo()) {
+    if (!Object.prototype.hasOwnProperty.call(eventos, viejo)) continue
+    migrados ??= { ...eventos }
+    if (!Object.prototype.hasOwnProperty.call(migrados, nuevo)) migrados[nuevo] = migrados[viejo]
+    delete migrados[viejo]
+  }
+  return migrados
+}
+
+const eventosMigrados = migrarAlias(inicial.eventos)
+if (eventosMigrados) inicial.eventos = eventosMigrados
 
 export const [archivoSistema, setArchivoSistema] = createState<ArchivoSistema>(inicial)
 
@@ -69,6 +94,8 @@ const programarGuardado = crearGuardadoJsonProgramado(
   800,
   () => archivoSistema.get(),
 )
+// Se persiste la migración una sola vez; las siguientes cargas ya leen los ids vigentes.
+if (eventosMigrados) programarGuardado()
 
 /** Efectos finales de un aviso: los del usuario si los hay, y si no los del catálogo. */
 export function efectosEvento(id: string, archivo = archivoSistema.get()): EffectSpec {
@@ -133,7 +160,11 @@ function normalizar(efectos: EffectSpec): EffectSpec {
  *  resultado coincide con lo que trae el catálogo, se borra la entrada en vez de escribir una
  *  copia — así «modificado» sigue significando algo y el fichero solo contiene decisiones. */
 export function fijarEfectosEvento(id: string, efectos: EffectSpec): void {
-  const limpios = normalizar(efectos)
+  // El mismo saneado que al cargar: el almacén es la única puerta en los dos sentidos.
+  const descartes: string[] = []
+  const saneados = sanearEfectos(efectos, descartes) as EffectSpec
+  for (const d of descartes) console.warn(`[notif sistema] al guardar «${id}»: ${d}`)
+  const limpios = normalizar(saneados)
   if (JSON.stringify(limpios) === JSON.stringify(normalizar(eventoSistema(id)?.efectos ?? {}))) {
     restaurarEvento(id)
     return

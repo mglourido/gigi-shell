@@ -1,6 +1,7 @@
 // modulos/notificaciones/rules/engine.ts
 // Pure rule engine: compile rules into an app-indexed structure, then evaluate a notification.
-import type { NotifRule, NotifInput, NotifMeta, EvalResult, PopupStyle } from "./types.ts"
+import type { EffectSpec, NotifRule, NotifInput, NotifMeta, EvalResult } from "./types.ts"
+import { EFECTOS } from "./efectos/index.ts"
 import { matchInput } from "./match.ts"
 import { computeDedupKey } from "./dedup.ts"
 
@@ -29,16 +30,17 @@ export function compileRules(rules: NotifRule[]): RuleIndex {
     mapa.set(clave, arr)
   }
   for (const rule of rules) {
-    if (!rule.enabled) continue
+    // Una regla rota no puede tumbar el índice entero: sin índice no se ingiere nada.
+    if (!rule || !rule.enabled || typeof rule.match !== "object" || rule.match === null) continue
     const compiled: CompiledRule = { rule, test: (input) => matchInput(rule.match, input) }
     const app = rule.match.app
     const event = rule.match.event
     // El `event` va PRIMERO: es la clave más selectiva que hay (identifica un único aviso),
     // mientras que `app` agrupa decenas. Una regla con los dos se indexa por `event` y su
     // `test` sigue comprobando el `app` igual, así que no se pierde ninguna condición.
-    if (event && event.op === "equals") {
+    if (event && event.op === "equals" && typeof event.value === "string") {
       indexar(byEvent, event.ci !== false ? event.value.toLowerCase() : event.value, compiled)
-    } else if (app && app.op === "equals") {
+    } else if (app && app.op === "equals" && typeof app.value === "string") {
       indexar(byApp, app.ci !== false ? app.value.toLowerCase() : app.value, compiled)
     } else {
       rest.push(compiled)
@@ -62,83 +64,73 @@ export function compileRules(rules: NotifRule[]): RuleIndex {
 
 const DEFAULT_DEDUP = "app+summary" as const
 
+/** Combina los efectos de las reglas que casan, de mayor a menor prioridad, según la
+ *  `combinar` de cada efecto del registro (`efectos/`). El motor no nombra ningún efecto
+ *  aquí: uno nuevo se pliega solo. */
+function plegarEfectos(reglas: NotifRule[]): Record<string, unknown> {
+  const plegado: Record<string, unknown> = {}
+  for (const def of EFECTOS) {
+    const modo = def.combinar ?? "prioridad"
+    if (modo === "union") {
+      const todos = new Set<unknown>()
+      for (const r of reglas) {
+        const v = (r.effects as Record<string, unknown> | undefined)?.[def.clave]
+        if (Array.isArray(v)) for (const x of v) todos.add(x)
+      }
+      if (todos.size) plegado[def.clave] = [...todos]
+    } else if (modo === "por-campo") {
+      const campos: Record<string, unknown> = {}
+      for (const r of reglas) {
+        const v = (r.effects as Record<string, unknown> | undefined)?.[def.clave]
+        if (!v || typeof v !== "object") continue
+        for (const [k, x] of Object.entries(v)) if (campos[k] === undefined && x !== undefined) campos[k] = x
+      }
+      if (Object.keys(campos).length) plegado[def.clave] = campos
+    } else {
+      for (const r of reglas) {
+        const v = (r.effects as Record<string, unknown> | undefined)?.[def.clave]
+        if (v !== undefined) { plegado[def.clave] = v; break }
+      }
+    }
+  }
+  return plegado
+}
+
 export function evaluate(input: NotifInput, index: RuleIndex, now: number): EvalResult {
   // Matched rules, highest priority first. stopOnMatch cuts the rest.
   const matched: NotifRule[] = []
   const candidates = index.candidatesFor(input.appName, input.event)
     .filter(c => c.test(input))
-    .sort((a, b) => b.rule.priority - a.rule.priority)
+    .sort((a, b) => (Number(b.rule.priority) || 0) - (Number(a.rule.priority) || 0))
   for (const c of candidates) {
     matched.push(c.rule)
     if (c.rule.stopOnMatch) break
   }
 
-  // Fold effects: iterate high→low, only set a field if not already set (higher priority wins).
-  let lifetime: NotifMeta["lifetime"] | undefined
-  let ttlMs: number | undefined
-  let popupMs: number | undefined
-  let clearOnBoot: boolean | undefined
-  let noHistory: boolean | undefined
-  let muteAudio: boolean | undefined
-  let dontShow: boolean | undefined
-  let soundFile: string | undefined
-  let suppress: boolean | undefined
-  let dedupSpec: NotifRule["effects"]["dedupKey"] | undefined
-  let rewriteAppName: string | undefined
-  let rewriteSummary: string | undefined
-  let rewriteBody: string | undefined
-  let color: string | undefined
-  let style: PopupStyle | undefined
-  const conditions = new Set<string>()
+  const e = plegarEfectos(matched) as EffectSpec
 
-  const setOnce = <T>(cur: T | undefined, val: T | undefined): T | undefined =>
-    cur !== undefined ? cur : val
-
-  for (const r of matched) {
-    const e = r.effects
-    lifetime    = setOnce(lifetime, e.lifetime)
-    ttlMs       = setOnce(ttlMs, e.ttlMs)
-    popupMs     = setOnce(popupMs, e.popupMs)
-    clearOnBoot = setOnce(clearOnBoot, e.clearOnBoot)
-    noHistory   = setOnce(noHistory, e.noHistory)
-    muteAudio   = setOnce(muteAudio, e.muteAudio)
-    dontShow    = setOnce(dontShow, e.dontShow)
-    soundFile   = setOnce(soundFile, e.soundFile)
-    suppress    = setOnce(suppress, e.suppress)
-    dedupSpec      = setOnce(dedupSpec, e.dedupKey)
-    rewriteAppName = setOnce(rewriteAppName, r.effects.rewrite?.appName)
-    rewriteSummary = setOnce(rewriteSummary, r.effects.rewrite?.summary)
-    rewriteBody    = setOnce(rewriteBody, r.effects.rewrite?.body)
-    color       = setOnce(color, e.color)
-    style       = setOnce(style, e.style)
-    for (const cond of e.conditions ?? []) conditions.add(cond)
-  }
-
-  const finalLifetime = lifetime ?? "persistent"
-  const finalClearOnBoot = (clearOnBoot ?? false) || finalLifetime === "clear-on-boot"
+  // Lo que calcula el propio motor (efectos con destino `motor`).
+  const lifetime = e.lifetime ?? "persistent"
   const meta: NotifMeta = {
-    lifetime: finalLifetime,
-    clearOnBoot: finalClearOnBoot,
-    noHistory: noHistory ?? false,
-    muteAudio: muteAudio ?? false,
-    dontShow: dontShow ?? false,
-    dedupKey: computeDedupKey(dedupSpec ?? DEFAULT_DEDUP, input),
-    conditions: [...conditions],
+    lifetime,
+    clearOnBoot: (e.clearOnBoot ?? false) || lifetime === "clear-on-boot",
+    noHistory: false,
+    muteAudio: false,
+    dontShow: false,
+    dedupKey: computeDedupKey(e.dedupKey ?? DEFAULT_DEDUP, input),
+    conditions: [],
     matchedRules: matched.map(r => r.id),
   }
-  if (color !== undefined) meta.color = color
-  if (style !== undefined) meta.style = style
-  if (popupMs !== undefined) meta.popupMs = popupMs
-  if (finalLifetime === "timed" && ttlMs !== undefined) {
-    meta.expiresAt = now + ttlMs
-  }
-  const result: EvalResult = { meta, suppress: suppress ?? false }
-  if (soundFile !== undefined) result.soundFile = soundFile
-  if (rewriteAppName !== undefined || rewriteSummary !== undefined || rewriteBody !== undefined) {
-    result.rewrite = {}
-    if (rewriteAppName !== undefined) result.rewrite.appName = rewriteAppName
-    if (rewriteSummary !== undefined) result.rewrite.summary = rewriteSummary
-    if (rewriteBody !== undefined) result.rewrite.body = rewriteBody
+  if (lifetime === "timed" && e.ttlMs !== undefined) meta.expiresAt = now + e.ttlMs
+
+  // El resto lo reparte el registro: cada efecto dice si va a la meta o al resultado.
+  const result: EvalResult = { meta, suppress: false }
+  for (const def of EFECTOS) {
+    if (def.destino === "motor") continue
+    const v = (e as Record<string, unknown>)[def.clave] ?? def.porDefecto
+    if (v === undefined) continue
+    const destino = (def.destino === "meta" ? meta : result) as unknown as Record<string, unknown>
+    destino[def.clave] = Array.isArray(v) ? [...v] : v
   }
   return result
 }

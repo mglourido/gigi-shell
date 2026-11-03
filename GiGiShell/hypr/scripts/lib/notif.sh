@@ -23,7 +23,7 @@
 # el singular y el plural, comparten id a propósito: quien silencia uno quiere los dos
 # callados). AGS lo lee en `procesamiento/ingesta.ts`, lo mete en `NotifInput.event` y
 # el motor de reglas casa por él (`match.event`); el catálogo de
-# `modulos/notificaciones/rules/catalogoSistema.ts` los enumera para que Ajustes >
+# `ags/config/avisos-sistema.json` los enumera para que Ajustes >
 # Notificaciones > Sistema pueda listarlos y editarlos UNO A UNO aunque nunca hayan
 # llegado a dispararse.
 #
@@ -39,9 +39,12 @@
 #
 #     act=$(notificar descargas.ejecutable-nuevo --wait -t 45000 -A "launch=Lanzar aislado" …)
 #
-# AL AÑADIR UN AVISO NUEVO, DA DE ALTA SU ID EN EL CATÁLOGO de AGS. Si no, el aviso
-# funciona igual (nada depende de que esté catalogado) pero no aparece en la lista de
-# Ajustes, que es justo lo que este fichero existe para permitir.
+# AL AÑADIR UN AVISO NUEVO, DA DE ALTA SU ID EN `ags/config/avisos-sistema.json` (una
+# línea: id, nombre, origen y, si hace falta, efectos y a qué anula). Si no, el aviso
+# funciona igual pero no aparece en Ajustes, y el test
+# `modulos/notificaciones/rules/catalogoSistema.test.ts` lo marca como huérfano.
+# Para RENOMBRAR un id, cambia `id` en ese JSON y pon el viejo en `antes`: el id viejo
+# sigue casando, así que este script se puede actualizar después sin perder nada.
 #
 # EL ID SE VALIDA AQUÍ. Un id con espacios o comillas rompería el `a{sv}` del hint sin
 # error visible: `notify-send` acepta `-h string:clave:valor` partiendo por el PRIMER

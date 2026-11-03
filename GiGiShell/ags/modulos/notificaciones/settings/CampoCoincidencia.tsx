@@ -1,9 +1,8 @@
 import { Gtk } from "ags/gtk4"
 import type { Accessor } from "ags"
 import type { MatchSpec, NotifRule, StringMatch } from "../rules/types.ts"
+import type { CampoCoincidencia as CampoCoincidenciaId } from "../rules/coincidencias.ts"
 import textos from "../../../textos/ajustes/notificaciones.json" with { type: "json" }
-
-type CampoCoincidenciaId = "app" | "summary" | "body" | "source"
 
 const OPERADORES: StringMatch["op"][] = ["contains", "equals", "regex"]
 const ETIQUETAS_OPERADOR: Record<StringMatch["op"], string> = {

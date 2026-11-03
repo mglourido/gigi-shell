@@ -157,7 +157,7 @@ Runtime JSON lives **outside the repo** in `~/.config/gigishell/` (`notification
 
 Los tres `notif-*` no son intercambiables y conviene no confundirlos: **`notif-rules.json`** son las reglas que escribe el usuario para las apps (`userRules` + `builtinOverrides`); **`notif-sistema.json`** es la configuración por aviso del sistema (`{version, eventos: {id: efectos}}`, ver `modulos/notificaciones/CLAUDE.md`); **`notif-history.json`** es el índice de "Detectadas". Solo el segundo está pensado para editarse a mano con comodidad.
 
-El mapa versionado de glifos de aplicaciones vive en `config/app_icons.json`; se importa desde el propio módulo y no depende de la ubicación del checkout. No es estado runtime y `bin/link.sh` lo excluye de la migración a `~/.config/gigishell/`. Orion guarda sus perfiles en `~/.local/share/orion/`.
+`config/avisos-sistema.json` es el catálogo de avisos del sistema (ver `modulos/notificaciones/CLAUDE.md`): dato versionado, como `app_icons.json`, y por eso también en el `KEEP_IN_REPO` de `bin/link.sh`. El mapa versionado de glifos de aplicaciones vive en `config/app_icons.json`; se importa desde el propio módulo y no depende de la ubicación del checkout. No es estado runtime y `bin/link.sh` lo excluye de la migración a `~/.config/gigishell/`. Orion guarda sus perfiles en `~/.local/share/orion/`.
 
 `security.json` is written by `modulos/ajustes/seguridad/preferencias.ts` and read once at startup by `hypr/scripts/oom-monitor.sh` — see `modulos/ajustes/seguridad/CLAUDE.md` and `hypr/scripts/oom-monitor.sh` itself for the full list of scanned events and the sandboxed-launch flow.
 
