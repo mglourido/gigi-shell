@@ -54,6 +54,8 @@ export { wsPreviewEnabled }
 // Default: activado para conservar el comportamiento existente.
 const [spotifyBarEnabled, _setSpotifyBarEnabled] = createState(true)
 export { spotifyBarEnabled }
+const [portadaSpotifyEnabled, _setPortadaSpotifyEnabled] = createState(true)
+export { portadaSpotifyEnabled }
 
 export type ColorBarrasSpotify = "rgb" | "blanco"
 // Independiente del acento del fondo: OndaSpotify pinta su propia paleta.
@@ -570,6 +572,7 @@ function load() {
     const saved = JSON.parse(new TextDecoder().decode(content))
     if (typeof saved.workspacePreview === "boolean") _setWsPreviewEnabled(saved.workspacePreview)
     if (typeof saved.spotifyBar === "boolean") _setSpotifyBarEnabled(saved.spotifyBar)
+    if (typeof saved.portadaSpotify === "boolean") _setPortadaSpotifyEnabled(saved.portadaSpotify)
     if (saved.colorBarrasSpotify === "rgb" || saved.colorBarrasSpotify === "blanco")
       _setColorBarrasSpotify(saved.colorBarrasSpotify)
     if (typeof saved.bordeRgbCaratulaSpotify === "boolean")
@@ -718,6 +721,7 @@ function save() {
     const config = {
       workspacePreview: wsPreviewEnabled.get(),
       spotifyBar: spotifyBarEnabled.get(),
+      portadaSpotify: portadaSpotifyEnabled.get(),
       colorBarrasSpotify: colorBarrasSpotify.get(),
       bordeRgbCaratulaSpotify: bordeRgbCaratulaSpotify.get(),
       batteryBar: batteryBarEnabled.get(),
@@ -795,6 +799,11 @@ export function setWsPreviewEnabled(on: boolean) {
 }
 export function setSpotifyBarEnabled(on: boolean) {
   _setSpotifyBarEnabled(on)
+  save()
+}
+export function setPortadaSpotifyEnabled(on: boolean) {
+  if (portadaSpotifyEnabled.get() === on) return
+  _setPortadaSpotifyEnabled(on)
   save()
 }
 export function setColorBarrasSpotify(color: ColorBarrasSpotify) {

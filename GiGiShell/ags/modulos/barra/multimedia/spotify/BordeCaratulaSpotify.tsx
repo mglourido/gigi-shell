@@ -12,7 +12,10 @@ const VUELTA_SEGUNDOS = 8
 const FPS_MAXIMO = 30
 
 /** Capa sin entrada ni tamaño propio, animada por el reloj existente de la onda. */
-export function crearBordeCaratulaSpotify(visibilidad: EstadoVisibilidadBarra) {
+export function crearBordeCaratulaSpotify(
+  visibilidad: EstadoVisibilidadBarra,
+  portada: { get(): boolean, subscribe(callback: () => void): () => void },
+) {
   let fase = 0
   let acumulado = 0
   let degradadoDisponible = true
@@ -58,8 +61,11 @@ export function crearBordeCaratulaSpotify(visibilidad: EstadoVisibilidadBarra) {
   })
 
   const sincronizar = () => {
-    const mostrar = bordeRgbCaratulaSpotify.get()
-      && estadoSpotify.get()?.reproduciendo === true && visibilidad.visible.get()
+    // Visible también en pausa: solo se anima mientras suena (el reloj de la
+    // onda se detiene en reposo), así que en pausa queda congelado y no cuesta nada.
+    // Con la portada oculta no se dibuja ni se anima: cero coste.
+    const mostrar = bordeRgbCaratulaSpotify.get() && portada.get()
+      && estadoSpotify.get() != null && visibilidad.visible.get()
     if (widget.get_visible() === mostrar) return
     widget.set_visible(mostrar)
     acumulado = 0
@@ -68,6 +74,7 @@ export function crearBordeCaratulaSpotify(visibilidad: EstadoVisibilidadBarra) {
   const cancelarAjuste = bordeRgbCaratulaSpotify.subscribe(sincronizar)
   const cancelarSpotify = estadoSpotify.subscribe(sincronizar)
   const cancelarVisibilidad = visibilidad.visible.subscribe(sincronizar)
+  const cancelarPortada = portada.subscribe(sincronizar)
   sincronizar()
 
   onCleanup(() => {
@@ -75,6 +82,7 @@ export function crearBordeCaratulaSpotify(visibilidad: EstadoVisibilidadBarra) {
     cancelarAjuste()
     cancelarSpotify()
     cancelarVisibilidad()
+    cancelarPortada()
   })
 
   return {

@@ -16,6 +16,7 @@ import {
   spotifyBarEnabled, setSpotifyBarEnabled,
   batteryBarEnabled, setBatteryBarEnabled,
   networkBarEnabled, setNetworkBarEnabled,
+  portadaSpotifyEnabled, setPortadaSpotifyEnabled,
   micIndicatorEnabled, setMicIndicatorEnabled,
   screencastIndicatorEnabled, setScreencastIndicatorEnabled,
   trayBarEnabled, setTrayBarEnabled,
@@ -90,6 +91,7 @@ export default function SeccionDiseno() {
 
       <TarjetaAjustes titulo={textosPersonalizacion.seccionesNuevas.barraEscritorios.elementos} icono="󰕰">
         <AjusteInterruptor titulo={textosPersonalizacion.barra.spotify.titulo} informacion={textosPersonalizacion.barra.spotify.descripcion} activo={spotifyBarEnabled} alAlternar={() => setSpotifyBarEnabled(!spotifyBarEnabled.get())} />
+        <AjusteInterruptor titulo={textosPersonalizacion.barra.portadaSpotify.titulo} informacion={textosPersonalizacion.barra.portadaSpotify.descripcion} activo={portadaSpotifyEnabled} alAlternar={() => setPortadaSpotifyEnabled(!portadaSpotifyEnabled.get())} />
         <AjusteInterruptor titulo={textosPersonalizacion.barra.bateria.titulo} informacion={textosPersonalizacion.barra.bateria.descripcion} activo={batteryBarEnabled} alAlternar={() => setBatteryBarEnabled(!batteryBarEnabled.get())} />
         <AjusteInterruptor titulo={textosPersonalizacion.barra.red.titulo} informacion={textosPersonalizacion.barra.red.descripcion} activo={networkBarEnabled} alAlternar={() => setNetworkBarEnabled(!networkBarEnabled.get())} />
         <AjusteInterruptor titulo={textosPersonalizacion.barra.indicadorMicrofono.titulo} informacion={textosPersonalizacion.barra.indicadorMicrofono.descripcion} activo={micIndicatorEnabled} alAlternar={() => setMicIndicatorEnabled(!micIndicatorEnabled.get())} />

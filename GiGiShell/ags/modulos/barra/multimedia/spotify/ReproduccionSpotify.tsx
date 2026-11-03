@@ -1,4 +1,4 @@
-import { onCleanup } from "ags"
+import { createComputed, onCleanup } from "ags"
 import { execAsync } from "ags/process"
 import { Gdk, Gtk } from "ags/gtk4"
 import AstalHyprland from "gi://AstalHyprland"
@@ -11,7 +11,7 @@ import CaratulaCompacta from "./CaratulaCompacta"
 import { crearBordeCaratulaSpotify } from "./BordeCaratulaSpotify"
 import OndaSpotify from "./OndaSpotify"
 import type { EstadoVisibilidadBarra } from "../../../../estado/visibilidadBarra"
-import { colorBarrasSpotify } from "../../../ajustes/preferences"
+import { colorBarrasSpotify, portadaSpotifyEnabled } from "../../../ajustes/preferences"
 
 /** Reproductor mínimo de Spotify para el centro de la barra. */
 export default function ReproduccionSpotify({ visibilidad }: { visibilidad: EstadoVisibilidadBarra }) {
@@ -26,7 +26,7 @@ export default function ReproduccionSpotify({ visibilidad }: { visibilidad: Esta
   const titulo = estadoSpotify((estado) => estado?.titulo ?? "")
   const artista = estadoSpotify((estado) => estado?.artista ?? "")
   const caratula = estadoSpotify((estado) => estado?.caratula ?? "")
-  const borde = crearBordeCaratulaSpotify(visibilidad)
+  const borde = crearBordeCaratulaSpotify(visibilidad, portadaSpotifyEnabled)
 
   /**
    * MPRIS no distingue si Spotify Connect reproduce aquí o en otro equipo.
@@ -110,14 +110,19 @@ export default function ReproduccionSpotify({ visibilidad }: { visibilidad: Esta
   return (
     <box
       visible={visible}
-      cssClasses={colorBarrasSpotify((color) => color === "rgb"
-        ? ["bar-spotify", "rgb"]
-        : ["bar-spotify"])}
+      // `con-portada` / `sin-portada` permiten un diseño distinto para cada caso.
+      cssClasses={createComputed([colorBarrasSpotify, portadaSpotifyEnabled], (color, portada) => [
+        "bar-spotify",
+        portada ? "con-portada" : "sin-portada",
+        ...(color === "rgb" ? ["rgb"] : []),
+      ])}
       spacing={3}
       valign={Gtk.Align.CENTER}
     >
       <box spacing={7}>
-        <CaratulaCompacta ruta={caratula} borde={borde.widget} />
+        <box visible={portadaSpotifyEnabled}>
+          <CaratulaCompacta ruta={caratula} borde={borde.widget} />
+        </box>
         <box
           orientation={Gtk.Orientation.VERTICAL}
           valign={Gtk.Align.CENTER}

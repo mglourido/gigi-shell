@@ -113,6 +113,10 @@
       "titulo": "Spotify en la barra",
       "descripcion": "Muestra la canción actual; clic izquierdo controla la reproducción y clic derecho abre Spotify."
     },
+    "portadaSpotify": {
+      "titulo": "Portada de Spotify",
+      "descripcion": "Muestra la carátula de la canción junto al título en la barra."
+    },
     "bateria": {
       "titulo": "Batería en la barra",
       "descripcion": "Muestra la carga y, al pasar el puntero, el tiempo y consumo estimados.\nSe oculta si el equipo no tiene batería."
