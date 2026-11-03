@@ -32,6 +32,8 @@ const INTERVALO_GRANDE_RESPALDO_MS = 33
 const FPS_MINIATURAS = 30
 const FPS_GRANDE = 60
 const REFRESCO_PARA_60_FPS = 59
+/** Lo más que se retrasa la aparición del menú esperando al blur suave. */
+const ESPERA_MAX_BLUR_MS = 100
 
 let colaVistaEnVivo: Promise<unknown> = Promise.resolve()
 let llamadasPendientes: string[] = []
@@ -212,12 +214,10 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
 
   /** Construye y enseña. Sin ayudante, la foto con grim se toma con la ventana oculta. */
   const mostrar = async (apertura: number, area: AreaUtilSalida | null) => {
-    const fotoPrevia = construir(area)
-    if (fotoPrevia) {
-      ventana.set_visible(false)
-      await fotoPrevia
-      if (apertura !== secuenciaApertura) return
-    }
+    const { listo, conFoto } = construir(area)
+    if (conFoto) ventana.set_visible(false)
+    await listo
+    if (apertura !== secuenciaApertura) return
     ventana.set_visible(true)
   }
 
@@ -239,8 +239,9 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
     await mostrar(apertura, area)
   }
 
-  /** Devuelve una promesa si hay que esperar a la foto con grim antes de mostrar la ventana. */
-  const construir = (area: AreaUtilSalida | null): Promise<void> | null => {
+  /** `listo`: lo que hay que esperar antes de enseñar la ventana. `conFoto`: incluye la foto con grim,
+   * que exige la ventana oculta. */
+  const construir = (area: AreaUtilSalida | null): { listo: Promise<unknown>; conFoto: boolean } => {
     const geometria = monitorGdk.get_geometry()
     const escala = monitorGdk.get_scale()
     const recorte = area?.recorte ?? [0, 0, 0, 0]
@@ -471,12 +472,20 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
       })
     }
 
-    blurSuave("escritorios", true)
+    // Se espera al blur suave antes de enseñar la capa: si no, los primeros fotogramas desenfocan la
+    // pantalla entera con el blur normal, que es mucho más caro, justo cuando se nota lo que tarda en
+    // aparecer el menú. Con tope, por si `hyprctl` no responde: entonces se ve otro blur un momento.
+    const blurPuesto = Promise.race([
+      blurSuave("escritorios", true),
+      new Promise<void>((resolver) => setTimeout(resolver, ESPERA_MAX_BLUR_MS)),
+    ])
     vistaEnVivo(`vista_en_vivo_fps(${FPS_MINIATURAS})`)
     dejarDatos = suscribirDatosEscritorios(actualizar)
     construyendo = false
     // La foto se toma con la ventana aún oculta: si no, grim fotografiaría el propio menú.
-    return sinAyudante ? fotografiarActivo() : null
+    return sinAyudante
+      ? { listo: Promise.all([blurPuesto, fotografiarActivo()]), conFoto: true }
+      : { listo: blurPuesto, conFoto: false }
   }
 
   // Deshace el blur que haya dejado un AGS caído con el menú abierto.
