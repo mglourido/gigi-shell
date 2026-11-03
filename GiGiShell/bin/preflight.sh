@@ -299,6 +299,20 @@ if [[ "$mode" == "--installed" ]]; then
     ok "gigishell-almacenamiento instalado y al día"
   fi
 
+  # gigishell-notif-respaldo: guarda las notificaciones con AGS caído. Opcional. Sin su .service
+  # el bus no lo arranca nunca, así que el binario solo no basta.
+  nr_bin="$HOME/.local/bin/gigishell-notif-respaldo"
+  nr_srv="${XDG_DATA_HOME:-$HOME/.local/share}/dbus-1/services/org.freedesktop.Notifications.service"
+  if [[ ! -x "$nr_bin" ]]; then
+    warn "gigishell-notif-respaldo no instalado: con AGS caído las notificaciones se pierden (bash $GIGISHELL/notif-respaldo/instalar.sh)"
+  elif ! grep -qxF "Exec=$nr_bin" "$nr_srv" 2>/dev/null; then
+    warn "gigishell-notif-respaldo sin activación D-Bus ($nr_srv): el bus no lo arrancará; reinstala con $GIGISHELL/notif-respaldo/instalar.sh"
+  elif [[ -n "$(find "$GIGISHELL/notif-respaldo/src" "$GIGISHELL/notif-respaldo/Cargo.toml" -newer "$nr_bin" -print -quit 2>/dev/null)" ]]; then
+    warn "gigishell-notif-respaldo es más viejo que su código: recompila con $GIGISHELL/notif-respaldo/instalar.sh"
+  else
+    ok "gigishell-notif-respaldo instalado, al día y con su activación D-Bus"
+  fi
+
   # gigishell-brillo: respaldo de las teclas de brillo sin AGS. Opcional; sus constantes copian
   # DIM_FLOOR (atenuacion.ts) y el salto (puentes.ts): si difieren, el slider salta al volver AGS.
   bri_bin="$HOME/.local/bin/gigishell-brillo"

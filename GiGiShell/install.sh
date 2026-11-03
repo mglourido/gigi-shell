@@ -1727,6 +1727,11 @@ configure_default_shell() {
     info "Compilando gigishell-brillo (pasa los tests antes de instalar) ..."
     bash "$GIGISHELL/brillo/instalar.sh" \
       || warn "No se pudo compilar gigishell-brillo; sin AGS las teclas de brillo no harán nada. Reintento: bash ~/GiGiShell/brillo/instalar.sh"
+    # Guarda las notificaciones que llegan con AGS caído (lo arranca el bus por activación D-Bus).
+    # Opcional: sin el binario, con AGS caído las notificaciones se pierden, como antes.
+    info "Compilando gigishell-notif-respaldo (pasa los tests antes de instalar) ..."
+    bash "$GIGISHELL/notif-respaldo/instalar.sh" \
+      || warn "No se pudo compilar gigishell-notif-respaldo; con AGS caído las notificaciones se perderán. Reintento: bash ~/GiGiShell/notif-respaldo/instalar.sh"
     # Vista previa en vivo de los escritorios de la barra. Opcional igual: sin el binario, la
     # miniatura solo muestra una foto con grim del escritorio activo.
     info "Compilando gigishell-vista-escritorio (pasa los tests antes de instalar) ..."

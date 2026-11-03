@@ -21,8 +21,10 @@ export function cargarJson<T>(path: string, fallback: T, label: string): T {
   return fallback
 }
 
-export function saveJsonAsync(path: string, data: unknown, label: string): void {
-  saveJsonAsyncBase(path, data, `notif ${label}`)
+export function saveJsonAsync(
+  path: string, data: unknown, label: string, alTerminar?: (ok: boolean) => void,
+): void {
+  saveJsonAsyncBase(path, data, `notif ${label}`, undefined, alTerminar)
 }
 
 export function crearGuardadoJsonProgramado(

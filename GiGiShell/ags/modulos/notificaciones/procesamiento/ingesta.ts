@@ -1,12 +1,14 @@
 // Punto único de entrada para las notificaciones recibidas.
 // Single entry point for incoming notifications: classify via rules → apply on-receive cleanup
-// (suppress, dedup) → store → schedule dynamic conditions. The popup/daemon calls only this.
+// (suppress, dedup) → store → schedule dynamic conditions. Lo llaman solo el handler de "notified"
+// (`NotificationPopup.tsx`, en vivo) y `drenado.ts` (lo que guardó el respaldo con AGS caído).
 import AstalNotifd from "gi://AstalNotifd"
+import type { NotifEntrante } from "./entrante.ts"
 import { notifications, setNotifications, removeNotification, scheduleStoreSave, appSettings, NOTIF_CAP, type StoredNotification } from "../store.ts"
 import { ruleIndex } from "../rules/rulesStore.ts"
 import { evaluate } from "../rules/engine.ts"
 import { applyTemplate } from "../rules/template.ts"
-import { buildNotifFields, type RawNotif } from "../rules/notifFields.ts"
+import { buildNotifFields } from "../rules/notifFields.ts"
 import { getCondition } from "../rules/conditions.ts"
 import { idCanonico } from "../rules/catalogoSistema.ts"
 import type { NotifInput } from "../rules/types.ts"
@@ -21,50 +23,6 @@ import { esPopupDuplicado } from "../popup/pila.ts"
 // compilar: deja un `undefined` en el sitio menos esperado, en tiempo de ejecución.
 import { silencioDeSuspensionFalsa } from "../../../servicios/energia/suspensionFalsa/dnd.ts"
 import { sfSilenciarNotificaciones, sfSilenciarReloj } from "../../../servicios/energia/powerState.ts"
-
-/** Unpack a notification's D-Bus hints (a{sv}) into a flat string map for rewrite placeholders.
- *  Only string/number/boolean hint values are kept; complex values (images, byte arrays) skipped. */
-function extractHints(n: AstalNotifd.Notification): Record<string, string> {
-  const out: Record<string, string> = {}
-  try {
-    const raw = (n as any).hints?.recursiveUnpack?.()
-    if (raw && typeof raw === "object") {
-      for (const [k, v] of Object.entries(raw)) {
-        if (typeof v === "string") out[k] = v
-        else if (typeof v === "number" || typeof v === "boolean") out[k] = String(v)
-      }
-    }
-  } catch (_) {}
-  return out
-}
-
-/** Lee un hint suelto como cadena. Ver `readSourceHint` para por qué no se usa `extractHints`. */
-function readStringHint(n: AstalNotifd.Notification, key: string): string | undefined {
-  try {
-    const v = (n as any).hints?.lookup_value?.(key, null)
-    if (!v) return undefined
-    return (v.get_type_string() === "s" ? v.get_string()[0] : String(v.deep_unpack())) || undefined
-  } catch (_) { return undefined }
-}
-
-/** `suppress-sound` viaja como booleano en el spec, pero hay emisores que mandan 0/1 o "true". */
-function readBoolHint(n: AstalNotifd.Notification, key: string): boolean {
-  try {
-    const v = (n as any).hints?.lookup_value?.(key, null)
-    if (!v) return false
-    const raw = v.deep_unpack()
-    return raw === true || raw === 1 || raw === "true" || raw === "1"
-  } catch (_) { return false }
-}
-
-/** Lee SOLO los hints `x-gigishell-source` / `x-gigishell-event` (los ponen los scripts de
- *  `hypr/scripts/` vía `lib/notif.sh`). Deliberadamente NO pasa por `extractHints()`: ese hace
- *  `recursiveUnpack()` de todo el a{sv}, y un `image-data` trae los píxeles en crudo —
- *  materializarlos en JS por cada notificación saldría caro. Hoy solo se libra porque únicamente
- *  corre cuando una regla reescribe texto. `lookup_value` desenvuelve la 'v' él solo. */
-function readSourceHint(n: AstalNotifd.Notification): string | undefined {
-  return readStringHint(n, "x-gigishell-source")
-}
 
 /** No molestar, leído del daemon en el momento. No se cachea: el auto-DND lo cambia solo. */
 function noMolestarActivo(): boolean {
@@ -115,31 +73,33 @@ function scheduleConditions(stored: StoredNotification): void {
 }
 
 /**
- * Ingest a live notification. Returns the stored notification (for the popup to display),
- * or null if it was suppressed or shouldn't be shown.
+ * Ingiere una notificación, en vivo (`desdeAstal`) o diferida (`pendientes.ts`, lo que guardó el
+ * respaldo con AGS caído): es el mismo camino para las dos. Devuelve la notificación almacenada
+ * para que el popup la enseñe, o null si se suprimió, no debe verse o es diferida (esas van solo
+ * al panel, sin popup ni sonido).
  */
-export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
+export function ingest(n: NotifEntrante): StoredNotification | null {
   // Bridge: honor existing per-app mute (appSettings) until Phase 3 migrates it to rules.
-  if (appSettings.get()[n.app_name]?.muted) return null
+  if (appSettings.get()[n.appName]?.muted) return null
 
   // Origen e identidad se leen ANTES de evaluar: las reglas casan por ambos (`match.source`,
   // `match.event`). Del primero depende la builtin que da el skin dunst a lo que sale de
   // hypr/scripts; del segundo, la configuración individual de cada aviso del sistema.
-  const source = readSourceHint(n)
+  const source = n.hint("x-gigishell-source")
   // Un emisor que aún mande un id antiguo (`antes` en `config/avisos-sistema.json`) se traduce
   // al vigente AQUÍ, antes de evaluar: así casa con su regla, se agrupa y se anula como el nuevo.
-  const eventoCrudo = readStringHint(n, "x-gigishell-event")
+  const eventoCrudo = n.hint("x-gigishell-event")
   const event = eventoCrudo ? idCanonico(eventoCrudo) : undefined
 
   const input: NotifInput = {
-    appName: n.app_name || "Sistema",
-    summary: n.summary || "",
-    body: n.body || "",
-    urgency: n.urgency ?? 1,
+    appName: n.appName || "Sistema",
+    summary: n.summary,
+    body: n.body,
+    urgency: n.urgency,
     source,
     event,
   }
-  const { meta, suppress, rewrite, soundFile: sonidoRegla } = evaluate(input, ruleIndex.get(), Date.now())
+  const { meta, suppress, rewrite, soundFile: sonidoRegla } = evaluate(input, ruleIndex.get(), n.timestamp)
   if (suppress) return null
 
   // Text rewriting: placeholders resolve against the ORIGINAL notification fields + its hints.
@@ -149,7 +109,10 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
   let body = input.body
   // Una plantilla rota no puede costar la notificación: se queda con el texto original.
   if (rewrite) pasoSecundario("reescritura", () => {
-    const fields = buildNotifFields(n as RawNotif, Date.now(), extractHints(n))
+    const fields = buildNotifFields(
+      { app_name: n.appName, summary: n.summary, body: n.body, urgency: n.urgency },
+      n.timestamp, n.hintsTexto(),
+    )
     if (rewrite.appName !== undefined) appName = applyTemplate(rewrite.appName, fields)
     if (rewrite.summary !== undefined) summary = applyTemplate(rewrite.summary, fields)
     if (rewrite.body !== undefined) body = applyTemplate(rewrite.body, fields)
@@ -158,21 +121,19 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
   const stored: StoredNotification = {
     id: n.id,
     appName: appName,
-    appIcon: n.app_icon || "",
+    appIcon: n.appIcon,
     summary: summary,
     body: body,
-    timestamp: Date.now(),
+    timestamp: n.timestamp,
     read: false,
     urgency: input.urgency,
-    actions: (n.actions ?? [])
-      .filter((a: any) => typeof a?.id === "string")
-      .map((a: any) => ({ id: a.id, label: typeof a.label === "string" ? a.label : a.id })),
+    actions: n.actions,
     // Lo pide NotificationPopup para dar más vida al popup cuando trae acciones: el
     // botón solo existe mientras el popup está en pantalla (las notificaciones de
     // hypr/scripts no llegan al historial), así que con los 5,5 s fijos de siempre no
     // daba tiempo ni a leerlo. En el spec 0 = "no expira nunca"; el popup lo acota.
-    expireTimeout: typeof n.expire_timeout === "number" ? n.expire_timeout : undefined,
-    image: n.image_path || undefined,
+    expireTimeout: n.expireTimeout,
+    image: n.image,
     source,
     event,
     meta,
@@ -200,14 +161,18 @@ export function ingest(n: AstalNotifd.Notification): StoredNotification | null {
   pasoSecundario("historial", () => recordNotification(stored))
   pasoSecundario("condiciones", () => scheduleConditions(stored))
 
+  // Diferida: llegó con AGS caído y ya pasó su momento. Al panel y al historial sí (arriba), pero
+  // ni popup ni sonido — decisión del usuario, ver `procesamiento/drenado.ts`.
+  if (n.diferida) return null
+
   // Audio. Va DESPUÉS de almacenar y de las reglas: `meta.muteAudio` es su entrada, y una
   // notificación suprimida (`suppress`) o deduplicada ya salió por arriba sin llegar aquí. Suena
   // aunque `dontShow` la oculte del popup — «no la enseñes» no es «no me avises».
   // Una idéntica que ya está en pantalla no da aviso nuevo, tampoco por el altavoz.
   pasoSecundario("sonido", () => { if (!esPopupDuplicado(stored)) reproducirSonidoNotificacion({
-    soundName: readStringHint(n, "sound-name"),
-    soundFile: readStringHint(n, "sound-file"),
-    suppressSound: readBoolHint(n, "suppress-sound"),
+    soundName: n.hint("sound-name"),
+    soundFile: n.hint("sound-file"),
+    suppressSound: n.hintBool("suppress-sound"),
     // Sonido puesto a mano en una regla o en un aviso del sistema. Es lo único capaz de hacer
     // sonar una notificación que no pedía sonido, y de cambiar el que pedía.
     sonidoRegla,

@@ -25,6 +25,10 @@ import textos from "../../../textos/ajustes/notificaciones.json" with { type: "j
 import { formatearTexto } from "../../../textos/formatear.ts"
 
 const NOTIF_NAME = "org.freedesktop.Notifications"
+/** `comm` de `gigishell-notif-respaldo` (el kernel lo corta a 15 caracteres). El respaldo solo
+ *  tiene el nombre mientras AGS está caído y lo suelta en cuanto aparece `io.Astal.ags`, antes de
+ *  que este módulo mire: verlo aquí es el traspaso en curso, no un intruso. Ver `notif-respaldo/`. */
+const COMM_RESPALDO = "gigishell-notif"
 
 export interface DaemonConflict {
   /** PID del proceso que nos ha robado el nombre. */
@@ -65,7 +69,9 @@ function evaluate(bus: Gio.DBusConnection): DaemonConflict | null {
 
   const res = callDBus(bus, "GetConnectionUnixProcessID", new GLib.Variant("(s)", [uniqueName]))
   const pid = res ? (res.deep_unpack() as [number])[0] : 0
-  return { pid, comm: commOf(pid) }
+  const comm = commOf(pid)
+  if (comm === COMM_RESPALDO) return null
+  return { pid, comm }
 }
 
 /** Aviso por notificación de escritorio: lo pintará el propio daemon intruso, que es el que
@@ -113,7 +119,32 @@ export function initNotifDaemonCheck(): void {
 
 let lastWarnedPid = 0
 
+// Quien necesite saber que el nombre pasa a ser nuestro (hoy, el vaciado de lo que guardó el
+// respaldo con AGS caído) se apunta aquí en vez de ser importado: `ListaPanel` importa este
+// módulo, y tirar desde aquí de la ingesta abriría un ciclo de imports que no falla al compilar
+// sino con un `undefined` en ejecución (ver la cabecera de `procesamiento/ingesta.ts`).
+const alSerNuestro: (() => void)[] = []
+
+/** Registra `cb` para cada vez que `org.freedesktop.Notifications` pase a ser nuestro (también al
+ *  arrancar, si ya lo es cuando corre `initNotifDaemonCheck`). */
+export function alSerNuestroElNombre(cb: () => void): void {
+  alSerNuestro.push(cb)
+}
+
+/** ¿Es nuestro el nombre ahora mismo? Distinto de «no hay conflicto», que también es nombre libre. */
+function esNuestro(bus: Gio.DBusConnection): boolean {
+  const owner = callDBus(bus, "GetNameOwner", new GLib.Variant("(s)", [NOTIF_NAME]))
+  return owner !== null && (owner.deep_unpack() as [string])[0] === bus.get_unique_name()
+}
+
 function refresh(bus: Gio.DBusConnection): void {
+  // Lo que guardó el respaldo con AGS caído entra en cuanto el nombre es nuestro: desde ese momento
+  // el respaldo ya no escribe. Cubre el arranque y también volver de un conflicto.
+  if (esNuestro(bus)) {
+    for (const cb of alSerNuestro) {
+      try { cb() } catch (e) { console.error("[notif] daemonCheck: un aviso de nombre propio falló:", e) }
+    }
+  }
   const conflict = evaluate(bus)
   setNotifDaemonConflict(conflict)
   if (conflict && conflict.pid !== lastWarnedPid) {

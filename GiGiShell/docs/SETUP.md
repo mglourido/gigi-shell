@@ -191,7 +191,12 @@ systemctl --user stop dunst.service   # suelta el nombre ahora
 ```
 
 No hace falta reiniciar AGS ni desinstalar dunst: `AstalNotifd` queda **en cola** por el nombre y
-lo toma en cuanto dunst lo libera. Comprobación:
+lo toma en cuanto dunst lo libera.
+
+Con `gigishell-notif-respaldo` instalado (`notif-respaldo/instalar.sh`), el que se activa por D-Bus
+cuando AGS no está es **ese**, no dunst: su `.service` vive en `~/.local/share/dbus-1/services`, que
+el bus mira antes que `/usr/share`. Guarda la notificación en disco y suelta el nombre en cuanto
+AGS arranca, así que no compite con él. Enmascarar dunst sigue siendo lo correcto. Comprobación:
 
 ```sh
 busctl --user list | grep org.freedesktop.Notifications   # debe apuntar al PID de gjs, no a dunst

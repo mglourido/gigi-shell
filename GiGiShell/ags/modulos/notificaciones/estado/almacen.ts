@@ -2,7 +2,7 @@ import { createState } from "ags"
 import GLib from "gi://GLib"
 import type { NotifMeta } from "../rules/types.ts"
 import type { AppSettings, StoredNotification } from "./modelos.ts"
-import { cargarJson, crearGuardadoJsonProgramado } from "./persistencia.ts"
+import { cargarJson, crearGuardadoJsonProgramado, saveJsonAsync } from "./persistencia.ts"
 import { selectedIds, setSelectedIds } from "./panel.ts"
 import { sanearMapaObjetos, sanearNotificaciones } from "./saneado.ts"
 
@@ -45,15 +45,21 @@ export const [appSettings, setAppSettings] = createState<Record<string, AppSetti
   sanearMapaObjetos(datosIniciales.appSettings) as unknown as Record<string, AppSettings>,
 )
 
-export const scheduleStoreSave = crearGuardadoJsonProgramado(
-  RUTA_ALMACEN,
-  "store",
-  1500,
-  () => ({
+function datosAlmacen(): DatosAlmacen {
+  return {
     notifications: notifications.get().slice(-NOTIF_CAP),
     appSettings: appSettings.get(),
-  }),
-)
+  }
+}
+
+export const scheduleStoreSave = crearGuardadoJsonProgramado(RUTA_ALMACEN, "store", 1500, datosAlmacen)
+
+/** Guarda ya, sin el retardo, y avisa cuando está en disco. Lo usa `procesamiento/drenado.ts`, que
+ *  no puede borrar las pendientes del respaldo hasta que están a salvo aquí. Si queda un guardado
+ *  programado, escribirá lo mismo (o algo más nuevo) después: no se pisa nada. */
+export function guardarAlmacenYa(alTerminar: (ok: boolean) => void): void {
+  saveJsonAsync(RUTA_ALMACEN, datosAlmacen(), "store", alTerminar)
+}
 
 export function getAppsWithNotifs(): string[] {
   return ["all", ...new Set(notifications.get().map((notificacion) => notificacion.appName))]

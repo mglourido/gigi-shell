@@ -62,6 +62,10 @@ respalda. Todo lo que hay en `target/` se regenera, así que su sitio es la cach
 - **`brillo/`** (`gigishell-brillo`, 2026-11-03) es el respaldo de las teclas de brillo cuando AGS no
   atiende: mueve el tramo de hardware (backlight o DDC/CI) sin OSD ni gamma. Ver `brillo/CLAUDE.md`.
   Ruta de compilación en `.cargo/config.toml` e `instalar.sh`.
+- **`notif-respaldo/`** (`gigishell-notif-respaldo`, 2026-11-03) guarda las notificaciones que llegan
+  con AGS caído. Es el primer crate con D-Bus (`zbus` 5, API bloqueante) y el único que no lanza
+  nadie: lo arranca el bus por activación. Ver `notif-respaldo/CLAUDE.md`. Ruta de compilación en
+  `.cargo/config.toml` e `instalar.sh`.
 - **La misma ruta está escrita a mano en varios sitios**: en guardian, `.cargo/config.toml`,
   `instalar.sh` y las dos pruebas; en eventd, `.cargo/config.toml` e `instalar.sh`. Si cambia en uno, cambiarla en todos; buscar con
   `grep -rn 'gigishell/cargo' ~/GiGiShell`. Un crate nuevo necesita su propio `.cargo/config.toml`:

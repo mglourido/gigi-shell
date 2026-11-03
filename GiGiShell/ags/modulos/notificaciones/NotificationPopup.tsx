@@ -17,6 +17,9 @@ import {
 } from "../../estado/visibilidadBarra"
 import { barAutoHideEnabled, clasesFondoShell } from "../ajustes/preferences"
 import { ingest } from "./procesamiento/ingesta.ts"
+import { desdeAstal } from "./procesamiento/desdeAstal.ts"
+import { drenarPendientes } from "./procesamiento/drenado.ts"
+import { alSerNuestroElNombre } from "./daemon/comprobacion.ts"
 import {
   crearResumenRafaga, crearResumenReanudacion, PRIORIDAD_CRITICA, prioridadPopup,
 } from "./popup/logica.ts"
@@ -181,6 +184,9 @@ export default function NotificationPopup(monitor: Gdk.Monitor) {
   if (!senalNotificacionConectada) {
     senalNotificacionConectada = true
     alReanudar(abrirVentanaReanudacion)
+    // Lo que guardó `notif-respaldo/` con AGS caído entra por la misma ingesta en cuanto el nombre
+    // D-Bus vuelve a ser nuestro. Sin popup ni sonido: ver `procesamiento/drenado.ts`.
+    alSerNuestroElNombre(drenarPendientes)
     // Barrera de todo el camino de entrada: lo que llegue por D-Bus lo manda cualquier proceso
     // de la sesión, y un fallo con UNA notificación no puede dejar el handler a medias.
     daemonNotificaciones.connect("notified", (_daemon, id) => {
@@ -188,7 +194,7 @@ export default function NotificationPopup(monitor: Gdk.Monitor) {
         const notificacionActiva = daemonNotificaciones.get_notification(id)
         if (!notificacionActiva) return
 
-        const notificacion = ingest(notificacionActiva)
+        const notificacion = ingest(desdeAstal(notificacionActiva))
         if (!notificacion || daemonNotificaciones.dontDisturb) return
         if (!notificacionPermitida(notificacion)) return
         gestionarPopupEntrante(notificacion)

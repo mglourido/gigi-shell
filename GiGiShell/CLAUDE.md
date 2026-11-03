@@ -18,6 +18,7 @@ Este archivo es el índice. Lo detallado vive en `CLAUDE.md` de subcarpetas y en
 | `almacenamiento/` | binario Rust de análisis y limpieza de disco | `almacenamiento/CLAUDE.md` |
 | `guardian/` | daemon Rust root de protección de archivos | `guardian/CLAUDE.md` |
 | `brillo/` | binario Rust de respaldo de las teclas de brillo cuando AGS no corre | `brillo/CLAUDE.md` |
+| `notif-respaldo/` | binario Rust que guarda las notificaciones que llegan con AGS caído (activación D-Bus) | `notif-respaldo/CLAUDE.md` |
 | `vista-escritorio/` | binario Rust de la miniatura en vivo de los escritorios de la barra y del menú de SUPER+Tab | `vista-escritorio/CLAUDE.md` |
 | `audio/` | sonidos de alarmas y notificaciones | `audio/README.md` |
 | `bin/`, `install.sh` | symlinks, preflight, bootstrap | secciones «Symlinks» y «Per-machine profiles» de este archivo; `docs/SETUP.md` |
@@ -62,6 +63,7 @@ Directorios de apoyo (cada uno con su `CLAUDE.md` o README donde importa; ver el
 - `eventd/` — daemon Rust `gigishell-eventd`: sustituye a los seis sub-monitores de `oom-monitor.sh` cuando está instalado en `~/.local/bin`; una regla de seguridad cambiada en un sitio hay que cambiarla en el otro. Ver `eventd/CLAUDE.md` y `docs/rust-migracion.md`.
 - `almacenamiento/` — binario Rust `gigishell-almacenamiento`: análisis y limpieza de Ajustes > Almacenamiento; los scripts de `hypr/scripts/` le ceden el proceso con `exec` y, sin binario, corren su respaldo bash. Ver `almacenamiento/CLAUDE.md`.
 - `vista-escritorio/` — binario Rust `gigishell-vista-escritorio`: la miniatura en vivo de un escritorio de la barra y el menú de SUPER+Tab, incluidos los ocultos; solo existe mientras se ven y, sin binario, la barra enseña una foto con `grim` del escritorio activo. Ver `vista-escritorio/CLAUDE.md`.
+- `notif-respaldo/` — binario Rust `gigishell-notif-respaldo`: con AGS caído, el bus lo arranca por **activación D-Bus** al llegar una notificación y la guarda en `~/.config/gigishell/notif-pendientes.json`; sale en cuanto aparece `io.Astal.ags`, y AGS mete lo guardado en el panel (sin popup ni sonido) por la misma ingesta. Con AGS vivo no corre. Ver `notif-respaldo/CLAUDE.md`.
 - `guardian/` — daemon Rust root `gigishell-guardian`, la **protección de archivos** (BPF LSM + fanotify); se instala **apagado** y su política vive en `/var/lib/gigishell-guardian/`, no en `~/.config`. Ver `guardian/CLAUDE.md`.
 - `system/` — ficheros para `/etc` y `/usr/local/bin` que **no** se symlinkean: se instalan con `sudo`. Ver `system/CLAUDE.md`; la plantilla de SDDM y su tema, en `system/sddm/CLAUDE.md`; la hibernación, en `system/hibernacion/CLAUDE.md`.
 

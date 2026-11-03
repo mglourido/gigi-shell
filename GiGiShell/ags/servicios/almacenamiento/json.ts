@@ -46,12 +46,17 @@ export function cargarJsonCrudo(path: string, label: string): unknown | null {
   }
 }
 
-export function saveJsonAsync(path: string, data: unknown, label: string, modo?: number): void {
+/** `alTerminar` se llama cuando el fichero ya está en disco (`true`) o la escritura falló
+ *  (`false`): para quien solo puede borrar su origen una vez guardado el destino. */
+export function saveJsonAsync(
+  path: string, data: unknown, label: string, modo?: number, alTerminar?: (ok: boolean) => void,
+): void {
   let text: string
   try {
     text = JSON.stringify(data)
   } catch (e) {
     console.error(`[${label}] serialize failed:`, e)
+    alTerminar?.(false)
     return
   }
 
@@ -76,11 +81,15 @@ export function saveJsonAsync(path: string, data: unknown, label: string, modo?:
           if (modo !== undefined) GLib.chmod(path, modo)
         } catch (e) {
           console.error(`[${label}] save failed:`, e)
+          alTerminar?.(false)
+          return
         }
+        alTerminar?.(true)
       },
     )
   } catch (e) {
     console.error(`[${label}] save failed:`, e)
+    alTerminar?.(false)
   }
 }
 
