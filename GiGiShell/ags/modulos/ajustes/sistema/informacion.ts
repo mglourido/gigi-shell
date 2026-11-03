@@ -173,10 +173,89 @@ function memorySpeed(): string {
   return [...speeds].join(" · ")
 }
 
+/**
+ * Módulos de RAM desde la base de datos de udev (`/run/udev/data/+dmi:id`), que
+ * systemd-udevd rellena como root con el DMI tipo 17 y deja legible para todos:
+ * fabricante, referencia, tipo y velocidad sin `dmidecode` ni root, y sin lanzar
+ * proceso (es una lectura de fichero, cabe en la mitad síncrona).
+ */
+interface ModuloRam {
+  fabricante: string; referencia: string; tamano: number; tipo: string
+  velocidad: string; formato: string; ranura: string; voltaje: string
+}
+
+function modulosRam(): { modulos: ModuloRam[]; ranuras: number; maximo: number } {
+  const props: Record<string, string> = {}
+  for (const line of readFile("/run/udev/data/+dmi:id").split("\n")) {
+    if (!line.startsWith("E:MEMORY_")) continue
+    const pos = line.indexOf("=")
+    if (pos > 0) props[line.slice(2, pos)] = line.slice(pos + 1).trim()
+  }
+  const limpio = (v = "") => (MARCADORES.has(v.toLowerCase()) ? "" : v)
+  const ranuras = Number(props.MEMORY_ARRAY_NUM_DEVICES ?? 0)
+  const modulos: ModuloRam[] = []
+  for (let i = 0; i < Math.max(ranuras, 16); i++) {
+    const tamano = Number(props[`MEMORY_DEVICE_${i}_SIZE`] ?? 0)
+    if (!tamano) continue
+    const mts = props[`MEMORY_DEVICE_${i}_CONFIGURED_SPEED_MTS`] || props[`MEMORY_DEVICE_${i}_SPEED_MTS`]
+    const voltaje = props[`MEMORY_DEVICE_${i}_CONFIGURED_VOLTAGE`]
+    modulos.push({
+      fabricante: limpio(props[`MEMORY_DEVICE_${i}_MANUFACTURER`]),
+      referencia: limpio(props[`MEMORY_DEVICE_${i}_PART_NUMBER`]),
+      tamano,
+      tipo: limpio(props[`MEMORY_DEVICE_${i}_TYPE`]),
+      velocidad: mts ? `${mts} MT/s` : "",
+      formato: limpio(props[`MEMORY_DEVICE_${i}_FORM_FACTOR`]),
+      ranura: limpio(props[`MEMORY_DEVICE_${i}_LOCATOR`]),
+      voltaje: voltaje && Number(voltaje) > 0 ? `${voltaje.replace(".", ",")} V` : "",
+    })
+  }
+  return { modulos, ranuras, maximo: Number(props.MEMORY_ARRAY_MAX_CAPACITY ?? 0) }
+}
+
+function ghz(khz: number): string {
+  return khz > 0 ? `${decimal(khz / 1_000_000, 2)} GHz` : ""
+}
+
+/**
+ * Frecuencias de cpufreq. La actual es la foto del momento de abrir la sección
+ * (media y máximo de `scaling_cur_freq` de todos los núcleos), no un sondeo vivo.
+ * `base_frequency` solo lo publica intel_pstate; donde falte, se omite.
+ */
+function frecuenciasCpu() {
+  const base = "/sys/devices/system/cpu"
+  const leer = (f: string) => Number(readFile(`${base}/cpu0/cpufreq/${f}`)) || 0
+  const actuales = listDir(base).filter(n => /^cpu\d+$/.test(n))
+    .map(cpu => Number(readFile(`${base}/${cpu}/cpufreq/scaling_cur_freq`)) || 0)
+    .filter(v => v > 0)
+  return {
+    min: ghz(leer("cpuinfo_min_freq")),
+    base: ghz(leer("base_frequency")),
+    max: ghz(leer("cpuinfo_max_freq")),
+    media: actuales.length ? ghz(actuales.reduce((a, b) => a + b, 0) / actuales.length) : "",
+    maxima: actuales.length ? ghz(Math.max(...actuales)) : "",
+    driver: readFile(`${base}/cpu0/cpufreq/scaling_driver`),
+    epp: readFile(`${base}/cpu0/cpufreq/energy_performance_preference`),
+  }
+}
+
+/** Espacio del sistema de ficheros raíz, por Gio (statfs, sin proceso). */
+function espacioRaiz(): { total: number; libre: number } {
+  try {
+    const info = Gio.File.new_for_path("/").query_filesystem_info("filesystem::size,filesystem::free", null)
+    return {
+      total: Number(info.get_attribute_uint64("filesystem::size")),
+      libre: Number(info.get_attribute_uint64("filesystem::free")),
+    }
+  } catch (_) { return { total: 0, libre: 0 } }
+}
+
 interface Sincrono {
   os: Record<string, string>
-  cpuModel: string; cores: string; threads: string; maxFreq: string; governor: string
+  cpuModel: string; cores: string; threads: string; governor: string
+  freq: ReturnType<typeof frecuenciasCpu>; raiz: ReturnType<typeof espacioRaiz>
   cache: string; memTotal: number; swapTotal: number; memSpeed: string
+  ram: ReturnType<typeof modulosRam>
   kernel: string; hostname: string; uptime: string
   board: string; bios: string; biosDate: string; product: string; firmware: string
   gtk: string; sessionType: string; desktop: string
@@ -185,18 +264,19 @@ interface Sincrono {
 function leerSincrono(): Sincrono {
   const cpuinfo = readFile("/proc/cpuinfo")
   const meminfo = readFile("/proc/meminfo")
-  const maxKHz = Number(readFile("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq"))
   return {
     os: osRelease(),
     cpuModel: cpuinfo.match(/^model name\s*:\s*(.+)$/m)?.[1] ?? "",
     cores: cpuinfo.match(/^cpu cores\s*:\s*(\d+)$/m)?.[1] ?? "",
     threads: cpuinfo.match(/^siblings\s*:\s*(\d+)$/m)?.[1] ?? "",
-    maxFreq: maxKHz ? `${decimal(maxKHz / 1_000_000, 2)} GHz` : "",
+    freq: frecuenciasCpu(),
+    raiz: espacioRaiz(),
     governor: readFile("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"),
     cache: cpuCache(),
     memTotal: Number(meminfo.match(/^MemTotal:\s+(\d+)/m)?.[1] ?? 0),
     swapTotal: Number(meminfo.match(/^SwapTotal:\s+(\d+)/m)?.[1] ?? 0),
     memSpeed: memorySpeed(),
+    ram: modulosRam(),
     kernel: readFile("/proc/sys/kernel/osrelease"),
     hostname: GLib.get_host_name(),
     uptime: uptime(),
@@ -233,7 +313,16 @@ const SONDEOS: Record<string, string> = {
   // `-b` (bytes) y no el tamaño ya formateado: lsblk lo formatea según el
   // locale ("447,1G") y quedaba en otra unidad y otra escala que el resto de la
   // sección, que va en GiB. Se formatea aquí, una sola vez y para todo.
-  disks: "lsblk -dnb -P -o NAME,MODEL,SIZE,TRAN,ROTA 2>/dev/null | grep -vE 'NAME=\"(zram|loop|sr|dm-)'",
+  disks: "lsblk -dnb -P -o NAME,MODEL,SIZE,TRAN,ROTA,REV,RM 2>/dev/null | grep -vE 'NAME=\"(zram|loop|sr|dm-)'",
+  // Disco físico que aloja `/`: `-s` recorre hacia arriba (partición, LUKS,
+  // LVM…) hasta el TYPE="disk", así vale también con raíz cifrada. El `[/@]`
+  // de btrfs se quita de la fuente antes de pasarla a lsblk.
+  rootDisk:
+    "lsblk -snP -o NAME,TYPE \"$(findmnt -no SOURCE / 2>/dev/null | sed 's/\\[.*//')\" 2>/dev/null |" +
+    " sed -n 's/^NAME=\"\\([^\"]*\\)\" TYPE=\"disk\"$/\\1/p' | head -n1",
+  astal:
+    "printf '%s|%s' \"$(pkg-config --modversion astal-4-4.0 2>/dev/null)\"" +
+    " \"$(pacman -Q libastal-4-git libastal-4 2>/dev/null | awk '{print $2; exit}')\"",
   hypr: "hyprctl version -j 2>/dev/null",
   monitors: "hyprctl monitors -j 2>/dev/null",
   ags: "ags --version 2>/dev/null",
@@ -312,16 +401,22 @@ function pairs(raw: string): Record<string, string> {
 
 const BUSES: Record<string, string> = { nvme: "NVMe", sata: "SATA", usb: "USB", ata: "ATA", scsi: "SCSI", mmc: "MMC" }
 
-function parseDisks(raw: string): string[] {
+function parseDisks(raw: string): { nombre: string; texto: string }[] {
   return raw.split("\n").filter(line => line.includes("NAME=")).map(line => {
     const campos: Record<string, string> = {}
     for (const m of line.matchAll(/(\w+)="([^"]*)"/g)) campos[m[1]] = m[2]
     const size = fromKiB(Math.round(Number(campos.SIZE ?? 0) / 1024))
-    if (!size) return ""
+    if (!size) return { nombre: "", texto: "" }
     const bus = campos.TRAN ? (BUSES[campos.TRAN.toLowerCase()] ?? campos.TRAN.toUpperCase()) : ""
-    const tipo = join(bus, campos.ROTA === "1" ? textos.etiquetas.hdd : textos.etiquetas.ssd)
-    return `${campos.MODEL || campos.NAME} — ${size}${tipo ? ` (${tipo})` : ""}`
-  }).filter(Boolean)
+    const tipo = join(bus, campos.ROTA === "1" ? textos.etiquetas.hdd : textos.etiquetas.ssd,
+      campos.RM === "1" ? textos.etiquetas.extraible : "")
+    const extra = join(campos.REV ? formatearTexto(textos.etiquetas.firmwareDisco, { version: campos.REV }) : "",
+      `/dev/${campos.NAME}`)
+    return {
+      nombre: campos.NAME ?? "",
+      texto: join(`${campos.MODEL || campos.NAME} — ${size}${tipo ? ` (${tipo})` : ""}`, extra),
+    }
+  }).filter(d => d.texto)
 }
 
 function addNumbered(items: InfoItem[], label: string, values: string[]) {
@@ -407,14 +502,37 @@ export function construir(probe: Sondeo | null): SystemSnapshot {
   add(procesador, textos.etiquetas.modelo, s.cpuModel)
   add(procesador, textos.etiquetas.nucleos, s.cores && s.threads
     ? formatearTexto(textos.etiquetas.nucleosHilos, { nucleos: s.cores, hilos: s.threads }) : "")
-  add(procesador, textos.etiquetas.frecuenciaMaxima, s.maxFreq)
+  add(procesador, textos.etiquetas.frecuencias, s.freq.max
+    ? formatearTexto(textos.etiquetas.frecuenciasValor, { min: s.freq.min || "?", base: s.freq.base || "?", max: s.freq.max })
+      .replace(/ · base \?/, "").replace(/^mín\. \? · /, "")
+    : "")
+  add(procesador, textos.etiquetas.frecuenciaActual, s.freq.media
+    ? formatearTexto(textos.etiquetas.frecuenciaActualValor, { media: s.freq.media, maxima: s.freq.maxima }) : "")
+  add(procesador, textos.etiquetas.escaladoFrecuencia, join(s.freq.driver, s.governor,
+    s.freq.epp ? formatearTexto(textos.etiquetas.perfilEnergia, { perfil: s.freq.epp }) : ""))
   add(procesador, textos.etiquetas.cache, s.cache)
-  add(procesador, textos.etiquetas.gobernador, s.governor)
 
   const memoria: InfoItem[] = []
-  add(memoria, textos.etiquetas.memoria, join(fromKiB(s.memTotal), s.memSpeed))
+  // Con datos DMI la velocidad sale por módulo; la de EDAC solo si no los hay.
+  add(memoria, textos.etiquetas.memoria, join(fromKiB(s.memTotal), s.ram.modulos.length ? "" : s.memSpeed))
+  addNumbered(memoria, textos.etiquetas.moduloRam, s.ram.modulos.map(m => join(
+    [m.fabricante, m.referencia].filter(Boolean).join(" "),
+    fromKiB(m.tamano / 1024), m.tipo, m.velocidad, m.formato, m.voltaje, m.ranura)))
+  if (s.ram.ranuras) add(memoria, textos.etiquetas.ranurasRam, formatearTexto(textos.etiquetas.ranurasRamValor, {
+    usadas: s.ram.modulos.length, total: s.ram.ranuras,
+    maximo: fromKiB(s.ram.maximo / 1024) || "?",
+  }))
   add(memoria, textos.etiquetas.intercambio, fromKiB(s.swapTotal))
-  addNumbered(memoria, textos.etiquetas.almacenamiento, parseDisks(p.disks ?? ""))
+  const discos = parseDisks(p.disks ?? "")
+  const principal = discos.find(d => d.nombre === p.rootDisk)
+  if (principal) add(memoria, textos.etiquetas.discoPrincipal, principal.texto)
+  if (s.raiz.total) add(memoria, textos.etiquetas.espacioSistema, formatearTexto(textos.etiquetas.espacioSistemaValor, {
+    libre: fromKiB(Math.round(s.raiz.libre / 1024)),
+    total: fromKiB(Math.round(s.raiz.total / 1024)),
+    uso: Math.round((1 - s.raiz.libre / s.raiz.total) * 100),
+  }))
+  addNumbered(memoria, principal ? textos.etiquetas.discoSecundario : textos.etiquetas.almacenamiento,
+    discos.filter(d => d !== principal).map(d => d.texto))
 
   const placa: InfoItem[] = []
   add(placa, textos.etiquetas.placaBase, s.board)
@@ -451,6 +569,8 @@ export function construir(probe: Sondeo | null): SystemSnapshot {
   add(entorno, textos.etiquetas.compositor, hyprland ? `Hyprland ${hyprland}` : "Hyprland")
   add(entorno, textos.etiquetas.sesion, join(s.sessionType, s.desktop))
   add(entorno, textos.etiquetas.ags, firstLine(p.ags ?? "").replace(/^ags version /i, ""))
+  const [astalVer, astalPkg] = (p.astal ?? "").split("|")
+  add(entorno, textos.etiquetas.astal, join(astalVer ?? "", astalPkg ? `(${astalPkg})` : "").replace(" · ", " "))
   add(entorno, textos.etiquetas.gtk, s.gtk)
 
   const dispositivos: InfoItem[] = []
@@ -462,12 +582,12 @@ export function construir(probe: Sondeo | null): SystemSnapshot {
   return {
     groups: [
       { title: textos.grupos.sistema, icon: "󰍹", items: sistema },
+      { title: textos.grupos.entorno, icon: "󰖯", items: entorno },
       { title: textos.grupos.procesador, icon: "󰻠", items: procesador },
       { title: textos.grupos.memoria, icon: "󰍛", items: memoria },
       { title: textos.grupos.placaBase, icon: "󰘚", items: placa },
       { title: textos.grupos.graficos, icon: "󰢮", items: graficos },
       { title: textos.grupos.monitores, icon: "󰍹", items: monitores },
-      { title: textos.grupos.entorno, icon: "󰖯", items: entorno },
       { title: textos.grupos.controladoresPci, icon: "󰓢", items: dispositivos },
     ].filter(group => group.items.length),
   }
