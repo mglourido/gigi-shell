@@ -21,6 +21,8 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../CLAUDE.md
 - **Nunca se envían imágenes mayores que el tamaño en pantalla:** una textura mayor cuesta más al subirla y no añade detalle. Por eso el ayudante recibe `ancho` y `alto` físicos. Bajar al 95 % tampoco compensa: ahorra un 10 % y emborrona.
 - **No se añade a `panelStates`,** por lo mismo que Orion: abrirla no debe desplegar la barra. Al abrirse cierra los paneles y el calendario, pero **no Orion**.
 - **Fundido al aparecer, sin escalas:** decisión del usuario.
+- **El área útil (lo que deja la barra) no se espera al abrir:** se abre con la de la apertura anterior y, en paralelo, se pide a `hyprctl`; si la nueva difiere, se rehace el menú. No hay evento de Hyprland para un cambio de zona reservada (la barra cambia de modo sin abrir ni cerrar capas), así que una caché sin esa comprobación recortaría mal en silencio. Medido: la capa aparecía a 32-165 ms; con esto, 31-33 ms desde la segunda apertura.
+- **`vistaEnVivo` agrupa en UN `hyprctl eval`** las llamadas que se juntan mientras espera la anterior, cada una en su `pcall`. Una por escritorio en fila eran 10 procesos al abrir con 9, y el último escritorio no despertaba hasta acabar todos.
 
 ## Filtro: Lanczos en la grande, caja en las miniaturas
 

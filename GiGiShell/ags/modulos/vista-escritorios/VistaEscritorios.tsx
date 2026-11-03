@@ -3,7 +3,7 @@ import { Astal, Gtk } from "ags/gtk4"
 import app from "ags/gtk4/app"
 import { execAsync } from "ags/process"
 import System from "system"
-import { type AreaUtilSalida, obtenerAreaUtilSalida } from "../barra/escritorios/areaUtilSalida"
+import { type AreaUtilSalida, mismaArea, obtenerAreaUtilSalida } from "../barra/escritorios/areaUtilSalida"
 import { cargarFondoMiniatura } from "../barra/escritorios/fondoMiniatura"
 import { capturarSalidaConGrim } from "../barra/escritorios/respaldoGrim"
 import { wsPreviewSuspended } from "../../servicios/energia/powerState"
@@ -34,13 +34,23 @@ const FPS_GRANDE = 60
 const REFRESCO_PARA_60_FPS = 59
 
 let colaVistaEnVivo: Promise<unknown> = Promise.resolve()
+let llamadasPendientes: string[] = []
 
 /** En cola y no en paralelo: dos `hyprctl` lanzados a la vez pueden llegar al revés, y un «fps 30»
  * tardío dejaría la vista grande a 30, o un «desactivar» tardío congelaría una miniatura recién
- * abierta. Un fallo aquí no rompe nada: la app oculta solo deja de pintar. */
+ * abierta. Las llamadas que se juntan mientras espera la anterior van en UN solo `hyprctl eval`, en
+ * orden: abrir con 9 escritorios eran 10 procesos en fila, y el último escritorio no despertaba
+ * hasta acabar todos. Cada una en su `pcall`, para que un fallo no se lleve las siguientes. Un fallo
+ * aquí no rompe nada: la app oculta solo deja de pintar. */
 const vistaEnVivo = (llamada: string) => {
+  llamadasPendientes.push(`pcall(function() GiGiShell.${llamada} end)`)
+  if (llamadasPendientes.length > 1) return
   colaVistaEnVivo = colaVistaEnVivo
-    .then(() => execAsync(["hyprctl", "eval", `GiGiShell.${llamada}`]))
+    .then(() => {
+      const lote = llamadasPendientes
+      llamadasPendientes = []
+      return execAsync(["hyprctl", "eval", lote.join("; ")])
+    })
     .catch(() => {})
 }
 
@@ -197,17 +207,36 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
   // Invalida la apertura que aún espera a `hyprctl` si entretanto se cierra o se abre otra.
   let secuenciaApertura = 0
 
-  const abrir = async (apertura: number) => {
-    const enfocado = hyprland.get_focused_monitor()?.name ?? ""
-    if (enfocado !== nombreSalida) return
-    const area = await obtenerAreaUtilSalida(nombreSalida)
-    if (apertura !== secuenciaApertura) return
+  // El área de la apertura anterior. `undefined` = aún no se conoce; `null` = no se pudo saber.
+  let areaConocida: AreaUtilSalida | null | undefined
+
+  /** Construye y enseña. Sin ayudante, la foto con grim se toma con la ventana oculta. */
+  const mostrar = async (apertura: number, area: AreaUtilSalida | null) => {
     const fotoPrevia = construir(area)
     if (fotoPrevia) {
+      ventana.set_visible(false)
       await fotoPrevia
       if (apertura !== secuenciaApertura) return
     }
     ventana.set_visible(true)
+  }
+
+  // El área (lo que deja la barra) se pide a `hyprctl` en cada apertura, pero no se espera: se abre
+  // con la de la vez anterior y, si la nueva difiere (la barra cambió de modo), se rehace el menú. No
+  // hay evento de Hyprland que avise de un cambio de zona reservada, así que una caché sin esta
+  // comprobación recortaría mal en silencio.
+  const abrir = async (apertura: number) => {
+    const enfocado = hyprland.get_focused_monitor()?.name ?? ""
+    if (enfocado !== nombreSalida) return
+    const consulta = obtenerAreaUtilSalida(nombreSalida)
+    const previa = areaConocida
+    if (previa !== undefined) await mostrar(apertura, previa)
+    const area = await consulta
+    if (apertura !== secuenciaApertura) return
+    areaConocida = area
+    if (previa !== undefined && mismaArea(previa, area)) return
+    liberar()
+    await mostrar(apertura, area)
   }
 
   /** Devuelve una promesa si hay que esperar a la foto con grim antes de mostrar la ventana. */

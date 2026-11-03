@@ -33,6 +33,12 @@ Medidas, límites y respaldo en [`ags/modulos/barra/CLAUDE.md`](../ags/modulos/b
   sin respuesta (`ESPERA_MAX_CAPTURA`): un hueco que no vuelve deja sin imagen a los demás escritorios.
   Consecuencia: `read` de Wayland da `WouldBlock` si todo lo leído era para esos objetos destruidos, y
   no es un error (`tolerar_bloqueo`). Sin eso, `-CLAVE` tumbaba el proceso con código 1.
+- **Durante el arranque (300 ms) se captura cada 100 ms, no al ritmo pedido** (`RITMO_ARRANQUE`). Cada
+  captura obliga a Hyprland a dibujar el escritorio oculto a resolución completa y copiarlo, en el mismo
+  hilo que dibuja el menú que se está abriendo: a 33 ms, 9 escritorios eran unas 80 capturas en esos
+  300 ms. Para decidir si algo se mueve bastan 4; un cambio pasa a `Activa` y recupera el ritmo normal.
+  Medido con 2 escritorios quietos: Hyprland, de 60-70 a 50-60 ms de CPU en los primeros 450 ms, y la
+  primera imagen igual de rápida (25-40 ms).
 - **El periodo se cuenta desde que se pide la captura, no desde que llega** (`procesar`). Contado desde
   la llegada, el ritmo sería `intervalo + latencia` y la vista grande a 16 ms caería siempre al respaldo.
 - **Firma y cursor:** detecta el 100 % de 43 apariciones y desapariciones del cursor hueco de un kitty

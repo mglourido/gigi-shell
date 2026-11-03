@@ -47,3 +47,8 @@ export async function obtenerAreaUtilSalida(nombreSalida: string): Promise<AreaU
     return null
   }
 }
+
+export function mismaArea(a: AreaUtilSalida | null, b: AreaUtilSalida | null): boolean {
+  if (a === null || b === null) return a === b
+  return a.ancho === b.ancho && a.alto === b.alto && a.recorte.every((v, i) => v === b.recorte[i])
+}

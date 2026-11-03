@@ -4,6 +4,11 @@
 use std::time::{Duration, Instant};
 
 const ARRANQUE: Duration = Duration::from_millis(300);
+/// Ritmo mínimo mientras dura `ARRANQUE`. Cada captura obliga a Hyprland a dibujar el escritorio
+/// oculto a resolución completa y copiarlo, en el mismo hilo que dibuja el menú que se está abriendo:
+/// a 33 ms, 9 escritorios eran unas 80 capturas en esos 300 ms. Para decidir si algo se mueve basta
+/// con una cada 100 ms; un cambio pasa a `Activa` y recupera el ritmo normal.
+const RITMO_ARRANQUE: Duration = Duration::from_millis(100);
 const CONGELAR_TRAS: Duration = Duration::from_secs(10);
 const COMPROBAR: Duration = Duration::from_millis(300);
 const COMPROBAR_RESPALDO: Duration = Duration::from_secs(1);
@@ -161,7 +166,12 @@ impl Plan {
             }
         }
         self.fase = fase;
-        self.proxima = ahora + if fase == Fase::Congelada { ritmos.comprobar } else { ritmos.activo };
+        self.proxima = ahora
+            + match fase {
+                Fase::Congelada => ritmos.comprobar,
+                Fase::Arranque { .. } => ritmos.activo.max(RITMO_ARRANQUE),
+                _ => ritmos.activo,
+            };
         accion
     }
 
@@ -216,8 +226,9 @@ mod pruebas {
         let mut ritmos = Ritmos::new(&a);
         let mut plan = Plan::new(t0, &a);
         assert_eq!(plan.tras_captura(t0, true, &mut ritmos), Accion::EnviarRapido);
-        assert_eq!(plan.proxima(), t0 + ms(33));
+        assert_eq!(plan.proxima(), t0 + ms(100));
         assert_eq!(plan.tras_captura(t0 + ms(100), false, &mut ritmos), Accion::Nada);
+        assert_eq!(plan.proxima(), t0 + ms(200));
         assert_eq!(plan.tras_captura(t0 + ms(301), false, &mut ritmos), Accion::EnviarRefinado);
         assert_eq!(plan.proxima(), t0 + ms(601));
     }
@@ -229,6 +240,8 @@ mod pruebas {
         let mut plan = Plan::new(t0, &a);
         plan.tras_captura(t0, true, &mut ritmos);
         assert_eq!(plan.tras_captura(t0 + ms(66), true, &mut ritmos), Accion::EnviarRapido);
+        // Ya en `Activa`: vuelve al ritmo normal.
+        assert_eq!(plan.proxima(), t0 + ms(99));
         assert_eq!(plan.tras_captura(t0 + ms(400), false, &mut ritmos), Accion::Nada);
         assert_eq!(plan.proxima(), t0 + ms(433));
     }
