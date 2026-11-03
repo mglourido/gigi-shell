@@ -94,7 +94,15 @@ end
 --- exporta un `hl.config` suelto desde AGS a propósito: el valor al que hay que
 --- VOLVER solo lo sabe este fichero, y duplicarlo en TypeScript es la misma
 --- desincronización que ya documenta `aspecto` para el toggle de gaps.
-local function opacidad_ahorro(forzar)
+---
+--- No es el único que pide ventanas opacas: el menú de escritorios (SUPER+Tab) también, vía
+--- `opacidad_forzada` de abajo. Cada uno se registra con su nombre y las opacidades de `aspecto`
+--- solo vuelven cuando no queda ninguno: si el menú se cierra con el ahorro activo, las ventanas
+--- siguen opacas.
+local forzadas = {}
+
+local function aplicar_opacidad()
+  local forzar = next(forzadas) ~= nil
   pcall(hl.config, {
     decoration = {
       active_opacity   = forzar and 1.0 or aspecto.active_opacity,
@@ -103,12 +111,26 @@ local function opacidad_ahorro(forzar)
   })
 end
 
+--- `quien` pide (o deja de pedir) las ventanas opacas. Solo toca Hyprland si cambia el resultado.
+local function opacidad_forzada(quien, activar)
+  local antes = next(forzadas) ~= nil
+  forzadas[quien] = activar and true or nil
+  if (next(forzadas) ~= nil) ~= antes then aplicar_opacidad() end
+end
+
+local function opacidad_ahorro(forzar)
+  opacidad_forzada("ahorro", forzar)
+end
+
 -- El estado de arranque se lee ANTES del hl.config de abajo y se aplica dentro
 -- de él, en vez de con una segunda llamada después: un `hyprctl reload` re-
 -- ejecuta este módulo entero, y con la corrección aparte habría un instante con
 -- las ventanas transparentes. Es el mismo motivo por el que pantalla.lua relee
 -- display.json en cada carga en vez de fiarlo todo a que AGS lo reaplique.
 local opaco_ahorro = ahorro_pide_opaco()
+-- Un reload recarga el módulo y `forzadas` vuelve vacía: solo se siembra el ahorro, que tiene
+-- fichero. Un menú abierto durante el reload pierde su petición, igual que su blur suave.
+forzadas.ahorro = opaco_ahorro or nil
 
 hl.config({
   general = {
@@ -260,8 +282,10 @@ GiGiShell = GiGiShell or {}
 GiGiShell.sin_smart_split = sin_smart_split
 -- Lo llama AGS por `hyprctl eval` en cada transición del modo ahorro (ver arriba).
 GiGiShell.opacidad_ahorro = opacidad_ahorro
+-- Lo llama gigishell/blur-suave.lua al abrir y cerrar el menú de escritorios.
+GiGiShell.opacidad_forzada = opacidad_forzada
 
 -- Lo consume gigishell/keybinds.lua (require cachea: es la misma tabla que acaba de
 -- aplicarse, no una copia). hyprland.lua carga este módulo con util.carga() e
 -- ignora el retorno; el valor solo importa para quien lo pida.
-return { aspecto = aspecto, dwindle = dwindle, sin_smart_split = sin_smart_split, opacidad_ahorro = opacidad_ahorro }
+return { aspecto = aspecto, dwindle = dwindle, sin_smart_split = sin_smart_split, opacidad_ahorro = opacidad_ahorro, opacidad_forzada = opacidad_forzada }
