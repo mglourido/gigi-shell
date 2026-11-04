@@ -19,7 +19,7 @@ hl.window_rule({
     immediate = true,
 })
 
--- Firefox & Kitty: opacidad forzada a 1.0 (activa e inactiva).
+-- Firefox, Kitty & VS Code: opacidad forzada a 1.0 (activa e inactiva).
 hl.window_rule({
     name  = "firefox-opacity",
     match = { class = "firefox" },
@@ -29,6 +29,14 @@ hl.window_rule({
 hl.window_rule({
     name  = "kitty-opacity",
     match = { class = "kitty" },
+    opacity = "1.0 override 1.0 override",
+})
+
+-- Clase verificada en `hyprctl clients` con VS Code abierto (coincide con
+-- StartupWMClass de com.microsoft.VSCode.desktop).
+hl.window_rule({
+    name  = "vscode-opacity",
+    match = { class = [[^com\.microsoft\.VSCode$]] },
     opacity = "1.0 override 1.0 override",
 })
 
