@@ -20,7 +20,7 @@ ViewPropsTimestamp=2023,4,26,16,58,48.324
 
 [IconsMode]
 MaximumTextLines=1
-PreviewSize=128
+PreviewSize=176
 
 [InformationPanel]
 dateFormat=ShortFormat
@@ -43,7 +43,7 @@ ToolButtonStyle=IconOnly
 IconSize=16
 
 [PreviewSettings]
-Plugins=ffmpegthumbs,gsthumbnail,imagethumbnail,jpegthumbnail,opendocumentthumbnail,svgthumbnail
+Plugins=ffmpegthumbs,gsthumbnail,opendocumentthumbnail,imagethumbnail,jpegthumbnail,svgthumbnail
 
 [Search]
 SearchTool=Baloo
