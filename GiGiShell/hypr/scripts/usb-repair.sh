@@ -30,6 +30,13 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     }
 fi
 
+# Marca de «sucio» para el menú USB de AGS (ver lib/usb-sucios.sh). Sin la librería no hay
+# marca y el menú no ofrece Reparar; el resto sigue igual.
+# shellcheck source=lib/usb-sucios.sh
+source "$HOME/.config/hypr/scripts/lib/usb-sucios.sh" 2>/dev/null || {
+    usb_marcar_sucio() { :; }; usb_desmarcar_sucio() { :; }
+}
+
 dev=${1:-}
 [[ -z "$dev" ]] && { echo "uso: $0 /dev/sdXN" >&2; exit 2; }
 part=$(basename "$dev")
@@ -88,9 +95,11 @@ if out=$(busctl --system --timeout=1800 call org.freedesktop.UDisks2 "$obj" \
         # volumen queda usable ya; conviene saber que Windows lo revisará.
         extra="Ya puedes usarlo."
         [[ "$fstype" == ntfs* ]] && extra="Ya puedes usarlo. Windows hará una comprobación completa la próxima vez que lo montes ahí."
+        usb_desmarcar_sucio "$dev"
         remontar
         notificar usb.reparado -u normal -t 10000 "Volumen reparado" "«$label» ($fstype). $extra"
     else
+        usb_marcar_sucio "$dev"
         remontar
         notificar usb.reparacion-incompleta -u critical -t 15000 "Reparación incompleta" \
             "«$label» sigue con errores. Haz copia de lo que puedas leer y considera formatearlo."

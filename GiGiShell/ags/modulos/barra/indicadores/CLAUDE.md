@@ -57,7 +57,7 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../../CLAUDE
     abierto, no.
 - `modulos/barra/componentes/cadenaEstado.tsx` — **la cadena de indicadores de estado**: lo que hay
   dentro de `.bar-status-pair` entre la bandeja y quick settings (actualizaciones de kernel y de GPU,
-  captura de pantalla y notificaciones, en ese orden). Dos cosas a la vez:
+  captura de pantalla, notificaciones y USB, en ese orden). Dos cosas a la vez:
   - **El realce se propaga HACIA LA DERECHA**: el cursor sobre un eslabón lo enciende a él y a todos
     los que quedan a su derecha, hasta quick settings, para que se lea como una banda que sale de
     quick settings y no como una isla suelta en medio de la barra. Quick settings **no** se realza
@@ -99,3 +99,39 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../../CLAUDE
   que hacía `pgrep -x wf-recorder` cada 2 s *por monitor* y no veía los screencasts por portal
   (Discord, OBS, navegador). Condicionado en `Barra.tsx` por `screencastIndicatorEnabled`, cuyo setter
   en `preferences.ts` es **maestro y en caliente**: lanza o mata el script.
+- `modulos/barra/indicadores/sistema/Usb.tsx` + `servicios/usb/` — **USB de almacenamiento
+  conectados**, último eslabón de la cadena (siempre pegado a quick settings), visible solo con alguno enchufado (contador con dos o
+  más). El menú es un `Gtk.PopoverMenu` con la clase `tray-popover`, el mismo aspecto que el de las
+  apps en segundo plano: una fila por dispositivo y, al pasar el ratón, su **submenú lateral** con el
+  espacio libre, Abrir (una por volumen), Reparar si está sucio y Expulsar. Cinco cosas que no se
+  deducen del código:
+  - **El submenú lateral es `Gtk.PopoverMenuFlags.NESTED`** (`new_from_model_full`): cada submenú es
+    un popover hijo del principal que se abre al hover. Sin la bandera GTK los desliza dentro de la
+    misma caja, como en la bandeja. Dos consecuencias: el marco de `tray-popover` se extiende al
+    hijo con `popover.tray-popover popover` (`estilos/_barra.scss`), porque GTK no le pone la clase;
+    y el modelo **solo se vacía si cambia alguna fila** (firma JSON), porque vaciarlo cierra el
+    submenú abierto — la respuesta del espacio libre, que llega justo después de abrir, lo cerraba.
+    **El autocierre cuenta superficies**: botón, menú y cada submenú son superficies distintas y
+    cruzar de una a otra da un `leave` en la que se deja. Con un solo `panelAutoClose` el menú se
+    cerraba al entrar al submenú; bloquearlo «si hay un submenú visible» lo dejaba abierto para
+    siempre, porque al submenú no lo vigilaba nadie. Se lleva un conjunto de dónde está el puntero
+    y solo se cierra con él vacío. Los submenús se vigilan al rellenar el modelo (GTK los crea en
+    ese momento, comprobado), y su `closed` les da de baja, porque uno que se cierra con el puntero
+    dentro no recibe `leave`.
+  - **La fila del volumen sin montar es pulsable y lo monta** (`usb-open.sh --montar`, el mismo
+    montaje y los mismos avisos de fallo que Abrir, sin abrir el gestor). Montado, vuelve a ser un
+    dato insensible.
+  - **La fuente es UDisks2 por D-Bus, no `usb-monitor.sh`** (`servicios/usb/udisks.ts`, un solo
+    `DBusObjectManagerClient` para todas las barras). Las señales se agrupan en un `idle` y
+    `mismosDispositivos` (`modelo.ts`, puro y con test) evita republicar, porque por el mismo gestor
+    llegan los cambios de propiedades de los discos internos. Se filtra por `ConnectionBus == "usb"`
+    y `MediaAvailable` (un lector de tarjetas vacío no cuenta). Razones y reparto de papeles con el
+    monitor en la sección USB de `docs/hyprland-modulos.md`.
+  - **El espacio libre no se sigue**: se pide (statvfs asíncrono) al abrir el menú y cuando cambia un
+    montaje con él abierto, y se tira al cerrarlo. El `Gio.Menu` se rellena **en sitio**, así que el
+    menú abierto se actualiza sin recrear el popover.
+  - **No se usa `limitarMenuBandeja`**: recorta las etiquetas a 24 caracteres y «MIUSB · 12,5 GiB
+    libres de 31,9 GiB» quedaba cortado justo por la cifra.
+  - Las acciones son los mismos `usb-*.sh` de los avisos (`servicios/usb/acciones.ts`), que notifican
+    ellos el resultado. «Reparar» depende de una marca que deja el monitor
+    (`hypr/scripts/lib/usb-sucios.sh`); sin ella no se ofrece.

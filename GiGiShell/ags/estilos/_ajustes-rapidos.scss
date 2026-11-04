@@ -1818,8 +1818,10 @@ button.qs-user-settings-btn {
 .bar-status-pair {
   .bar-pill-btn:hover .bar-pill.nb-pill:not(.cadena-resaltada),
   .bar-pill-btn:hover .bar-pill.upd-pill:not(.cadena-resaltada),
+  .bar-pill-btn:hover .bar-pill.usb-pill:not(.cadena-resaltada),
   .bar-pill.nb-pill:hover:not(.cadena-resaltada),
-  .bar-pill.upd-pill:hover:not(.cadena-resaltada) {
+  .bar-pill.upd-pill:hover:not(.cadena-resaltada),
+  .bar-pill.usb-pill:hover:not(.cadena-resaltada) {
     background-color: transparent;
   }
 
@@ -1831,6 +1833,7 @@ button.qs-user-settings-btn {
   // cadena, tampoco tiene borde.
   .bar-pill.nb-pill,
   .bar-pill.upd-pill,
+  .bar-pill.usb-pill,
   .bar-pill.sc-pill {
     border: none;
     // Al pasar al siguiente eslabón, la esquina reaparece al mismo ritmo que
@@ -1848,6 +1851,30 @@ button.qs-user-settings-btn {
   box-shadow: none;
   padding: 0 2px;
   min-width: 26px;
+}
+
+// ── USB de almacenamiento (modulos/barra/indicadores/sistema/Usb.tsx) ─────────
+// Mismo molde que `.upd-pill`; el contador solo aparece con dos o más dispositivos.
+.bar-pill.usb-pill {
+  background-color: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  padding: 0 4px;
+  min-width: 28px;
+  transition: background-color 140ms ease, color 140ms ease;
+
+  .usb-icon {
+    font-family: $font-icon;
+    font-size: 16px;
+    color: acento-teal();
+    margin: 0;
+  }
+
+  .usb-cuenta {
+    font-size: 10px;
+    font-weight: bold;
+    color: rgba($text, 0.7);
+  }
 }
 
 // ── Updates Button (actualizaciones SO + drivers GPU) ─────────────────────────

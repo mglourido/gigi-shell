@@ -756,7 +756,10 @@ entry.fn-menu-minutes {
 }
 
 // ── Menú del tray: Gtk.PopoverMenu nativo, estilado como los .fn-menu ─────────
-popover.tray-popover {
+// El segundo selector es el SUBMENÚ LATERAL de un menú en modo `NESTED` (el de USB): GTK lo crea
+// como otro `popover` hijo, sin la clase, y `> contents` no le llegaba — salía con el marco del tema.
+popover.tray-popover,
+popover.tray-popover popover {
   // Nodo popover externo: quitar todo el marco/sombra/padding del tema.
   // Solo debe verse el contenedor > contents estilado abajo.
   @extend %chrome-reset;

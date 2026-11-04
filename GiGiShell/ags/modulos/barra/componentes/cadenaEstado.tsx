@@ -1,6 +1,6 @@
 // Cadena de indicadores de estado de la barra: los eslabones que hay entre la
 // bandeja y la pastilla de quick settings (actualizaciones de kernel/GPU, captura
-// de pantalla y notificaciones).
+// de pantalla, notificaciones y USB).
 //
 // Dos cosas que la cadena resuelve y que por separado no salían:
 //
@@ -33,6 +33,7 @@ export const ESLABON = {
   actualizacionesVigiladas: 2,
   capturaPantalla: 3,
   notificaciones: 4,
+  usb: 5,
 } as const
 
 export interface CadenaEstado {

@@ -2920,6 +2920,24 @@ comodidad y no puede convertirse en una fuente de ruido. Reparar **NTFS** necesi
 viene en el paquete **`ntfsprogs`** — **no** en `ntfs-3g`, que hoy solo trae el driver FUSE
 (`pacman -F` puede decir lo contrario: su base de ficheros va desfasada respecto a lo instalado).
 
+#### El icono USB de la barra lee UDisks2, no este monitor
+
+El menú USB de la barra de AGS (`ags/modulos/barra/indicadores/sistema/Usb.tsx`, último eslabón
+de la cadena de estado) **no habla con `usb-monitor.sh`**: escucha las señales de UDisks2 por
+D-Bus (`ags/servicios/usb/udisks.ts`). El monitor solo ve enchufes y tirones; udisksd ya lleva la
+cuenta de qué hay montado y dónde, y escucharle no añade procesos ni temporizadores. El reparto de
+papeles es fijo: **el monitor notifica** (tiene que funcionar con AGS caído) y **AGS pinta**. Las
+acciones del menú llaman a los mismos `usb-open.sh`, `usb-eject.sh` y `usb-repair.sh` que los
+botones de los avisos; `usb-open.sh` acepta además una partición (`sdb2`), porque el menú tiene una
+fila «Abrir» por volumen.
+
+«Reparar» solo sale si el volumen está **sucio**, y ese dato udisks no lo publica: saberlo exige el
+fsck de `Check`. Lo apunta quien lo averigua, en `$XDG_RUNTIME_DIR/gigishell-usb-sucios/<UUID>`
+(`hypr/scripts/lib/usb-sucios.sh`): `check_volume` marca cuando `Check` dice sucio, y
+`usb-repair.sh` desmarca si queda limpio y marca si la reparación queda incompleta. Va por **UUID
+del sistema de ficheros, no por `sdb1`**, porque el nombre del dispositivo pasa al siguiente
+pendrive. Un volumen de más de 64 GiB no se comprueba solo (ver arriba), así que nunca tendrá marca.
+
 ### Brillo: dos hardwares, y uno de ellos necesita `sudo` una vez (`system/modules-load.d/`)
 
 El brillo **no es una sola cosa**. En un **portátil** lo maneja la GPU y el kernel lo publica en

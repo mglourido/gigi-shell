@@ -50,6 +50,13 @@ EJECT="$HOME/.config/hypr/scripts/usb-eject.sh"
 OPEN="$HOME/.config/hypr/scripts/usb-open.sh"
 REPAIR="$HOME/.config/hypr/scripts/usb-repair.sh"
 
+# Marca de «sucio» para el menú USB de AGS (ver lib/usb-sucios.sh). Sin la librería no hay
+# marca y el menú no ofrece Reparar; el resto sigue igual.
+# shellcheck source=lib/usb-sucios.sh
+source "$HOME/.config/hypr/scripts/lib/usb-sucios.sh" 2>/dev/null || {
+    usb_marcar_sucio() { :; }; usb_desmarcar_sucio() { :; }
+}
+
 NOTIF_APP="USB"
 # shellcheck source=lib/notif.sh
 if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
@@ -550,6 +557,7 @@ check_volume() {
       out=$(busctl --system --timeout=900 call org.freedesktop.UDisks2 "$obj" \
               org.freedesktop.UDisks2.Filesystem Check 'a{sv}' 0 2>/dev/null) || exit 0
       [[ "$out" == *"true"* ]] && exit 0             # limpio
+      usb_marcar_sucio "/dev/$part"
 
       # Sucio. Camino normal: repararlo ya. usb-repair.sh avisa de lo que hace y de
       # cómo acaba, así que aquí no hace falta notificar nada más.

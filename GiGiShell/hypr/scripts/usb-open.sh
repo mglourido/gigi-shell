@@ -2,6 +2,14 @@
 # Abrir un disco USB en el gestor de archivos — invocado desde el botón "Abrir" de
 # la notificación de usb-monitor.sh, o a mano: usb-open.sh sdb
 #
+# También acepta una PARTICIÓN (usb-open.sh sdb2): es lo que manda el menú USB de la
+# barra de AGS, que tiene una fila «Abrir» por volumen. Con una partición, lsblk solo
+# la lista a ella, así que elegir_particion() no tiene otra que escoger.
+#
+# `--montar` (usb-open.sh --montar sdb1) monta y sale SIN abrir el gestor de archivos: es
+# lo que hace pulsar la fila del volumen en ese menú. Va aquí y no en un script aparte para
+# que elegir partición, montar con udisks y avisar si falla sigan en un solo sitio.
+#
 # El aviso salta AL ENCHUFAR, así que el caso normal es que el volumen todavía no
 # esté montado: este script monta primero y abre después. El montaje va por
 # `udisksctl mount` y NO por `mount`/`sudo`/`pkexec`, por el mismo motivo que
@@ -27,11 +35,13 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     }
 fi
 
+solo_montar=0
+[[ "${1:-}" == "--montar" ]] && { solo_montar=1; shift; }
 disk=${1:-}
-[[ -z "$disk" ]] && { echo "uso: $0 <disco>  (p.ej. sdb)" >&2; exit 2; }
+[[ -z "$disk" ]] && { echo "uso: $0 [--montar] <disco|partición>  (p.ej. sdb)" >&2; exit 2; }
 disk=$(basename "$disk")          # tolera que nos pasen /dev/sdb
 
-if [[ ! -e /sys/block/$disk ]]; then
+if [[ ! -e /sys/class/block/$disk ]]; then
     notificar usb.abrir-sin-dispositivo -u critical "Abrir: dispositivo no encontrado" "/dev/$disk ya no existe."
     exit 1
 fi
@@ -110,6 +120,8 @@ if [[ -z "$ruta" || ! -d "$ruta" ]]; then
         "/dev/$part quedó montado en una ruta que no se pudo determinar."
     exit 1
 fi
+
+(( solo_montar )) && exit 0
 
 # ── Abrir el gestor de archivos ───────────────────────────────────────────────
 # El gestor es el que diga mimeapps.list para `inode/directory` (Ajustes > Apps

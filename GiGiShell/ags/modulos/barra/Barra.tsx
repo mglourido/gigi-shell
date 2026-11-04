@@ -15,6 +15,7 @@ import Volumen from "./indicadores/audio/Volumen"
 import Bateria from "./indicadores/energia/Bateria"
 import Recursos from "./indicadores/sistema/Recursos"
 import CapturaPantalla from "./indicadores/sistema/CapturaPantalla"
+import Usb from "./indicadores/sistema/Usb"
 import IndicadorMantenerDespierto from "./funciones/IndicadorMantenerDespierto"
 import Microfono from "./indicadores/audio/Microfono"
 import Camara from "./indicadores/sistema/Camara"
@@ -414,6 +415,10 @@ export default function Barra(gdkmonitor: Gdk.Monitor) {
             estado={notificationBarEnabled}
             construir={() => <BotonNotificaciones cadena={cadena} />}
           />
+          {/* Último eslabón, siempre pegado a quick settings: USB de almacenamiento
+              conectados (UDisks2). Sin ajuste que lo apague, así que no necesita ranura:
+              nunca se remonta y no puede acabar fuera de su sitio. */}
+          <Usb visibilidad={visibilidad} cadena={cadena} />
           {/* Cierre de la cadena: cose la banda del realce con las esquinas
               redondeadas de quick settings. Ver `componentes/cadenaEstado.tsx`. */}
           <JuntaCadena cadena={cadena} forzado={notifPanelVisible} />
