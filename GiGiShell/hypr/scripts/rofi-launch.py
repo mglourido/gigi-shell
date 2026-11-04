@@ -40,9 +40,16 @@ def main():
         "-kb-row-select", "Right",
         "-kb-move-char-forward", "Control+f",
         "-matching", "fuzzy",
+        # Sin `exec` ni `categories` (los trae rofi de fábrica): con búsqueda
+        # difusa, una línea Exec larga cuadra con casi cualquier cosa. La de
+        # ZapZapNoGpu (~300 caracteres de `env -u … QTWEBENGINE_CHROMIUM_FLAGS=…`)
+        # salía en todas las búsquedas.
+        "-drun-match-fields", "name,generic,keywords",
         "-sort",
         "-sorting-method", "fzf",
-        "-case-smart",
+        # Sin distinguir mayúsculas nunca: `-case-smart` la volvía sensible en
+        # cuanto la búsqueda llevaba una mayúscula ("Fire" no encontraba "firefox").
+        "-no-case-sensitive",
         "-theme-str", tema_busqueda,
         # Se cierra solo tras 5 s sin tocarlo. El reloj es de rofi y se reinicia
         # con cada tecla ("delay after inactivity" en su config por defecto), así
