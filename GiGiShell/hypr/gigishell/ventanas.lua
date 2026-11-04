@@ -101,14 +101,80 @@ end
 --- siguen opacas.
 local forzadas = {}
 
-local function aplicar_opacidad()
+-- ── TRANSPARENCIA AL PERDER EL FOCO (Ajustes > Comportamiento) ─────────────
+--
+-- `opacidadVentanasInactivas` en preferences.json, tres valores. SOLO toca la opacidad
+-- INACTIVA (la de la ventana sin foco); la activa no cambia en ningún modo:
+--   "desactivado"    → inactiva 1.0 en todas, también las que tienen regla propia.
+--   "predeterminado" → nada forzado: la global de `aspecto` y las reglas tal cual.
+--   "activado"       → inactiva = aspecto.inactive_opacity en todas, también kitty,
+--                      VS Code y Firefox, cuyas reglas la dejan en 1.0.
+-- "Forzar" contra una regla con `override` solo se puede desde otra regla: por eso
+-- cada regla de opacidad se registra con `regla_opacidad` (la usa reglas.lua) en TRES
+-- variantes, una por modo, y solo la del modo vigente está habilitada. `set_enabled`
+-- reaplica en vivo a las ventanas ya abiertas (medido en 0.57.0), así que el cambio
+-- no necesita `hyprctl reload`. Valor ausente o desconocido → "predeterminado".
+local MODOS_OPACIDAD = { desactivado = true, predeterminado = true, activado = true }
+
+local function modo_valido(m)
+  return MODOS_OPACIDAD[m] and m or "predeterminado"
+end
+
+local modo_opacidad = modo_valido(util.prefs().opacidadVentanasInactivas)
+local reglas_opacidad = {}   -- { { modo = "...", regla = HL.WindowRule }, ... }
+
+--- Modo que manda de verdad: el ahorro o el menú de escritorios piden opaco, y eso
+--- gana al ajuste del usuario (son temporales); con ellos, las reglas van como en
+--- "desactivado" para que ninguna `override` deje una ventana transparente.
+local function modo_efectivo()
+  if next(forzadas) ~= nil then return "desactivado" end
+  return modo_opacidad
+end
+
+local function valores_opacidad()
   local forzar = next(forzadas) ~= nil
+  local modo = modo_efectivo()
+  return forzar and 1.0 or aspecto.active_opacity,
+         modo == "desactivado" and 1.0 or aspecto.inactive_opacity
+end
+
+local function aplicar_opacidad()
+  local activa, inactiva = valores_opacidad()
   pcall(hl.config, {
-    decoration = {
-      active_opacity   = forzar and 1.0 or aspecto.active_opacity,
-      inactive_opacity = forzar and 1.0 or aspecto.inactive_opacity,
-    },
+    decoration = { active_opacity = activa, inactive_opacity = inactiva },
   })
+  local modo = modo_efectivo()
+  for _, r in ipairs(reglas_opacidad) do
+    pcall(r.regla.set_enabled, r.regla, r.modo == modo)
+  end
+end
+
+--- Registra una regla de opacidad respetando el ajuste de arriba. `activa` e `inactiva`
+--- son los valores propios de la app (con override); el ajuste solo sustituye `inactiva`.
+local function regla_opacidad(nombre, match, activa, inactiva)
+  local por_modo = {
+    predeterminado = inactiva,
+    desactivado    = 1.0,
+    activado       = aspecto.inactive_opacity,
+  }
+  local modo = modo_efectivo()
+  for m, valor in pairs(por_modo) do
+    local ok, regla = pcall(hl.window_rule, {
+      name    = nombre .. "-" .. m,
+      match   = match,
+      opacity = string.format("%.2f override %.2f override", activa, valor),
+      enabled = (m == modo),
+    })
+    if ok and regla then reglas_opacidad[#reglas_opacidad + 1] = { modo = m, regla = regla } end
+  end
+end
+
+--- Punto de entrada en vivo del ajuste: AGS lo llama por `hyprctl eval` tras guardar
+--- preferences.json (que es lo que relee un reload).
+local function opacidad_inactivas(modo)
+  modo_opacidad = modo_valido(modo)
+  aplicar_opacidad()
+  return modo_opacidad
 end
 
 --- `quien` pide (o deja de pedir) las ventanas opacas. Solo toca Hyprland si cambia el resultado.
@@ -127,10 +193,10 @@ end
 -- ejecuta este módulo entero, y con la corrección aparte habría un instante con
 -- las ventanas transparentes. Es el mismo motivo por el que pantalla.lua relee
 -- display.json en cada carga en vez de fiarlo todo a que AGS lo reaplique.
-local opaco_ahorro = ahorro_pide_opaco()
 -- Un reload recarga el módulo y `forzadas` vuelve vacía: solo se siembra el ahorro, que tiene
 -- fichero. Un menú abierto durante el reload pierde su petición, igual que su blur suave.
-forzadas.ahorro = opaco_ahorro or nil
+forzadas.ahorro = ahorro_pide_opaco() or nil
+local opacidad_activa_inicio, opacidad_inactiva_inicio = valores_opacidad()
 
 hl.config({
   general = {
@@ -154,10 +220,10 @@ hl.config({
   decoration = {
     rounding       = aspecto.rounding,
     rounding_power = 4,
-    -- Ver `opacidad_ahorro` arriba: con el ahorro pidiendo opaco, las dos van
-    -- a 1.0 y este módulo las devuelve a `aspecto` al salir.
-    active_opacity   = opaco_ahorro and 1.0 or aspecto.active_opacity,
-    inactive_opacity = opaco_ahorro and 1.0 or aspecto.inactive_opacity,
+    -- Ver `opacidad_ahorro` y `opacidadVentanasInactivas` arriba: los dos
+    -- valores salen de `valores_opacidad()`, el mismo cálculo que en vivo.
+    active_opacity   = opacidad_activa_inicio,
+    inactive_opacity = opacidad_inactiva_inicio,
 
     -- Sombra CORTA y tenue: lo justo para que la ventana se lea despegada del
     -- fondo, sin la neblina que dejaba la de antes (range 10 / alpha 88).
@@ -284,8 +350,11 @@ GiGiShell.sin_smart_split = sin_smart_split
 GiGiShell.opacidad_ahorro = opacidad_ahorro
 -- Lo llama gigishell/blur-suave.lua al abrir y cerrar el menú de escritorios.
 GiGiShell.opacidad_forzada = opacidad_forzada
+-- Lo llama AGS al cambiar Ajustes > Comportamiento > transparencia al perder el foco.
+GiGiShell.opacidad_inactivas = opacidad_inactivas
 
 -- Lo consume gigishell/keybinds.lua (require cachea: es la misma tabla que acaba de
--- aplicarse, no una copia). hyprland.lua carga este módulo con util.carga() e
--- ignora el retorno; el valor solo importa para quien lo pida.
-return { aspecto = aspecto, dwindle = dwindle, sin_smart_split = sin_smart_split, opacidad_ahorro = opacidad_ahorro, opacidad_forzada = opacidad_forzada }
+-- aplicarse, no una copia), y gigishell/reglas.lua usa `regla_opacidad`. hyprland.lua
+-- carga este módulo con util.carga() e ignora el retorno; el valor solo importa para
+-- quien lo pida.
+return { aspecto = aspecto, dwindle = dwindle, sin_smart_split = sin_smart_split, opacidad_ahorro = opacidad_ahorro, opacidad_forzada = opacidad_forzada, regla_opacidad = regla_opacidad }

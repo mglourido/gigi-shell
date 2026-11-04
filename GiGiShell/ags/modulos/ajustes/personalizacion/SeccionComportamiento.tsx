@@ -28,6 +28,7 @@ import {
   escanerAppsInicio, setEscanerAppsInicio,
   absorberSuperSinAtajo, setAbsorberSuperSinAtajo,
 } from "../preferences"
+import AjusteOpacidadInactivas from "./AjusteOpacidadInactivas"
 import { bateriaPresente } from "../../../servicios/energia/powerState"
 import textos from "../../../textos/ajustes/general.json" with { type: "json" }
 import textosPersonalizacion from "../../../textos/ajustes/personalizacion.json" with { type: "json" }
@@ -212,6 +213,7 @@ export default function SeccionComportamiento() {
       <TarjetaAjustes titulo={textosPersonalizacion.seccionesNuevas.funcionesShell.ventanas} icono="󰖯">
         <AjusteInterruptor titulo={textosPersonalizacion.ventanas.anclaje.titulo} informacion={textosPersonalizacion.ventanas.anclaje.descripcion} activo={anclarVentanasRofi} alAlternar={() => setAnclarVentanasRofi(!anclarVentanasRofi.get())} />
         <AjusteInterruptor titulo={textosPersonalizacion.ventanas.escanerInicio.titulo} informacion={textosPersonalizacion.ventanas.escanerInicio.descripcion} activo={escanerAppsInicio} alAlternar={() => setEscanerAppsInicio(!escanerAppsInicio.get())} />
+        <AjusteOpacidadInactivas />
         <AjusteInterruptor titulo={textosPersonalizacion.ventanas.superSordo.titulo} informacion={textosPersonalizacion.ventanas.superSordo.descripcion} activo={absorberSuperSinAtajo} alAlternar={() => setAbsorberSuperSinAtajo(!absorberSuperSinAtajo.get())} />
       </TarjetaAjustes>
     </box>

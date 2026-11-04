@@ -313,6 +313,22 @@ export { segundaVentanaAlLado }
 const [absorberSuperSinAtajo, _setAbsorberSuperSinAtajo] = createState(true)
 export { absorberSuperSinAtajo }
 
+// Transparencia de las ventanas AL PERDER EL FOCO (solo la opacidad inactiva).
+// "desactivado" fuerza que ninguna se transparente, "activado" fuerza que todas lo
+// hagan —también las que tienen regla propia (kitty, VS Code, Firefox)— y
+// "predeterminado" no fuerza nada. Lo aplica hypr/gigishell/ventanas.lua
+// (`GiGiShell.opacidad_inactivas`). Default: predeterminado.
+export type ModoOpacidadInactivas = "desactivado" | "predeterminado" | "activado"
+const MODOS_OPACIDAD_INACTIVAS: readonly ModoOpacidadInactivas[] = ["desactivado", "predeterminado", "activado"]
+function normalizarModoOpacidadInactivas(valor: unknown): ModoOpacidadInactivas {
+  return MODOS_OPACIDAD_INACTIVAS.includes(valor as ModoOpacidadInactivas)
+    ? valor as ModoOpacidadInactivas
+    : "predeterminado"
+}
+const [opacidadVentanasInactivas, _setOpacidadVentanasInactivas] =
+  createState<ModoOpacidadInactivas>("predeterminado")
+export { opacidadVentanasInactivas }
+
 // Menú Orion. app.ts consulta este valor antes de importar el módulo: cuando
 // está desactivado no se crea su ventana ni se cargan watchers/servicios de
 // Orion. El cambio se aplica en el siguiente arranque o recarga de AGS.
@@ -640,6 +656,7 @@ function load() {
     if (typeof saved.absorberSuperSinAtajo === "boolean") {
       _setAbsorberSuperSinAtajo(saved.absorberSuperSinAtajo)
     }
+    _setOpacidadVentanasInactivas(normalizarModoOpacidadInactivas(saved.opacidadVentanasInactivas))
     if (typeof saved.orion === "boolean") _setOrionEnabled(saved.orion)
     if (typeof saved.orionAppsDefault === "boolean") _setOrionAppsDefault(saved.orionAppsDefault)
     if (Array.isArray(saved.orionNotisApps)) _setOrionNotisApps(sanitizeApps(saved.orionNotisApps))
@@ -756,6 +773,7 @@ function save() {
       anclarVentanasRofi: anclarVentanasRofi.get(),
       escanerAppsInicio: escanerAppsInicio.get(),
       absorberSuperSinAtajo: absorberSuperSinAtajo.get(),
+      opacidadVentanasInactivas: opacidadVentanasInactivas.get(),
       segundaVentanaAlLado: segundaVentanaAlLado.get(),
       orion: orionEnabled.get(),
       orionAppsDefault: orionAppsDefault.get(),
@@ -990,6 +1008,20 @@ export function setAbsorberSuperSinAtajo(on: boolean) {
   _setAbsorberSuperSinAtajo(on)
   save()   // síncrono: preferences.json ya está en disco cuando el reload lo relea
   execAsync(["hyprctl", "reload"]).catch(() => {})
+}
+// Se aplica EN VIVO, sin `hyprctl reload`: ventanas.lua conmuta las variantes de las
+// reglas de opacidad con `set_enabled`. El fichero se guarda antes (síncrono) porque
+// un reload posterior relee la preferencia de disco. La forma `GiGiShell and …` es
+// defensiva: `hyprctl eval` responde con código 0 aunque la función no exista.
+export function setOpacidadVentanasInactivas(modo: ModoOpacidadInactivas) {
+  const siguiente = normalizarModoOpacidadInactivas(modo)
+  if (opacidadVentanasInactivas.get() === siguiente) return
+  _setOpacidadVentanasInactivas(siguiente)
+  save()
+  execAsync([
+    "hyprctl", "eval",
+    `GiGiShell and GiGiShell.opacidad_inactivas and GiGiShell.opacidad_inactivas("${siguiente}")`,
+  ]).catch(e => console.error("[opacidad-inactivas] hyprctl eval falló:", e))
 }
 // Mismo trato que setAbsorberSuperSinAtajo, y por el mismo motivo: quien lee
 // esta preferencia es el config de Hyprland, que la cachea en `util.prefs()`

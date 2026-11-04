@@ -195,6 +195,15 @@
       "titulo": "Escáner de apps al iniciar sesión",
       "descripcion": "Durante los primeros 30 segundos vigila las ventanas que se abren solas (autostart, restauración de sesión) y después te lleva al escritorio donde han quedado.\nSi ocupan varios escritorios, primero los compacta y salta al más cercano al que estés."
     },
+    "opacidadInactivas": {
+      "titulo": "Transparencia al perder el foco",
+      "descripcion": "Desactivado: ninguna ventana se vuelve transparente al perder el foco.\nPredeterminado: cada app se comporta como está configurada (Kitty, VS Code y Firefox no se transparentan).\nActivado: todas se vuelven transparentes al perder el foco, también esas.\nLa ventana con foco no cambia, y el modo ahorro sigue dejándolas opacas.",
+      "opciones": {
+        "desactivado": "Desactivado",
+        "predeterminado": "Predeterminado",
+        "activado": "Activado"
+      }
+    },
     "superSordo": {
       "titulo": "Ignorar SUPER + tecla sin atajo",
       "descripcion": "Con SUPER pulsado, las teclas que no forman un atajo dejan de llegar a la aplicación: SUPER+C ya no escribe una «c», como hace la tecla Windows.\nCubre SUPER, y sus combinaciones con MAYÚS, CTRL y ALT.\nSe calcula a partir de tus atajos reales en cada recarga de Hyprland, así que recoge solo los que añadas o quites."

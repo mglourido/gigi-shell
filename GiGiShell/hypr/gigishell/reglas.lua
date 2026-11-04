@@ -20,25 +20,26 @@ hl.window_rule({
 })
 
 -- Firefox, Kitty & VS Code: opacidad forzada a 1.0 (activa e inactiva).
-hl.window_rule({
-    name  = "firefox-opacity",
-    match = { class = "firefox" },
-    opacity = "1.0 override 1.0 override",
-})
+-- Van por `regla_opacidad` de ventanas.lua, no por hl.window_rule directo: el ajuste
+-- «transparencia al perder el foco» (Ajustes > Comportamiento) tiene que poder pisar su
+-- opacidad INACTIVA. Si ventanas.lua no cargó, se registran tal cual.
+local ok_ventanas, ventanas = pcall(require, "gigishell.ventanas")
+local function regla_opacidad(nombre, match, activa, inactiva)
+    if ok_ventanas and type(ventanas) == "table" and ventanas.regla_opacidad then
+        return ventanas.regla_opacidad(nombre, match, activa, inactiva)
+    end
+    hl.window_rule({
+        name    = nombre,
+        match   = match,
+        opacity = string.format("%.2f override %.2f override", activa, inactiva),
+    })
+end
 
-hl.window_rule({
-    name  = "kitty-opacity",
-    match = { class = "kitty" },
-    opacity = "1.0 override 1.0 override",
-})
-
+regla_opacidad("firefox-opacity", { class = "firefox" }, 1.0, 1.0)
+regla_opacidad("kitty-opacity", { class = "kitty" }, 1.0, 1.0)
 -- Clase verificada en `hyprctl clients` con VS Code abierto (coincide con
 -- StartupWMClass de com.microsoft.VSCode.desktop).
-hl.window_rule({
-    name  = "vscode-opacity",
-    match = { class = [[^com\.microsoft\.VSCode$]] },
-    opacity = "1.0 override 1.0 override",
-})
+regla_opacidad("vscode-opacity", { class = [[^com\.microsoft\.VSCode$]] }, 1.0, 1.0)
 
 -- Calculadora
 hl.window_rule({
