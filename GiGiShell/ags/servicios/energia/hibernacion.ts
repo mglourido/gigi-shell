@@ -38,6 +38,24 @@ import { planificar, type AjusteHibernacion, type ModoHibernacion } from "./plan
 import { RAIZ_REPO } from "../../utilidades/rutas"
 
 const ARCHIVO = `${GLib.get_user_config_dir()}/gigishell/hibernacion.json`
+const AYUDANTE = "/usr/local/bin/gigishell-hibernacion"
+
+/**
+ * `execAsync` con el fallo de arranque convertido en rechazo.
+ *
+ * ⚠️ `execAsync` de `ags/process` crea el `Gio.Subprocess` FUERA de la promesa: si el binario
+ * no existe lanza `GLib.SpawnError` de forma SÍNCRONA y el `.catch()` no lo ve. Aquí el
+ * ayudante falta en toda máquina sin el paso `hibernacion` del instalador, y como
+ * `comprobarHibernacion()` corre al construir la tarjeta, esa excepción tumbaba la sección de
+ * Energía entera (y Ajustes al reabrirse en ella). Issue #338.
+ */
+function ejecutar(argv: string[]): Promise<string> {
+  try {
+    return execAsync(argv)
+  } catch (e) {
+    return Promise.reject(e)
+  }
+}
 
 // El reparto en sí es lógica pura y vive aparte para poder probarlo bajo `node --test`; aquí
 // solo está el efecto. Se reexporta para que los llamantes tengan un único sitio al que mirar.
@@ -75,7 +93,7 @@ function traducirMotivo(clave: string): string {
 
 /** Refresca `hibernacionActivable`/`hibernacionMotivo`. Silencioso: nunca lanza. */
 export function comprobarHibernacion(): void {
-  execAsync(["/usr/local/bin/gigishell-hibernacion", "estado"])
+  ejecutar([AYUDANTE, "estado"])
     .then((salida) => {
       const campos = new Map<string, string>()
       for (const linea of String(salida).split("\n")) {
@@ -141,7 +159,7 @@ export function aplicarHibernacion(
   escribirEstado(ajuste, plan.modo)
   // `sudo -n`: si la regla sudoers no está instalada esto falla en el acto en vez de quedarse
   // esperando una contraseña que nadie va a teclear (el mismo motivo que en install.sh).
-  execAsync(["sudo", "-n", "/usr/local/bin/gigishell-hibernacion", "retardo", String(plan.retardo)])
+  ejecutar(["sudo", "-n", AYUDANTE, "retardo", String(plan.retardo)])
     .catch((e) => console.error("[hibernacion] no se pudo fijar HibernateDelaySec:", e))
   return plan.listener
 }

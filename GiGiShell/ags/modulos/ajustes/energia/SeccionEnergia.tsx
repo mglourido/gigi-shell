@@ -6,7 +6,7 @@ import Pango from "gi://Pango"
 import { createComputed, onCleanup } from "ags"
 import { InlineEditableValue } from "../../../componentes/InlineEditableValue"
 import { conectarCambioDeslizador } from "../../../utilidades/deslizador"
-import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste } from "../componentes"
+import { AjusteInterruptor, TarjetaAjustes, TextoInformativo, TituloAjuste, protegido } from "../componentes"
 import Inactividad from "../pantalla/Inactividad"
 import textos from "../../../textos/ajustes/energia.json" with { type: "json" }
 import {
@@ -444,8 +444,10 @@ export default function SeccionEnergia() {
         <AjusteInterruptor titulo={textos.forzar.titulo} informacion={textos.forzar.descripcion} activo={forcePowerSave} alAlternar={() => setForcePowerSave(!forcePowerSave.get())} />
       </TarjetaAjustes>
 
-      {/* Ternario con `<></>` y no `&&` (ver la nota de TLP, justo debajo). */}
-      {hayBateria ? <TarjetaApagadoPreventivo /> : <></>}
+      {/* Ternario con `<></>` y no `&&` (ver la nota de TLP, justo debajo).
+          Las tarjetas que consultan el sistema al construirse van por `protegido()`: si una
+          lanza, sale un aviso en su sitio y el resto de la sección se sigue viendo (#338). */}
+      {hayBateria ? protegido("apagado preventivo", TarjetaApagadoPreventivo) : <></>}
 
       {/* Ternario con `<></>` y no `&&`: ver la nota larga en `SuspensionFalsa.tsx`. Con la
           rama falsa, `&&` deja el booleano `false` como hijo del árbol y el runtime de gnim
@@ -559,20 +561,20 @@ export default function SeccionEnergia() {
         </box>
       </TarjetaAjustes>
 
-      <TarjetaRefresco />
+      {protegido("refresco", TarjetaRefresco)}
 
-      <TarjetaBotonEncendido />
+      {protegido("botón de encendido", TarjetaBotonEncendido)}
 
       {/* Ternario con `<></>` y no `&&` (ver la nota de TLP, arriba). Esta tarjeta es
           la excepción al "una tarjeta se pinta siempre": sin tapa que cerrar la
           pregunta no existe, así que en un sobremesa no hay nada que explicar. */}
-      {hayTapa ? <TarjetaTapa /> : <></>}
+      {hayTapa ? protegido("tapa", TarjetaTapa) : <></>}
 
-      <TarjetaMenuEnergia />
+      {protegido("menú de energía", TarjetaMenuEnergia)}
 
-      <Inactividad />
+      {protegido("inactividad", Inactividad)}
 
-      <InactividadAhorro />
+      {protegido("inactividad en ahorro", InactividadAhorro)}
 
       <TarjetaAjustes titulo={textos.grupos.modoAhorro} icono="󰌪">
         <AjusteInterruptor titulo={textos.notificaciones.titulo} informacion={textos.notificaciones.descripcion} activo={suspendNotifFilters} alAlternar={() => setSuspendNotifFilters(!suspendNotifFilters.get())} />
@@ -592,7 +594,7 @@ export default function SeccionEnergia() {
           también con la batería baja. Son dos tarjetas (`SuspensionFalsa` devuelve un
           fragmento) porque el allowlist de apps a congelar es lo único que puede perder
           datos y merece su propio encabezado y su propio aviso. */}
-      <SuspensionFalsa />
+      {protegido("suspensión falsa", SuspensionFalsa)}
 
     </box>
     </overlay>

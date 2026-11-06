@@ -17,6 +17,7 @@ import SeccionDiseno from "../personalizacion/SeccionDiseno"
 import SeccionFuncionesShell from "../personalizacion/SeccionFuncionesShell"
 import SeccionSeguridad from "../seguridad/SeccionSeguridad"
 import SeccionSistema from "../sistema/SeccionSistema"
+import protegido from "../componentes/protegido"
 import { camaras } from "../../../servicios/camara/dispositivos"
 import { estadoCamara } from "../../../servicios/camara/persistencia"
 import { haySeccionCamara } from "../camara/camaraDatos"
@@ -157,6 +158,9 @@ const FABRICAS_SECCION: Record<IdSeccion, () => unknown> = {
   shortcuts: () => <SeccionAtajos />,
 }
 
+/** Una sección que lanza al construirse pinta un aviso y no deja Ajustes vacío: la sección
+ *  elegida sobrevive entre aperturas, así que sin esto el panel volvía a abrirse roto
+ *  (issue #338). */
 export function crearContenidoSeccion(id: IdSeccion): unknown {
-  return FABRICAS_SECCION[id]()
+  return protegido(`sección ${id}`, FABRICAS_SECCION[id], ["sp-section"])
 }

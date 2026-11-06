@@ -1,7 +1,8 @@
 {
   "panel": {
     "titulo": "Ajustes",
-    "editarValor": "Editar valor"
+    "editarValor": "Editar valor",
+    "noCargado": "Esta parte de los ajustes no se pudo cargar. El detalle está en el registro de AGS; el resto sigue funcionando."
   },
   "listas": {
     "elementos": "{{cantidad}} elementos",

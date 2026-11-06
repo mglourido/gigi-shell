@@ -60,6 +60,8 @@ sentido. Parte del escalonado de arranque del sistema; el calendario completo es
 
 System services are GObject libraries imported as `gi://Astal*` (e.g. `AstalWp` audio, `AstalHyprland`, `AstalNetwork`, `AstalBluetooth`, `AstalMpris`, `AstalNotifd`, `AstalBattery`, `AstalTray`). Shelling out uses `ags/process`. Low-level GLib/Gio via `gi://GLib`, `gi://Gio`.
 
+**⚠️ `execAsync` lanza SÍNCRONO si el binario no existe**: crea el `Gio.Subprocess` fuera de la promesa, así que el `GLib.SpawnError` no llega al `.catch()` y sube por quien lo llamó. Si eso ocurre al construir un widget, se cae la vista entera (issue #338: el ayudante de hibernación ausente tumbaba Ajustes > Energía). Para un binario opcional, comprueba antes con `GLib.find_program_in_path` o envuelve la llamada en `try` y conviértela en rechazo (`ejecutar()` en `servicios/energia/hibernacion.ts`).
+
 ### JSX / GTK4 idioms
 
 - Widgets and JSX runtime come from `ags/gtk4`; `app` from `ags/gtk4/app`.
