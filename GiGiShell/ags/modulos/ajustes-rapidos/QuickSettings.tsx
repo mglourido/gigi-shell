@@ -4,6 +4,8 @@ import { createState, For, With, createComputed, onCleanup } from "ags"
 import { createBinding } from "ags"
 import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
+import { bytesPorSegundo, formatearVelocidad, sumarBytesInterfaces } from "../../servicios/red/velocidadRed"
+import { puntosAccesoVisibles } from "./listaWifi"
 import ProfileAvatar from "../ajustes/ProfileAvatar"
 import Interruptor from "../../componentes/Interruptor"
 import {
@@ -1072,38 +1074,26 @@ function QsHeader() {
 const [netSpeed, setNetSpeed] = createState({ up: "0B", down: "0B" })
 let lastBytes = { up: 0, down: 0, time: 0 }
 
-const formatSpeed = (bytes: number) => {
-  if (bytes < 1024) return `${Math.round(bytes)}B/s`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}K`
-  return `${(bytes / (1024 * 1024)).toFixed(1)}M`
-}
-
+// Lee /proc/net/dev en el propio proceso: es un fichero de kernel diminuto y
+// leerlo cuesta microsegundos, frente al `bash -c cat` que se lanzaba cada
+// segundo con el panel abierto.
 const sampleNetSpeed = () => {
-  execAsync(["bash", "-c", "cat /proc/net/dev"]).then(out => {
-    const lines = out.trim().split("\n")
-    let totalDown = 0, totalUp = 0
-    lines.forEach(line => {
-      if (!line.includes(":")) return
-      const [iface, data] = line.split(":")
-      if (iface.includes("lo")) return
-
-      const parts = data.trim().split(/\s+/)
-      const down = parseInt(parts[0])
-      const up = parseInt(parts[8])
-      if (!isNaN(down)) totalDown += down
-      if (!isNaN(up)) totalUp += up
-    })
-
+  try {
+    const [ok, contenido] = GLib.file_get_contents("/proc/net/dev")
+    if (!ok) return
+    const total = sumarBytesInterfaces(new TextDecoder().decode(contenido))
     const now = Date.now()
     if (lastBytes.time > 0) {
-      const delta = (now - lastBytes.time) / 1000
+      const segundos = (now - lastBytes.time) / 1000
       setNetSpeed({
-        down: formatSpeed((totalDown - lastBytes.down) / delta),
-        up: formatSpeed((totalUp - lastBytes.up) / delta)
+        down: formatearVelocidad(bytesPorSegundo(lastBytes.down, total.bajada, segundos)),
+        up: formatearVelocidad(bytesPorSegundo(lastBytes.up, total.subida, segundos)),
       })
     }
-    lastBytes = { down: totalDown, up: totalUp, time: now }
-  }).catch(() => { })
+    lastBytes = { down: total.bajada, up: total.subida, time: now }
+  } catch (error) {
+    console.warn("No se pudo leer la velocidad de red:", error)
+  }
 }
 
 // El muestreo de velocidad solo corre mientras QS está abierto (se abre poco):
@@ -4930,25 +4920,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
       >
         <box orientation={Gtk.Orientation.VERTICAL} spacing={2}>
           <Gtk.GestureClick onPressed={() => setInfoSsid(null)} />
-          <For each={() => {
-            const seen = new Set()
-            const query = search().trim().toLowerCase()
-            const unique = apsVar()
-              .filter(ap => ap.ssid)
-              .filter(ap => !query || ap.ssid.toLowerCase().includes(query))
-              .sort((a, b) => {
-                const connected = wifiState.get().ssid
-                if (a.ssid === connected) return -1
-                if (b.ssid === connected) return 1
-                return b.strength - a.strength
-              })
-              .filter(ap => {
-                if (seen.has(ap.ssid)) return false
-                seen.add(ap.ssid)
-                return true
-              })
-            return unique
-          }}>
+          <For each={() => puntosAccesoVisibles(apsVar(), wifiState.get().ssid, wifi.activeAccessPoint ?? null, search())}>
             {(ap: any) => {
               const isSecure = ap.flags > 0 || ap.wpaFlags > 0 || ap.rsnFlags > 0
 
@@ -4957,6 +4929,19 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
               else if (ap.rsnFlags > 0) secType = "WPA2"
               else if (ap.wpaFlags > 0) secType = "WPA"
               else if (ap.flags > 0) secType = "WEP"
+
+              // Barras de señal REACTIVAS. Antes eran `each={() => …ap.strength}`:
+              // una función suelta no es un accessor, `For` la evalúa una vez y
+              // `ap.strength` (propiedad GObject) no se rastrea, así que la fila
+              // conservaba la intensidad del momento en que se creó —0 barras si
+              // nació con el AP recién visto— aunque la red siguiera conectada.
+              // La fila conectada lee la MISMA fuente que el tile
+              // (`estadoWifi`, libnm directo); el resto, su propio AP.
+              const barrasFila = createComputed(
+                [wifiState, estadoWifi, createBinding(ap, "strength")],
+                (s, estado, intensidad) => wifiSignalBarClasses(
+                  s.ssid === ap.ssid && estado.conectada ? estado.intensidad : (intensidad ?? 0)),
+              )
 
               return (
                 <box orientation={Gtk.Orientation.VERTICAL} spacing={0}>
@@ -5041,7 +5026,7 @@ function QsWifiMenu({ onBack }: { onBack: () => void }) {
                     <QsRowLabel
                       icon={
                         <box cssClasses={["qs-wifi-icon", "qs-wifi-signal"]} spacing={1} valign={Gtk.Align.CENTER}>
-                          <For each={() => wifiSignalBarClasses(ap.strength ?? 0)}>
+                          <For each={barrasFila}>
                             {(classes) => <box cssClasses={classes} valign={Gtk.Align.END} />}
                           </For>
                         </box>
