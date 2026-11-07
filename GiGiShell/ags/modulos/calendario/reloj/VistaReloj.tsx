@@ -5,6 +5,7 @@ import { formatearFechaLarga } from "../dominio/fechas.ts"
 import { hoyReactivo } from "../estado.ts"
 import { Cronometro } from "./Cronometro.tsx"
 import { FormularioAlarma } from "./FormularioAlarma.tsx"
+import { crearFormularioEnOverlay } from "../formularioEnOverlay.ts"
 import { ListaAlarmas } from "./ListaAlarmas.tsx"
 import { Temporizador } from "./Temporizador.tsx"
 import type { Alarma } from "./tipos.ts"
@@ -127,26 +128,16 @@ export function VistaReloj({ visible }: { visible: Visible }): Gtk.Widget {
   const overlay = new Gtk.Overlay()
   overlay.set_child(contenido)
 
-  let formularioVivo: Gtk.Widget | null = null
+  const formulario = crearFormularioEnOverlay(overlay)
   function sincronizarFormulario() {
     const estado = editandoAlarma.get()
-    if (formularioVivo) {
-      overlay.remove_overlay(formularioVivo)
-      formularioVivo = null
-    }
     if (estado) {
-      formularioVivo = FormularioAlarma({
+      formulario.montar(() => FormularioAlarma({
         alarma: estado.alarma,
         alCerrar: () => establecerEditandoAlarma(null),
-      })
-      // El fondo oscurecido se estira A MANO: un hijo de `Gtk.Overlay` se mide por su tamaño
-      // natural, así que sin esto el velo solo cubría la tarjeta y el resto del panel seguía
-      // pareciendo pulsable.
-      formularioVivo.set_hexpand(true)
-      formularioVivo.set_vexpand(true)
-      formularioVivo.set_halign(Gtk.Align.FILL)
-      formularioVivo.set_valign(Gtk.Align.FILL)
-      overlay.add_overlay(formularioVivo)
+      }))
+    } else {
+      formulario.desmontar()
     }
   }
   // Igual que el editor de eventos: `subscribe` solo avisa de los cambios, así que el estado
@@ -155,6 +146,7 @@ export function VistaReloj({ visible }: { visible: Visible }): Gtk.Widget {
   sincronizarFormulario()
   onCleanup(() => {
     if (typeof bajaFormulario === "function") bajaFormulario()
+    formulario.desmontar()
   })
 
   return overlay as unknown as Gtk.Widget

@@ -8,6 +8,7 @@ import { clipWindowInputToContent } from "../../utilidades/inputRegion.ts"
 import { VistaMes } from "./calendario/VistaMes.tsx"
 import { AgendaDia } from "./calendario/AgendaDia.tsx"
 import { FormularioEvento } from "./calendario/FormularioEvento.tsx"
+import { crearFormularioEnOverlay } from "./formularioEnOverlay.ts"
 import { VistaReloj } from "./reloj/VistaReloj.tsx"
 import { EstadoGoogle } from "./google/EstadoGoogle.tsx"
 import {
@@ -92,25 +93,15 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
   const overlay = new Gtk.Overlay()
   overlay.set_child(pila)
 
-  let formularioVivo: Gtk.Widget | null = null
+  const editor = crearFormularioEnOverlay(overlay)
   // Se observa si HAY edición, no la edición en sí: `edicion` cambia también al parchear el
   // borrador, y reconstruir el formulario en cada tecleo destruiría el widget que tiene el foco.
   const hayEdicion = createComputed(() => edicion() !== null)
   function sincronizarEditor() {
-    if (formularioVivo) {
-      overlay.remove_overlay(formularioVivo)
-      formularioVivo = null
-    }
     if (hayEdicion.get()) {
-      formularioVivo = FormularioEvento({ altoDisponible: overlay.get_allocated_height() })
-      // El fondo oscurecido se estira A MANO: un hijo de `Gtk.Overlay` se mide por su tamaño
-      // natural, así que sin esto el velo solo cubría la tarjeta y el resto del panel seguía
-      // pareciendo pulsable.
-      formularioVivo.set_hexpand(true)
-      formularioVivo.set_vexpand(true)
-      formularioVivo.set_halign(Gtk.Align.FILL)
-      formularioVivo.set_valign(Gtk.Align.FILL)
-      overlay.add_overlay(formularioVivo)
+      editor.montar(() => FormularioEvento({ altoDisponible: overlay.get_allocated_height() }))
+    } else {
+      editor.desmontar()
     }
   }
   const bajaEdicion = hayEdicion.subscribe(sincronizarEditor)
@@ -120,6 +111,7 @@ export default function PanelCalendario(gdkmonitor: Gdk.Monitor) {
 
   onCleanup(() => {
     for (const baja of [bajaPestanas, bajaEdicion]) if (typeof baja === "function") baja()
+    editor.desmontar()
   })
 
   const calAutoClose = panelAutoClose(() => setCalendarVisible(false), 300, calendarVisible)
