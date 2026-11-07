@@ -21,10 +21,16 @@ if ! source "$HOME/.config/hypr/scripts/lib/notif.sh" 2>/dev/null; then
     }
 fi
 
-# Mismo comportamiento toggle que los demás selectores: una segunda pulsación
-# del atajo cierra la ventana que ya esté abierta.
-if pgrep -x rofi >/dev/null; then
-    pkill -x rofi
+# Cómo se reconoce el rofi de ESTE selector entre los demás (lanzador de apps,
+# portapapeles). Su línea de comando la arma rofimoji y no empieza por nada
+# nuestro, pero lleva el tema propio `emoji-grid.rasi`: ese nombre es contrato.
+patron_rofi_emojis="^rofi .*emoji-grid\.rasi"
+
+# Mismo comportamiento que los demás selectores: una segunda pulsación del atajo
+# cierra este selector, y con OTRO rofi abierto se cambia a este en vez de solo
+# cerrarlo.
+if pgrep -f "$patron_rofi_emojis" >/dev/null; then
+    pkill -f "$patron_rofi_emojis"
     exit 0
 fi
 
@@ -38,6 +44,18 @@ for comando in rofimoji rofi wl-copy wl-paste wtype; do
     fi
 done
 
+# Cerrar el otro rofi después de comprobar dependencias: si falta algo, no se
+# cierra nada. Hay que esperar a que salga: rofi tiene un pidfile con cerrojo y,
+# con el anterior vivo, el nuevo se niega ("Rofi already running?") y sale con 1.
+if pgrep -x rofi >/dev/null; then
+    pkill -x rofi
+    for _ in {1..20}; do  # hasta 1 s; rofi sale en milisegundos
+        pgrep -x rofi >/dev/null || break
+        sleep 0.05
+    done
+fi
+
+# El nombre del fichero es la marca de `patron_rofi_emojis`.
 ruta_tema="${XDG_CONFIG_HOME:-"$HOME/.config"}/rofi/emoji-grid.rasi"
 # Rofimoji separa esta cadena con shlex y ejecuta Rofi sin pasar por un shell:
 # `~` no se expande aquí. La ruta debe llegar ya resuelta o Rofi cae en su tema

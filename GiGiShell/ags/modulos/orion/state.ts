@@ -10,8 +10,9 @@ import {
   orionRecordarUltimaSeccion,
 } from "../ajustes/preferences"
 import AstalHyprland from "gi://AstalHyprland"
+import { execAsync } from "ags/process"
 import { clienteJuegoEnFoco } from "../../servicios/juegos/registro"
-import { escritorioTieneJuego } from "../../servicios/juegos/cierreRofi"
+import { escritorioTieneJuego, esRofi } from "../../servicios/juegos/cierreRofi"
 import { alActualizarEjecutables } from "./data/ejecutables"
 import { separarConsulta } from "./data/ejecutables.modelo"
 
@@ -221,8 +222,33 @@ orionRecordarUltimaSeccion.subscribe(() => {
 // foco de juego es siempre `null` y esto no hace nada.
 let abiertoEnJuego = false
 
+// ── Convivencia con rofi (issue #342) ────────────────────────────────────────
+//
+// Son dos lanzadores y no conviven: abrir el LANZADOR DE APPS de rofi cierra
+// Orion, y abrir Orion cierra ese rofi. Rofi se abre encima (misma capa OVERLAY)
+// y dejaba a Orion vivo debajo, con el teclado disputado y reapareciendo al
+// cerrar rofi. El PORTAPAPELES (y los emojis) NO cierran Orion ni Orion a ellos:
+// sirven para pegar algo en él. Todos los rofi comparten namespace (`rofi`), así
+// que cuál es se mira en su línea de comando. Orion se cierra con `hidePanel()`,
+// no tocando el estado a mano, para no saltarse la animación ni la limpieza.
+//
+// ⚠️ Con un rofi abierto, Orion no recibe clics. Rofi pide el teclado en modo
+// EXCLUSIVO de layer-shell y rofi 2.0 no tiene opción para pedirlo «a demanda»;
+// su superficie mide solo lo que su ventana (medido: 1024x430 centrada), así que
+// no es que tape a Orion. La única salida sería `-normal-window`, que lo convierte
+// en una ventana normal (mosaico, animaciones de ventana…): se deja así.
+
+// Cómo se reconoce el lanzador de apps entre los rofi: su línea de comando empieza
+// por `rofi -show drun` (`hypr/scripts/rofi-launch.py`, que usa el mismo patrón).
+const PATRON_ROFI_APPS = "^rofi -show drun( |$)"
+// Si hay algún rofi abierto, para no lanzar un `pkill` en cada apertura de Orion.
+// Se sigue aunque Orion esté cerrado: hace falta al abrirlo.
+let rofiAbierto = false
+
 orionVisible.subscribe(() => {
-  if (orionVisible.get()) abiertoEnJuego = clienteJuegoEnFoco.get() !== null
+  if (!orionVisible.get()) return
+  abiertoEnJuego = clienteJuegoEnFoco.get() !== null
+  if (rofiAbierto) execAsync(["pkill", "-f", PATRON_ROFI_APPS]).catch(() => {})
 })
 
 clienteJuegoEnFoco.subscribe(() => {
@@ -233,17 +259,22 @@ clienteJuegoEnFoco.subscribe(() => {
 // Con una layer con el teclado encima, Hyprland no emite `activewindow` al cambiar
 // de escritorio (medido con rofi; ver `servicios/juegos/cierreRofi.ts`), así que el
 // foco de juego no se entera. Se mira además si el escritorio nuevo tiene un juego.
-//
-// En el mismo escuchador: abrir ROFI cierra Orion. Son dos lanzadores, y rofi se
-// abre encima (misma capa OVERLAY) dejando a Orion vivo debajo, con el teclado
-// disputado y reapareciendo al cerrar rofi. Se cierra con `hidePanel()`, no
-// tocando el estado a mano, para no saltarse la animación ni la limpieza.
+// En el mismo escuchador, el cierre por rofi de arriba.
 AstalHyprland.get_default().connect("event", (_origen, nombre: string, datos: string) => {
-  if (!orionVisible.get()) return
-  if (nombre === "openlayer" && datos.trim().toLowerCase().startsWith("rofi")) {
-    hidePanel()
+  if (nombre === "closelayer" && esRofi(datos)) {
+    rofiAbierto = false
     return
   }
+  if (nombre === "openlayer" && esRofi(datos)) {
+    rofiAbierto = true
+    if (!orionVisible.get()) return
+    // `pgrep` sale con 1 si el rofi abierto no es el de apps: el rechazo no cierra.
+    execAsync(["pgrep", "-f", PATRON_ROFI_APPS])
+      .then(() => { if (orionVisible.get()) hidePanel() })
+      .catch(() => {})
+    return
+  }
+  if (!orionVisible.get()) return
   if (nombre !== "workspacev2" || abiertoEnJuego) return
   if (escritorioTieneJuego(datos)) hidePanel()
 })

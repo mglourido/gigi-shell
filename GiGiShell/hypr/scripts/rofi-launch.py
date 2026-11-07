@@ -8,6 +8,10 @@ observación del socket de eventos, rama single-instance, el ajuste y por qué e
 timeout vale 15 s— vive en `anclaje.py`, compartida con `lanzar-anclado.py` (el
 camino de Orion). Aquí queda solo lo propio de rofi: el toggle y sus flags.
 
+Convivencia con los otros selectores y con Orion: SUPER+SPACE con el portapapeles
+(u otro rofi) abierto lo cambia por este; abrir este cierra Orion, y abrir Orion
+cierra este (los dos los hace AGS, `ags/modulos/orion/state.ts`).
+
 Dos cierres automáticos: 5 s sin actividad (flags de abajo, los resuelve rofi) y
 pasar el foco a un juego si se abrió fuera de él — ese lo hace AGS
 (`ags/servicios/juegos/cierreRofi.ts`), que es quien sabe qué ventana es un juego.
@@ -16,16 +20,45 @@ Ver diseño: docs/superpowers/specs/2026-06-13-rofi-single-instance-move-design.
 """
 
 import subprocess
+import time
 
 import anclaje
 
+# Cómo se reconoce ESTE rofi entre los demás (portapapeles, emojis): su línea de
+# comando empieza por `rofi -show drun`. Lo usan también `clipboard-history.sh`
+# y Orion (`ags/modulos/orion/state.ts`, que cierra este rofi al abrirse y se
+# cierra cuando se abre este), así que el orden de los primeros argumentos de
+# abajo es parte del contrato.
+PATRON_ROFI_APPS = "^rofi -show drun( |$)"
+
+
+def hay_proceso(*args):
+    return subprocess.run(["pgrep", *args], capture_output=True).returncode == 0
+
+
+def cerrar_otro_rofi():
+    """Cierra el rofi que haya abierto (otro selector) y espera a que salga.
+
+    Rofi guarda un pidfile con cerrojo: lanzado mientras el anterior aún no ha
+    salido, se niega ("Rofi already running?") y termina con código 1, así que
+    sin la espera el cambio de selector se quedaría en un cierre a secas.
+    """
+    if not hay_proceso("-x", "rofi"):
+        return
+    subprocess.run(["pkill", "-x", "rofi"])
+    for _ in range(20):  # hasta 1 s; rofi sale en milisegundos
+        if not hay_proceso("-x", "rofi"):
+            return
+        time.sleep(0.05)
+
 
 def main():
-    # --- Toggle: si rofi ya está abierto, cerrarlo y salir ---
-    if subprocess.run(["pgrep", "-x", "rofi"],
-                      capture_output=True).returncode == 0:
-        subprocess.run(["pkill", "-x", "rofi"])
+    # --- Toggle: si este rofi ya está abierto, cerrarlo y salir. Si el abierto
+    # es OTRO selector (portapapeles, emojis), se cambia a este en vez de cerrar.
+    if hay_proceso("-f", PATRON_ROFI_APPS):
+        subprocess.run(["pkill", "-f", PATRON_ROFI_APPS])
         return
+    cerrar_otro_rofi()
 
     before, before_classes, target_ws = anclaje.foto_previa()
 
@@ -34,7 +67,7 @@ def main():
     # el placeholder respecto al historial del portapapeles.
     tema_busqueda = 'entry { placeholder: "Buscar aplicaciones"; }'
     resultado_rofi = subprocess.run([
-        "rofi", "-show", "drun",
+        "rofi", "-show", "drun",  # primeros: PATRON_ROFI_APPS depende de ellos
         "-display-drun", "",
         "-no-drun-use-desktop-cache",
         "-kb-row-select", "Right",

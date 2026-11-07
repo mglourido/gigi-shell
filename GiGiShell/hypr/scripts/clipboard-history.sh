@@ -24,6 +24,11 @@ ruta_miniatura="$HOME/.config/hypr/scripts/miniatura-portapapeles.sh"
 # sin perder el historial; el específico evita reiniciar si ya usa el actual.
 watch_re="(^|/)wl-paste --watch cliphist store([[:space:]]+-max-items[[:space:]]+[0-9]+)?$"
 watch_re_actual="(^|/)wl-paste --watch cliphist store[[:space:]]+-max-items[[:space:]]+$limite_historial$"
+# Cómo se reconoce el rofi de ESTE selector entre los demás (lanzador de apps,
+# emojis): su línea de comando empieza por `rofi -dmenu -display-columns 2`, así
+# que esos primeros argumentos del `picker` son parte del contrato. Con ese
+# patrón el atajo distingue «cerrar el mío» de «cambiar desde otro rofi».
+patron_rofi_portapapeles="^rofi -dmenu -display-columns 2( |$)"
 
 history_enabled() {
     [[ ! -f "$prefs" ]] && return 0
@@ -65,13 +70,24 @@ case "${1:-}" in
     picker)
         # Toggle primero: si el selector ya está abierto, ciérralo (aunque el
         # historial esté desactivado, para no dejar una ventana colgada).
-        if pgrep -x rofi >/dev/null; then
-            pkill -x rofi
+        if pgrep -f "$patron_rofi_portapapeles" >/dev/null; then
+            pkill -f "$patron_rofi_portapapeles"
             exit 0
         fi
         # Con el historial apagado no hay nada que mostrar (stop hace wipe):
         # salimos en silencio, sin abrir el selector ni notificar.
         history_enabled || exit 0
+        # Si el abierto es OTRO rofi (lanzador de apps, emojis), se cambia a
+        # este en vez de solo cerrarlo. Hay que esperar a que salga: rofi tiene
+        # un pidfile con cerrojo y, con el anterior vivo, el nuevo se niega
+        # ("Rofi already running?") y sale con 1.
+        if pgrep -x rofi >/dev/null; then
+            pkill -x rofi
+            for _ in {1..20}; do  # hasta 1 s; rofi sale en milisegundos
+                pgrep -x rofi >/dev/null || break
+                sleep 0.05
+            done
+        fi
         # El diseño compartido vive en rofi/config.rasi. La búsqueda es difusa,
         # pero no se ordena por puntuación: el historial debe mantener primero
         # lo más reciente.

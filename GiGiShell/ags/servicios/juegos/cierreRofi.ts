@@ -29,7 +29,7 @@ let iniciado = false
 let rofiAbierto = false
 let abiertoEnJuego = false
 
-const esRofi = (namespace: string) => namespace.trim().toLowerCase().startsWith("rofi")
+export const esRofi = (namespace: string) => namespace.trim().toLowerCase().startsWith("rofi")
 
 /** ¿Hay algún juego registrado en el escritorio `id`? (dato de `workspacev2`: "id,nombre"). */
 export function escritorioTieneJuego(datosWorkspaceV2: string): boolean {

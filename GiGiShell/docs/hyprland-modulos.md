@@ -4725,7 +4725,18 @@ eso: también hace `cliphist wipe`), y uno exacto (límite actual) sirve para el
 está corriendo bien, no hacer nada".
 
 `picker` (SUPER+V) es un toggle de Rofi: si ya está abierto, la segunda pulsación lo cierra. Con el
-historial desactivado por preferencia no abre nada (`stop` ya lo vació, no hay qué mostrar). El AWK
+historial desactivado por preferencia no abre nada (`stop` ya lo vació, no hay qué mostrar).
+**Con OTRO rofi abierto (el lanzador de SUPER+SPACE, los emojis) no se limita a cerrarlo: lo cambia
+por el portapapeles**, y `rofi-launch.py` y `emoji-picker.sh` hacen lo mismo hacia el suyo. Cada
+selector se reconoce por su línea de comando: el principio para los nuestros
+(`rofi -dmenu -display-columns 2` / `rofi -show drun`) y el tema `emoji-grid.rasi` para el de emojis,
+cuya línea arma rofimoji. Esos argumentos y ese nombre son contrato. Hay que **esperar a que el rofi
+anterior salga** antes de lanzar el nuevo: rofi guarda un pidfile con cerrojo y, con otro vivo, se
+niega («Rofi already running?») y sale con 1 — sin la espera, el cambio se quedaba en un cierre.
+Con Orion (issue #342): abrir el lanzador de apps cierra Orion y abrir Orion cierra el lanzador de
+apps, pero el portapapeles convive con él (sirve para pegar en su buscador). Lo hace AGS en
+`ags/modulos/orion/state.ts`. Mientras un rofi está abierto Orion no recibe clics: rofi pide el
+teclado en modo exclusivo y no tiene opción para otro; se deja así. El AWK
 que arma la lista distingue tres tipos de entrada de `cliphist`: imágenes binarias (miniatura vía
 `miniatura-portapapeles.sh`), rutas de imagen en texto (decodificando `file://` con sus `%XX`), y
 texto normal — conservando el ID de `cliphist` en una columna oculta para poder decodificar la
