@@ -17,6 +17,7 @@ export interface ClienteEscritorio {
   pid?: number | null
   x?: number | null
   y?: number | null
+  fullscreen?: number | null
   workspace?: { id: number } | null
   get_workspace?: () => { id: number } | null
 }

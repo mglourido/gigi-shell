@@ -3,9 +3,11 @@
 // forma Lua (`hl.dsp.…`): con el config en Lua la sintaxis legacy no existe, y
 // ninguna de las dos falla por código de salida en la sesión equivocada.
 //
-// Pantalla completa y maximizar ENFOCAN primero y actúan sobre la ventana activa:
-// es la cadena que ya usan la barra (`BotonEscritorio`, `IndicadorJuegos`) y la
-// única verificada. Y van con `action='toggle'` en TABLA, nunca con una cadena
+// Pantalla completa y maximizar van DIRIGIDOS a la ventana (`window=`) y enfocan
+// DESPUÉS, igual que la barra (`BotonEscritorio`, `IndicadorJuegos`). Enfocar primero
+// y actuar sobre la activa fallaba con otra ventana maximizada en el escritorio:
+// `misc.on_focus_under_fullscreen = 0` ignora ese focus y el toggle caía sobre la
+// maximizada (issue #337). Y van con `action='toggle'` en TABLA, nunca con una cadena
 // suelta: un dispatcher conmutable con argumento de cadena es un toggle silencioso
 // que ignora lo que le pidas (ver CLAUDE.md, "El config es LUA").
 
@@ -37,18 +39,21 @@ export function traerVentanaAqui(direccion: string): Promise<unknown> {
     .catch(() => {})
 }
 
+function alternarModo(direccion: string, modo: "fullscreen" | "maximized"): Promise<unknown> {
+  const dir = normalizar(direccion)
+  return despachar(`hl.dsp.window.fullscreen({mode='${modo}', action='toggle', window='address:${dir}'})`)
+    .then(() => despachar(`hl.dsp.focus({window='address:${dir}'})`))
+    .catch(() => {})
+}
+
 /** Alterna la pantalla completa REAL (modo 2). */
 export function alternarPantallaCompletaVentana(direccion: string): Promise<unknown> {
-  return enfocarVentana(direccion)
-    .then(() => despachar("hl.dsp.window.fullscreen({mode='fullscreen', action='toggle'})"))
-    .catch(() => {})
+  return alternarModo(direccion, "fullscreen")
 }
 
 /** Alterna el maximizado (modo 1: ocupa el escritorio pero respeta la barra). */
 export function alternarMaximizarVentana(direccion: string): Promise<unknown> {
-  return enfocarVentana(direccion)
-    .then(() => despachar("hl.dsp.window.fullscreen({mode='maximized', action='toggle'})"))
-    .catch(() => {})
+  return alternarModo(direccion, "maximized")
 }
 
 /** Pide a la ventana que se cierre (como SUPER+C: la app puede preguntar antes). */

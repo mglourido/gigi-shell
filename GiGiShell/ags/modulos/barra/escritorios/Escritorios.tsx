@@ -15,6 +15,8 @@ import {
 } from "../../../servicios/escritorios/operaciones"
 import type { EstadoVisibilidadBarra } from "../../../estado/visibilidadBarra"
 import {
+  actualizarMemoriaPosiciones,
+  type MemoriaPosiciones,
   ordenarClientesEscritorio,
   recordarEscritorioReciente,
   seleccionarEscritoriosRecientes,
@@ -87,6 +89,10 @@ export default function Escritorios(
     createState<EscritorioVisible[]>([], { equals: sonEscritoriosEquivalentes })
   const [idEnfocado, fijarIdEnfocado] = createState(obtenerIdEscritorioActivo())
   const [direccionEnfocada, fijarDireccionEnfocada] = createState("")
+  // Hueco en el mosaico de cada ventana antes de maximizarla, para que su icono no
+  // salte a la cabeza de la fila (ver `ordenarClientesEscritorio`). Una entrada por
+  // ventana de esta salida; se poda en cada `actualizar()`.
+  const memoriaPosiciones: MemoriaPosiciones = new Map()
 
   /** Clientes de un escritorio como accessor vivo. `<For>` está indexado por id, así
    *  que `BotonEscritorio` se construye UNA vez por escritorio y su prop `escritorio`
@@ -146,6 +152,10 @@ export default function Escritorios(
       clientes.push(cliente)
       clientesPorEscritorio.set(idEscritorio, clientes)
     }
+    // Astal fija x/y/fullscreen del cliente en el mismo tick y el evento
+    // `fullscreen` que nos despierta llega después (medido), así que aquí nunca se
+    // ve una ventana con coordenadas de maximizada y `fullscreen = 0`.
+    actualizarMemoriaPosiciones(memoriaPosiciones, [...clientesPorEscritorio.values()].flat())
 
     const candidatos = escritoriosLocales.map((escritorio) => {
       const clientes = clientesPorEscritorio.get(escritorio.id) ?? []
@@ -163,7 +173,7 @@ export default function Escritorios(
           })
         },
         tieneClientes: clientes.length > 0,
-        clientes: obtenerIconosClientesEscritorio(ordenarClientesEscritorio(clientes)),
+        clientes: obtenerIconosClientesEscritorio(ordenarClientesEscritorio(clientes, memoriaPosiciones)),
       }
     })
     const siguientes = seleccionarEscritoriosRecientes(

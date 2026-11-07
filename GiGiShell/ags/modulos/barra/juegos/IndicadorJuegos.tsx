@@ -70,8 +70,12 @@ export default function IndicadorJuegos({ visibilidad }: { visibilidad: ControlV
         )
         // `fullscreen` es un modo, no un bool: 1 es MAXIMIZADO. Solo saltamos a
         // fullscreen de verdad si no lo está ya (con la guarda, toggle == poner).
+        // Dirigido con `window=` y con el focus repetido después: si en su escritorio
+        // hay otra ventana maximizada, `on_focus_under_fullscreen = 0` ignora el focus
+        // de arriba y un toggle sin destino maximizaba la otra (issue #337).
         if (clienteActual && (clienteActual.fullscreen ?? 0) < PANTALLA_COMPLETA_REAL) {
-          return execAsync(["hyprctl", "dispatch", "hl.dsp.window.fullscreen({mode='fullscreen', action='toggle'})"])
+          return execAsync(["hyprctl", "dispatch", `hl.dsp.window.fullscreen({mode='fullscreen', action='toggle', window='address:${direccionNormalizada}'})`])
+            .then(() => execAsync(["hyprctl", "dispatch", `hl.dsp.focus({window='address:${direccionNormalizada}'})`]))
         }
       })
       .catch(() => {})

@@ -68,16 +68,23 @@ export default function BotonEscritorio({
     return clientes().findIndex((cliente) => cliente.direccion === direccion)
   })
 
-  const alternarPantallaCompleta = (direccion: string) => {
+  // Clic derecho → pantalla completa; clic central → maximizado. Los dos alternan.
+  const alternarModoVentana = (direccion: string, modo: "fullscreen" | "maximized") => {
     const direccionNormalizada = direccion.startsWith("0x") ? direccion : `0x${direccion}`
-    // Formas Lua de los dispatchers legacy (workspace / focuswindow / fullscreen 0),
-    // verificadas en instancia anidada; `mode='fullscreen'` + toggle = `fullscreen 0`.
+    // Formas Lua de los dispatchers legacy (workspace / fullscreen 0|1 / focuswindow);
+    // `mode='fullscreen'` + toggle = `fullscreen 0`, `mode='maximized'` = `fullscreen 1`.
     // El primer salto va por `enfocarEscritorio` y no por un `focus` a pelo: en un
     // escritorio especial el focus por id no hace nada (y responde `ok`), así que
     // el resto de la cadena caía sobre la ventana equivocada.
+    // La pantalla completa va DIRIGIDA a la ventana (`window=`), no a la enfocada, y
+    // ANTES del focus (issue #337): con `misc.on_focus_under_fullscreen = 0`
+    // (`hypr/gigishell/ventanas.lua`) Hyprland ignora el focus a otra ventana mientras
+    // haya una maximizada, y el toggle sin destino caía sobre la maximizada. Dirigido,
+    // Hyprland le quita el maximizado a la otra (medido en 0.57.1); el focus de después
+    // ya no lo bloquea nada y deja el teclado en la ventana elegida.
     enfocarEscritorio(escritorio.id, escritorio.nombre)
+      .then(() => execAsync(["hyprctl", "dispatch", `hl.dsp.window.fullscreen({mode='${modo}', action='toggle', window='address:${direccionNormalizada}'})`]))
       .then(() => execAsync(["hyprctl", "dispatch", `hl.dsp.focus({window='address:${direccionNormalizada}'})`]))
-      .then(() => execAsync(["hyprctl", "dispatch", "hl.dsp.window.fullscreen({mode='fullscreen', action='toggle'})"]))
       .catch(() => {})
   }
 
@@ -109,7 +116,14 @@ export default function BotonEscritorio({
           button={Gdk.BUTTON_SECONDARY}
           onPressed={() => {
             const cliente = clientes()[indice]
-            if (cliente) alternarPantallaCompleta(cliente.direccion)
+            if (cliente) alternarModoVentana(cliente.direccion, "fullscreen")
+          }}
+        />
+        <Gtk.GestureClick
+          button={Gdk.BUTTON_MIDDLE}
+          onPressed={() => {
+            const cliente = clientes()[indice]
+            if (cliente) alternarModoVentana(cliente.direccion, "maximized")
           }}
         />
         <box
