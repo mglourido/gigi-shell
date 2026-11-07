@@ -10,7 +10,7 @@ import {
   rutaConfig,
 } from "../../../servicios/almacenamiento/json.ts"
 import { esHoraValida } from "../dominio/fechas.ts"
-import { alReanudar } from "../../../servicios/sistema/reanudacion.ts"
+import { ticReloj } from "../../../servicios/sistema/reloj.ts"
 import {
   VERSION_RELOJ,
   cronometroInicial,
@@ -18,7 +18,7 @@ import {
 } from "./tipos.ts"
 import type { Alarma, ArchivoReloj, Cronometro, DiaSemana, Temporizador } from "./tipos.ts"
 import {
-  alarmasQueVencen,
+  revisarAlarmas,
   sanearAlCargar,
   siguienteVencimiento,
   trasSonar,
@@ -40,14 +40,11 @@ export const RUTA_RELOJ = rutaConfig("reloj.json")
 const ETIQUETA = "reloj"
 
 /**
- * Tope de espera de un solo salto del planificador: 15 minutos.
+ * Tope de espera de un solo salto del TEMPORIZADOR (la cuenta atrás): 15 minutos.
  *
- * El plan es «un único temporizador para el próximo vencimiento», y lo sigue siendo — pero un
- * `GLib.timeout_add` **no corre mientras el equipo está suspendido**. Una alarma a ocho horas vista
- * armada de una tacada sonaría ocho horas de *actividad* después, o sea tarde y por sorpresa. El
- * tope trocea la espera y **recalcula contra el reloj de pared** en cada salto, así que volver de
- * suspender corrige la desviación en menos de quince minutos. Sigue sin haber sondeo por segundo:
- * son cuatro despertares por hora, y solo si hay alguna alarma activa.
+ * Un `GLib.timeout_add` **no corre mientras el equipo está suspendido**: una cuenta atrás de una
+ * hora armada de una tacada vencería una hora de *actividad* después. El tope trocea la espera y
+ * recalcula contra el reloj de pared en cada salto. Las alarmas ya no lo usan: van con `ticReloj`.
  */
 const MAX_ESPERA_MS = 15 * 60_000
 
@@ -135,78 +132,60 @@ function emitirAlerta(titulo: string, cuerpo: string, sonido: string) {
 }
 
 // ── Planificador de alarmas ──────────────────────────────────────────────────
+//
+// **Sin temporizador propio: cuelga de `ticReloj`**, el tic global alineado al :00 de cada minuto que
+// ya mueve el reloj de la barra y que corre siempre, con el panel abierto o cerrado. Las alarmas son
+// de minuto exacto, así que el tic las alcanza en el segundo en que vencen. Antes había un
+// `timeout_add` propio troceado a 15 min (por la suspensión, que congela los temporizadores de
+// GLib): cuatro despertares por hora mientras hubiera una alarma activa, encima del tic que ya
+// existía. Ahora cada tic es UNA comparación con un número guardado; la lista solo se recorre al
+// cambiar o cuando de verdad vence algo.
+//
+// La suspensión la resuelve el propio tic: `servicios/sistema/reloj.ts` da uno nada más despertar y
+// se realinea al :00. Esa revisión abarca toda la suspensión, y lo que venció dentro cae fuera de la
+// tolerancia: no suena, y las puntuales se desactivan (misma decisión que `sanearAlCargar`).
 
-let temporizadorAlarmas: number | null = null
+/** Hasta dónde está revisado. La próxima revisión mira `(ultimaRevisionAlarmas, ahora]`. */
+let ultimaRevisionAlarmas = Date.now()
+/** Próximo vencimiento posterior a la última revisión. `null` = ninguna alarma volverá a sonar. */
+let proximaAlarma: number | null = null
+let planificadorIniciado = false
 
-function cancelarPlanificador() {
-  if (temporizadorAlarmas !== null) {
-    GLib.source_remove(temporizadorAlarmas)
-    temporizadorAlarmas = null
-  }
+function recalcularProximaAlarma() {
+  proximaAlarma = siguienteVencimiento(alarmas.get(), ultimaRevisionAlarmas)?.cuando ?? null
 }
 
-function dispararVencidas() {
+function revisarAlarmasAhora() {
   const ahora = Date.now()
-  const vencidas = alarmasQueVencen(alarmas.get(), ahora)
-  if (vencidas.length === 0) return
+  const desde = ultimaRevisionAlarmas
+  ultimaRevisionAlarmas = ahora
+  // Camino de cada minuto: nada vence todavía. `proximaAlarma` sigue valiendo aunque la marca avance,
+  // porque es posterior a `ahora`.
+  if (proximaAlarma === null || proximaAlarma > ahora) return
 
-  for (const alarma of vencidas) {
+  const { suenan, perdidas } = revisarAlarmas(alarmas.get(), desde, ahora)
+  for (const alarma of suenan) {
     emitirAlerta(
       alarma.etiqueta.trim() === "" ? "Alarma" : alarma.etiqueta,
       alarma.hora,
       alarma.sonido ?? SONIDO_ALARMA,
     )
   }
-
-  const ids = new Set(vencidas.map((a) => a.id))
-  // Las puntuales quedan desactivadas y las semanales siguen: `trasSonar` lo resuelve por tipo.
-  establecerAlarmas(alarmas.get().map((a) => (ids.has(a.id) ? trasSonar(a) : a)))
-}
-
-function replanificar() {
-  cancelarPlanificador()
-  const ahora = Date.now()
-  const proxima = siguienteVencimiento(alarmas.get(), ahora)
-  if (proxima === null) return
-
-  const espera = Math.max(1000, Math.min(proxima.cuando - ahora, MAX_ESPERA_MS))
-  temporizadorAlarmas = GLib.timeout_add(GLib.PRIORITY_DEFAULT, espera, () => {
-    temporizadorAlarmas = null
-    dispararVencidas()
-    replanificar()
-    return GLib.SOURCE_REMOVE
-  })
-}
-
-// Cualquier cambio en la lista rearma el único temporizador. `dispararVencidas` también escribe la
-// lista, así que esta suscripción cierra el ciclo: sonar → desactivar → replanificar.
-alarmas.subscribe(replanificar)
-
-/**
- * Al volver de una suspensión hay que replanificar **ya**, no en el siguiente salto.
- *
- * El tope de 15 minutos de arriba acota la deriva, pero no la elimina, y el hueco que deja se come
- * alarmas enteras: si suspendes con un salto de 15 min armado y despiertas a las 07:00 con una
- * alarma a las 07:05, ese salto reanuda con los minutos que le quedaban y puede vencer a las 07:12
- * — momento en el que `alarmasQueVencen` ya no la ve, porque su tolerancia es de 30 s. La alarma no
- * suena tarde: **no suena**, y sin nada en el log. Replanificar contra el reloj de pared en cuanto
- * volvemos cierra esa ventana.
- *
- * Se aprovecha para repetir el saneado de la carga: una puntual cuya hora cayó DENTRO de la
- * suspensión no debe sonar con retraso (misma decisión que `sanearAlCargar`, y por el mismo motivo),
- * pero hasta ahora se quedaba marcada como activa hasta el siguiente arranque de AGS — visible en la
- * lista, y mintiendo. Desactivarla publica la lista, y esa publicación ya replanifica por la
- * suscripción de arriba; por eso el `return`.
- */
-alReanudar(() => {
-  const { alarmas: saneadas, desactivadas } = sanearAlCargar(alarmas.get(), Date.now())
-  if (desactivadas.length > 0) {
-    console.info(`[${ETIQUETA}] ${desactivadas.length} alarma(s) puntual(es) vencida(s) durante la suspensión`)
-    establecerAlarmas(saneadas)
-    return
+  if (perdidas.length > 0) {
+    console.info(`[${ETIQUETA}] ${perdidas.length} alarma(s) vencida(s) sin sonar (suspensión)`)
   }
-  replanificar()
-})
+
+  // Las puntuales que sonaron o se perdieron quedan desactivadas; las semanales siguen.
+  const hechas = new Set([...suenan, ...perdidas].filter((a) => a.tipo === "puntual").map((a) => a.id))
+  if (hechas.size > 0) {
+    // Publicar la lista recalcula `proximaAlarma` por la suscripción de abajo.
+    establecerAlarmas(alarmas.get().map((a) => (hechas.has(a.id) ? trasSonar(a) : a)))
+  } else {
+    recalcularProximaAlarma()
+  }
+}
+
+alarmas.subscribe(recalcularProximaAlarma)
 
 // ── CRUD de alarmas ──────────────────────────────────────────────────────────
 
@@ -305,5 +284,9 @@ export function reiniciarCronometro() {
 
 /** Arranca el planificador al cargar el shell. Idempotente. */
 export function inicializarReloj() {
-  replanificar()
+  if (planificadorIniciado) return
+  planificadorIniciado = true
+  ultimaRevisionAlarmas = Date.now()
+  recalcularProximaAlarma()
+  ticReloj.subscribe(revisarAlarmasAhora)
 }

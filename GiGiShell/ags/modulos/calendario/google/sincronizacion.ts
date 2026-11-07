@@ -235,7 +235,7 @@ async function descargarCalendario(
     if (!pagina.ok) return null
 
     for (const crudo of pagina.datos?.items ?? []) {
-      const r = desdeGoogle(crudo as any, calendario.id, calendario.permiso, (rid) => idsConocidos.get(rid))
+      const r = desdeGoogle(crudo as any, calendario.id, calendario.permiso, (rid) => idsConocidos.get(rid), calendario.avisoPorDefecto)
       if (r.tipo === "evento") remotos.push(r.evento)
       else if (r.tipo === "eliminado") eliminados.push(r.remotoId)
     }

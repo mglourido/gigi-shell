@@ -6,6 +6,7 @@ import { ticReloj } from "../../servicios/sistema/reloj.ts"
 import type { BorradorEvento, EventoCalendario } from "./dominio/tipos.ts"
 import { CALENDARIO_LOCAL, COLOR_POR_DEFECTO } from "./dominio/tipos.ts"
 import { agendaDelDia, indicePorFecha } from "./dominio/agenda.ts"
+import { avisoPorDefecto } from "./dominio/avisos.ts"
 import type { EventoEnDia } from "./dominio/agenda.ts"
 import {
   construirCuadriculaMes,
@@ -157,6 +158,7 @@ export function borradorNuevo(fecha: string): BorradorEvento {
     todoElDia: false,
     color: COLOR_POR_DEFECTO,
     calendarioId: CALENDARIO_LOCAL,
+    aviso: avisoPorDefecto(false),
   }
 }
 
@@ -180,6 +182,7 @@ export function abrirEdicion(evento: EventoCalendario) {
       fin: { ...evento.fin },
       todoElDia: evento.todoElDia,
       color: evento.color,
+      aviso: evento.aviso,
       calendarioId: evento.calendarioId,
       origen: evento.origen,
       permiso: evento.permiso,

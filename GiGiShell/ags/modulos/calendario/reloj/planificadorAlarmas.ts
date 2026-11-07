@@ -1,9 +1,9 @@
 // Planificador de alarmas. Puro: decide CUÁNDO debe sonar cada cosa; quién arma el temporizador y
 // quién notifica vive en `estadoReloj.ts`.
 //
-// **Se programa un único vencimiento: el más próximo de todas las alarmas.** No hay un bucle que
-// repase la lista cada segundo. Al cambiar cualquier alarma se recalcula ese vencimiento y se
-// rearma el temporizador — el mismo patrón que el resto del shell, donde sondear es la excepción.
+// **Se guarda un único vencimiento: el más próximo de todas las alarmas.** No hay un bucle que
+// repase la lista: al cambiar cualquier alarma se recalcula ese número, y el tic global del minuto
+// solo lo compara con la hora (`estadoReloj.ts`).
 //
 // La aritmética aquí SÍ usa fechas locales (`new Date(y, m, d, h, min)`), al revés que
 // `dominio/fechas.ts`. Es lo correcto: una alarma es hora de pared. «Las 7:00» tienen que ser las
@@ -71,21 +71,42 @@ export function siguienteVencimiento(alarmas: Alarma[], ahoraMs: number): Vencim
   return mejor
 }
 
-/** Todas las que vencen en el mismo instante (± tolerancia): dos alarmas a las 7:00 suenan las dos. */
-export function alarmasQueVencen(alarmas: Alarma[], ahoraMs: number, toleranciaMs = 30_000): Alarma[] {
-  return alarmas.filter((a) => {
-    if (!a.activa || !esHoraValida(a.hora)) return false
-    if (a.tipo === "puntual") {
-      const partes = desdeFechaISO(a.fecha)
-      if (!partes) return false
-      const instante = instanteLocal(partes.anio, partes.mes, partes.dia, a.hora)
-      return instante <= ahoraMs && ahoraMs - instante <= toleranciaMs
-    }
-    const ahora = new Date(ahoraMs)
-    if (!a.dias.includes(diaSemanaDe(ahora))) return false
-    const instante = instanteLocal(ahora.getFullYear(), ahora.getMonth() + 1, ahora.getDate(), a.hora)
-    return instante <= ahoraMs && ahoraMs - instante <= toleranciaMs
-  })
+/**
+ * Retraso máximo con el que una alarma todavía suena. **Más de un tic** (`ticReloj`, 60 s): si un
+ * ajuste de NTP adelanta el tic unos ms al :00, la alarma la ve el tic siguiente, 60 s tarde, y con
+ * los 30 s de antes se perdía sin dejar rastro. Lo que llega más tarde que esto es porque el equipo
+ * estaba suspendido o AGS apagado, y entonces no suena (ver `sanearAlCargar`).
+ */
+export const TOLERANCIA_ALARMA_MS = 90_000
+
+export interface RevisionAlarmas {
+  /** Vencen en `(desde, hasta]` dentro de la tolerancia: suenan. */
+  suenan: Alarma[]
+  /** Vencieron en `(desde, hasta]` pero hace demasiado: no suenan, y las puntuales se dan por hechas. */
+  perdidas: Alarma[]
+}
+
+/**
+ * Alarmas que vencen entre dos revisiones. Dos alarmas a la misma hora suenan las dos.
+ *
+ * **El intervalo es `(desdeMs, hastaMs]`, no «ahora ± tolerancia».** Así ninguna se pierde entre dos
+ * revisiones, por irregular que sea el ritmo del tic, y ninguna suena dos veces: la siguiente
+ * revisión empieza donde acabó esta. La tolerancia solo decide si suena o se da por perdida.
+ */
+export function revisarAlarmas(
+  alarmas: Alarma[],
+  desdeMs: number,
+  hastaMs: number,
+  toleranciaMs: number = TOLERANCIA_ALARMA_MS,
+): RevisionAlarmas {
+  const suenan: Alarma[] = []
+  const perdidas: Alarma[] = []
+  for (const alarma of alarmas) {
+    const cuando = proximaActivacion(alarma, desdeMs)
+    if (cuando === null || cuando > hastaMs) continue
+    ;(hastaMs - cuando <= toleranciaMs ? suenan : perdidas).push(alarma)
+  }
+  return { suenan, perdidas }
 }
 
 /**

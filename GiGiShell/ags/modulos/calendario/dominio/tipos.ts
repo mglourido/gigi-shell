@@ -97,6 +97,11 @@ export interface EventoCalendario {
   /** Id del evento en el calendario remoto, cuando existe allí. */
   remotoId?: string
   permiso: PermisoEvento
+  /**
+   * Recordatorio: minutos antes del inicio (en día completo, antes de las 00:00 del primer día, como
+   * Google). Ausente = no avisa. Cálculo y opciones en `avisos.ts`.
+   */
+  aviso?: number
   sincronizacion?: SincronizacionEvento
 }
 

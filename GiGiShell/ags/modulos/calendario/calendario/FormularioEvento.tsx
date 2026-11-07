@@ -11,6 +11,7 @@ import {
   edicion,
 } from "../estado.ts"
 import { crearCampoFecha, crearCampoHora } from "./campos.tsx"
+import { crearCampoAviso } from "./CampoAviso.tsx"
 
 /**
  * Editor de eventos, mostrado como overlay sobre el panel.
@@ -103,12 +104,20 @@ export function FormularioEvento({ altoDisponible = 0 }: { altoDisponible?: numb
     revalidar()
   }, { mostrarBotones: false })
 
+  // ── Aviso ─────────────────────────────────────────────────────────────────
+  // Se asigna `undefined` y no se hace `delete`: `actualizarEvento` mezcla con `{...e, ...borrador}`,
+  // y una clave ausente dejaría puesto el aviso viejo al elegir «Sin aviso».
+  const campoAviso = crearCampoAviso(borrador.aviso, borrador.todoElDia, (minutos) => {
+    borrador.aviso = minutos
+  })
+
   // ── Día completo ──────────────────────────────────────────────────────────
   const [todoElDiaActivo, establecerTodoElDiaActivo] = createState(borrador.todoElDia)
 
   function aplicarTodoElDia(activo: boolean) {
     establecerTodoElDiaActivo(activo)
     borrador.todoElDia = activo
+    campoAviso.establecerTodoElDia(activo)
     horaInicio.setSensible(!activo)
     horaFin.setSensible(!activo)
     if (activo) {
@@ -259,6 +268,7 @@ export function FormularioEvento({ altoDisponible = 0 }: { altoDisponible?: numb
                   {interruptorDia}
                 </box>
               ) as unknown as Gtk.Widget,
+              fila("Avisar", campoAviso.widget),
               fila("Color del evento", filaColores),
             )}
 

@@ -15,6 +15,7 @@
 import { CALENDARIO_LOCAL, COLOR_POR_DEFECTO } from "../dominio/tipos.ts"
 import type { ColorEvento, EventoCalendario, PermisoEvento } from "../dominio/tipos.ts"
 import { aFechaISO, esFechaValida, minutosAHora, sumarDias } from "../dominio/fechas.ts"
+import { sanearAviso } from "../dominio/avisos.ts"
 
 export interface EventoGoogle {
   id?: string
@@ -28,6 +29,29 @@ export interface EventoGoogle {
   recurringEventId?: string
   start?: { date?: string; dateTime?: string; timeZone?: string }
   end?: { date?: string; dateTime?: string; timeZone?: string }
+  reminders?: { useDefault?: boolean; overrides?: RecordatorioGoogle[] }
+}
+
+export interface RecordatorioGoogle {
+  method?: string
+  minutes?: number
+}
+
+/**
+ * Lista de recordatorios de Google → el aviso único del dominio.
+ *
+ * Solo cuentan los `popup` (un `email` no es algo que este escritorio deba repetir) y, si hay
+ * varios, el **más temprano**: es el primero que se quiere oír, y el dominio guarda uno solo.
+ */
+export function avisoDesdeRecordatorios(lista: unknown): number | undefined {
+  if (!Array.isArray(lista)) return undefined
+  let mayor: number | undefined
+  for (const r of lista as RecordatorioGoogle[]) {
+    if (r?.method !== "popup") continue
+    const m = sanearAviso(r.minutes)
+    if (m !== undefined && (mayor === undefined || m > mayor)) mayor = m
+  }
+  return mayor
 }
 
 /**
@@ -110,6 +134,8 @@ export function desdeGoogle(
   calendarioId: string,
   permiso: PermisoEvento,
   idLocalPara: (remotoId: string) => string | undefined = () => undefined,
+  /** Aviso de los `defaultReminders` del calendario, para los eventos con `useDefault`. */
+  avisoPorDefectoCalendario?: number,
 ): ResultadoMapeo {
   const remotoId = typeof crudo?.id === "string" ? crudo.id : ""
   if (remotoId === "") return { tipo: "ignorado", motivo: "sin id remoto" }
@@ -165,6 +191,11 @@ export function desdeGoogle(
   }
   if (typeof crudo.description === "string" && crudo.description !== "") evento.descripcion = crudo.description
   if (typeof crudo.location === "string" && crudo.location !== "") evento.ubicacion = crudo.location
+  // Sin `reminders`, Google aplica los del calendario: es lo mismo que `useDefault: true`.
+  const aviso = crudo.reminders && crudo.reminders.useDefault === false
+    ? avisoDesdeRecordatorios(crudo.reminders.overrides)
+    : avisoPorDefectoCalendario
+  if (aviso !== undefined) evento.aviso = aviso
 
   return { tipo: "evento", evento }
 }
@@ -177,6 +208,13 @@ export function haciaGoogle(evento: EventoCalendario): Record<string, unknown> {
   }
   if (evento.descripcion) cuerpo.description = evento.descripcion
   if (evento.ubicacion) cuerpo.location = evento.ubicacion
+  // Se manda SIEMPRE, también sin aviso: la subida es un PATCH, y omitir el campo dejaría allí el
+  // recordatorio que el usuario acaba de quitar. Precio aceptado: si el evento tenía varios
+  // recordatorios en Google, al editarlo aquí se quedan en el único que sabe guardar el dominio.
+  cuerpo.reminders = {
+    useDefault: false,
+    overrides: evento.aviso === undefined ? [] : [{ method: "popup", minutes: evento.aviso }],
+  }
 
   if (evento.todoElDia) {
     cuerpo.start = { date: evento.inicio.fecha }
@@ -194,6 +232,8 @@ export interface CalendarioGoogle {
   nombre: string
   permiso: PermisoEvento
   principal: boolean
+  /** Aviso de sus `defaultReminders`, que heredan los eventos con `reminders.useDefault`. */
+  avisoPorDefecto?: number
 }
 
 /**
@@ -214,6 +254,7 @@ export function calendarioDesdeGoogle(crudo: unknown): CalendarioGoogle | null {
     nombre: typeof b.summary === "string" && b.summary !== "" ? b.summary : id,
     permiso: rol === "owner" || rol === "writer" ? "escritura" : "lectura",
     principal: b.primary === true,
+    avisoPorDefecto: avisoDesdeRecordatorios(b.defaultReminders),
   }
 }
 

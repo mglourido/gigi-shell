@@ -23,6 +23,7 @@ import type {
   SincronizacionEvento,
 } from "../dominio/tipos.ts"
 import { esFechaValida, esHoraValida } from "../dominio/fechas.ts"
+import { sanearAviso } from "../dominio/avisos.ts"
 
 export const VERSION_ESQUEMA = 1
 
@@ -124,6 +125,8 @@ export function leerEvento(valor: unknown): EventoCalendario | null {
   if (ubicacion) evento.ubicacion = ubicacion
   const remotoId = textoOpcional(bruto.remotoId)
   if (remotoId) evento.remotoId = remotoId
+  const aviso = sanearAviso(bruto.aviso)
+  if (aviso !== undefined) evento.aviso = aviso
   const sincronizacion = leerSincronizacion(bruto.sincronizacion)
   if (sincronizacion) evento.sincronizacion = sincronizacion
   return evento

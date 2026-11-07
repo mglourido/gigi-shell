@@ -58,7 +58,9 @@ alinear()
  *
  * Al reanudar se hace lo uno y lo otro: un tic inmediato (para que la hora salte ya)
  * y una realineación (para volver a caer en el segundo :00). De este tic cuelgan el
- * reloj de la barra, el indicador de alarma, el «hoy» del calendario y QuickSettings.
+ * reloj de la barra, el indicador de alarma, el «hoy» del calendario, QuickSettings y los
+ * planificadores de alarmas y de avisos de eventos (`modulos/calendario/`), que no tienen
+ * temporizador propio: el tic al despertar es lo que revisa lo vencido durante la suspensión.
  */
 alReanudar(() => {
   tic()

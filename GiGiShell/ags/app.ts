@@ -37,6 +37,7 @@ import { initOpacidadVentanas } from "./servicios/energia/opacidadVentanas"
 import { initFondoShellVar } from "./servicios/apariencia/fondoShellVar"
 import { iniciarCierreAjustesAlCambiarEscritorio } from "./servicios/escritorios/cierreAlCambiarEscritorio"
 import { inicializarReloj } from "./modulos/calendario/reloj/estadoReloj"
+import { inicializarAvisosCalendario } from "./modulos/calendario/avisos"
 import { initPlanificadorFondos } from "./servicios/fondos/planificador"
 import { initAcentoAdaptativo } from "./servicios/fondos/acento"
 import { initPresetsApps } from "./servicios/multimedia/presetsApps"
@@ -165,11 +166,14 @@ app.start({
       initCierreRofiJuego()
       // Después de NotificationPopup: es quien construye el AstalNotifd que reclama el nombre.
       initNotifDaemonCheck()
-      // Arma el temporizador de la próxima alarma. Va aquí y no a t=0 porque NO siembra de
+      // Engancha las alarmas al tic global del minuto. Va aquí y no a t=0 porque NO siembra de
       // eventos: lee la lista del disco, que no cambia mientras espera, y las alarmas puntuales
       // vencidas ya se desactivaron al cargar el módulo. Cuatro segundos de margen no pueden
-      // hacer que se pierda un vencimiento: el planificador se arma contra el reloj de pared.
+      // hacer que se pierda un vencimiento: se revisa contra el reloj de pared.
       inicializarReloj()
+      // Mismo criterio para los recordatorios de eventos del calendario: se arman contra el reloj de
+      // pared, y lo vencido con AGS apagado no se repite al arrancar (ver `calendario/avisos.ts`).
+      inicializarAvisosCalendario()
       // Mismo criterio: el fondo del arranque ya lo puso `wallpaper.sh` desde el
       // autostart de Hyprland, y este solo vigila el próximo cambio de franja
       // contra el reloj de pared — cuatro segundos no pueden perderle ninguno.
