@@ -13,6 +13,7 @@
 //! acción no debe cancelar las demás.
 
 use crate::disco;
+use crate::en_uso;
 use crate::medir;
 use crate::plan::{self, Contexto, Plan};
 use crate::rutas;
@@ -27,14 +28,25 @@ struct Resultado {
     estado: &'static str,
     liberado: u64,
     mensaje: String,
+    /// La acción no se hizo porque algo en marcha la usa (`en_uso`). La autolimpieza lo lee para
+    /// no dar el ciclo por consumido y reintentar en la siguiente sesión.
+    reintentar: bool,
 }
 
 impl Resultado {
     fn ok(liberado: u64) -> Self {
-        Resultado { estado: "ok", liberado, mensaje: String::new() }
+        Resultado { estado: "ok", liberado, mensaje: String::new(), reintentar: false }
     }
     fn con(estado: &'static str, mensaje: impl Into<String>) -> Self {
-        Resultado { estado, liberado: 0, mensaje: mensaje.into() }
+        Resultado { estado, liberado: 0, mensaje: mensaje.into(), reintentar: false }
+    }
+    fn ocupada(proceso: &str) -> Self {
+        let mut r = Resultado::con(
+            "omitida",
+            format!("{proceso} está en marcha y podría estar usando esto. Vuelve a intentarlo cuando termine."),
+        );
+        r.reintentar = true;
+        r
     }
 }
 
@@ -136,6 +148,11 @@ fn antes_despues(rutas: &[PathBuf], f: impl FnOnce() -> Option<Resultado>) -> Re
 }
 
 fn ejecutar(id: &str, ctx: &Contexto) -> Resultado {
+    // Antes que nada, también antes del helper de root: ver `en_uso` para qué rompe cada acción
+    // si se hace con yay, pacman o cargo en marcha. Vale para la autolimpieza y para los botones.
+    if let Some(proceso) = en_uso::ocupada_por(id) {
+        return Resultado::ocupada(proceso);
+    }
     match id {
         "cachePaquetes" => return helper(&["paccache"]),
         "registros" => return helper(&["journal", &ctx.prefs.retener_journal]),
@@ -201,6 +218,7 @@ pub fn limpiar(acciones: &[String], ctx: &Contexto) -> Value {
             "liberado": r.liberado,
             "recuperado": if r.estado == "ok" { json!(recuperado) } else { Value::Null },
             "mensaje": r.mensaje,
+            "reintentar": r.reintentar,
         }));
     }
     Value::Array(salida)

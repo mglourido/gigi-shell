@@ -9,7 +9,7 @@
 //   ultimaManual  la última limpieza pedida a mano: «Ejecutar ahora» (la anota el script) o un
 //                 botón suelto de «Liberar espacio» (la anota `marcarLimpiezaManual`, aquí).
 //
-// No se vigila el fichero: el script escribe a t=12 del arranque, con AGS ya levantado, así que la
+// No se vigila el fichero: el script escribe a t=45 del arranque, con AGS ya levantado, así que la
 // vista llama a `releerRegistroLimpieza()` al montarse. Leerlo son unos bytes, síncrono.
 import GLib from "gi://GLib"
 import { createState } from "ags"

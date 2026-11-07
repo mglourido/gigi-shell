@@ -71,6 +71,8 @@ final (updates t=5, `boot-healthcheck` t=8, que antes esperaba 5 s por dentro). 
 comprimido a propósito respecto al original (que llegaba a t=45): este equipo absorbe la carga, y
 esperar medio minuto por el aviso de actualizaciones no compensaba. Van a segundos DISTINTOS a
 propósito: darles a todos el mismo `sleep` solo movería la avalancha unos segundos más tarde.
+La excepción es la autolimpieza de disco (`limpieza-arranque.sh`), que sale a t=45 a propósito:
+nadie espera su resultado, y cuando sí toca limpiar es lo más pesado del arranque.
 
 **El retardo vive en el punto de llamada, no dentro de los scripts**, y eso es deliberado:
 `screencast-monitor` y `updates-monitor` también los lanza AGS en caliente desde sus
@@ -4551,7 +4553,7 @@ más un `df`, y casi siempre para responder «todavía no toca»: con el interva
 23 de cada 24 despertares no hacían nada salvo forkear quince veces y volverse a dormir. Encima
 dejaba un bash residente por sesión.
 
-Hoy `limpieza-arranque.sh` corre **una vez**, desde el autostart (t=12), y su camino normal es
+Hoy `limpieza-arranque.sh` corre **una vez**, desde el autostart (t=45), y su camino normal es
 **una lectura y un `if`**: un solo `jq -n --slurpfile` que abre los dos JSON (configuración y
 estado) y emite una línea TSV con todo lo que hace falta decidir. Medido: **2,9 ms** y cero
 procesos residentes cuando no toca limpiar. `command -v jq` no cuenta — es un builtin de bash— y
@@ -4571,6 +4573,20 @@ marca por delante. Se pone **antes** de limpiar — si algo se cuelga se pierde 
 relanzar la limpieza entera en cada inicio de sesión para siempre. El umbral se mira **después**
 del intervalo y sin tocar la marca: con el disco holgado no hay nada que hacer, pero un disco que
 se llena mañana no debe esperar un ciclo entero.
+
+**Guarda de «en uso» (`almacenamiento/src/en_uso.rs`, y `_ocupada_por` en el respaldo bash).**
+Varias acciones borraban lo que un proceso en marcha estaba usando, sin ningún error visible:
+`cacheAur` se llevaba entero el clon de un paquete que yay/paru compilaban **por primera vez** (aún
+no instalado = resto, para el planificador) y, en una actualización, su `src/`, `pkg/` y el
+`.pkg.tar` recién hecho; `huerfanos` quitaba las dependencias de compilación que yay instala
+`--asdeps` mientras compila, cuando nadie tiene `db.lck`; `cacheDesarrollo` vaciaba las cachés de
+cargo/npm/pip/go con un build en marcha. Ahora, antes de cada una de esas acciones (y de
+`cachePaquetes`/`cachePaquetesTotal`) se lee `/proc/*/comm`, y si aparece `pacman`, `makepkg`, `yay`
+o `paru` (más `cargo`, `npm`, `npx`, `pip`, `pip3` o `go` para `cacheDesarrollo`) la acción sale
+`omitida` con el motivo y `"reintentar": true`. Vale **también para los botones de Ajustes**. La
+autolimpieza, si ve algún `reintentar`, devuelve la marca a como estaba para reintentarlo en la
+siguiente sesión. Límite conocido: no ve un `python -m pip` (su `comm` es `python`). Las dos listas
+—Rust y bash— tienen que coincidir.
 
 El fichero lleva **tres** marcas: `ultima` (la única que cuenta para el intervalo; la ponen la
 autolimpieza del arranque y «Ejecutar ahora»), `ultimaAuto` (solo la del arranque) y `ultimaManual`

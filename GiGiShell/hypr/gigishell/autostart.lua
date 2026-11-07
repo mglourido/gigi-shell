@@ -269,7 +269,7 @@ hl.on("hyprland.start", function()
   -- peor compañero posible para los primeros segundos de sesión.
   hl.exec_cmd("sleep 10 && ~/.config/hypr/scripts/actualizar-firmas.sh --auto")
 
-  -- ── t=12 · autolimpieza de disco ──────────────────────────────────────────
+  -- ── t=45 · autolimpieza de disco ──────────────────────────────────────────
   -- **No es un daemon.** Lee un JSON, decide, y o limpia o se muere: en el caso
   -- normal (todavía no toca) son 2,9 ms y UN solo proceso `jq`, y no queda nada
   -- en `ps`. Antes era un bucle que despertaba cada hora forkeando hasta quince
@@ -280,7 +280,11 @@ hl.on("hyprland.start", function()
   -- 2360 paquetes y un `du` del hogar no deben coincidir con nada del arranque.
   -- Cuando no toca limpiar —lo normal, 23 de cada 24 sesiones con el intervalo
   -- por defecto— el retardo no cuesta nada, porque el script tampoco.
-  hl.exec_cmd("sleep 12 && ~/.config/hypr/scripts/limpieza-arranque.sh")
+  -- 45 s y no pegado al resto (t=12 hasta 2026-11): cuando sí toca limpiar, que
+  -- empiece con la sesión ya asentada y no encima de las apps de inicio ni de
+  -- freshclam (t=10). Es la excepción al calendario comprimido de
+  -- docs/hyprland-modulos.md: aquí esperar no le cuesta nada a nadie.
+  hl.exec_cmd("sleep 45 && ~/.config/hypr/scripts/limpieza-arranque.sh")
 
   -- (KWallet retirado) Las credenciales de Spotify viven en texto plano en
   -- ~/.config/gigishell/spotify-creds.json — no se arranca ningún ksecretd/KWallet.

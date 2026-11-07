@@ -13,6 +13,7 @@
 
 mod analizar;
 mod disco;
+mod en_uso;
 mod limpiar;
 mod medir;
 mod pacman;

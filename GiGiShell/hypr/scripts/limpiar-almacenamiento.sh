@@ -236,11 +236,33 @@ _root_interactivo() {
 }
 
 # ── Acciones ─────────────────────────────────────────────────────────────────
-# Cada una fija `liberado`, `estado` y `mensaje`. Las tres están declaradas por el llamante.
+# Cada una fija `liberado`, `estado`, `mensaje` y `reintentar`. Las cuatro las declara el llamante.
+
+# Mismas listas que `almacenamiento/src/en_uso.rs` (el porqué de cada una está allí): si cambian
+# en un sitio, cambiarlas en el otro. Lee `/proc/*/comm` con builtins, sin forkear.
+_ocupada_por() {  # accion → imprime el proceso que la impide, o rc 1
+    local nombres c f
+    case "$1" in
+        cacheAur|huerfanos|cachePaquetes|cachePaquetesTotal) nombres=" pacman makepkg yay paru " ;;
+        cacheDesarrollo) nombres=" cargo npm npx pip pip3 go makepkg yay paru " ;;
+        *) return 1 ;;
+    esac
+    for f in /proc/[0-9]*/comm; do
+        read -r c < "$f" 2>/dev/null || continue
+        [[ "$nombres" == *" $c "* ]] && { printf '%s' "$c"; return 0; }
+    done
+    return 1
+}
 
 _ejecutar() {
-    local accion=$1
-    liberado=0; estado=ok; mensaje=""
+    local accion=$1 ocupa
+    liberado=0; estado=ok; mensaje=""; reintentar=false
+
+    if ocupa=$(_ocupada_por "$accion"); then
+        estado=omitida; reintentar=true
+        mensaje="$ocupa está en marcha y podría estar usando esto. Vuelve a intentarlo cuando termine."
+        return 0
+    fi
 
     case "$accion" in
         cachePaquetes)   _helper paccache ;;
@@ -499,15 +521,16 @@ _ejecutar() {
 resultados=""
 total=0
 for accion in "$@"; do
-    liberado=0; estado=ok; mensaje=""
+    liberado=0; estado=ok; mensaje=""; reintentar=false
     _ejecutar "$accion"
     [[ "$estado" == ok ]] && total=$((total + liberado))
-    resultados+="${accion}"$'\t'"${estado}"$'\t'"${liberado}"$'\t'"${mensaje}"$'\n'
+    resultados+="${accion}"$'\t'"${estado}"$'\t'"${liberado}"$'\t'"${mensaje}"$'\t'"${reintentar}"$'\n'
 done
 
 printf '%s' "$resultados" | jq -R -s '
     split("\n") | map(select(length > 0)) | map(split("\t")) |
-    map({ accion: .[0], estado: .[1], liberado: (.[2] | tonumber), mensaje: (.[3] // "") })'
+    map({ accion: .[0], estado: .[1], liberado: (.[2] | tonumber), mensaje: (.[3] // ""),
+          reintentar: (.[4] == "true") })'
 
 # El aviso solo lo emite el modo desatendido. Desde un botón de Ajustes el resultado ya se ve en el
 # propio panel, y notificar además lo que acabas de pulsar es ruido.

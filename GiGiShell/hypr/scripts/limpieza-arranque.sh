@@ -123,6 +123,7 @@ done
 # repetirlo en el siguiente arranque no tendría sentido—, pero se anota como MANUAL: la cabecera de
 # Ajustes distingue las dos. Las limpiezas fila a fila de «Liberar espacio» solo tocan `ultimaManual`
 # (lo escribe AGS, `servicios/disco/registroLimpieza.ts`): una acción suelta no es el lote.
+previa=$ultima previaAuto=$ultimaAuto
 if ((forzar)); then ultimaManual=$ahora; else ultimaAuto=$ahora; fi
 ESTADO="${XDG_CACHE_HOME:-$HOME/.cache}/gigishell/limpieza.json"
 mkdir -p "${ESTADO%/*}"
@@ -135,6 +136,17 @@ printf '{"ultima":%d,"ultimaAuto":%d,"ultimaManual":%d}\n' "$ahora" "$ultimaAuto
 # que el usuario ve luego en el disco. Contar solo la primera es lo que hacía que «se han liberado
 # 24 GB» acabara siendo 13.
 salida=$("$LIMPIAR" "${lote[@]}" 2>/dev/null)
+
+# Una acción saltada porque yay, pacman o cargo estaban en marcha (`reintentar`, ver
+# `almacenamiento/src/en_uso.rs`) no cuenta como hecha: se devuelve la marca automática a como
+# estaba, y la siguiente sesión vuelve a intentarlo en vez de esperar un intervalo entero. No
+# reabre el bucle que evita poner la marca antes: solo pasa si de verdad hay algo compilando, y lo
+# ya limpiado sale casi gratis la segunda vez. Con `--ahora` no se toca: lo pediste tú, y Ajustes
+# ya te enseña qué fila se omitió y por qué. Sin `jq`: el JSON de Rust va compacto y el de bash con
+# espacio tras los dos puntos, y la expresión cubre los dos.
+if ((!forzar)) && [[ "$salida" =~ \"reintentar\":[[:space:]]*true ]]; then
+    printf '{"ultima":%d,"ultimaAuto":%d,"ultimaManual":%d}\n' "$previa" "$previaAuto" "$ultimaManual" > "$ESTADO"
+fi
 [[ "$notificar" == false ]] && exit 0
 IFS=$'\t' read -r borrado recuperado < <(
     jq -r '[ (map(select(.estado == "ok") | .liberado) | add // 0),
