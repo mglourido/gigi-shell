@@ -53,7 +53,7 @@ interface PowerConfig {
    *  monitor y sobrevive al proceso, así que si AGS muere con el ahorro puesto la pantalla
    *  se queda baja para siempre y, peor, `brightness.subscribe(saveDisplayConfig)` adopta
    *  ese valor impuesto como si lo hubiera elegido el usuario y borra el real. Es el mismo
-   *  fallo que documenta `applyScheduledBrightness` para las franjas horarias, y se cura
+   *  fallo que documentan los apuntes de franja (`franjasPendientes`) del horario, y se cura
    *  igual: con el apunte en disco, la restauración pendiente se cobra en el arranque
    *  siguiente. Va en este fichero y no en uno propio porque se reescribe entero de una vez. */
   brightnessBefore: number | null

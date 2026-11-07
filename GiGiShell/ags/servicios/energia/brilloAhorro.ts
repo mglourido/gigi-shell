@@ -38,7 +38,7 @@
 // y sobrevive al proceso. Si AGS muere con el ahorro puesto, la pantalla se queda baja
 // para siempre y además `brightness.subscribe(saveDisplayConfig)` adopta ese valor
 // impuesto como si lo hubiera elegido el usuario, borrando el real de `display.json`. Es
-// exactamente el fallo que documenta `applyScheduledBrightness` para las franjas horarias.
+// exactamente el fallo que documentan los apuntes de franja (`franjasPendientes`) del horario.
 // Con el apunte en `power-save/config.json`, la restauración pendiente se cobra en el
 // arranque siguiente (ver la rama de recuperación de `reconciliar`).
 import { brightness, brightnessSupported, applyBrightness } from "../pantalla/brightness"

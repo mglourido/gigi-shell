@@ -8,7 +8,7 @@ import { execAsync } from "ags/process"
 import GLib from "gi://GLib"
 import { buildMonitorSpecLua, monitorNeedsUpdate } from "./modes"
 import type { MonitorPref } from "./modes"
-import { activeSetpoint, activeRuleFor, normalizeRules, ruleKey } from "./schedule"
+import { normalizeRules, ruleKey, ultimoDisparo, type Channel } from "./schedule"
 import type { NightRule } from "./schedule"
 import { parseModetestCaps, parseEdidHdr } from "./caps"
 import { applyBrightness, brightnessSupported, softwareDim } from "./brightness"
@@ -32,17 +32,23 @@ export interface GlobalDisplay {
   nightRules: NightRule[]     // reglas hora→{luz nocturna, brillo}
 }
 
-/** Franja de brillo en curso, persistida. NO es configuración del usuario: es el apunte
- *  de "estoy dentro de esta franja y el brillo que había antes de entrar era este".
- *  Vive en disco porque la restauración al salir **cruza apagados**: una franja nocturna
- *  (00:00→07:00) se sale casi siempre con el PC apagado. Ver `applyScheduledBrightness`. */
-type BrightnessWindow = { key: string; before: number }
+/** Estado de la luz nocturna tal como lo escribe un disparo (el mismo que el interruptor). */
+type EstadoLuz = { active: boolean; temp: number }
+
+/** Apunte de una franja en curso, por canal: el estado de justo antes de que empezara y el
+ *  que puso ella. NO es configuración del usuario. Vive en disco porque el fin de la franja
+ *  **cruza apagados** (una franja 00:00→07:00 se sale casi siempre con el PC apagado) y el
+ *  brillo deja residuo físico en el monitor. Ver `dispararFin`. */
+type FranjaPendiente = {
+  temp?: { antes: EstadoLuz; aplicado: EstadoLuz }
+  brightness?: { antes: number; aplicado: number }   // 0..1
+}
 
 interface DisplayConfig {
   brightness: number
   nightLightActive: boolean
   nightLightTemp: number
-  brightnessWindow: BrightnessWindow | null
+  franjasPendientes: Record<string, FranjaPendiente>
   monitors: Record<string, MonitorPref>
   global: GlobalDisplay
 }
@@ -52,21 +58,45 @@ const DEFAULT_GLOBAL: GlobalDisplay = {
   nightRulesEnabled: false, nightRules: [],
 }
 
+// Apuntes de franjas en curso. Migra el formato anterior (`brightnessWindow`: un único
+// apunte de brillo con clave `inicio-fin|valor`), que sin migrar perdería el brillo previo
+// si la actualización llega con una franja nocturna a medias.
+function leerFranjasPendientes(c: any): Record<string, FranjaPendiente> {
+  const out: Record<string, FranjaPendiente> = {}
+  const esLuz = (v: any): v is EstadoLuz =>
+    !!v && typeof v.active === "boolean" && typeof v.temp === "number"
+  const esNum = (v: any): v is number => typeof v === "number" && Number.isFinite(v)
+  const raw = c?.franjasPendientes
+  if (raw && typeof raw === "object") {
+    for (const [clave, f] of Object.entries<any>(raw)) {
+      const p: FranjaPendiente = {}
+      if (f?.temp && esLuz(f.temp.antes) && esLuz(f.temp.aplicado)) p.temp = f.temp
+      if (f?.brightness && esNum(f.brightness.antes) && esNum(f.brightness.aplicado)) p.brightness = f.brightness
+      if (p.temp || p.brightness) out[clave] = p
+    }
+  }
+  const w = c?.brightnessWindow
+  if (w && typeof w.key === "string" && esNum(w.before)) {
+    const [clave, valor] = w.key.split("|")
+    const aplicado = Number(valor) / 100
+    if (clave && Number.isFinite(aplicado)) {
+      out[clave] = { ...out[clave], brightness: { antes: w.before, aplicado } }
+    }
+  }
+  return out
+}
+
 export function loadDisplayConfig(): DisplayConfig {
   try {
     const [ok, content] = GLib.file_get_contents(DISPLAY_CONFIG_PATH)
     if (ok) {
       const c = JSON.parse(new TextDecoder().decode(content))
       const g = c.global ?? {}
-      const w = c.brightnessWindow
       return {
         brightness: c.brightness ?? 0.5,
         nightLightActive: c.nightLightActive ?? false,
         nightLightTemp: c.nightLightTemp ?? 4500,
-        brightnessWindow:
-          w && typeof w.key === "string" && typeof w.before === "number"
-            ? { key: w.key, before: w.before }
-            : null,
+        franjasPendientes: leerFranjasPendientes(c),
         monitors: c.monitors ?? {},
         global: {
           ...DEFAULT_GLOBAL, ...g,
@@ -78,7 +108,7 @@ export function loadDisplayConfig(): DisplayConfig {
   } catch (e) { /* fichero ausente o corrupto → defaults */ }
   return {
     brightness: 0.5, nightLightActive: false, nightLightTemp: 4500,
-    brightnessWindow: null, monitors: {}, global: { ...DEFAULT_GLOBAL },
+    franjasPendientes: {}, monitors: {}, global: { ...DEFAULT_GLOBAL },
   }
 }
 
@@ -111,10 +141,7 @@ function writeDisplayConfig() {
       brightness: brightness.get(),
       nightLightActive: nightLightActive.get(),
       nightLightTemp: nightLightTemp.get(),
-      brightnessWindow:
-        lastBrightnessKey !== null && brightnessBeforeWindow !== null
-          ? { key: lastBrightnessKey, before: brightnessBeforeWindow }
-          : null,
+      franjasPendientes,
       monitors: monitorPrefs,
       global: {
         vrrMode: globalVrrMode.get(),
@@ -311,14 +338,12 @@ export function applyAllowTearing(on: boolean) {
   execAsync(["hyprctl", "eval", `hl.config({ general = { allow_tearing = ${on ? "true" : "false"} } })`]).catch(() => {})
 }
 
-// ── Luz nocturna + brillo: manual (fijo) + franjas (programadas) + maestro "ahora" ─
-// (1) Manual (`nightLightActive` + `nightLightTemp`): enciende ya con una temp.
-// (2) Franjas (`nightRulesEnabled` + `nightRules`): cada regla vale [start, end) y ahí
-//     dentro programa DOS canales independientes — luz nocturna y brillo. Una regla puede
-//     tocar uno, el otro o los dos. FUERA de su franja no pinta nada: la luz nocturna
-//     vuelve al manual y el brillo, al valor que tenía antes de entrar.
-// Precedencia (luz nocturna): dentro de una franja cálida manda el horario, SALVO que el
-// usuario haya tocado a mano en esa misma franja (override, abajo); fuera, el manual.
+// ── Luz nocturna + brillo: estado manual + programación horaria por disparos ─
+// El estado de la pantalla es UNO: el manual (`nightLightActive` + `nightLightTemp` y el
+// brillo). La programación horaria (`nightRulesEnabled` + `nightRules`) no sostiene nada:
+// a la hora de cada regla escribe ese mismo estado, como si el usuario pulsara el
+// interruptor o moviera el slider, y luego manda el usuario hasta el siguiente disparo.
+// Ver `schedule.ts` para los dos tipos de regla y la sección «Programación horaria» abajo.
 // `lastAppliedTemp === -1` ⇒ hyprsunset apagado.
 let lastAppliedTemp = -1
 
@@ -332,10 +357,6 @@ let lastAppliedGamma = 100
  *  paso la luz nocturna, que es un ajuste distinto que el usuario no ha pedido. */
 const TEMP_NEUTRA = 6000
 
-function nowHM() {
-  const d = GLib.DateTime.new_now_local()
-  return { h: d.get_hour(), m: d.get_minute() }
-}
 function rulesOn(): boolean { return nightRulesEnabled.get() && nightRules.get().length > 0 }
 
 // ¿La luz nocturna está encendida AHORA? Estado reactivo que consume el toggle
@@ -366,9 +387,8 @@ export const [luzPausadaPorJuego, setLuzPausadaPorJuego] = createState(false)
 
 // Escotilla: si el usuario toca la luz A MANO con la pausa vigente, gana él y la pausa
 // se retira hasta que cierre el juego. Sin esto, el interruptor de Quick Settings y el
-// slider de temperatura no harían nada durante una partida — el mismo bug que
-// `nightOverrideKey` arregló para las franjas horarias, y por eso comparten disparador
-// (`claimNightOverride`). No se persiste: caduca con la partida.
+// slider de temperatura no harían nada durante una partida. Lo levanta `tocarLuzAMano`.
+// No se persiste: caduca con la partida.
 let pausaJuegoIgnorada = false
 
 function hayJuegoAbierto(): boolean {
@@ -404,135 +424,166 @@ function pausadaPorJuego(): boolean {
   return pausaLuzNocturnaJuegos.get() && !pausaJuegoIgnorada && hayVentanaQuePausa()
 }
 
-// Override manual DENTRO de una franja. Sin esto, el horario ganaba SIEMPRE mientras
-// estuviera vigente (`baseTemp`), así que con una regla activa el interruptor y el slider
-// de temperatura no hacían nada: tocabas, se guardaba en disco, y la siguiente
-// reconciliación (el tick de 60 s, o el propio `applyNight` de la llamada) devolvía la
-// temperatura de la regla. El brillo no tenía el bug porque su canal solo se aplica AL
-// ENTRAR en la franja (ver `applyScheduledBrightness`), y por eso "el brillo sí funciona".
-//
-// Es el mismo trato que ya tenía el "desactivar hasta la próxima" del maestro de QS —
-// de hecho lo absorbe: apagar a mano es un override que pide "nada". Guarda la franja en
-// la que se tocó, así que caduca sola al cambiar de franja y entonces la programada se
-// vuelve a aplicar. Por sesión, como antes: no se persiste.
-let nightOverrideKey: string | null = null
-
-function overrideActive(): boolean {
-  return nightOverrideKey !== null && nightOverrideKey === scheduleKey()
-}
-function claimNightOverride() {
-  nightOverrideKey = scheduleKey()
-  // Tocar la luz durante una partida es decir "esta vez la quiero yo": se levanta la
-  // pausa hasta que el juego cierre (applyNight la repone).
+// El usuario acaba de tocar la luz a mano: durante una partida eso es decir "esta vez la
+// quiero yo", así que se levanta la pausa hasta que el juego cierre (applyNight la repone).
+function tocarLuzAMano() {
   if (pausadaPorJuego()) pausaJuegoIgnorada = true
 }
 
-// Identidad de la franja de LUZ NOCTURNA vigente (para detectar la transición que caduca
-// el override manual). Solo cuentan las reglas que hablan de la luz: entrar en una franja de solo
-// brillo no es cambiar de franja. Fuera de toda franja ⇒ clave fija.
-function scheduleKey(): string {
-  if (rulesOn()) {
-    const r = activeRuleFor(nowHM(), nightRules.get(), "temp")
-    return r ? ruleKey(r) : "none"
-  }
-  return "no-schedule"
-}
-
-// Temperatura que "quieren" horario/manual. Dentro de una franja que programe la luz manda
-// el horario; fuera de toda franja —o con override manual vigente—, el manual.
+// Temperatura que debe sostener hyprsunset: la del estado manual, que es también donde
+// escriben los disparos del horario. La pausa por juego va PRIMERO: es un veto sobre él.
 function baseTemp(): number | null {
-  // La pausa por juego va PRIMERO: no es una fuente más de temperatura, es un veto sobre
-  // todas ellas (franja, manual y el "apagar" de una regla dan igual mientras dure).
   if (pausadaPorJuego()) return null
-  if (!overrideActive() && rulesOn()) {
-    const t = activeSetpoint(nowHM(), nightRules.get(), "temp")
-    // Dentro de la franja manda el horario, TAMBIÉN cuando lo que pide es apagar (0): ahí
-    // se devuelve null sin mirar el manual. Caer al manual convertiría "apagar" en "no
-    // cambiar", que es la otra opción del selector y ya existe (`temp: null`, no entra aquí).
-    if (t != null) return t > 0 ? t : null
-  }
   if (nightLightActive.get()) return nightLightTemp.get()
   return null
 }
 
-// Brillo programado. Dos reglas, y ninguna es cosmética:
+// ── Programación horaria: disparos ───────────────────────────────────────────
+// Cada regla dispara a su hora UNA vez y escribe el estado (ver `schedule.ts`). Lo que el
+// usuario haga después se respeta hasta el siguiente disparo: el horario ya no se reimpone
+// cada minuto. Tres piezas:
 //
-// (1) Se aplica AL ENTRAR en la franja, no en cada reconciliación. Re-escribirlo cada
-//     60 s dejaría el slider (y las teclas XF86MonBrightness*) sin efecto: el horario te
-//     lo pisaría al minuto. `lastBrightnessKey` (franja + valor) distingue "he entrado en
-//     otra franja" de "sigo en la misma"; incluye el valor para que editar la regla
-//     vigente en Ajustes se vea al momento.
-// (2) Al SALIR de la franja se restaura el brillo que había antes de entrar. Sin esto, una
-//     franja de 10 a 11 seguiría "notándose" a la 1 de la tarde: nadie devolvería el brillo
-//     a su sitio, porque el brillo es un ajuste físico que no vuelve solo (a diferencia de
-//     la luz nocturna, que simplemente deja de forzarse y vuelve al manual).
-// (3) Y las dos mitades viven EN DISCO, no en RAM, porque la transición cruza apagados.
-//     El brillo es lo único aquí que deja **residuo físico**: la franja lo escribe en la
-//     firmware del monitor (DDC) y ahí se queda. Con una franja nocturna (00:00→07:00) la
-//     salida ocurre casi siempre con el PC apagado, así que el "restaurar al salir" no
-//     llegaba a ejecutarse NUNCA: el valor programado se quedaba grabado en el monitor, y
-//     al arrancar `detectDdc()` lo leía de vuelta y lo publicaba como si fuera la elección
-//     del usuario — `brightness.subscribe(saveDisplayConfig)` lo escribía en display.json y
-//     el brillo real quedaba borrado. Medido: brillo 73 → franja aplica 80 → apagar dentro
-//     → arrancar fuera = monitor a 80 y `"brightness":0.8` en disco, cada vez. Guardarlas
-//     hace que la restauración pendiente sobreviva al apagado y se cobre en el siguiente
-//     arranque; y de paso reiniciar AGS *dentro* de una franja ya no pierde el brillo previo
-//     (era limitación conocida) ni re-aplica la franja encima de un ajuste manual.
-let lastBrightnessKey: string | null = config.brightnessWindow?.key ?? null
-let brightnessBeforeWindow: number | null = config.brightnessWindow?.before ?? null   // 0..1
+// (1) `revisado`: minuto (epoch) hasta el que cada canal está repasado. El tick de 60 s
+//     dispara el último disparo de cada canal solo si cayó DESPUÉS de esa marca, así que
+//     cada disparo actúa una vez, y una suspensión que se salte varios aplica solo el
+//     último. `null` = sin repasar: al iniciar sesión (y al editar el horario) se reaplica
+//     el estado que el horario establece para esa hora. Por canal, porque el brillo espera
+//     al backend (el sondeo DDC tarda ~1 s).
+// (2) `franjasPendientes`: al empezar una franja se apunta, por canal, el estado de antes
+//     y el que puso. Al acabar, si el canal sigue como la franja lo dejó (el usuario no lo
+//     tocó), se devuelve lo de antes; si no, el fin no cambia nada. Es comparar estado y no
+//     interceptar cada slider/tecla, así que vale también para lo que llega por udev.
+// (3) El apunte vive EN DISCO: el brillo deja residuo físico (la franja lo graba en la
+//     firmware del monitor por DDC) y una franja nocturna se sale casi siempre con el PC
+//     apagado. Sin apunte, al arrancar `detectDdc()` leía el valor de la franja y se adoptaba
+//     como el del usuario (medido: brillo 73 → franja 80 → apagar dentro → arrancar fuera =
+//     monitor a 80 y `"brightness":0.8` en disco). Con él, el fin pendiente se cobra al
+//     arrancar, comparando con el brillo GUARDADO (`brilloActual`), no con esa lectura.
+const franjasPendientes: Record<string, FranjaPendiente> = config.franjasPendientes
+const revisado: Record<Channel, number | null> = { temp: null, brightness: null }
 
-/** La franja en la que nos pilló el apagado, congelada al cargar. `lastBrightnessKey` muta
- *  en cuanto se reconcilia, así que no sirve para preguntar "¿ya estábamos dentro de esta
- *  franja al arrancar?" — que es justo lo que necesita la restauración del tramo software. */
-const franjaAlArrancar: string | null = config.brightnessWindow?.key ?? null
+/** Margen al comparar brillos: el hardware redondea a enteros por ciento. */
+const MARGEN_BRILLO = 0.015
 
-// Nota para las reglas SIN final (`end: null`): no "salen" nunca por sí solas, así que
-// mientras una de ellas programe el brillo no hay restauración — la hay cuando otra regla
-// la releva (se aplica el nuevo valor) o cuando se borra/apaga el horario. Es lo que
-// significa "desde esta hora y hasta nuevo aviso"; la franja sigue siendo la forma de decir
-// "y luego devuélvemelo como estaba".
-function applyScheduledBrightness() {
-  const r = rulesOn() ? activeRuleFor(nowHM(), nightRules.get(), "brightness") : null
-
-  if (!r || r.brightness == null) {          // fuera de toda franja con brillo
-    if (lastBrightnessKey === null) return   // no hay franja en curso: nada que restaurar
-    // Sin backend la restauración se perdería en el vacío Y borraría el apunte, que es lo
-    // único que recuerda el brillo real. Se espera: `brightnessSupported.subscribe` reintenta.
-    if (!brightnessSupported.get()) return
-    if (brightnessBeforeWindow !== null) {
-      applyBrightness(brightnessBeforeWindow)   // se acabó la franja: devuélvelo a su sitio
-    }
-    lastBrightnessKey = null
-    brightnessBeforeWindow = null
-    saveDisplayConfig()                         // franja saldada: olvídala también en disco
-    return
-  }
-
-  const key = `${ruleKey(r)}|${r.brightness}`
-  if (key === lastBrightnessKey) return
-  // Sin backend confirmado, `applyBrightness` no llega al hardware — y en un sobremesa el
-  // sondeo DDC tarda ~1 s, así que al arrancar aún no lo hay. No se marca la franja como
-  // aplicada: initDisplayService reintenta en cuanto `brightnessSupported` se confirma.
-  if (!brightnessSupported.get()) return
-  // Solo se recuerda el brillo previo al ENTRAR (no al editar el valor de la franja en
-  // curso, que ya se aplicó sobre el suyo propio y machacaría el original).
-  if (lastBrightnessKey === null) brightnessBeforeWindow = brightness.get()
-  lastBrightnessKey = key
-  applyBrightness(r.brightness / 100)   // persiste solo: brightness.subscribe(saveDisplayConfig)
-  saveDisplayConfig()                   // recuerda la franja + el brillo previo por si apagas dentro
+function ahora() {
+  const d = GLib.DateTime.new_now_local()
+  return { hm: { h: d.get_hour(), m: d.get_minute() }, minuto: Math.floor(d.to_unix() / 60) }
+}
+function estadoLuz(): EstadoLuz { return { active: nightLightActive.get(), temp: nightLightTemp.get() } }
+function mismaLuz(a: EstadoLuz, b: EstadoLuz): boolean {
+  return a.active === b.active && (!a.active || a.temp === b.temp)
 }
 
-// Reconcilia los dos canales. Lo llaman el arranque, el tick de 60 s y todo cambio en
-// las reglas; los toggles manuales (que no tocan el brillo) se quedan en `applyNight`.
+// Hasta el primer repaso del brillo, el brillo "actual" es el guardado en disco: lo que
+// publica `detectDdc()` puede ser el residuo de una franja en el monitor (ver (3)) o el
+// suelo del tramo hardware si se apagó atenuado por software.
+let brilloInicialHecho = false
+function brilloActual(): number { return brilloInicialHecho ? brightness.get() : config.brightness }
+
+function dispararInicio(canal: Channel, regla: NightRule) {
+  const clave = ruleKey(regla)
+  const previa = franjasPendientes[clave]
+  if (canal === "temp") {
+    const t = regla.temp as number
+    const aplicado: EstadoLuz = t > 0 ? { active: true, temp: t } : { active: false, temp: nightLightTemp.get() }
+    // Reaplicar la misma franja (reiniciar dentro de ella) conserva el "antes" original.
+    if (regla.end != null) {
+      franjasPendientes[clave] = { ...previa, temp: { antes: previa?.temp?.antes ?? estadoLuz(), aplicado } }
+    }
+    setNightLightActive(aplicado.active); setNightLightTemp(aplicado.temp)
+  } else {
+    const aplicado = (regla.brightness as number) / 100
+    if (regla.end != null) {
+      franjasPendientes[clave] = { ...previa, brightness: { antes: previa?.brightness?.antes ?? brilloActual(), aplicado } }
+    }
+    applyBrightness(aplicado)
+  }
+}
+
+// Fin de una franja (o franja borrada / horario apagado): devuelve el canal a lo de antes si
+// nadie lo tocó, y olvida el apunte. Devuelve si cambió el brillo.
+function saldarFranja(canal: Channel, clave: string): boolean {
+  const f = franjasPendientes[clave]
+  let cambioBrillo = false
+  if (canal === "temp" && f?.temp) {
+    if (mismaLuz(estadoLuz(), f.temp.aplicado)) {
+      setNightLightActive(f.temp.antes.active); setNightLightTemp(f.temp.antes.temp)
+    }
+    delete f.temp
+  } else if (canal === "brightness" && f?.brightness) {
+    // Sin backend la restauración se perdería en el vacío Y borraría el apunte, que es lo
+    // único que recuerda el brillo real: se espera a tenerlo.
+    if (!brightnessSupported.get()) return false
+    if (Math.abs(brilloActual() - f.brightness.aplicado) < MARGEN_BRILLO) {
+      applyBrightness(f.brightness.antes)
+      cambioBrillo = true
+    }
+    delete f.brightness
+  }
+  if (f && !f.temp && !f.brightness) delete franjasPendientes[clave]
+  return cambioBrillo
+}
+
+/** Repasa un canal: si su último disparo aún no se aplicó, lo aplica. Devuelve si tocó algo. */
+function repasarCanal(canal: Channel): boolean {
+  const { hm, minuto } = ahora()
+  const desde = revisado[canal]
+  revisado[canal] = minuto
+  if (!rulesOn()) return false
+  const d = ultimoDisparo(hm, nightRules.get(), canal)
+  if (!d || (desde !== null && minuto - d.hace <= desde)) return false
+  if (d.tipo === "inicio") { dispararInicio(canal, d.regla); return true }
+  const clave = ruleKey(d.regla)
+  const habia = !!franjasPendientes[clave]?.[canal]
+  saldarFranja(canal, clave)
+  return habia
+}
+
+// El brillo, solo con backend. Su PRIMER repaso es además el que decide si se restaura el
+// tramo software guardado (ver `initDisplayService`): si el horario no aplicó nada, el valor
+// bueno es el del disco.
+function repasarBrillo(): boolean {
+  if (!brightnessSupported.get()) return false
+  if (brilloInicialHecho) return repasarCanal("brightness")
+  const aplicado = repasarCanal("brightness")
+  brilloInicialHecho = true
+  // Restaurar el tramo SOFTWARE del brillo guardado, salvo que el horario acabe de fijar
+  // otro. Es la mitad que el hardware no puede recordar: el gamma lo sostiene `hyprsunset`,
+  // que muere con la sesión, mientras que el monitor sí conserva su valor DDC. Al arrancar
+  // por debajo del suelo, `detectDdc()` lee el mínimo del panel y publica el SUELO (0.35):
+  // sin esto la atenuación se perdía y el slider saltaba hacia arriba en cada arranque
+  // (medido: gamma 39 → reiniciar → 100). En la zona hardware manda el monitor.
+  if (!aplicado && config.brightness < DIM_FLOOR) applyBrightness(config.brightness)
+  return aplicado
+}
+
+// Repasa los dos canales y reconcilia. Lo llaman el arranque, el tick de 60 s y todo cambio
+// en el horario.
 function applyRules() {
+  const luz = repasarCanal("temp")
+  repasarBrillo()   // el brillo se guarda solo: brightness.subscribe(saveDisplayConfig)
+  if (luz) saveDisplayConfig()
   applyNight()
-  applyScheduledBrightness()
+}
+
+// Cierra los apuntes que ya no tienen un fin que los vaya a saldar: los de reglas borradas o
+// que han dejado de programar ese canal (`seguir` dice cuáles siguen), o todos al apagar el
+// horario. Cuentan como el fin de su franja.
+function saldarHuerfanas(seguir: (clave: string, canal: Channel) => boolean) {
+  let tocado = false
+  for (const clave of Object.keys(franjasPendientes)) {
+    for (const canal of ["temp", "brightness"] as Channel[]) {
+      if (!franjasPendientes[clave]?.[canal] || seguir(clave, canal)) continue
+      saldarFranja(canal, clave)
+      tocado = true
+    }
+  }
+  if (tocado) saveDisplayConfig()
 }
 
 // Reconcilia hyprsunset con el estado deseado (arranca / cambia temp / apaga) y
-// publica `nightOn`. El descarte se limpia al cambiar de franja de horario.
+// publica `nightOn`.
 function applyNight() {
-  if (nightOverrideKey !== null && nightOverrideKey !== scheduleKey()) nightOverrideKey = null
   // Cerrada la ventana que retenía, la escotilla manual caduca: la próxima vuelve a pausar.
   if (!hayVentanaQuePausa()) pausaJuegoIgnorada = false
   setLuzPausadaPorJuego(pausadaPorJuego())
@@ -567,29 +618,23 @@ function applyNight() {
   lastAppliedGamma = gamma
 }
 
-// Maestro de QuickSettings: apaga la luz actual "hasta la próxima" (apaga la fija
-// y descarta la franja de horario en curso) o la enciende (fija). El horario sigue
-// activo: la siguiente regla la volverá a encender.
+// Maestro de QuickSettings: apaga o enciende la luz ahora. El horario sigue activo: el
+// siguiente disparo volverá a escribir el estado.
 export function toggleNightNow() {
   setNightLightActive(!nightOn.get())
-  claimNightOverride()   // en esta franja manda el usuario (encienda o apague)
+  tocarLuzAMano()
   saveDisplayConfig(); applyNight()
 }
 
-// (1) Toggle manual — enciende/apaga la luz nocturna fija ahora. También reclama el
-// override: si no, con una franja vigente el interruptor no haría nada visible.
+// (1) Toggle manual — enciende/apaga la luz nocturna ahora.
 export function setNightLightManual(on: boolean) {
-  setNightLightActive(on); claimNightOverride(); saveDisplayConfig(); applyNight()
+  setNightLightActive(on); tocarLuzAMano(); saveDisplayConfig(); applyNight()
 }
 
 // Temperatura manual (slider). Aplica en vivo con debounce si el manual manda.
 let tempDebounce: number | null = null
 export function setManualTemp(t: number) {
-  // Mover el slider con la luz ENCENDIDA es pedir "quiero esta temperatura ahora", venga
-  // de donde venga la que hay: se adopta como manual y se reclama la franja. Con la luz
-  // apagada solo se está editando el valor manual para más tarde — no se enciende nada ni
-  // se pisa una franja que ni siquiera está tocando la luz.
-  if (nightOn.get()) { setNightLightActive(true); claimNightOverride() }
+  // Con la luz apagada solo se edita el valor para más tarde: no se enciende nada.
   setNightLightTemp(t); saveDisplayConfig()
   if (tempDebounce !== null) GLib.source_remove(tempDebounce)
   tempDebounce = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => { applyNight(); tempDebounce = null; return GLib.SOURCE_REMOVE })
@@ -598,18 +643,29 @@ export function setManualTemp(t: number) {
 // (2) Toggle de reglas — activa/desactiva la programación por horas. Al activar sin reglas
 // se añade una franja por defecto (cálida de 22:00 a 07:00). Sin brillo: programarlo es
 // opt-in, no algo que aparezca solo al encender el horario.
+// Encender el horario aplica al momento el estado que establece para esta hora (como al
+// iniciar sesión); apagarlo cierra las franjas en curso como si hubieran terminado.
 export function setNightRulesEnabled(on: boolean) {
-  nightOverrideKey = null   // tocar el horario devuelve el mando al horario
   setNightRulesEnabledState(on)
   if (on && nightRules.get().length === 0) {
     setNightRules([{ start: "22:00", end: "07:00", temp: 3500, brightness: null }])
   }
-  saveDisplayConfig(); applyRules()
+  if (!on) saldarHuerfanas(() => false)
+  reaplicarHorario()
 }
 
+// Editar el horario se ve al momento: se reaplica el estado que establece para esta hora.
+// Antes se cierran las franjas en curso que la edición deja sin fin (borradas, o que han
+// dejado de programar ese canal; cambiar sus horas también cambia su clave).
 export function setNightRulesAndSave(rules: NightRule[]) {
-  nightOverrideKey = null
-  setNightRules(rules); saveDisplayConfig(); applyRules()
+  setNightRules(rules)
+  saldarHuerfanas((clave, canal) => rules.some(r => ruleKey(r) === clave && r[canal] != null))
+  reaplicarHorario()
+}
+
+function reaplicarHorario() {
+  revisado.temp = null; revisado.brightness = null
+  saveDisplayConfig(); applyRules()
 }
 
 // ── Re-aplicación al arranque + arranque del scheduler ───────────────────────
@@ -618,15 +674,14 @@ export function initDisplayService() {
   if (initialized) return
   initialized = true
 
-  // Luz nocturna: restaurar estado (manual + reglas) y reconciliar hyprsunset. El brillo
-  // guardado NO se restaura aquí (brightness.ts ya lee el real del hardware al arrancar),
-  // pero sí se aplica el de la franja horaria vigente, si alguna regla lo programa: el
-  // horario describe cómo debe estar la pantalla a esta hora, también recién iniciada.
+  // Restaurar el estado guardado y reaplicar el que el horario establece para esta hora
+  // (`revisado` empieza en null). El brillo guardado NO se restaura aquí —brightness.ts lee
+  // el real del hardware—, salvo el tramo software (ver `repasarBrillo`).
   setNightLightActive(config.nightLightActive)
   setNightLightTemp(config.nightLightTemp)
   applyRules()
   brightness.subscribe(saveDisplayConfig)
-  brightnessSupported.subscribe(applyScheduledBrightness)   // backend DDC: llega ~1 s tarde
+  brightnessSupported.subscribe(() => { if (repasarBrillo()) saveDisplayConfig() })   // DDC: ~1 s tarde
 
   // Pausa por juego. NO se llama a `iniciarRegistroJuegos()` desde aquí a propósito:
   // initDisplayService corre al importar QuickSettings (t=0) y arrancar el registro ahí
@@ -668,34 +723,6 @@ export function initDisplayService() {
     })
   })
 
-  // Restaurar el tramo SOFTWARE del brillo guardado. Es la mitad que el hardware no puede
-  // recordar: el gamma lo sostiene `hyprsunset`, que muere con la sesión, mientras que el
-  // monitor sí conserva su propio valor DDC en la firmware. O sea que al arrancar con el
-  // brillo por debajo del suelo, `detectDdc()` lee el mínimo del panel y publica el SUELO
-  // (0.35) — la atenuación se perdía y el slider daba un salto hacia arriba en cada
-  // arranque. Es el reverso exacto del residuo físico que documenta `applyScheduledBrightness`:
-  // allí el hardware recuerda de más, aquí el software no recuerda nada.
-  // Solo la zona software: en la zona hardware el valor real del monitor sigue mandando.
-  if (config.brightness < DIM_FLOOR) {
-    let restaurado = false
-    const restaurar = () => {
-      if (restaurado || !brightnessSupported.get()) return
-      restaurado = true
-      // Se cede el mando a la franja SOLO si va a aplicar algo, y eso pasa únicamente cuando
-      // es NUEVA. Una franja solo actúa AL ENTRAR (ver `applyScheduledBrightness`): si al
-      // arrancar ya estábamos dentro de la misma (su clave coincide con el apunte del disco),
-      // no va a re-aplicar nada, y lo que el usuario dejó a mano dentro de ella es el valor
-      // bueno. Medido: con la franja 00:00-07:00→80 vigente, ceder el mando sin más dejaba el
-      // brillo sin restaurar en cada arranque — gamma a 100 y el slider saltando al suelo.
-      const r = rulesOn() ? activeRuleFor(nowHM(), nightRules.get(), "brightness") : null
-      const claveActiva = r && r.brightness != null ? `${ruleKey(r)}|${r.brightness}` : null
-      if (claveActiva !== null && claveActiva !== franjaAlArrancar) return
-      applyBrightness(config.brightness)
-    }
-    restaurar()                            // backlight: el backend ya está listo
-    brightnessSupported.subscribe(restaurar)   // ddc: se confirma ~1 s más tarde
-  }
-
   // Re-aplicar preferencias por monitor (solo lo que difiera, para no pelear con
   // el comodín ni parpadear). Con gigishell/pantalla.lua leyendo display.json esto ya
   // no debería tener nada que hacer — se queda como red por si la spec `desc:` no
@@ -730,7 +757,7 @@ export function initDisplayService() {
   if (g.vrrMode !== 0) execAsync(["hyprctl", "eval", `hl.config({ misc = { vrr = ${g.vrrMode} } })`]).catch(() => {})
   if (g.allowTearing) execAsync(["hyprctl", "eval", "hl.config({ general = { allow_tearing = true } })"]).catch(() => {})
 
-  // Reconciliación cada 60 s (para que las reglas cambien de franja: temp y brillo)
+  // Repaso cada 60 s: aplica los disparos del horario que hayan llegado (temp y brillo)
   GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => { applyRules(); return GLib.SOURCE_CONTINUE })
 
   // Capacidades de hardware (para ocultar ajustes no soportados por monitor)

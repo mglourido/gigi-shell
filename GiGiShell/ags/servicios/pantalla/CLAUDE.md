@@ -6,77 +6,53 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../CLAUDE.md
   - **Profundidad y gestión de color: tres fallos silenciosos medidos (selector de Ajustes > Pantalla).** (1) `applyPatch` arma la pref con el patch + el monitor en vivo, y `bitdepth`/`cm`/`sdrBrightness`/`sdrSaturation` **no salen del monitor**: sin conservarlos de `monitorPrefs`, cambiar la escala o el modo mandaba la spec sin `bitdepth` (Hyprland vuelve a 8 bits) y `display.json` lo olvidaba también para el siguiente arranque. (2) `monitorPrefs` es un objeto plano: el selector solo se repintaba si cambiaba `monitors()`, y la firma de `refreshMonitors` no incluía `currentFormat`, así que elegir 10 bits a veces no se reflejaba; ahora `saveMonitorPref` sube `revisionPrefs` y el selector lo lee. (3) `hyprctl monitors -j` **no trae `bitdepth`**, solo `currentFormat` (`XRGB2101010` = 10 bits): `monitorNeedsUpdate` leía `bitdepth ?? 8` y repetía el modeset en cada arranque de AGS con una pref de 10 bits. Un campo de color nuevo en `MonitorPref` debe añadirse a la lista de conservados de `applyPatch`.
   - **El VRR es un único ajuste global (`misc:vrr`), sin interruptor ni clave por monitor, a propósito.** En `ensureVRR` una regla de monitor con `vrr` pisa a `misc:vrr`, y `CMonitorRule::compare` (0.57) ignora ese campo: con los dos controles, el selector no hacía nada y un cambio solo de VRR no se aplicaba ni con `hyprctl reload`. Por eso ni `buildMonitorSpecLua` ni `pantalla.lua` emiten `vrr`; no lo reintroduzcas.
   - **VRR global**: 0 desactivado, 1 activado, 2 solo pantalla completa, 3 solo videojuegos (`fullscreen_game`, lo decide Hyprland por el tipo de contenido que anuncia la app). `hypr/gigishell/gaming.lua` lo relee de `display.json` y acepta 0-3.
-  - **Reglas horarias (`schedule.ts`, puro y testeado) — dos canales independientes, no uno.** Las reglas
-    de `global.nightRules` (Ajustes > Pantalla > "Programación horaria") son
-    `{ start, end, temp, brightness }` y programan **luz nocturna Y brillo**, cada uno con `null` =
-    "esta regla no toca ese canal" (`activeSetpoint` resuelve canal a canal). Ese `null` es la pieza clave:
-    sin él, una regla de solo brillo tendría que traer `temp` y apagaría la luz nocturna, que es lo
-    contrario de "por separado". Solapes: gana la que **empezó más tarde** (y a igualdad, la última
-    de la lista), así una franja corta puede meterse dentro de otra larga y devolverle el mando al salir.
-  - **`end` es OPCIONAL: hay dos formas de escribir una regla, y la de `end: null` no es un descuido.**
-    Con `end` es una **franja** `[start, end)` (fin exclusivo, cruza medianoche): fuera de ella la regla no
-    existe. Con `end: null` es un **"desde"**: `isRuleActive` la da por vigente siempre, y quién manda lo
-    decide el desempate por antigüedad de `activeRuleFor` — o sea que rige desde su hora hasta que otra
-    regla del mismo canal la releve (que es como se encadenan: `22:00 → 3500 K` + `07:00 → apagar`).
-    Existe porque obligar a poner un final para decir "a las 22:00 ponla cálida" era la queja del usuario.
-    **Ojo con la trampa histórica**: el modelo original eran SOLO puntos de cambio encadenados
-    (`{time, temp}`) y eso produjo un fallo reportado — con una única regla "22:00 → encender", a las
-    **19:00** la luz se encendía, porque la última regla que había pasado era la de las 22:00 *de ayer*.
-    Sigue siendo lo que hace un "desde" solitario; la diferencia es que ahora es una **elección visible por
-    regla** (el selector «hasta las» / «en adelante» de su fila), no el único modelo posible, y que la
-    franja está ahí para acotar. Al añadir cosas aquí, no conviertas franjas en "desde" ni al revés a
-    espaldas del usuario. `normalizeRules` **migra** el formato viejo a franjas (encadena cada `time` hasta
-    el siguiente y tira los terminadores): `22:00 on + 07:00 off` ⇒ franja `22:00 → 07:00`. Una regla sin
-    `end` legible **no se descarta**: se guarda como "desde"; lo que la tira es no tener `start`.
-    `ruleKey(r)` (`start-end`, con `∞` si no hay final) es la identidad que usan las claves de
-    `service.ts` — úsala en vez de interpolar `${r.start}-${r.end}` a mano, o una franja y un "desde"
-    con el mismo inicio compartirían clave.
-  - **El brillo se aplica AL ENTRAR en la franja y se RESTAURA al salir.** Las dos mitades son necesarias:
-    (1) el tick de 60 s de `applyRules()` re-aplica la temperatura (estado que hyprsunset debe sostener)
-    pero **no** el brillo — reescribirlo cada minuto dejaría sin efecto el slider y las teclas
-    `XF86MonBrightness*` dentro de la franja; `lastBrightnessKey` (`franja|valor`) distingue "he entrado en
-    otra franja" de "sigo en la misma", e incluye el valor para que editar la franja vigente se vea al
-    momento. (2) al salir se devuelve `brightnessBeforeWindow` (el brillo de justo antes de entrar, guardado
-    solo en la transición de entrada), porque el brillo es un ajuste **físico que no vuelve solo**: sin eso,
-    una franja de 10 a 11 se seguiría notando a la 1 de la tarde. La luz nocturna no necesita restauración
-    —basta con dejar de forzarla—, y por eso su "Apagar" no lleva apunte de ningún tipo (ver el punto
-    siguiente).
-    Al arrancar dentro de una franja sí se aplica su brillo, pero **esperando a que haya backend**: en un
-    sobremesa el sondeo DDC tarda ~1 s, así que `applyScheduledBrightness()` no marca la franja como
-    aplicada mientras `brightnessSupported` sea falso, y `initDisplayService` reintenta al confirmarse (si
-    no, el primer intento se perdería en el vacío). En la UI las filas de brillo se ocultan con
-    `brightnessSupported`, como el slider.
-  - **(3) Las dos mitades se PERSISTEN (`brightnessWindow` en `display.json`), porque la transición cruza
-    apagados.** `lastBrightnessKey`/`brightnessBeforeWindow` eran solo-RAM, y el brillo es lo único aquí que
-    deja **residuo físico**: la franja lo graba en la firmware del monitor por DDC y ahí se queda. Una franja
-    nocturna (el caso real: `00:00→07:00`, brillo 80) **se sale casi siempre con el PC apagado** —estás
-    durmiendo—, así que la restauración del punto (2) no llegaba a ejecutarse **nunca**: el 80 se quedaba
-    grabado en el monitor y, al arrancar, `detectDdc()` lo leía de vuelta y lo publicaba como si fuera la
-    elección del usuario; `brightness.subscribe(saveDisplayConfig)` lo escribía en `display.json` y el brillo
-    real quedaba **borrado**. Reproducido con un A/B: brillo 73 → la franja aplica 80 → apagar dentro →
-    arrancar fuera = monitor a 80 y `"brightness":0.8` en disco, cada vez ("el brillo vuelve obligatoriamente
-    a 80"). Es el mismo patrón que el bug de Bluetooth de `modulos/ajustes-rapidos/CLAUDE.md`: **estado que debe sobrevivir al proceso
-    viviendo en RAM, y un valor impuesto por el sistema adoptado como si lo hubiera elegido el usuario.**
-    Con el apunte en disco la restauración pendiente **se cobra en el siguiente arranque**, y de paso se cae
-    la limitación conocida (reiniciar AGS *dentro* de una franja ya no pierde el brillo previo ni re-aplica
-    la franja encima de un ajuste manual: la `key` ya coincide). Ojo al tocar la rama de salida: va **detrás
-    de `brightnessSupported`**, porque sin backend la restauración se perdería en el vacío *y* borraría el
-    apunte, que es lo único que recuerda el brillo real.
-  - **La luz nocturna NO comparte este fallo, y no es casualidad**: no deja residuo. Es un proceso
-    (`hyprsunset`) que al apagar el PC simplemente deja de existir, así que "restaurar" es no arrancarlo —
-    por eso su canal **no necesita apunte**, ni siquiera para "Apagar". La franja tampoco pisa
-    `nightLightTemp` (son canales separados en `baseTemp()`). Si algún día se persiste algo suyo, el
-    candidato sería `nightDismissed`, que hoy es por sesión a propósito.
-  - **"Apagar" (`temp: 0`) no es redundante con "No cambiar" (`temp: null`), y la diferencia está entera
-    en `baseTemp()`.** `null` no entra siquiera en la resolución del canal (`activeRuleFor` lo salta), así
-    que manda el interruptor manual; `0` sí es una regla vigente —puede ganar un solape como cualquier
-    otra— y devuelve `null` **sin caer al manual**, o sea que lo pisa mientras dure la franja. Ese fallback
-    es el error fácil al tocar esto: con él, "Apagar" se comportaría exactamente como "No cambiar" y la
-    opción no serviría de nada. Es lo que permite "de 9 a 18 apagada aunque la deje encendida a mano", que
-    antes no se podía expresar. Sigue por debajo del override manual de QS (encenderla a mano dentro de una
-    franja que apaga funciona, y caduca al cambiar de franja). Ojo con `normalizeRules`: el `0` del formato
-    **viejo** era un terminador de la cadena de puntos de cambio, no un "apagar", y se sigue leyendo así
-    (`tempLegacy`) — si no, cada terminador migrado se convertiría en una franja que apaga a la fuerza.
+  - **Reglas horarias (`schedule.ts`, puro y testeado): son DISPAROS, no un estado sostenido (issue #339).**
+    Las reglas de `global.nightRules` (Ajustes > Pantalla > "Programación horaria") son
+    `{ start, end, temp, brightness }` y programan **luz nocturna Y brillo**, cada canal con `null` =
+    "esta regla no toca ese canal". A su hora, una regla **escribe el estado manual** —`nightLightActive`/
+    `nightLightTemp` y el brillo, como si el usuario pulsara el interruptor o moviera el slider— y a partir
+    de ahí manda el usuario hasta el siguiente disparo. `baseTemp()` ya solo mira el estado manual (y el
+    veto de la pausa por juego): no hay override ni resolución "regla vigente" en cada reconciliación.
+    **El modelo anterior era el fallo**: una regla «en adelante» (`end: null`) se daba por vigente siempre,
+    así que una sola «desde 22:00» mandaba las 24 h (luz encendida a las 19:00), y el horario se reimponía
+    cada minuto contra lo que se hiciera a mano (el `nightOverrideKey` era un parche para eso).
+  - **Dos formas de regla.** «En adelante» (`end: null`): un único disparo a `start`; lo que pone se queda
+    hasta otro disparo del mismo canal o la mano. Franja (`end` con hora): disparo de inicio y disparo de
+    fin; al **fin** cada canal vuelve al estado de justo antes de empezar **solo si el usuario no lo tocó**
+    durante la franja — si lo tocó, el fin no cambia nada (decisión del usuario en el issue). "Tocado" se
+    decide **comparando estado**, no interceptando sliders/teclas: el apunte guarda lo que puso la franja
+    (`aplicado`) y al fin se compara con el estado actual (brillo con margen de 0.015, porque el hardware
+    redondea a enteros). Así también cuenta un cambio que llegue por udev o por el respaldo `brillo/`.
+    `ultimoDisparo()` da, por canal, el último disparo antes de ahora; en el mismo minuto **un inicio gana a
+    un fin** (franjas encadenadas `07-22` + `22-07` no restauran nada a las 22:00). `activeRuleFor`/
+    `activeSetpoint` (lo que enseña la UI como «vigente») son "la regla del último disparo si fue un inicio".
+    `ruleKey(r)` (`start-end`, con `∞` sin final) es la clave de los apuntes: úsala en vez de interpolar.
+    `normalizeRules` **migra** el formato viejo de puntos de cambio (`{time, temp}`) a franjas encadenadas;
+    ahí el `0` era un terminador, no un "apagar" (`tempLegacy`). Una regla sin `end` legible se guarda como
+    «en adelante»; lo que la tira es no tener `start`.
+  - **Cada disparo actúa UNA vez, y al iniciar sesión se REAPLICA el estado de esa hora.** `revisado` guarda,
+    por canal, el minuto (epoch) hasta el que está repasado; el tick de 60 s dispara el último disparo solo
+    si cayó después. Una suspensión que se salte varios aplica solo el último. `revisado = null` (arranque,
+    editar el horario, encenderlo) ⇒ se reaplica el último disparo aunque el usuario lo hubiera cambiado
+    antes de reiniciar — lo pidió así: "al entrar se pone el brillo y luz nocturna del estado establecido
+    para esa hora". Apagar el horario o borrar una franja en curso la **salda** como si hubiera terminado
+    (`saldarHuerfanas`): sin eso su apunte quedaría sin fin que lo cobre.
+  - **Los apuntes de franja (`franjasPendientes`) viven EN DISCO, porque el fin cruza apagados.** El brillo
+    deja **residuo físico**: la franja lo graba en la firmware del monitor por DDC. Una franja nocturna
+    (`00:00→07:00`, brillo 80) se sale casi siempre con el PC apagado; con el apunte solo en RAM, al arrancar
+    `detectDdc()` leía 80 y `brightness.subscribe(saveDisplayConfig)` lo adoptaba como el brillo del usuario
+    (medido: brillo 73 → franja 80 → apagar dentro → arrancar fuera = monitor a 80 y `"brightness":0.8` en
+    disco). Con el apunte en disco el fin pendiente se cobra en el siguiente arranque, y **ese primer repaso
+    compara con el brillo GUARDADO (`config.brightness`), no con la lectura del hardware** (`brilloActual`),
+    que puede ser justo ese residuo. Reiniciar dentro de una franja conserva el "antes" original del apunte.
+    `leerFranjasPendientes` migra el `brightnessWindow` del formato anterior. Mismo patrón que el bug de
+    Bluetooth de `modulos/ajustes-rapidos/CLAUDE.md`: estado que debe sobrevivir al proceso viviendo en RAM.
+  - **El brillo espera al backend**: en un sobremesa el sondeo DDC tarda ~1 s, así que `repasarBrillo()` no
+    hace nada (ni marca `revisado.brightness`) mientras `brightnessSupported` sea falso, e
+    `initDisplayService` reintenta al confirmarse. Saldar un apunte de brillo sin backend tampoco se hace:
+    la restauración se perdería y borraría el apunte. En la UI las filas de brillo se ocultan igual.
+  - **"Apagar" (`temp: 0`) no es "No cambiar" (`temp: null`)**: `0` es un disparo que apaga la luz;
+    `null` no dispara nada en ese canal (`ultimoDisparo` lo salta).
   - **Pausa por juego (`pausaLuzNocturnaJuegos`, Ajustes > Juegos > Pantalla; activada por defecto, como congelar tareas).**
     Con la preferencia activa, mientras `clientesJuego` (el registro de `servicios/juegos/`) no esté
     vacío, `baseTemp()` devuelve `null` **antes de mirar nada más**: la pausa no es otra fuente de
@@ -86,9 +62,8 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../CLAUDE.md
     **foco**, al revés que `lib/gaming-gate.sh` — con el foco, cada alt-tab al navegador teñiría la pantalla
     de naranja y lo quitaría al volver, y el usuario pidió "hasta que salga del juego", que es la vida de la
     ventana; (2) tocar la luz **a mano** durante la partida levanta la pausa hasta que el juego cierre
-    (`pausaJuegoIgnorada`, por sesión, disparada desde `claimNightOverride`) — sin eso el interruptor de QS
-    y el slider de temperatura no harían nada mientras juegas, exactamente el bug que `nightOverrideKey`
-    arregló para las franjas; y (3) `initDisplayService` **se suscribe a `clientesJuego` pero NO llama a
+    (`pausaJuegoIgnorada`, por sesión, disparada desde `tocarLuzAMano`) — sin eso el interruptor de QS
+    y el slider de temperatura no harían nada mientras juegas; y (3) `initDisplayService` **se suscribe a `clientesJuego` pero NO llama a
     `iniciarRegistroJuegos()`**: corre al importar QuickSettings (t=0) y arrancar ahí el registro metería el
     parseo de los ~161 `.desktop` en el pintado inicial, que es justo lo que `app.ts` aparta a los 4 s. Con
     `escanerJuegos` apagado la lista está vacía para siempre y la pausa no se dispara nunca, así que su
@@ -190,17 +165,14 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../CLAUDE.md
     colgando **solo** de la temperatura. La suscripción lleva debounce de 120 ms — arrastrar por
     la zona baja emite un cambio por píxel y cada uno es un `hyprctl`.
   - **El tramo software SE RESTAURA DESDE DISCO al arrancar, y es obligatorio**: es el reverso
-    exacto del residuo físico que documenta `applyScheduledBrightness`. Allí el hardware recuerda
+    exacto del residuo físico que documentan los apuntes de franja (`franjasPendientes`). Allí el hardware recuerda
     **de más** (graba el valor DDC en su firmware); aquí el software **no recuerda nada** —
     `hyprsunset` muere con la sesión—, así que al arrancar por debajo del suelo `detectDdc()` lee
     el mínimo del panel y publica el **suelo** (0.35): la atenuación se perdía y el slider saltaba
     hacia arriba en cada arranque. Medido: gamma 39 → reiniciar → gamma 100.
-  - **La guarda de esa restauración pregunta si la franja es NUEVA, no si hay franja.** Una franja
-    de brillo solo aplica **al entrar**; si al arrancar ya estábamos dentro de la misma (su clave
-    coincide con `franjaAlArrancar`, congelada al cargar porque `lastBrightnessKey` muta al
-    reconciliarse), no va a re-aplicar nada y lo que el usuario dejó a mano dentro de ella es el
-    valor bueno. Ceder el mando sin esa distinción dejaba el brillo **sin restaurar nunca** con la
-    franja 00:00-07:00 vigente — que es justo la franja en la que se usa el tramo oscuro.
+  - **Esa restauración solo se hace si el horario no acaba de fijar otro brillo** en el primer repaso
+    (`repasarBrillo`): al arrancar se reaplica el último disparo, y si es el inicio de una franja o el
+    fin de una con apunte, ese valor manda.
   - **`componerBrillo()` es la inversa PARCIAL**: reconstruye el compuesto desde una lectura del
     hardware (`detectDdc`, watcher de udev), pero solo conoce su tramo — el gamma no se lee del
     panel. Por eso `adoptarLecturaHardware()` devuelve `null` ante un 0 con atenuación activa: ese

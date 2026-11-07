@@ -20,9 +20,9 @@
       "hasta": "hasta las",
       "enAdelante": "en adelante",
       "vigente": "vigente",
-      "tooltipVigente": "Rige ahora mismo: {{canales}}",
+      "tooltipVigente": "Es la última regla que ha fijado: {{canales}}",
       "sinFranjas": "Ahora ({{hora}}) · sin reglas vigentes: manda el ajuste manual de arriba",
-      "resumen": "Ahora ({{hora}}) · luz nocturna: {{luz}} · brillo: {{brillo}}",
+      "resumen": "Ahora ({{hora}}) · el horario fijó la luz nocturna: {{luz}} · brillo: {{brillo}}",
       "luzApagada": "apagada",
       "pausadaPorJuego": "En pausa: hay abierto un juego (o una app de tu lista) y la luz nocturna está retenida hasta que lo cierres (Ajustes > Juegos)."
     },
