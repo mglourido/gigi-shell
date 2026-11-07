@@ -93,9 +93,9 @@
       "descripcion": "Calla el sonido de las notificaciones normales durante la suspensión falsa. No afecta a las alertas del reloj, que se controlan justo debajo."
     },
     "silenciarReloj": {
-      "titulo": "Silenciar alarmas, temporizador y cronómetro",
-      "descripcion": "Apagado (lo normal), las alertas del reloj SUENAN durante la suspensión falsa aunque el No molestar esté puesto: es la única forma de que un despertador programado te despierte con el equipo desatendido.",
-      "aviso": "Activado, una alarma o un temporizador que venzan durante la suspensión falsa no sonarán. Solo verás el aviso al volver."
+      "titulo": "Silenciar alarmas, avisos del calendario, temporizador y cronómetro",
+      "descripcion": "Apagado (lo normal), las alertas del reloj y los avisos de los eventos del calendario SUENAN durante la suspensión falsa aunque el No molestar esté puesto: es la única forma de que un despertador programado te despierte con el equipo desatendido.",
+      "aviso": "Activado, una alarma, un aviso del calendario o un temporizador que venzan durante la suspensión falsa no sonarán. Solo verás el aviso al volver."
     },
     "leds": {
       "titulo": "Apagar la retroiluminación del teclado y los LEDs",
