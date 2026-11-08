@@ -346,6 +346,7 @@ class Registro:
         self.dir = os.path.join(xdg, "gigishell-anclaje")
         self.clave = f"{time.monotonic_ns():020d}-{os.getpid()}"
         self.ruta = os.path.join(self.dir, self.clave + ".json")
+        self.pid_temprano = None
         try:
             os.makedirs(self.dir, exist_ok=True)
             self.publicar(None, None)
@@ -363,7 +364,36 @@ class Registro:
         except OSError:
             pass
 
+    def anclar_temprano(self, pid, ws):
+        """Pide al compositor que ancle él las ventanas POSTERIORES de `pid`.
+
+        La regla del exec solo cubre la primera ventana; las siguientes (Writer
+        tras la splash de LibreOffice, las tardías de Steam) nacerían en el
+        escritorio activo y este observador las movería tarde, con parpadeo.
+        `gigishell/anclaje-temprano.lua` las mueve dentro de `window.open`,
+        antes de dibujar ningún frame. Ver su cabecera.
+
+        Mismo patrón que `mover_a_workspace`: `eval` responde "ok" aunque el
+        global no exista (config a medio recargar), y entonces sigue valiendo
+        el anclaje de aquí, con parpadeo pero sin perder la ventana.
+        """
+        if not pid or not isinstance(ws, int) or ws < 1:
+            return
+        subprocess.run(
+            ["hyprctl", "eval",
+             f"if GiGiShell and GiGiShell.anclar_pid then "
+             f"GiGiShell.anclar_pid({int(pid)}, {ws}) end"],
+            capture_output=True, text=True)
+        self.pid_temprano = int(pid)
+
     def cerrar(self):
+        if self.pid_temprano:
+            subprocess.run(
+                ["hyprctl", "eval",
+                 f"if GiGiShell and GiGiShell.soltar_pid then "
+                 f"GiGiShell.soltar_pid({self.pid_temprano}) end"],
+                capture_output=True, text=True)
+            self.pid_temprano = None
         if self.ruta is not None:
             try:
                 os.remove(self.ruta)
@@ -542,6 +572,10 @@ def _observe(sock, before, target_ws, timeout, anclar, before_classes,
                 if app_class is None:
                     app_class, app_pid = cls, pid
                     registro.publicar(app_class, app_pid)
+                    # Las apps de una sola ventana terminan aquí mismo: no
+                    # habrá ventanas posteriores que anclar en el compositor.
+                    if anclar and app_class not in UNA_VENTANA:
+                        registro.anclar_temprano(app_pid, target_ws)
 
                 # Anclar al workspace donde lancé. Si me cambié mientras cargaba,
                 # la traigo en silencio (silent = no me arrastra de vuelta).

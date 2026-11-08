@@ -1317,8 +1317,9 @@ que ya había allí. Con la regla ese instante no existe. Medido con el socket d
 arrastraría allí, justo lo contrario de lo que se busca— y **no rompe el foco** en el caso normal de
 lanzar en el escritorio en el que ya estás (medido).
 
-**La regla solo cubre la PRIMERA ventana**, así que el observador de `anclaje.py` sigue haciendo
-falta y no es redundante. Medido con un comando que abre dos ventanas separadas 2 s: la primera nace
+**La regla solo cubre la PRIMERA ventana** — y las siguientes las ancla el compositor, ver más abajo
+(`anclaje-temprano.lua`) —, así que el observador de `anclaje.py` sigue haciendo falta y no es
+redundante. Medido con un comando que abre dos ventanas separadas 2 s: la primera nace
 en el escritorio de la regla, la segunda nace en el activo. O sea que la regla mata el artefacto en
 el caso que pasa siempre (una app, una ventana) y el observador queda como red para splashes y
 multiventana —ahí sí con el parpadeo— y para la rama `urgent`, que trae al escritorio actual una app
@@ -1353,6 +1354,21 @@ reciente** que la reclame. La rama `urgent` solo la atiende el más reciente. `l
 crea su registro **antes** del `exec` (si no, el viejo vería la ventana primero). Límite
 conocido: Firefox relanzado antes de 15 s abre la ventana en su proceso existente, y por pid es
 indistinguible de una ventana tardía, así que va al lanzamiento viejo.
+
+**Las ventanas POSTERIORES las ancla el compositor, sin parpadeo (`gigishell/anclaje-temprano.lua`).**
+Síntoma: LibreOffice aparecía en tu escritorio y saltaba al de lanzamiento, mientras Steam nacía ya
+en su sitio. Medido: LibreOffice abre una **splash** que se gasta la regla del exec (nace en el
+destino y se cierra a los 0,7 s), y Writer y el «Consejo del día» nacen en el activo. La regla no da
+más de sí (leído en el fuente de 0.57.1): su token caduca en 1 s y se registra no persistente;
+`misc.initial_workspace_tracking = 2` borra el token al cerrarse la primera ventana —la splash— (y
+medido, Writer seguía en el activo); y una regla de usuario no puede casar por pid. La salida es que
+`window.open` se emite **síncrono dentro de `mapWindow()`, antes de dibujar ningún frame**: al fijar
+la identidad, `anclaje.py` registra el pid con `GiGiShell.anclar_pid(pid, ws)`, y el módulo mueve ahí
+toda ventana cuyo proceso cuelgue de ese pid. Medido: `openwindow …,1` y `movewindow …,9` con 1 ms
+de diferencia, el usuario sin moverse. Va antes que `limite-ventanas.lua` para que el tope vea la
+ventana ya en su destino; el registro caduca a los 20 s por si el observador muere sin soltarlo. Lo
+que no cuelga del árbol de procesos (casos solo por clase) lo sigue moviendo `anclaje.py`, con
+parpadeo.
 
 **Apps de una sola ventana y arranque instantáneo (`UNA_VENTANA`: kitty, foot, Alacritty,
 WezTerm) cortan la observación en cuanto anclan su ventana**, en vez de vivir 15 s: menos rato

@@ -59,6 +59,7 @@ util.carga("gigishell.keybinds")     -- los atajos reales (+ GiGiShell.toggle_ga
 util.carga("gigishell.autostart")      -- arranque escalonado (hl.on "hyprland.start")
 util.carga("gigishell.escaner-apps")   -- salto al escritorio de las apps de autostart
 util.carga("gigishell.reparto-ventanas") -- que una ventana nueva no nazca estrujada
+util.carga("gigishell.anclaje-temprano") -- ventanas posteriores de una app lanzada, a su escritorio sin parpadeo (antes que el tope)
 util.carga("gigishell.limite-ventanas") -- tope de ventanas en mosaico por escritorio
 util.carga("gigishell.traer-steam")    -- trae aquí la ventana single-instance de Steam
 util.carga("gigishell.permisos")       -- permisos del ecosistema (screencopy, plugins)

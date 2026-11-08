@@ -72,18 +72,20 @@ error de Lua sin capturar deja la sesión sin atajos.
 | 18 | `gigishell/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
 | 19 | `gigishell/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
 | 20 | `gigishell/reparto-ventanas.lua` | Que una ventana no acabe estrujada: al abrirse (elige qué se parte y por qué lado) y al soltarla arrastrada (le hace hueco a costa de los vecinos) | a mano |
-| 21 | `gigishell/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
-| 22 | `gigishell/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
-| 23 | `gigishell/gpu.lua` | Elige el perfil de GPU y carga `gigishell/gpu/<perfil>.lua` | **fichero local**, ver abajo |
-| 24 | `gigishell/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
-| 25 | `gigishell/userprefs.lua` | Overrides personales sueltos | a mano |
-| 26 | `gigishell/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
-| 27 | `gigishell/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
-| 28 | `gigishell/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
+| 21 | `gigishell/anclaje-temprano.lua` | `GiGiShell.anclar_pid()` / `soltar_pid()` — mueve dentro de `window.open` (sin parpadeo) las ventanas posteriores de una app lanzada; lo usa `scripts/anclaje.py` | a mano |
+| 22 | `gigishell/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
+| 23 | `gigishell/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
+| 24 | `gigishell/gpu.lua` | Elige el perfil de GPU y carga `gigishell/gpu/<perfil>.lua` | **fichero local**, ver abajo |
+| 25 | `gigishell/gaming.lua` | Ajustes de rendimiento válidos en ambas máquinas | a mano |
+| 26 | `gigishell/userprefs.lua` | Overrides personales sueltos | a mano |
+| 27 | `gigishell/dispositivos.lua` | Teclado/ratón/touchpad concretos; va DESPUÉS de `userprefs` a propósito | a mano — **el dato** lo escribe AGS en `devices.json` |
+| 28 | `gigishell/env-firefox.lua` | Variables portables Firefox+Wayland | a mano |
+| 29 | `gigishell/nop-binds.lua` | Binds sordos: absorbe SUPER + tecla que no sea atajo | a mano (es un bucle: se recalcula solo) |
 
 **El orden no es estético**: `gigishell/pantalla` pisa al comodín de monitores,
-`gigishell/dispositivos` pisa a `userprefs`, y `nop-binds` va el último porque
-necesita saber qué combinaciones ya usó `keybinds`.
+`gigishell/dispositivos` pisa a `userprefs`, `anclaje-temprano` va antes que
+`limite-ventanas` para que el tope vea la ventana ya en su destino, y `nop-binds`
+va el último porque necesita saber qué combinaciones ya usó `keybinds`.
 
 Al final, `hyprland.lua` llama a `GiGiShell.daltonismo()` — el equivalente al viejo
 `exec =`: reaplica el shader de accesibilidad también en cada `hyprctl reload`,
