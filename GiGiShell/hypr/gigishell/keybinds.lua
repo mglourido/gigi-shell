@@ -115,6 +115,8 @@ bind(mod .. " + V", hl.dsp.exec_cmd("~/.config/hypr/scripts/clipboard-history.sh
 bind(mod .. " + period", hl.dsp.exec_cmd("~/.config/hypr/scripts/emoji-picker.sh"))
 -- panel de notificaciones (toggle)
 bind(mod .. " + N", hl.dsp.exec_cmd("ags request toggle-notifications"))
+-- panel del calendario (toggle)
+bind(mod .. " + K", hl.dsp.exec_cmd("ags request toggle-calendar"))
 -- menú desplegable apps (con traer-instancia-única al workspace actual)
 bind(mod .. " + SPACE", hl.dsp.exec_cmd("~/.config/hypr/scripts/rofi-launch.py"))
 -- maximizar ventana (el `fullscreen, 1` de hyprlang)
@@ -199,6 +201,25 @@ for _, d in ipairs({ "left", "right", "up", "down" }) do
   bind(mod .. " + " .. d, hl.dsp.focus({ direction = d }))
 end
 
+-- Mover la ventana activa a otro escritorio, yendo o no con ella según
+-- Ajustes > Comportamiento (`seguirVentanaAlMover`). Se lee EN VIVO en cada
+-- pulsación (util.leer_json, NO util.prefs(): cachea por ejecución del config y
+-- el cambio no surtiría efecto hasta el siguiente reload). Ausente o JSON
+-- corrupto = seguir, el comportamiento de siempre; por eso la comprobación es
+-- `== false` explícito. El "no seguir" se dice `follow = false`: un
+-- `silent = true` lo traga sin error (ver gigishell/compactar.lua).
+local RUTA_PREFS = util.HOGAR .. "/.config/gigishell/preferences.json"
+local function mover_ventana(workspace)
+  local seguir = true
+  pcall(function()
+    local prefs = util.leer_json(RUTA_PREFS)
+    if type(prefs) == "table" and prefs.seguirVentanaAlMover == false then seguir = false end
+  end)
+  sin_smart_split(function()
+    hl.dispatch(hl.dsp.window.move({ workspace = workspace, follow = seguir }))
+  end)
+end
+
 -- cambiar de workspace (mod+[0-9]) y llevarse la ventana (mod+SHIFT+[0-9])
 --
 -- El SHIFT + número va envuelto: la ventana se REINSERTA en el árbol del
@@ -208,11 +229,7 @@ end
 for i = 1, 10 do
   local tecla = tostring(i % 10) -- la tecla 0 es el workspace 10
   bind(mod .. " + " .. tecla, hl.dsp.focus({ workspace = i }))
-  bind(mod .. " + SHIFT + " .. tecla, function()
-    sin_smart_split(function()
-      hl.dispatch(hl.dsp.window.move({ workspace = i }))
-    end)
-  end)
+  bind(mod .. " + SHIFT + " .. tecla, function() mover_ventana(i) end)
 end
 
 -- Escritorio ancla
@@ -276,16 +293,8 @@ bind(mod .. " + ALT + mouse_up", function() recorrer_todos(-1) end)
 -- llevarse la ventana al workspace siguiente/anterior con mod + SHIFT + rueda
 -- (alternativa a mod+SHIFT+número, mismo envoltorio). "r±1" y no "e±1": con
 -- "e" no se podría sacar la ventana a un escritorio vacío nuevo.
-bind(mod .. " + SHIFT + mouse_down", function()
-  sin_smart_split(function()
-    hl.dispatch(hl.dsp.window.move({ workspace = "r+1" }))
-  end)
-end)
-bind(mod .. " + SHIFT + mouse_up", function()
-  sin_smart_split(function()
-    hl.dispatch(hl.dsp.window.move({ workspace = "r-1" }))
-  end)
-end)
+bind(mod .. " + SHIFT + mouse_down", function() mover_ventana("r+1") end)
+bind(mod .. " + SHIFT + mouse_up", function() mover_ventana("r-1") end)
 
 -- mover/redimensionar con mod + botón izq/dcho arrastrando (los bindm)
 --

@@ -25,6 +25,7 @@ import {
   micOsdEnabled, setMicOsdEnabled,
   brightnessOsdEnabled, setBrightnessOsdEnabled,
   anclarVentanasRofi, setAnclarVentanasRofi,
+  seguirVentanaAlMover, setSeguirVentanaAlMover,
   escanerAppsInicio, setEscanerAppsInicio,
   absorberSuperSinAtajo, setAbsorberSuperSinAtajo,
 } from "../preferences"
@@ -212,6 +213,7 @@ export default function SeccionComportamiento() {
 
       <TarjetaAjustes titulo={textosPersonalizacion.seccionesNuevas.funcionesShell.ventanas} icono="󰖯">
         <AjusteInterruptor titulo={textosPersonalizacion.ventanas.anclaje.titulo} informacion={textosPersonalizacion.ventanas.anclaje.descripcion} activo={anclarVentanasRofi} alAlternar={() => setAnclarVentanasRofi(!anclarVentanasRofi.get())} />
+        <AjusteInterruptor titulo={textosPersonalizacion.ventanas.seguirAlMover.titulo} informacion={textosPersonalizacion.ventanas.seguirAlMover.descripcion} activo={seguirVentanaAlMover} alAlternar={() => setSeguirVentanaAlMover(!seguirVentanaAlMover.get())} />
         <AjusteInterruptor titulo={textosPersonalizacion.ventanas.escanerInicio.titulo} informacion={textosPersonalizacion.ventanas.escanerInicio.descripcion} activo={escanerAppsInicio} alAlternar={() => setEscanerAppsInicio(!escanerAppsInicio.get())} />
         <AjusteOpacidadInactivas />
         <AjusteInterruptor titulo={textosPersonalizacion.ventanas.superSordo.titulo} informacion={textosPersonalizacion.ventanas.superSordo.descripcion} activo={absorberSuperSinAtajo} alAlternar={() => setAbsorberSuperSinAtajo(!absorberSuperSinAtajo.get())} />

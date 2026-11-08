@@ -109,6 +109,7 @@ const EXEC_PATTERNS: [RegExp, string][] = [
   [/toggle-bar|ags-bar-toggle/, "Mostrar/ocultar barra"],
   [/toggle-quicksettings/, "Mostrar/ocultar ajustes rápidos"],
   [/toggle-notifications/, "Mostrar/ocultar notificaciones"],
+  [/toggle-calendar/, "Mostrar/ocultar calendario"],
   [/toggle-settings/, "Mostrar/ocultar ajustes"],
   [/toggle-suspension-falsa/, "Entrar/salir de suspensión falsa"],
 ]

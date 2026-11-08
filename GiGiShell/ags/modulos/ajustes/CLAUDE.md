@@ -20,6 +20,13 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../CLAUDE.md
   que **regenerar** al añadir un atajo; con el config en Lua ya no hay nada que regenerar ni que
   pueda desincronizarse. Detalle completo en `docs/hyprland-modulos.md` § «SUPER + tecla sin atajo no debe escribirse».
 
+  **`seguirVentanaAlMover`** (Ajustes > Comportamiento > Ventanas, por defecto activado) decide si
+  SUPER+MAYÚS+número y SUPER+MAYÚS+rueda llevan también al escritorio destino. A diferencia de
+  `absorberSuperSinAtajo` **no recarga Hyprland**: `mover_ventana()` de `hypr/gigishell/keybinds.lua`
+  relee `preferences.json` en cada pulsación (`util.leer_json`, no `util.prefs()`, que cachea) y pasa
+  `follow = false` al dispatcher; ausente o corrupto, sigue. "No seguir" es `follow = false`, no
+  `silent = true`, que se ignora sin error.
+
 - `modulos/ajustes/sistema/informacion.ts` + `modulos/ajustes/sistema/SeccionSistema.tsx` — Ajustes > Sistema («Información del sistema»). La sección **se pinta llena en el primer frame**; el spinner de «Detectando componentes…» ya no se ve nunca en la práctica. Tres piezas encajadas:
   - **La recolección está partida en dos, y esa partición es todo el invento.** `leerSincrono()` no lanza **ni un proceso**: OS, kernel, CPU (modelo, núcleos/hilos, frecuencia máx, caché, gobernador), RAM/swap, DMI (placa, BIOS, modelo) y UEFI/BIOS salen de `/proc`, `/sys` y el entorno en **~1,5 ms** (medido), así que caben dentro del propio render. `sondear()` es lo único que obliga a forkear (lspci, glxinfo, vulkaninfo, hyprctl, lsblk, nvidia-smi, recuento de paquetes) y va **en paralelo**: 323 ms, dominado por `vulkaninfo` (~250 ms).
   - **El sondeo se cachea en `~/.cache/gigishell/sysinfo.json`**, y esa caché de disco es la **única**: al abrir se construye con el sondeo **anterior** y el nuevo se aplica por detrás. Hubo además un memo en RAM de módulo (`sondeoMemo`) que ahorraba el sondeo al reabrir la sección; **se quitó a propósito** — retenía ~8 KB toda la sesión para ahorrar 323 ms que ocurren de fondo y que nadie ve, mientras que lo que hace el pintado instantáneo es la caché de disco, cuya relectura son 8 KB ya en la caché de páginas. Si lo reintroduces, el coste que pagas es memoria retenida, no latencia percibida. La caché guarda la **salida cruda** de cada comando, no los grupos ya montados, para que el parseo siga teniendo un solo dueño. Es un `Record<string,string>` plano con `__version` a propósito: añadir o quitar un sondeo no invalida nada que no deba (clave ausente = `""` = fila que no sale), y `CACHE_VERSION` está para cuando sí haga falta tirarla.

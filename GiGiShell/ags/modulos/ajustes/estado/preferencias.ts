@@ -303,6 +303,13 @@ export { escanerAppsInicio }
 const [segundaVentanaAlLado, _setSegundaVentanaAlLado] = createState(true)
 export { segundaVentanaAlLado }
 
+// Al mover la ventana activa a otro escritorio (SUPER+MAYÚS+número y SUPER+MAYÚS+rueda), ir
+// también a ese escritorio. Desactivado: la ventana se va y tú te quedas donde estás. Lo lee
+// `hypr/gigishell/keybinds.lua` EN VIVO en cada pulsación (`util.leer_json`), así que no hace
+// falta recargar Hyprland. Default: activado (el comportamiento de siempre).
+const [seguirVentanaAlMover, _setSeguirVentanaAlMover] = createState(true)
+export { seguirVentanaAlMover }
+
 // Absorber SUPER + tecla que no sea un atajo (hypr/gigishell/nop-binds.lua). Hyprland
 // solo se traga una tecla si algún bind la captura, así que sin esto SUPER+C
 // escribe una "c" en la aplicación; `catchall` no sirve porque el compositor
@@ -650,6 +657,9 @@ function load() {
     if (typeof saved.escanerAppsInicio === "boolean") {
       _setEscanerAppsInicio(saved.escanerAppsInicio)
     }
+    if (typeof saved.seguirVentanaAlMover === "boolean") {
+      _setSeguirVentanaAlMover(saved.seguirVentanaAlMover)
+    }
     if (typeof saved.segundaVentanaAlLado === "boolean") {
       _setSegundaVentanaAlLado(saved.segundaVentanaAlLado)
     }
@@ -774,6 +784,7 @@ function save() {
       escanerAppsInicio: escanerAppsInicio.get(),
       absorberSuperSinAtajo: absorberSuperSinAtajo.get(),
       opacidadVentanasInactivas: opacidadVentanasInactivas.get(),
+      seguirVentanaAlMover: seguirVentanaAlMover.get(),
       segundaVentanaAlLado: segundaVentanaAlLado.get(),
       orion: orionEnabled.get(),
       orionAppsDefault: orionAppsDefault.get(),
@@ -1027,6 +1038,10 @@ export function setOpacidadVentanasInactivas(modo: ModoOpacidadInactivas) {
 // esta preferencia es el config de Hyprland, que la cachea en `util.prefs()`
 // durante toda la ejecución. Sin la recarga el interruptor se vería cambiado y
 // no haría nada hasta el siguiente arranque.
+export function setSeguirVentanaAlMover(on: boolean) {
+  _setSeguirVentanaAlMover(on)
+  save()   // síncrono: el config lo relee del disco en la siguiente pulsación
+}
 export function setSegundaVentanaAlLado(on: boolean) {
   _setSegundaVentanaAlLado(on)
   save()   // síncrono: preferences.json ya está en disco cuando el reload lo relea

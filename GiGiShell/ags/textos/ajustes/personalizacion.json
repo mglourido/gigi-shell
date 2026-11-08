@@ -195,6 +195,10 @@
       "titulo": "Escáner de apps al iniciar sesión",
       "descripcion": "Durante los primeros 30 segundos vigila las ventanas que se abren solas (autostart, restauración de sesión) y después te lleva al escritorio donde han quedado.\nSi ocupan varios escritorios, primero los compacta y salta al más cercano al que estés."
     },
+    "seguirAlMover": {
+      "titulo": "Ir al escritorio al mover una ventana",
+      "descripcion": "Al enviar la ventana activa a otro escritorio (SUPER+MAYÚS+número o rueda), también cambias a ese escritorio.\nDesactivado: la ventana se va y tú te quedas donde estás."
+    },
     "opacidadInactivas": {
       "titulo": "Transparencia al perder el foco",
       "descripcion": "Desactivado: ninguna ventana se vuelve transparente al perder el foco.\nPredeterminado: cada app se comporta como está configurada (Kitty, VS Code y Firefox no se transparentan).\nActivado: todas se vuelven transparentes al perder el foco, también esas.\nLa ventana con foco no cambia, y el modo ahorro sigue dejándolas opacas.",
