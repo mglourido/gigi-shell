@@ -4,7 +4,7 @@
  * la lógica pura y la pila imperativa viven en módulos independientes.
  */
 
-import { createState } from "ags"
+import { createComputed, createState } from "ags"
 import { Astal, Gdk, Gtk } from "ags/gtk4"
 import app from "ags/gtk4/app"
 import GLib from "gi://GLib"
@@ -36,6 +36,7 @@ import {
   hayPopups,
   reiniciarPilaPorRafaga,
 } from "./popup/pila.ts"
+import { popupsOcultosPorCaptura } from "./popup/ocultacionCaptura.ts"
 import { notifPanelVisible, type StoredNotification } from "./store"
 
 const UMBRAL_RAFAGA = 20
@@ -228,7 +229,7 @@ export default function NotificationPopup(monitor: Gdk.Monitor) {
       marginRight={16}
       widthRequest={ANCHO_VENTANA_POPUP}
       cssClasses={clasesFondoShell("notif-popup-window")}
-      visible={hayPopups}
+      visible={createComputed(() => hayPopups() && !popupsOcultosPorCaptura())}
     >
       {contenedor}
     </window>

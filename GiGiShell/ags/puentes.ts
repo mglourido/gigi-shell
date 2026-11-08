@@ -18,6 +18,7 @@ import { alternarSuspensionFalsa, entrarSuspensionFalsa } from "./servicios/ener
 import { sfSustituirReal } from "./servicios/energia/powerState"
 import { alternarBarPorTecla, alternarMenuEnergia, alternarPanelAjustes, alternarPanelNotificaciones, alternarQuickSettings, showBrightnessOSD, stepBrightness, toggleCalendar } from "./estado/shell"
 import { avisarVistaEscritorios } from "./modulos/vista-escritorios/estado"
+import { mostrarPopupsTrasCaptura, ocultarPopupsParaCaptura } from "./modulos/notificaciones/popup/ocultacionCaptura"
 
 type Atender = (args: string[]) => string
 
@@ -91,6 +92,10 @@ const PUENTES = new Map<string, Atender>([
   // El calendario era el único panel sin `request`: solo se abría pinchando el reloj de la barra.
   // Con la barra autoocultada eso obliga a ir a buscarla, y no había forma de atarlo a una tecla.
   ["toggle-calendar", sinRespuesta(toggleCalendar)],
+
+  // Los manda hypr/scripts/captura-pantalla.sh antes y después de la captura completa.
+  ["ocultar-popups-captura", sinRespuesta(ocultarPopupsParaCaptura)],
+  ["mostrar-popups-captura", sinRespuesta(mostrarPopupsTrasCaptura)],
 
   // Los manda hypr/gigishell/vista-escritorios.lua al pulsar y soltar teclas.
   ["vista-escritorios-tab", sinRespuesta(() => avisarVistaEscritorios("tab"))],

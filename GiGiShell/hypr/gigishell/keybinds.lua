@@ -93,8 +93,10 @@ end)
 -- esta sesión no se podía guardar ni buscar con el atajo de siempre.
 bind(mod .. " + Z", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
   .. " && hyprshot -m region -o " .. vars.ruta_captura_pantalla))
-bind(mod .. " + X", hl.dsp.exec_cmd("mkdir -p " .. vars.ruta_captura_pantalla
-  .. " && hyprshot -m output -m active -o " .. vars.ruta_captura_pantalla))
+-- La completa pasa por un script que oculta los popups de notificaciones mientras
+-- captura (ver captura-pantalla.sh). La de recorte no: ahí el usuario elige la zona.
+bind(mod .. " + X", hl.dsp.exec_cmd("~/.config/hypr/scripts/captura-pantalla.sh "
+  .. vars.ruta_captura_pantalla))
 
 -- modo gestos por cámara (toggle). La MISMA tecla enciende y apaga, como las
 -- grabaciones: es un modo, y un modo que se enciende con una combinación y se
