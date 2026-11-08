@@ -1331,6 +1331,24 @@ diálogo o popup ajeno que naciera en esa ventana de tiempo. Los 15 s salen de m
 real (Steam: tres ventanas, la última a los 10 s). El detalle completo del diseño está en el
 docstring de `anclaje.py`.
 
+**Dos lanzamientos seguidos = dos observadores vivos, y cada uno pelea por lo suyo.** Bug medido
+(puntual porque exige lanzar dos cosas en menos de 15 s): te cambias de escritorio, abres una app y
+aparece en el **anterior**. El observador del lanzamiento previo seguía vivo y se la llevaba: o no
+había fijado identidad (su app no abrió ventana nueva) y adoptaba la primera que naciera, o las dos
+apps tenían la misma clase (dos kitty). Ahora cada observador publica su identidad en
+`$XDG_RUNTIME_DIR/gigishell-anclaje/` (clase `Registro`) y, antes de anclar, `cede()` reparte: una
+ventana que **cuelga del árbol de procesos** de un lanzamiento es de ese (así las ventanas tardías
+de Steam siguen yendo con Steam); si no cuelga de ninguno, se la queda el lanzamiento **más
+reciente** que la reclame. La rama `urgent` solo la atiende el más reciente. Orion crea su registro
+**antes** del `exec` (si no, el viejo la vería primero); rofi, al volver la selección. Límite
+conocido: Firefox relanzado antes de 15 s abre la ventana en su proceso existente, y por pid es
+indistinguible de una ventana tardía, así que va al lanzamiento viejo.
+
+**Apps de una sola ventana y arranque instantáneo (`UNA_VENTANA`: kitty, foot, Alacritty,
+WezTerm) cortan la observación en cuanto anclan su ventana**, en vez de vivir 15 s: menos rato
+compitiendo con otros lanzamientos. No metas ahí nada con splash o ventanas auxiliares: la segunda
+quedaría sin anclar.
+
 **Ninguno de los dos es un daemon**, así que se apartan de la advertencia general de los
 `*-monitor.sh`: nacen de cero en cada lanzamiento, leen el ajuste y mueren. No hay que hacerles
 `pkill` + re-exec al cambiar la preferencia.

@@ -133,6 +133,10 @@ def main():
         sock = None
         target_ws = None
 
+    # Antes del exec, como el connect(): un observador anterior tiene que ver
+    # este lanzamiento ya cuando nazca la ventana, o se la quedaría él.
+    registro = anclaje.Registro() if sock is not None else None
+
     if not (anclar and target_ws is not None and lanzar_con_regla(cmd, target_ws)):
         lanzar_normal(cmd)
 
@@ -140,10 +144,11 @@ def main():
         return 0
     try:
         anclaje.observe(sock, before, target_ws, anclar=anclar,
-                        before_classes=before_classes)
+                        before_classes=before_classes, registro=registro)
     except Exception:
         pass
     finally:
+        registro.cerrar()
         sock.close()
     return 0
 

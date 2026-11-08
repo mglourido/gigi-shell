@@ -92,6 +92,19 @@ NEVER_APP = {
     "org.freedesktop.impl.portal.desktop.kde",
 }
 
+# Apps de UNA sola ventana que además nace al instante (kitty: 0,1 s medido). En
+# cuanto su ventana queda anclada no hay nada más que esperar, así que el
+# observador termina ahí en vez de agotar los 15 s: menos rato vivo es menos
+# rato compitiendo con otros lanzamientos por ventanas que no son suyas. Solo
+# entra lo que no abre splash ni ventanas auxiliares — si una de estas trajera
+# una segunda ventana, quedaría sin anclar.
+UNA_VENTANA = {
+    "kitty",
+    "foot",
+    "Alacritty",
+    "org.wezfurlong.wezterm",
+}
+
 
 def hypr_j(*args):
     out = subprocess.run(["hyprctl", "-j", *args],
@@ -308,14 +321,146 @@ def conectar_eventos():
     return sock
 
 
+class Registro:
+    """Lo que cada observador vivo ha reclamado, para que no se pisen entre sí.
+
+    CADA LANZAMIENTO TIENE SU OBSERVADOR y vive sus 15 s por su cuenta, así que
+    dos lanzamientos seguidos dejan dos observadores escuchando el mismo socket.
+    Sin coordinarse, el VIEJO se llevaba la ventana del NUEVO a su escritorio de
+    lanzamiento — el síntoma era "me cambio de escritorio, abro una app y aparece
+    en el anterior", raro porque exige lanzar dos cosas en menos de 15 s. Pasaba
+    en dos casos: el viejo aún no había fijado identidad (su app no abrió ventana
+    nueva) y adoptaba la primera que naciera, o las dos apps tenían la misma
+    clase (dos kitty) y el viejo la daba por suya.
+
+    Cada observador publica aquí su identidad en un fichero de
+    $XDG_RUNTIME_DIR/gigishell-anclaje/ (tmpfs). La clave del nombre ordena los
+    lanzamientos (monotonic_ns, luego el pid). Ante una ventana nueva, cada uno
+    decide con `cede()` si es suya; las reglas están allí.
+
+    Fallo seguro: si el directorio no se puede usar, el observador trabaja solo,
+    como antes de esto — anclar de más es mejor que dejar de anclar.
+    """
+
+    def __init__(self):
+        xdg = os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+        self.dir = os.path.join(xdg, "gigishell-anclaje")
+        self.clave = f"{time.monotonic_ns():020d}-{os.getpid()}"
+        self.ruta = os.path.join(self.dir, self.clave + ".json")
+        try:
+            os.makedirs(self.dir, exist_ok=True)
+            self.publicar(None, None)
+        except OSError:
+            self.ruta = None
+
+    def publicar(self, app_class, app_pid):
+        if self.ruta is None:
+            return
+        tmp = self.ruta + ".tmp"
+        try:
+            with open(tmp, "w") as f:
+                json.dump({"clase": app_class, "pid": app_pid}, f)
+            os.replace(tmp, self.ruta)
+        except OSError:
+            pass
+
+    def cerrar(self):
+        if self.ruta is not None:
+            try:
+                os.remove(self.ruta)
+            except OSError:
+                pass
+
+    def otros(self):
+        """[(clave, clase, pid)] de los demás observadores VIVOS.
+
+        Un fichero cuyo dueño ya no existe (observador matado sin `finally`) se
+        borra al verlo: si no, un fantasma "sin identidad" se quedaría para
+        siempre reclamando ventanas ajenas.
+        """
+        if self.ruta is None:
+            return []
+        res = []
+        try:
+            nombres = os.listdir(self.dir)
+        except OSError:
+            return []
+        for n in nombres:
+            if not n.endswith(".json") or n == self.clave + ".json":
+                continue
+            clave = n[:-5]
+            try:
+                dueño = int(clave.rsplit("-", 1)[1])
+            except (IndexError, ValueError):
+                continue
+            ruta = os.path.join(self.dir, n)
+            if not os.path.exists(f"/proc/{dueño}"):
+                try:
+                    os.remove(ruta)
+                except OSError:
+                    pass
+                continue
+            try:
+                with open(ruta, "rb") as f:
+                    d = json.load(f)
+            except (OSError, ValueError):
+                continue
+            res.append((clave, d.get("clase"), d.get("pid")))
+        return res
+
+    def hay_posterior(self):
+        return any(c > self.clave for c, _, _ in self.otros())
+
+
+def cede(mi_clave, mi_desc, cls, pid, otros):
+    """¿Debe este observador dejar la ventana (clase `cls`, pid `pid`) a otro?
+
+    Se llama solo cuando este observador la reclamaría. Reglas, por orden:
+      1. Si la ventana cuelga del árbol de procesos de algún lanzamiento, es de
+         ese lanzamiento (del más reciente si cuelga de varios). Es la prueba más
+         fuerte que hay: así las ventanas tardías de Steam siguen yendo con
+         Steam aunque mientras tanto hayas lanzado otra cosa.
+      2. Si no, se la queda el lanzamiento MÁS RECIENTE que la reclame (por clase
+         o porque aún no tiene identidad y la adoptaría). Es la que acabas de
+         pedir, y la que tiene que nacer donde estás ahora.
+    Límite conocido: una app que reutiliza su proceso para la ventana nueva
+    (Firefox) cae en la regla 1 a favor del lanzamiento VIEJO si la relanzas
+    antes de 15 s — por pid no se distingue de una ventana tardía suya.
+
+    `mi_desc`: si la ventana cuelga de MI árbol. Pura y sin E/S salvo /proc,
+    para poder probarla sin Hyprland.
+    """
+    desc = [c for c, _, p in otros if p and is_descendant(pid, p)]
+    if mi_desc:
+        return any(c > mi_clave for c in desc)
+    if desc:
+        return True
+    return any(c > mi_clave and (k is None or k == cls) for c, k, _ in otros)
+
+
 def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
-            before_classes=None):
+            before_classes=None, registro=None):
     """Bucle de eventos: ancla las ventanas de la app lanzada a `target_ws`.
 
     Está separado del main() de cada lanzador para poder ejercitarlo contra
     eventos reales sin pasar por rofi ni por Orion, que son interactivos y no se
     pueden guionizar.
+
+    `registro`: el lanzador que pueda debe crearlo ANTES de lanzar (Orion), para
+    que un observador anterior ya lo vea cuando nazca la ventana; si no se pasa,
+    se crea aquí (rofi, que lanza la app él mismo). Se borra siempre al salir.
     """
+    if registro is None:
+        registro = Registro()
+    try:
+        _observe(sock, before, target_ws, timeout, anclar, before_classes,
+                 registro)
+    finally:
+        registro.cerrar()
+
+
+def _observe(sock, before, target_ws, timeout, anclar, before_classes,
+             registro):
     # Identidad de la app lanzada, fijada por la primera ventana nueva.
     app_class = None   # initialClass: no cambia aunque la app se renombre en marcha
     app_pid = None
@@ -371,6 +516,7 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                 if cls in NEVER_APP:
                     continue
 
+                mi_desc = app_pid is not None and is_descendant(pid, app_pid)
                 if app_class is None:
                     # Primera ventana nueva: ella define qué es "la app lanzada".
                     # Salvo que sea un diálogo de algo que YA estaba corriendo:
@@ -383,11 +529,20 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                     # 30 s para que se cuele algo por delante.
                     if cli.get("floating") and cls in before_classes:
                         continue
-                    app_class, app_pid = cls, pid
-                elif not (cls == app_class or is_descendant(pid, app_pid)):
+                elif not (cls == app_class or mi_desc):
                     # Ventana de otra app abierta por casualidad durante la
                     # observación (un diálogo, un popup): no es nuestra.
                     continue
+
+                # La reclamaría, pero puede ser de OTRO lanzamiento que siga
+                # observando: cada uno se queda solo con lo suyo (Registro).
+                # Cediendo tampoco se adopta como identidad.
+                if cede(registro.clave, mi_desc, cls, pid, registro.otros()):
+                    continue
+
+                if app_class is None:
+                    app_class, app_pid = cls, pid
+                    registro.publicar(app_class, app_pid)
 
                 # Anclar al workspace donde lancé. Si me cambié mientras cargaba,
                 # la traigo en silencio (silent = no me arrastra de vuelta).
@@ -404,13 +559,19 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
                         and _hueco_en(clientes, target_ws, addr, limite)):
                     mover_a_workspace(addr, target_ws, follow=False)
 
+                if app_class in UNA_VENTANA:
+                    return
+
             elif event == "urgent":
                 # urgent>>ADDR  (ADDR sin "0x")
                 addr = "0x" + payload.strip()
                 # Solo si NO se ha abierto ya una ventana nueva: una vez que sabemos
                 # que la app arrancó de verdad, un `urgent` posterior es de otra cosa
                 # (una notificación entrante) y moverla sería robar una ventana ajena.
-                if addr in before and app_class is None:
+                # Y solo el lanzamiento más reciente: el relanzamiento que acaba
+                # de pedir atención es el último que hiciste, no uno de antes.
+                if (addr in before and app_class is None
+                        and not registro.hay_posterior()):
                     # Relanzamiento single-instance: traer al workspace actual.
                     cli = client_of(addr)
                     if cli and cli["workspace"]["id"] != target_ws:
