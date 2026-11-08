@@ -2,10 +2,10 @@
 """
 anclaje.py — anclar al escritorio de lanzamiento las ventanas de una app.
 
-Es el motor común de `rofi-launch.py` y `lanzar-anclado.py`: aquí vive TODA la
+Es el motor de `lanzar-anclado.py`, por el que pasan los DOS lanzadores (Orion
+directamente; rofi con `-run-command`, ver `rofi-launch.py`): aquí vive TODA la
 lógica (identidad de la app, observación del socket de eventos, anclaje y rama
-single-instance) y los dos scripts de arriba solo aportan cómo se elige y se
-lanza el comando. Antes esto vivía dentro de rofi-launch.py y las apps abiertas
+single-instance). Antes esto vivía dentro de rofi-launch.py y las apps abiertas
 desde Orion no tenían anclaje ninguno: aparecían en el escritorio donde
 estuvieras al terminar de cargar, no en el que las lanzaste.
 
@@ -29,14 +29,13 @@ porque se asumía que la única ventana nueva tras elegir en el lanzador sería 
 de la app elegida. Es falso: un diálogo que abre otra app al pulsar un botón, un
 popup de Steam/Heroic o un splash ajeno también emiten `openwindow`, y se los
 llevaba al workspace de lanzamiento — el síntoma era "ventanas que aparecen de
-repente y se van solas al workspace 1". Como no hay forma de que rofi diga qué
-eligió (`-run-command` es solo del modo `run`; drun ejecuta el `Exec` del
-`.desktop` por su cuenta), la identidad se deduce de la PRIMERA ventana nueva: su
-`initialClass` y su pid. A partir de ahí solo se ancla lo que coincida en clase o
-cuelgue de ese mismo árbol de procesos. Desde Orion sí se sabría el comando, pero
-la identidad se deduce igual: el pid del `sh -c` no siempre es el de la ventana
-(wrappers, `gtk-launch`, apps que se re-exec), así que la primera ventana nueva
-sigue siendo la señal más fiable y el camino es uno solo para los dos lanzadores.
+repente y se van solas al workspace 1". La identidad se deduce de la PRIMERA
+ventana nueva: su `initialClass` y su pid. A partir de ahí solo se ancla lo que
+coincida en clase o cuelgue de ese mismo árbol de procesos. Aunque se conoce el
+comando lanzado, no sirve de identidad: el pid del `sh -c` no siempre es el de
+la ventana (wrappers, `gtk-launch`, apps que se re-exec, y el `exec` lo hace
+Hyprland, que no devuelve pid), así que la primera ventana nueva sigue siendo la
+señal más fiable.
 
 LA OBSERVACIÓN NO TERMINA EN LA PRIMERA VENTANA, y eso es lo que arregla los
 multiventana. Con el `return` de antes, una app con splash + ventana principal
@@ -171,8 +170,8 @@ def anclaje_activado():
     """Lee `anclarVentanasRofi` de preferences.json (Ajustes > Personalización).
 
     Se lee en CADA invocación y no hace falta reiniciar nada: ninguno de los dos
-    lanzadores es un daemon — el bind lanza rofi-launch.py de cero en cada
-    SUPER+SPACE, y Orion lanza lanzar-anclado.py de cero por cada app abierta.
+    lanzadores es un daemon — rofi y Orion lanzan lanzar-anclado.py de cero por
+    cada app abierta.
     Por eso su setter en AGS no necesita el pkill + re-exec de los monitores.
 
     La clave es UNA para los dos lanzadores aunque su nombre diga "Rofi": para
@@ -446,9 +445,9 @@ def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
     eventos reales sin pasar por rofi ni por Orion, que son interactivos y no se
     pueden guionizar.
 
-    `registro`: el lanzador que pueda debe crearlo ANTES de lanzar (Orion), para
-    que un observador anterior ya lo vea cuando nazca la ventana; si no se pasa,
-    se crea aquí (rofi, que lanza la app él mismo). Se borra siempre al salir.
+    `registro`: el lanzador debe crearlo ANTES de lanzar (`lanzar-anclado.py`),
+    para que un observador anterior ya lo vea cuando nazca la ventana; si no se
+    pasa, se crea aquí (las pruebas). Se borra siempre al salir.
     """
     if registro is None:
         registro = Registro()

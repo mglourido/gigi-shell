@@ -1300,10 +1300,11 @@ estaba: apretujar es mejor que mandarla a un escritorio igual de lleno.
 ### Anclar las ventanas al escritorio donde las lanzaste (`anclaje.py` + los dos lanzadores)
 
 Abres una app, te vas a otro escritorio mientras carga, y la ventana aparece **donde estás** en vez
-de donde la abriste. `hypr/scripts/anclaje.py` es el motor que lo corrige, y lo comparten los **dos**
-lanzadores: `rofi-launch.py` (SUPER+SPACE) y `lanzar-anclado.py`, por el que **Orion** abre sus apps
-(`ags/modulos/orion/data/launch.ts`). Antes solo lo tenía rofi y Orion hacía `sh -c <exec>` a pelo,
-así que la misma app se comportaba de una forma u otra según por dónde la abrieras.
+de donde la abriste. `hypr/scripts/anclaje.py` es el motor que lo corrige, y `lanzar-anclado.py` el
+**único camino de lanzamiento** de los dos lanzadores: **Orion** lo llama directamente
+(`ags/modulos/orion/data/launch.ts`) y **rofi** (`rofi-launch.py`, SUPER+SPACE) a través de
+`-run-command`/`-run-shell-command`. Antes cada uno lanzaba a su manera, y la misma app se comportaba
+de una forma u otra según por dónde la abrieras.
 
 **Dos mecanismos, no uno, y el orden importa.** `lanzar-anclado.py` lanza con
 **`hyprctl dispatch exec [workspace N silent] <cmd>`**: la ventana **nace** ya en su escritorio. Antes
@@ -1321,8 +1322,17 @@ falta y no es redundante. Medido con un comando que abre dos ventanas separadas 
 en el escritorio de la regla, la segunda nace en el activo. O sea que la regla mata el artefacto en
 el caso que pasa siempre (una app, una ventana) y el observador queda como red para splashes y
 multiventana —ahí sí con el parpadeo— y para la rama `urgent`, que trae al escritorio actual una app
-single-instance ya abierta. **Rofi no puede usar la regla**: en modo `drun` ejecuta el `Exec` del
-`.desktop` él mismo, así que no hay dónde interponerla y conserva el parpadeo.
+single-instance ya abierta.
+
+**Rofi también usa la regla** (antes se creía imposible y conservaba el parpadeo). Medido en rofi
+2.0: el modo `drun` **sí** respeta `-run-command` (y `-run-shell-command` para `Terminal=true`), que
+no son solo del modo `run`. Le pasa a `lanzar-anclado.py --argv` el argv **ya troceado** —rofi
+resuelve las comillas del `Exec`: `env FOO="a b" app` llega como `env`, `FOO=a b`, `app`— y en el cwd
+del `Path=`. Por eso `--argv` reconstruye la línea con `shlex.join` (juntar con espacios perdería
+las comillas) y antepone un `cd` (la app la lanza Hyprland y no heredaría el cwd). Si el envoltorio
+faltara, `rofi-launch.py` no pasa las plantillas y rofi lanza a su manera: sin anclar, pero abre.
+Ojo al probarlo con `-auto-select`: rofi sale en cuanto lanza, así que hay que esperar un poco antes
+de mirar el efecto; sin esa espera parece que no se ejecutó nada.
 
 **El observador**: escucha el socket de eventos hasta 15 s, deduce la identidad de la app de la
 **primera ventana nueva** (`initialClass` + pid) y a partir de ahí solo ancla lo que coincida en
@@ -1339,8 +1349,8 @@ apps tenían la misma clase (dos kitty). Ahora cada observador publica su identi
 `$XDG_RUNTIME_DIR/gigishell-anclaje/` (clase `Registro`) y, antes de anclar, `cede()` reparte: una
 ventana que **cuelga del árbol de procesos** de un lanzamiento es de ese (así las ventanas tardías
 de Steam siguen yendo con Steam); si no cuelga de ninguno, se la queda el lanzamiento **más
-reciente** que la reclame. La rama `urgent` solo la atiende el más reciente. Orion crea su registro
-**antes** del `exec` (si no, el viejo la vería primero); rofi, al volver la selección. Límite
+reciente** que la reclame. La rama `urgent` solo la atiende el más reciente. `lanzar-anclado.py`
+crea su registro **antes** del `exec` (si no, el viejo vería la ventana primero). Límite
 conocido: Firefox relanzado antes de 15 s abre la ventana en su proceso existente, y por pid es
 indistinguible de una ventana tardía, así que va al lanzamiento viejo.
 

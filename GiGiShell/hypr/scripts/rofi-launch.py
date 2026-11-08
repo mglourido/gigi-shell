@@ -2,11 +2,15 @@
 """
 rofi-launch.py
 
-Abre rofi (drun) y, tras la selección, ancla las ventanas de la app elegida al
-escritorio desde el que la lanzaste. Toda esa lógica —identidad de la app,
-observación del socket de eventos, rama single-instance, el ajuste y por qué el
-timeout vale 15 s— vive en `anclaje.py`, compartida con `lanzar-anclado.py` (el
-camino de Orion). Aquí queda solo lo propio de rofi: el toggle y sus flags.
+Abre rofi (drun) y la app elegida se lanza por `lanzar-anclado.py`, el mismo
+camino que Orion: rofi lo invoca con `-run-command` (y `-run-shell-command` para
+las apps de terminal), así que la ventana NACE ya en el escritorio de
+lanzamiento, sin el parpadeo de moverla después. Antes rofi ejecutaba el `Exec`
+él mismo y este script observaba al volver la selección; se creía que
+`-run-command` solo valía para el modo `run`, y es falso (medido en rofi 2.0:
+drun también lo usa, con el argv ya troceado y el cwd del `Path=`). La lógica de
+anclaje vive en `anclaje.py`. Aquí queda solo lo propio de rofi: el toggle y sus
+flags.
 
 Convivencia con los otros selectores y con Orion: SUPER+SPACE con el portapapeles
 (u otro rofi) abierto lo cambia por este; abrir este cierra Orion, y abrir Orion
@@ -19,10 +23,15 @@ pasar el foco a un juego si se abrió fuera de él — ese lo hace AGS
 Ver diseño: docs/superpowers/specs/2026-06-13-rofi-single-instance-move-design.md
 """
 
+import os
+import shlex
 import subprocess
 import time
 
-import anclaje
+# El lanzador anclado, junto a este script. Si faltara, rofi lanza a su manera:
+# sin anclaje, pero la app se abre — nunca al revés.
+LANZADOR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "lanzar-anclado.py")
 
 # Cómo se reconoce ESTE rofi entre los demás (portapapeles, emojis): su línea de
 # comando empieza por `rofi -show drun`. Lo usan también `clipboard-history.sh`
@@ -60,13 +69,19 @@ def main():
         return
     cerrar_otro_rofi()
 
-    before, before_classes, target_ws = anclaje.foto_previa()
+    # rofi sustituye {cmd} y vuelve a trocear la plantilla como un shell, así
+    # que la ruta va citada. `{terminal} -e {cmd}` es la plantilla de fábrica.
+    lanzar = []
+    if os.access(LANZADOR, os.X_OK):
+        base = f"{shlex.quote(LANZADOR)} --argv"
+        lanzar = ["-run-command", f"{base} {{cmd}}",
+                  "-run-shell-command", f"{base} {{terminal}} -e {{cmd}}"]
 
     # --- Lanzar rofi (bloquea hasta selección o cancelación) ---
     # El diseño compartido vive en rofi/config.rasi; este selector solo cambia
     # el placeholder respecto al historial del portapapeles.
     tema_busqueda = 'entry { placeholder: "Buscar aplicaciones"; }'
-    resultado_rofi = subprocess.run([
+    subprocess.run([
         "rofi", "-show", "drun",  # primeros: PATRON_ROFI_APPS depende de ellos
         "-display-drun", "",
         "-no-drun-use-desktop-cache",
@@ -91,14 +106,8 @@ def main():
         # sin anclar nada.
         "-timeout-delay", "5",
         "-timeout-action", "kb-cancel",
+        *lanzar,
     ])
-    if resultado_rofi.returncode != 0:
-        return
-
-    # --- Observación vía socket de eventos ---
-    sock = anclaje.conectar_eventos()
-    anclaje.observe(sock, before, target_ws, anclar=anclaje.anclaje_activado(),
-                    before_classes=before_classes)
 
 
 if __name__ == "__main__":

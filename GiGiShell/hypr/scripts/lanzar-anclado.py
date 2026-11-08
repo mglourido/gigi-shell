@@ -2,17 +2,24 @@
 """
 lanzar-anclado.py — ejecuta un comando y ancla sus ventanas al escritorio actual.
 
-Es el mismo anclaje que ya tenía rofi (ver `anclaje.py`), pero para quien lanza
-apps desde fuera de rofi: hoy Orion (`ags/modulos/orion/data/launch.ts`). Orion
-llamaba a `sh -c <exec>` a pelo, así que sus apps aparecían donde estuvieras al
-terminar de cargar y no donde las abriste — justo lo contrario que rofi.
+Es el único camino de lanzamiento de los dos lanzadores: Orion
+(`ags/modulos/orion/data/launch.ts`) y rofi (`rofi-launch.py`, vía `-run-command`).
 
     lanzar-anclado.py <comando de shell>
+    lanzar-anclado.py --argv <argv…>
 
-El comando se pasa TAL CUAL a un shell, porque lo que hay en un `.desktop` es una
-línea de shell (con comillas, `env VAR=x`, tuberías), no un argv. Si llegan
-varios argumentos se juntan con espacios, para que dé igual cómo lo trocee quien
-llama.
+Sin `--argv` (Orion) el comando se pasa TAL CUAL a un shell, porque lo que hay en
+un `.desktop` es una línea de shell (con comillas, `env VAR=x`, tuberías), no un
+argv. Si llegan varios argumentos se juntan con espacios, para que dé igual cómo
+lo trocee quien llama.
+
+Con `--argv` (rofi) llega un argv YA troceado: rofi resuelve las comillas del
+`Exec` antes de sustituir `{cmd}` (medido: `env FOO="a b" app` llega como
+`env`, `FOO=a b`, `app`). Juntarlo con espacios perdería esas comillas, así que
+se reconstruye con `shlex.join`. Y llega en el cwd que pide el `Path=` del
+`.desktop`, que la app NO heredaría porque la lanza Hyprland: se antepone un
+`cd` (con `;`, no `&&`: si fallara, mejor abrir la app en otro cwd que no
+abrirla).
 
 LA VENTANA NACE YA EN SU ESCRITORIO — NO SE MUEVE DESPUÉS. Se lanza con
 `hyprctl dispatch exec [workspace N silent] <cmd>`, que aplica la regla en el
@@ -44,8 +51,7 @@ justo lo que el usuario apagó. Se lanza entonces por el camino de siempre.
 ORDEN: primero se conecta el socket, luego la foto previa, y solo entonces se
 lanza. Al revés habría una ventana ciega entre el exec y el `connect()` por la
 que una app rápida (kitty abre en 0,1 s) podría colar su `openwindow` antes de
-que nadie escuche — y esa ventana justamente no la tiene rofi, que se pasa
-segundos esperando a que elijas.
+que nadie escuche.
 
 Si algo falla al observar (no hay socket, Hyprland no responde) se sale sin ruido
 DESPUÉS de haber lanzado: el fallo debe degradar a "la app se abre donde sea",
@@ -53,6 +59,8 @@ nunca a "la app no se abre". Por lo mismo, si el `dispatch exec` no sale bien se
 relanza por `sh -c` — el camino sin regla, sin anclaje inicial, pero que abre.
 """
 
+import os
+import shlex
 import subprocess
 import sys
 
@@ -119,8 +127,18 @@ def lanzar_normal(cmd):
     subprocess.Popen(["sh", "-c", cmd], start_new_session=True)
 
 
+def comando(args):
+    """La línea de shell a lanzar, según cómo llamaron (ver el docstring)."""
+    if args[:1] == ["--argv"]:
+        if not args[1:]:
+            return ""
+        return (f"cd {shlex.quote(os.getcwd())} 2>/dev/null; "
+                f"exec {shlex.join(args[1:])}")
+    return " ".join(args).strip()
+
+
 def main():
-    cmd = " ".join(sys.argv[1:]).strip()
+    cmd = comando(sys.argv[1:])
     if not cmd:
         return 2
 
