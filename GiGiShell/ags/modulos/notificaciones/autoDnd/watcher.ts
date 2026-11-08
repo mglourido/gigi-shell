@@ -15,6 +15,7 @@
 
 import AstalHyprland from "gi://AstalHyprland"
 import { condicionesActivas } from "./detect.ts"
+import { idEscritorioEnfocado } from "../../../servicios/escritorios/escritorioEnfocado.ts"
 import { permitidaEnCondiciones, type CondicionSilencio } from "./politica.ts"
 import { expirarPopupsNoPermitidos } from "../popup/pila.ts"
 import { autoDndFullscreenApps, silencioAuto } from "../../ajustes/preferences.ts"
@@ -39,7 +40,7 @@ function evaluate(): void {
   activas = condicionesActivas(
     hypr.get_clients?.() ?? [],
     autoDndFullscreenApps.get(),
-    hypr.focusedWorkspace?.id ?? null,
+    idEscritorioEnfocado(hypr),
     esClienteRegistradoComoJuego,
   )
   // El filtro solo frena los popups NUEVOS; los que ya estaban en pantalla

@@ -13,6 +13,7 @@
 
 import { execAsync } from "ags/process"
 import AstalHyprland from "gi://AstalHyprland"
+import { idEscritorioEnfocado } from "../escritorios/escritorioEnfocado"
 
 const hypr = AstalHyprland.get_default()
 
@@ -31,8 +32,8 @@ export function enfocarVentana(direccion: string): Promise<unknown> {
 
 /** Mueve la ventana al escritorio activo del monitor con foco y la enfoca. */
 export function traerVentanaAqui(direccion: string): Promise<unknown> {
-  const destino = hypr.get_focused_workspace?.()?.id
-  if (typeof destino !== "number") return enfocarVentana(direccion)
+  const destino = idEscritorioEnfocado(hypr)
+  if (destino === null) return enfocarVentana(direccion)
   const dir = normalizar(direccion)
   return despachar(`hl.dsp.window.move({workspace=${destino}, window='address:${dir}'})`)
     .then(() => despachar(`hl.dsp.focus({window='address:${dir}'})`))

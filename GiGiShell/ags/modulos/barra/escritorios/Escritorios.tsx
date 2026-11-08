@@ -214,8 +214,8 @@ export default function Escritorios(
     mostrarEstadoOptimista(siguientes)
   }
 
-  // Reordenar, intercambiar y renumerar mueven VENTANAS entre escritorios
-  // numerados (ver `servicios/escritorios/plan.ts`). Un especial no tiene sitio en
+  // Reordenar, intercambiar y renumerar cambian el id de escritorios numerados
+  // o, de reserva, mueven sus ventanas (ver `servicios/escritorios/plan.ts`). Un especial no tiene sitio en
   // ese orden —no es una posición, es un cajón— y arrastrarlo habría vaciado el
   // scratchpad dentro de un escritorio normal. Se ignora en las tres entradas, que
   // son las tres formas de llegar: arrastrar, CTRL+arrastrar y teclear un número.

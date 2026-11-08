@@ -8,6 +8,7 @@ import { cargarFondoMiniatura } from "../barra/escritorios/fondoMiniatura"
 import { capturarSalidaConGrim } from "../barra/escritorios/respaldoGrim"
 import { wsPreviewSuspended } from "../../servicios/energia/powerState"
 import { obtenerHyprland, suscribirDatosEscritorios } from "../../servicios/escritorios/controlador"
+import { idEscritorioEnfocado } from "../../servicios/escritorios/escritorioEnfocado"
 import { esEscritorioEspecial } from "../../servicios/escritorios/especiales"
 import { enfocarEscritorio } from "../../servicios/escritorios/operaciones"
 import { blurSuave } from "../../utilidades/blurSuave"
@@ -263,7 +264,7 @@ export default function VistaEscritorios(monitorGdk: Gdk.Monitor) {
     let dejarDatos = () => {}
 
     const fotografiarActivo = async () => {
-      const miniatura = miniaturas.get(hyprland.get_focused_workspace()?.id ?? 0)
+      const miniatura = miniaturas.get(idEscritorioEnfocado(hyprland) ?? 0)
       if (!nombreSalida || !miniatura) return
       const textura = await capturarSalidaConGrim(nombreSalida, fisico.ancho, fisico.alto)
       if (vigente && textura) miniatura.imagen.set_paintable(textura)

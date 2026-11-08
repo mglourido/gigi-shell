@@ -37,6 +37,7 @@ import {
 } from "../../../data/wallpaperSchedule"
 import { historial, borrarHistorial, registrarAtajo, type EntradaHistorial } from "../../../data/historial"
 import { tiempoRelativo } from "../../../data/historial.modelo"
+import { idEscritorioEnfocado } from "../../../../../servicios/escritorios/escritorioEnfocado"
 import { launchApp } from "../../../data/launch"
 import { miniatura, nombreDe } from "../rice/comunes"
 import { crearIconoApp } from "../../shared/tarjetaApp"
@@ -553,7 +554,7 @@ function calcularGruposVentanas() {
     g.ventanas.push({ cliente: c, icono })
   }
   // El escritorio en el que estás primero; luego por número (especiales al final).
-  const aqui = Number(hypr.get_focused_workspace?.()?.id ?? 0)
+  const aqui = idEscritorioEnfocado(hypr) ?? 0
   const orden = (id: number) => id === aqui ? -1 : id > 0 ? id : 1000 - id
   const lista = [...grupos.values()].sort((a, b) =>
     orden(a.escritorioId) - orden(b.escritorioId) || a.nombre.localeCompare(b.nombre))

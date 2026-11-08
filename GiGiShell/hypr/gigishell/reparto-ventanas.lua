@@ -389,12 +389,15 @@ end)
 -- Se espera `ESPERA_DROP` antes de mirar porque al llegar el release dwindle
 -- todavía está reinsertando: leer ahí da la geometría de antes.
 --
--- TRAMPA MEDIDA: `hl.dsp.window.resize` IGNORA `window = ...` y redimensiona
--- SIEMPRE la ventana activa — sin error ni aviso (medido: pidiendo agrandar
--- tst3 se agrandó tst2, que era la activa). Por eso se comprueba que la activa
--- siga siendo la que soltaste antes de tocar nada; si el foco ya se fue a otra
--- (el ratón pasando por encima, con follow_mouse), se deja estar. Agrandar la
--- ventana equivocada sería mucho peor que no agrandar ninguna.
+-- `resize` sin `window = ...` redimensiona la ventana ACTIVA, así que se
+-- comprueba que la activa siga siendo la que soltaste antes de tocar nada; si el
+-- foco ya se fue a otra (el ratón pasando por encima, con follow_mouse), se deja
+-- estar. Agrandar la ventana equivocada sería mucho peor que no agrandar ninguna.
+-- Historia: en una versión anterior `hl.dsp.window.resize` IGNORABA `window =`
+-- (pidiendo agrandar tst3 se agrandó tst2, la activa) y de ahí este diseño. En
+-- 0.57.1 SÍ lo respeta, también en un escritorio oculto y con otra activa
+-- (medido con `relative = true`). Con eso se podría dirigir el resize por
+-- dirección y quitar la comprobación, pero no está medido con `exact = true`.
 local arrastre = nil
 
 --- SUPER + botón izq, al pulsar: foto de la ventana que se va a arrastrar.
@@ -450,7 +453,7 @@ function GiGiShell.reparto_arrastre_fin()
       local an, al = v.size.x or 0, v.size.y or 0
       if an >= ancho_min and al >= alto_min then return end   -- cayó bien, nada que hacer
 
-      -- Ver la trampa de arriba: `resize` va a la ACTIVA, no a `window`.
+      -- Ver arriba: este `resize` no lleva `window`, así que va a la ACTIVA.
       local activa = hl.get_active_window()
       if not activa or activa.address ~= a.addr then return end
 
