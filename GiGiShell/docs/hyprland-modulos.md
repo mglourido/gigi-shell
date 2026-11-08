@@ -1128,9 +1128,13 @@ Con la tolerancia, tres clics seguidos sobre la más pequeña no mueven nada (me
 **Trampas medidas**: `at` y `size` de una `HL.Window` son tablas **`{x=, y=}`, no arrays** — un
 `v.size[1]` devuelve `nil` en silencio, el área sale 0 y toda comparación de tamaño pasa a ser
 cierta (el módulo creía que todo cabía y no intervenía nunca, sin un solo error). Y
-`hl.dsp.window.resize` **ignora `window = ...`**: redimensiona **siempre la activa**, también sin
-avisar (medido: pidiendo agrandar tst3 se agrandó tst2). Por eso el drop comprueba que la activa
-siga siendo la ventana que soltaste antes de tocar nada.
+el drop llama a `hl.dsp.window.resize` **sin `window = ...`**, así que redimensiona la activa, y
+por eso comprueba que la activa siga siendo la ventana que soltaste antes de tocar nada. Se diseñó
+así porque en una versión anterior `resize` **ignoraba** `window =` sin avisar (medido: pidiendo
+agrandar tst3 se agrandó tst2). **En 0.57.1 eso ya no es cierto**: respeta `window =`, también
+sobre una ventana de un escritorio oculto y con otra activa en el visible (medido con
+`relative = true` en una instancia anidada). Dirigir el resize del drop por dirección permitiría
+quitar la comprobación, pero no está medido con `exact = true`, que es lo que usa el drop.
 
 **Ajustes** en `~/.config/gigishell/preferences.json`, sin UI (como `maxVentanasEscritorio`):
 `repartoVentanas` (**ausente = activado**, se comprueba `== false`), `segundaVentanaAlLado`
@@ -1347,13 +1351,24 @@ docstring de `anclaje.py`.
 aparece en el **anterior**. El observador del lanzamiento previo seguía vivo y se la llevaba: o no
 había fijado identidad (su app no abrió ventana nueva) y adoptaba la primera que naciera, o las dos
 apps tenían la misma clase (dos kitty). Ahora cada observador publica su identidad en
-`$XDG_RUNTIME_DIR/gigishell-anclaje/` (clase `Registro`) y, antes de anclar, `cede()` reparte: una
-ventana que **cuelga del árbol de procesos** de un lanzamiento es de ese (así las ventanas tardías
-de Steam siguen yendo con Steam); si no cuelga de ninguno, se la queda el lanzamiento **más
-reciente** que la reclame. La rama `urgent` solo la atiende el más reciente. `lanzar-anclado.py`
-crea su registro **antes** del `exec` (si no, el viejo vería la ventana primero). Límite
-conocido: Firefox relanzado antes de 15 s abre la ventana en su proceso existente, y por pid es
-indistinguible de una ventana tardía, así que va al lanzamiento viejo.
+`$XDG_RUNTIME_DIR/gigishell-anclaje/` (clase `Registro`) y, antes de anclar, `cede()` reparte, por
+orden:
+
+0. Un lanzamiento que aún **espera su primera ventana** y cuyo programa casa con ella se la queda
+   (el más reciente si son varios). La **pista** es el nombre del ejecutable sacado del comando
+   (`/usr/lib/firefox/firefox %u` → `firefox`, saltando `env` y `VAR=x`), comparada con el `comm`
+   del proceso de la ventana o con su clase. Hace falta por **Firefox relanzado antes de 15 s**: la
+   ventana del segundo lanzamiento la crea el proceso del primero, así que por pid se iba al
+   escritorio del primero. Medido tras el cambio: dos lanzamientos a los escritorios 8 y 9, con
+   2 s de separación, y cada ventana —las dos del mismo pid— en el suyo.
+1. Si no, una ventana que **cuelga del árbol de procesos** de un lanzamiento es de ese (así las
+   ventanas tardías de Steam siguen yendo con Steam aunque entretanto lances kitty: la pista
+   `kitty` no casa con Steam).
+2. Si no, se la queda el lanzamiento **más reciente** que la reclame.
+
+La rama `urgent` solo la atiende el más reciente. `lanzar-anclado.py` crea su registro **antes**
+del `exec` (si no, el viejo vería la ventana primero). Una pista de un envoltorio genérico
+(`sh -c …`, `flatpak run …`) no casa con nada y el lanzamiento se reparte como si no la tuviera.
 
 **Las ventanas POSTERIORES las ancla el compositor, sin parpadeo (`gigishell/anclaje-temprano.lua`).**
 Síntoma: LibreOffice aparecía en tu escritorio y saltaba al de lanzamiento, mientras Steam nacía ya
@@ -1365,10 +1380,13 @@ medido, Writer seguía en el activo); y una regla de usuario no puede casar por 
 `window.open` se emite **síncrono dentro de `mapWindow()`, antes de dibujar ningún frame**: al fijar
 la identidad, `anclaje.py` registra el pid con `GiGiShell.anclar_pid(pid, ws)`, y el módulo mueve ahí
 toda ventana cuyo proceso cuelgue de ese pid. Medido: `openwindow …,1` y `movewindow …,9` con 1 ms
-de diferencia, el usuario sin moverse. Va antes que `limite-ventanas.lua` para que el tope vea la
-ventana ya en su destino; el registro caduca a los 20 s por si el observador muere sin soltarlo. Lo
-que no cuelga del árbol de procesos (casos solo por clase) lo sigue moviendo `anclaje.py`, con
-parpadeo.
+de diferencia, el usuario sin moverse. La regla 0 (la pista) también vive aquí, y va antes que el
+pid: cada lanzamiento registra su espera con `GiGiShell.esperar_lanzamiento()` antes del `exec`, y
+la primera ventana que casa la consume. **A un destino lleno no trae nada**: `limite-ventanas.lua`
+la apartaría después *siguiéndola* (`follow = true`) y te arrastraría a otro escritorio; el
+recuento es el mismo, compartido en `util.en_mosaico()`. El registro caduca a los 20 s por si el
+observador muere sin soltarlo. Lo que no casa por pista ni por pid (casos solo por clase) lo sigue
+moviendo `anclaje.py`, con parpadeo.
 
 **Apps de una sola ventana y arranque instantáneo (`UNA_VENTANA`: kitty, foot, Alacritty,
 WezTerm) cortan la observación en cuanto anclan su ventana**, en vez de vivir 15 s: menos rato

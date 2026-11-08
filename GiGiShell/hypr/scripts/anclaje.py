@@ -105,6 +105,19 @@ UNA_VENTANA = {
 }
 
 
+def _literal_lua(texto):
+    """`texto` como literal de cadena Lua entre comillas simples.
+
+    El comando de un `.desktop` puede traer comillas de los dos tipos y
+    barras invertidas; se escapa lo que rompería el literal en vez de usar
+    corchetes largos `[[…]]`, que fallarían con un `]]` dentro del comando.
+    Verificado en anidada: el escapado entrega el comando byte a byte al shell
+    que exec_cmd lanza por debajo (redirecciones incluidas).
+    """
+    return "'" + (texto.replace("\\", "\\\\").replace("'", "\\'")
+                  .replace("\n", "\\n").replace("\r", "\\r")) + "'"
+
+
 def hypr_j(*args):
     out = subprocess.run(["hyprctl", "-j", *args],
                          capture_output=True, text=True).stdout
@@ -320,6 +333,58 @@ def conectar_eventos():
     return sock
 
 
+# Opciones de `env` que consumen el argumento siguiente.
+_ENV_CON_ARG = {"-u", "--unset", "-C", "--chdir", "-S", "--split-string"}
+
+
+def pista_de_comando(tokens):
+    """Nombre del programa que lanza un argv, en minúsculas, o None.
+
+    Es la PISTA con la que un lanzamiento reconoce su ventana antes de tener
+    identidad: `/usr/lib/firefox/firefox %u` -> "firefox". Se saltan `env`, sus
+    opciones y las asignaciones `VAR=x`, que son lo habitual en un `Exec`.
+    Un envoltorio genérico (`sh -c …`, `flatpak run …`) da una pista que no
+    casará con ninguna ventana, y entonces todo funciona como sin pista.
+    """
+    i = 0
+    if tokens and os.path.basename(tokens[0]) == "env":
+        i = 1
+        while i < len(tokens):
+            t = tokens[i]
+            if t in _ENV_CON_ARG:
+                i += 2
+            elif t.startswith("-") or "=" in t:
+                i += 1
+            else:
+                break
+    while i < len(tokens) and "=" in tokens[i] and not tokens[i].startswith("/"):
+        i += 1
+    if i >= len(tokens):
+        return None
+    return os.path.basename(tokens[i]).lower() or None
+
+
+def comm_de(pid):
+    """`comm` del proceso (nombre corto, 15 caracteres como mucho), o ""."""
+    try:
+        with open(f"/proc/{pid}/comm", "rb") as f:
+            return f.read().decode(errors="replace").strip().lower()
+    except OSError:
+        return ""
+
+
+def casa_pista(pista, cls, comm):
+    """¿La ventana (clase `cls`, proceso `comm`) es del programa `pista`?
+
+    `comm` lo trunca el kernel a 15 caracteres, así que la pista se compara
+    truncada igual. La clase sirve cuando el proceso de la ventana no se llama
+    como el ejecutable (wrappers que hacen exec de otro binario).
+    """
+    if not pista:
+        return False
+    return pista[:15] == comm or pista == (cls or "").lower()
+
+
 class Registro:
     """Lo que cada observador vivo ha reclamado, para que no se pisen entre sí.
 
@@ -339,19 +404,39 @@ class Registro:
 
     Fallo seguro: si el directorio no se puede usar, el observador trabaja solo,
     como antes de esto — anclar de más es mejor que dejar de anclar.
+
+    El mismo reparto se replica en el compositor (`gigishell/anclaje-temprano
+    .lua`), que actúa ANTES que este proceso: allí se registran la pista del
+    lanzamiento mientras espera su primera ventana (`ws`, solo si el anclaje
+    está activo) y, al fijar la identidad, el pid de la app. Las llamadas a
+    `hyprctl eval` van guardadas con `if GiGiShell and …`: si el config está a
+    medio recargar no hacen nada y sigue valiendo el anclaje de aquí, con
+    parpadeo pero sin perder la ventana.
     """
 
-    def __init__(self):
+    def __init__(self, pista=None, ws=None):
         xdg = os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
         self.dir = os.path.join(xdg, "gigishell-anclaje")
         self.clave = f"{time.monotonic_ns():020d}-{os.getpid()}"
         self.ruta = os.path.join(self.dir, self.clave + ".json")
-        self.pid_temprano = None
+        self.pista = pista
+        self.espera_lua = False   # ¿hay una espera registrada en el compositor?
+        self.pid_lua = None       # ¿y un pid anclado?
         try:
             os.makedirs(self.dir, exist_ok=True)
             self.publicar(None, None)
         except OSError:
             self.ruta = None
+        if pista and isinstance(ws, int) and ws >= 1:
+            self._eval(f"GiGiShell.esperar_lanzamiento('{self.clave}', "
+                       f"{_literal_lua(pista)}, {ws})")
+            self.espera_lua = True
+
+    @staticmethod
+    def _eval(lua):
+        subprocess.run(["hyprctl", "eval",
+                        f"if GiGiShell and GiGiShell.anclar_pid then {lua} end"],
+                       capture_output=True, text=True)
 
     def publicar(self, app_class, app_pid):
         if self.ruta is None:
@@ -359,41 +444,42 @@ class Registro:
         tmp = self.ruta + ".tmp"
         try:
             with open(tmp, "w") as f:
-                json.dump({"clase": app_class, "pid": app_pid}, f)
+                json.dump({"clase": app_class, "pid": app_pid,
+                           "pista": self.pista}, f)
             os.replace(tmp, self.ruta)
         except OSError:
             pass
 
-    def anclar_temprano(self, pid, ws):
-        """Pide al compositor que ancle él las ventanas POSTERIORES de `pid`.
+    def fijar_identidad(self, app_class, app_pid, ws_temprano):
+        """Publica la identidad y la pasa al compositor en UN solo `eval`.
 
-        La regla del exec solo cubre la primera ventana; las siguientes (Writer
-        tras la splash de LibreOffice, las tardías de Steam) nacerían en el
-        escritorio activo y este observador las movería tarde, con parpadeo.
-        `gigishell/anclaje-temprano.lua` las mueve dentro de `window.open`,
-        antes de dibujar ningún frame. Ver su cabecera.
-
-        Mismo patrón que `mover_a_workspace`: `eval` responde "ok" aunque el
-        global no exista (config a medio recargar), y entonces sigue valiendo
-        el anclaje de aquí, con parpadeo pero sin perder la ventana.
+        Con identidad ya no hay espera que mantener; y si `ws_temprano` vale,
+        el compositor ancla él las ventanas POSTERIORES del pid: la regla del
+        exec solo cubre la primera, y las siguientes (Writer tras la splash de
+        LibreOffice, las tardías de Steam) nacerían en el escritorio activo y
+        este observador las movería tarde, con parpadeo.
         """
-        if not pid or not isinstance(ws, int) or ws < 1:
-            return
-        subprocess.run(
-            ["hyprctl", "eval",
-             f"if GiGiShell and GiGiShell.anclar_pid then "
-             f"GiGiShell.anclar_pid({int(pid)}, {ws}) end"],
-            capture_output=True, text=True)
-        self.pid_temprano = int(pid)
+        self.publicar(app_class, app_pid)
+        lua = []
+        if self.espera_lua:
+            lua.append(f"GiGiShell.fin_espera('{self.clave}')")
+            self.espera_lua = False
+        if app_pid and isinstance(ws_temprano, int) and ws_temprano >= 1:
+            lua.append(f"GiGiShell.anclar_pid({int(app_pid)}, {ws_temprano})")
+            self.pid_lua = int(app_pid)
+        if lua:
+            self._eval("; ".join(lua))
 
     def cerrar(self):
-        if self.pid_temprano:
-            subprocess.run(
-                ["hyprctl", "eval",
-                 f"if GiGiShell and GiGiShell.soltar_pid then "
-                 f"GiGiShell.soltar_pid({self.pid_temprano}) end"],
-                capture_output=True, text=True)
-            self.pid_temprano = None
+        lua = []
+        if self.espera_lua:
+            lua.append(f"GiGiShell.fin_espera('{self.clave}')")
+            self.espera_lua = False
+        if self.pid_lua:
+            lua.append(f"GiGiShell.soltar_pid({self.pid_lua})")
+            self.pid_lua = None
+        if lua:
+            self._eval("; ".join(lua))
         if self.ruta is not None:
             try:
                 os.remove(self.ruta)
@@ -401,7 +487,7 @@ class Registro:
                 pass
 
     def otros(self):
-        """[(clave, clase, pid)] de los demás observadores VIVOS.
+        """[(clave, clase, pid, pista)] de los demás observadores VIVOS.
 
         Un fichero cuyo dueño ya no existe (observador matado sin `finally`) se
         borra al verlo: si no, un fantasma "sin identidad" se quedaría para
@@ -434,37 +520,47 @@ class Registro:
                     d = json.load(f)
             except (OSError, ValueError):
                 continue
-            res.append((clave, d.get("clase"), d.get("pid")))
+            res.append((clave, d.get("clase"), d.get("pid"), d.get("pista")))
         return res
 
     def hay_posterior(self):
-        return any(c > self.clave for c, _, _ in self.otros())
+        return any(o[0] > self.clave for o in self.otros())
 
 
-def cede(mi_clave, mi_desc, cls, pid, otros):
+def cede(mi_clave, mi_desc, cls, pid, otros, mi_pista=None, comm=""):
     """¿Debe este observador dejar la ventana (clase `cls`, pid `pid`) a otro?
 
     Se llama solo cuando este observador la reclamaría. Reglas, por orden:
-      1. Si la ventana cuelga del árbol de procesos de algún lanzamiento, es de
-         ese lanzamiento (del más reciente si cuelga de varios). Es la prueba más
-         fuerte que hay: así las ventanas tardías de Steam siguen yendo con
-         Steam aunque mientras tanto hayas lanzado otra cosa.
+      0. Un lanzamiento que aún ESPERA su primera ventana y cuyo programa casa
+         con ella (pista contra `comm` o clase) se la queda; el más reciente si
+         son varios. Es lo que separa dos lanzamientos de Firefox seguidos: la
+         ventana del segundo la crea el proceso del PRIMERO (cuelga de su pid),
+         pero es la que acabas de pedir. Sin esta regla se iba al escritorio
+         del primer lanzamiento.
+      1. Si no, si la ventana cuelga del árbol de procesos de algún lanzamiento,
+         es de ese (del más reciente si cuelga de varios). Así las ventanas
+         tardías de Steam siguen yendo con Steam aunque mientras tanto hayas
+         lanzado otra cosa — su pista no casa con Steam.
       2. Si no, se la queda el lanzamiento MÁS RECIENTE que la reclame (por clase
          o porque aún no tiene identidad y la adoptaría). Es la que acabas de
          pedir, y la que tiene que nacer donde estás ahora.
-    Límite conocido: una app que reutiliza su proceso para la ventana nueva
-    (Firefox) cae en la regla 1 a favor del lanzamiento VIEJO si la relanzas
-    antes de 15 s — por pid no se distingue de una ventana tardía suya.
 
-    `mi_desc`: si la ventana cuelga de MI árbol. Pura y sin E/S salvo /proc,
-    para poder probarla sin Hyprland.
+    `mi_desc`: si la ventana cuelga de MI árbol. `mi_pista`: la mía, solo si aún
+    no tengo identidad (con identidad ya no espero nada). Pura y sin E/S salvo
+    /proc, para poder probarla sin Hyprland.
     """
-    desc = [c for c, _, p in otros if p and is_descendant(pid, p)]
+    esperan = [c for c, k, _, ps in otros
+               if k is None and casa_pista(ps, cls, comm)]
+    if casa_pista(mi_pista, cls, comm):
+        return any(c > mi_clave for c in esperan)
+    if esperan:
+        return True
+    desc = [c for c, _, p, _ in otros if p and is_descendant(pid, p)]
     if mi_desc:
         return any(c > mi_clave for c in desc)
     if desc:
         return True
-    return any(c > mi_clave and (k is None or k == cls) for c, k, _ in otros)
+    return any(c > mi_clave and (k is None or k == cls) for c, k, _, _ in otros)
 
 
 def observe(sock, before, target_ws, timeout=TIMEOUT, anclar=True,
@@ -566,16 +662,20 @@ def _observe(sock, before, target_ws, timeout, anclar, before_classes,
                 # La reclamaría, pero puede ser de OTRO lanzamiento que siga
                 # observando: cada uno se queda solo con lo suyo (Registro).
                 # Cediendo tampoco se adopta como identidad.
-                if cede(registro.clave, mi_desc, cls, pid, registro.otros()):
+                otros = registro.otros()
+                if cede(registro.clave, mi_desc, cls, pid, otros,
+                        mi_pista=registro.pista if app_class is None else None,
+                        comm=comm_de(pid) if otros or app_class is None else ""):
                     continue
 
                 if app_class is None:
                     app_class, app_pid = cls, pid
-                    registro.publicar(app_class, app_pid)
                     # Las apps de una sola ventana terminan aquí mismo: no
                     # habrá ventanas posteriores que anclar en el compositor.
-                    if anclar and app_class not in UNA_VENTANA:
-                        registro.anclar_temprano(app_pid, target_ws)
+                    registro.fijar_identidad(
+                        app_class, app_pid,
+                        target_ws if anclar and app_class not in UNA_VENTANA
+                        else None)
 
                 # Anclar al workspace donde lancé. Si me cambié mientras cargaba,
                 # la traigo en silencio (silent = no me arrastra de vuelta).

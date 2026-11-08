@@ -67,19 +67,6 @@ import sys
 import anclaje
 
 
-def _literal_lua(texto):
-    """`texto` como literal de cadena Lua entre comillas simples.
-
-    El comando de un `.desktop` puede traer comillas de los dos tipos y
-    barras invertidas; se escapa lo que rompería el literal en vez de usar
-    corchetes largos `[[…]]`, que fallarían con un `]]` dentro del comando.
-    Verificado en anidada: el escapado entrega el comando byte a byte al shell
-    que exec_cmd lanza por debajo (redirecciones incluidas).
-    """
-    return "'" + (texto.replace("\\", "\\\\").replace("'", "\\'")
-                  .replace("\n", "\\n").replace("\r", "\\r")) + "'"
-
-
 def _dispatch_ok(*args):
     """¿Respondió hyprctl "ok" a este dispatch?
 
@@ -101,19 +88,18 @@ def lanzar_con_regla(cmd, ws):
     y no se nombran así en una regla, de modo que ahí se devuelve False y se cae
     al lanzamiento normal, con el observador haciendo su trabajo de siempre.
 
-    Prueba primero la forma Lua de Hyprland 0.56 — verificada en anidada:
+    Forma Lua de Hyprland 0.56 — verificada en anidada:
     `hl.dsp.exec_cmd('<cmd>', {workspace='N silent'})` hace nacer la ventana en
-    el workspace pedido sin robar el foco — y cae a la sintaxis legacy si no
-    responde "ok": la sesión puede seguir en config hyprlang hasta el próximo
-    reinicio, y este script nace de cero en cada lanzamiento, así que tiene que
-    hablar con ambas.
+    el workspace pedido sin robar el foco. Aquí hubo un repliegue a la sintaxis
+    legacy (`exec [workspace N silent] cmd`) para una sesión aún en hyprlang;
+    los `.conf` del compositor ya no existen y esa sintaxis no funciona en la
+    sesión Lua, así que solo costaba un fork más antes del `sh -c` (mismo
+    criterio con el que se quitó el de `anclaje.dispatch`).
     """
     if not isinstance(ws, int) or ws < 1:
         return False
-    if _dispatch_ok(
-            f"hl.dsp.exec_cmd({_literal_lua(cmd)}, {{workspace='{ws} silent'}})"):
-        return True
-    return _dispatch_ok("exec", f"[workspace {ws} silent] {cmd}")
+    return _dispatch_ok(
+        f"hl.dsp.exec_cmd({anclaje._literal_lua(cmd)}, {{workspace='{ws} silent'}})")
 
 
 def lanzar_normal(cmd):
@@ -128,17 +114,26 @@ def lanzar_normal(cmd):
 
 
 def comando(args):
-    """La línea de shell a lanzar, según cómo llamaron (ver el docstring)."""
+    """(línea de shell a lanzar, argv para la pista), según cómo llamaron.
+
+    El argv solo sirve para sacar el nombre del programa (`anclaje.pista_de_
+    comando`); si la línea de Orion no se deja trocear, no hay pista y el
+    lanzamiento se reparte como si no la tuviera.
+    """
     if args[:1] == ["--argv"]:
         if not args[1:]:
-            return ""
+            return "", []
         return (f"cd {shlex.quote(os.getcwd())} 2>/dev/null; "
-                f"exec {shlex.join(args[1:])}")
-    return " ".join(args).strip()
+                f"exec {shlex.join(args[1:])}"), args[1:]
+    cmd = " ".join(args).strip()
+    try:
+        return cmd, shlex.split(cmd)
+    except ValueError:
+        return cmd, []
 
 
 def main():
-    cmd = comando(sys.argv[1:])
+    cmd, argv = comando(sys.argv[1:])
     if not cmd:
         return 2
 
@@ -151,9 +146,13 @@ def main():
         sock = None
         target_ws = None
 
-    # Antes del exec, como el connect(): un observador anterior tiene que ver
-    # este lanzamiento ya cuando nazca la ventana, o se la quedaría él.
-    registro = anclaje.Registro() if sock is not None else None
+    # Antes del exec, como el connect(): un observador anterior —y el
+    # compositor— tienen que ver este lanzamiento ya cuando nazca la ventana,
+    # o se la quedarían ellos. La espera en el compositor solo con el anclaje
+    # activo: apagado, nadie debe mover ventanas a este escritorio.
+    registro = (anclaje.Registro(pista=anclaje.pista_de_comando(argv),
+                                 ws=target_ws if anclar else None)
+                if sock is not None else None)
 
     if not (anclar and target_ws is not None and lanzar_con_regla(cmd, target_ws)):
         lanzar_normal(cmd)
@@ -166,8 +165,7 @@ def main():
     except Exception:
         pass
     finally:
-        registro.cerrar()
-        sock.close()
+        sock.close()   # el registro lo cierra observe() en su propio finally
     return 0
 
 

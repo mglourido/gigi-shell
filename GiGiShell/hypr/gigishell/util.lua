@@ -73,6 +73,27 @@ function M.prefs()
   return _prefs_cache
 end
 
+--- Tope de ventanas en mosaico por escritorio (`maxVentanasEscritorio`, ausente
+--- = 8; <= 0 = sin tope). Lo aplica gigishell/limite-ventanas.lua y lo respeta
+--- gigishell/anclaje-temprano.lua antes de traer una ventana.
+M.LIMITE_MOSAICO_DEFECTO = 8
+function M.limite_mosaico()
+  return tonumber(M.prefs().maxVentanasEscritorio) or M.LIMITE_MOSAICO_DEFECTO
+end
+
+--- Ventanas en mosaico de un escritorio: ni flotantes ni ocultas (`swallow`),
+--- que no ocupan hueco del layout. `excluir`: address que no cuenta (la ventana
+--- que se está decidiendo dónde poner).
+function M.en_mosaico(ws_id, excluir)
+  local n = 0
+  local ok, ventanas = pcall(hl.get_workspace_windows, ws_id)
+  if not ok or not ventanas then return 0 end
+  for _, v in ipairs(ventanas) do
+    if not v.floating and not v.hidden and v.address ~= excluir then n = n + 1 end
+  end
+  return n
+end
+
 --- require() protegido para módulos PROPIOS (versionados): si el módulo lanza,
 --- se avisa en pantalla y se sigue con el resto del config — mejor un bloque de
 --- config ausente que una sesión sin atajos.

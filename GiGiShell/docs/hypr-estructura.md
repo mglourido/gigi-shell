@@ -72,7 +72,7 @@ error de Lua sin capturar deja la sesión sin atajos.
 | 18 | `gigishell/autostart.lua` | Lo que arranca la sesión, con el calendario escalonado | a mano |
 | 19 | `gigishell/escaner-apps.lua` | Salto al escritorio donde abrieron las apps de autostart | a mano |
 | 20 | `gigishell/reparto-ventanas.lua` | Que una ventana no acabe estrujada: al abrirse (elige qué se parte y por qué lado) y al soltarla arrastrada (le hace hueco a costa de los vecinos) | a mano |
-| 21 | `gigishell/anclaje-temprano.lua` | `GiGiShell.anclar_pid()` / `soltar_pid()` — mueve dentro de `window.open` (sin parpadeo) las ventanas posteriores de una app lanzada; lo usa `scripts/anclaje.py` | a mano |
+| 21 | `gigishell/anclaje-temprano.lua` | `GiGiShell.anclar_pid()` / `esperar_lanzamiento()` — mueve dentro de `window.open` (sin parpadeo) las ventanas de una app lanzada a su escritorio, respetando el tope; lo usa `scripts/anclaje.py` | a mano |
 | 22 | `gigishell/limite-ventanas.lua` | Tope de ventanas en mosaico por escritorio (mueve la que sobra) | a mano |
 | 23 | `gigishell/permisos.lua` | Permisos del ecosistema (requiere reiniciar Hyprland) | a mano |
 | 24 | `gigishell/gpu.lua` | Elige el perfil de GPU y carga `gigishell/gpu/<perfil>.lua` | **fichero local**, ver abajo |
@@ -84,7 +84,7 @@ error de Lua sin capturar deja la sesión sin atajos.
 
 **El orden no es estético**: `gigishell/pantalla` pisa al comodín de monitores,
 `gigishell/dispositivos` pisa a `userprefs`, `anclaje-temprano` va antes que
-`limite-ventanas` para que el tope vea la ventana ya en su destino, y `nop-binds`
+`limite-ventanas` para que el tope vea la ventana ya colocada, y `nop-binds`
 va el último porque necesita saber qué combinaciones ya usó `keybinds`.
 
 Al final, `hyprland.lua` llama a `GiGiShell.daltonismo()` — el equivalente al viejo

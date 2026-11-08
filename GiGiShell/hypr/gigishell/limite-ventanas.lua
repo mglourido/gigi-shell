@@ -55,20 +55,12 @@ do
   end
 end
 
-local LIMITE_DEFECTO = 8
 local SEGUIR = true      -- ver arriba: la ventana recién lanzada no se pierde
 local WS_MAX = 20        -- techo del barrido de candidatos (ids normales)
 
---- Ventanas en mosaico de un escritorio: ni flotantes ni ocultas.
-local function en_mosaico(ws_id)
-  local n = 0
-  local ok, ventanas = pcall(hl.get_workspace_windows, ws_id)
-  if not ok or not ventanas then return 0 end
-  for _, v in ipairs(ventanas) do
-    if not v.floating and not v.hidden then n = n + 1 end
-  end
-  return n
-end
+-- El recuento y el tope viven en util: gigishell/anclaje-temprano.lua los
+-- necesita igual para no traer una ventana a un escritorio lleno.
+local en_mosaico = util.en_mosaico
 
 --- Primer escritorio con sitio: hacia arriba desde el actual y, si no queda
 --- ninguno, dando la vuelta por debajo. Un escritorio que aún no existe cuenta
@@ -88,7 +80,7 @@ hl.on("window.open", function(ventana)
   -- `window.open` (no `window.open_early`) llega con las reglas YA aplicadas,
   -- así que `floating` es el valor definitivo y no el de antes de la regla.
   local ok, err = pcall(function()
-    local limite = tonumber(util.prefs().maxVentanasEscritorio) or LIMITE_DEFECTO
+    local limite = util.limite_mosaico()
     if limite <= 0 then return end            -- apagado explícito
 
     if not ventana or ventana.floating or ventana.hidden then return end
