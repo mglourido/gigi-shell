@@ -37,7 +37,7 @@
 
 import AstalWp from "gi://AstalWp"
 import { audioPresets, recordarPreset, type TipoMezcla } from "./presetsApps"
-import { fijarVolumenEndpoint } from "./escrituraVolumen"
+import { aplicarAlInicializar, olvidarEndpoint } from "./escrituraVolumen"
 import { VOLUMEN_MAX } from "./volumenAmplificado"
 import { crudoDesdePorcentajeMic } from "./volumenMicrofono"
 
@@ -62,8 +62,12 @@ function topeDe(tipo: TipoMezcla): number {
 
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)) }
 
-/** Endpoints ya atendidos, por id de PipeWire, con el manejador para soltarlo en la baja. */
-const atendidos = new Map<number, number>()
+/**
+ * Endpoints ya atendidos, por id de PipeWire, con lo que hay que soltar en la baja: el
+ * manejador que anota y, si la restauración sigue en curso, su cancelación.
+ */
+type Atendido = { manejador: number; cancelar: (() => void) | null }
+const atendidos = new Map<number, Atendido>()
 
 /**
  * Ventana en la que NO se anota lo que llegue: es el eco de nuestra propia escritura de
@@ -77,25 +81,40 @@ function atender(tipo: TipoMezcla, ep: any) {
   if (atendidos.has(ep.id)) return
 
   const clave = claveDispositivo(tipo, ep)
-  const preset = audioPresets.get()[clave]
+  const reg: Atendido = { manejador: 0, cancelar: null }
   let hasta = 0
-  if (preset !== undefined) {
-    fijarVolumenEndpoint(ep, clamp(preset, 0, topeDe(tipo)))
-    hasta = Date.now() + ECO_MS
+
+  // NO se escribe aquí: un aparato recién aparecido aún no acepta escrituras (ver
+  // `aplicarAlInicializar`). Antes se escribía en el acto y fallaba mudo: con `volume = 0`
+  // la escritura era un no-op con aviso de AstalWp (issue #322), y la ventana de eco
+  // abierta a continuación se tragaba el `notify::volume` real que llegaba ~1 ms después —
+  // o sea que unos cascos USB o Bluetooth conectados a mitad de sesión NUNCA recibían su
+  // preset. Mientras dure la restauración no se anota nada: lo que llegue son los valores
+  // de inicialización y los ecos de nuestra propia escritura, no decisiones del usuario.
+  if (audioPresets.get()[clave] !== undefined) {
+    reg.cancelar = aplicarAlInicializar(ep, () => {
+      const preset = audioPresets.get()[clave]
+      return preset === undefined ? undefined : clamp(preset, 0, topeDe(tipo))
+    }, {
+      alEscribir: () => { hasta = Date.now() + ECO_MS },
+      alTerminar: () => { reg.cancelar = null },
+    })
   }
 
-  const manejador = ep.connect("notify::volume", () => {
-    if (Date.now() < hasta) return
+  reg.manejador = ep.connect("notify::volume", () => {
+    if (reg.cancelar !== null || Date.now() < hasta) return
     recordarPreset(clave, ep.volume)
   })
-  atendidos.set(ep.id, manejador)
+  atendidos.set(ep.id, reg)
 }
 
 function olvidar(ep: any) {
-  const manejador = atendidos.get(ep.id)
-  if (manejador === undefined) return
-  try { ep.disconnect(manejador) } catch { }
+  const reg = atendidos.get(ep.id)
+  if (reg === undefined) return
+  try { ep.disconnect(reg.manejador) } catch { }
+  reg.cancelar?.()
   atendidos.delete(ep.id)
+  olvidarEndpoint(ep.id)
 }
 
 let iniciado = false

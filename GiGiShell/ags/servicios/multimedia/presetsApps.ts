@@ -52,7 +52,7 @@
 import GLib from "gi://GLib"
 import AstalWp from "gi://AstalWp"
 import { createState } from "ags"
-import { fijarVolumenEndpoint } from "./escrituraVolumen"
+import { aplicarAlInicializar, fijarVolumenEndpoint, olvidarEndpoint } from "./escrituraVolumen"
 
 export type TipoMezcla = "speaker" | "mic"
 
@@ -164,8 +164,12 @@ export function clavePreset(tipo: TipoMezcla, nombre: string): string {
 // índices de Pulse había que podar contra la lista viva porque PulseAudio los recicla.
 const atendidos: Record<TipoMezcla, Set<number>> = { speaker: new Set(), mic: new Set() }
 
-/** Manejador de `notify::volume` vivo por stream, para soltarlo en `stream-removed`. */
-const manejadores: Record<TipoMezcla, Map<number, number>> = { speaker: new Map(), mic: new Map() }
+/**
+ * Lo vivo por stream, para soltarlo en `stream-removed`: el manejador de `notify::volume`
+ * y, si la aplicación inicial del preset sigue en curso, su cancelación.
+ */
+type Vigilado = { manejador: number; cancelar: (() => void) | null }
+const vigilados: Record<TipoMezcla, Map<number, Vigilado>> = { speaker: new Map(), mic: new Map() }
 
 /** Ventana en la que se vigila que el cliente no pise el preset recién aplicado. */
 const GRACIA_MS = 1500
@@ -195,12 +199,12 @@ function atender(tipo: TipoMezcla, stream: any) {
   const clave = clavePreset(tipo, nombreDeProps(propsDeStream(stream)))
   const preset = audioPresets.get()[clave]
 
-  // Con `volume` aún a 0 el nodo no ha publicado sus Props: escribir ahí es un no-op que
-  // AstalWp avisa con "astal_wp_node_set_volume: could not get current volume for node N".
-  // No se pierde nada al saltarlo: el `notify::volume` de inicialización llega dentro de
-  // la gracia y el manejador de abajo aplica el preset entonces.
-  if (preset !== undefined && stream.volume > 0) fijarVolumenEndpoint(stream, preset)
-
+  // NO se escribe aquí (issue #322): un stream recién aparecido aún no acepta escrituras
+  // (ver `aplicarAlInicializar`). Con `volume = 0` la escritura es un no-op con aviso de
+  // AstalWp; con el valor crudo de los canales —un `> 0` no lo distingue— queda la raíz
+  // cúbica de lo pedido; y escribir en el acto dentro de la notificación de inicialización
+  // se pierde sin aviso (medido con `paplay`: el preset no llegaba a aplicarse nunca).
+  //
   // El manejador se engancha AUNQUE no haya preset, y no sobra: la clave la crea el
   // deslizador de Quick Settings a mitad de la vida del stream, y sin estar ya escuchando no
   // habría nadie para anotar los cambios posteriores hasta el siguiente arranque de la app.
@@ -210,14 +214,22 @@ function atender(tipo: TipoMezcla, stream: any) {
   // volumen desde la propia app tiene que funcionar— y pasa a ANOTAR, que es lo que impide
   // que el preset se quede rancio y vuelva a imponer el valor viejo en el arranque siguiente.
   let enGracia = preset !== undefined
-  const manejador: number = stream.connect("notify::volume", () => {
+  const vigilado: Vigilado = { manejador: 0, cancelar: null }
+  if (enGracia) {
+    vigilado.cancelar = aplicarAlInicializar(stream, () => preset, {
+      alTerminar: () => { vigilado.cancelar = null },
+    })
+  }
+  vigilado.manejador = stream.connect("notify::volume", () => {
     if (!enGracia) { recordarPreset(clave, stream.volume); return }
+    // Mientras dura la aplicación inicial, la lleva `aplicarAlInicializar`.
+    if (vigilado.cancelar !== null) return
     // Tolerancia de 1 punto: la curva cúbica de PipeWire no devuelve el valor exacto que
     // se escribió (medido: 0.20 → 0.2000000031). Sin ella esto se re-dispararía a sí mismo.
     if (Math.abs(stream.volume - preset!) <= 0.01) return
     fijarVolumenEndpoint(stream, preset!)
   })
-  manejadores[tipo].set(stream.id, manejador)
+  vigilados[tipo].set(stream.id, vigilado)
   if (enGracia) {
     GLib.timeout_add(GLib.PRIORITY_DEFAULT, GRACIA_MS, () => {
       enGracia = false
@@ -229,10 +241,12 @@ function atender(tipo: TipoMezcla, stream: any) {
 /** Se sueltan en `stream-removed`: el manejador vive ahora toda la vida del stream. */
 function olvidar(tipo: TipoMezcla, stream: any) {
   atendidos[tipo].delete(stream.id)
-  const manejador = manejadores[tipo].get(stream.id)
-  if (manejador === undefined) return
-  try { stream.disconnect(manejador) } catch { }
-  manejadores[tipo].delete(stream.id)
+  olvidarEndpoint(stream.id)
+  const vigilado = vigilados[tipo].get(stream.id)
+  if (vigilado === undefined) return
+  try { stream.disconnect(vigilado.manejador) } catch { }
+  vigilado.cancelar?.()
+  vigilados[tipo].delete(stream.id)
 }
 
 let iniciado = false
