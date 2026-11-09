@@ -39,5 +39,14 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../../CLAUDE
     **KConfig no escribe un valor igual al heredado de `/etc/xdg`**, así que elegir kitty (lo que
     trae la base) no crea `~/.config/kdeglobals` — no es un fallo.
   - SUPER+E y la apertura de un USB (`usb-open.sh`) pasan por `gio open`, o sea por la app de
-    `inode/directory`; Dolphin queda de reserva. `utilidades/abrirTerminal.ts` **no** sigue el
-    terminal elegido a propósito: necesita la bandera de «mantener abierta» de cada terminal.
+    `inode/directory`; Dolphin queda de reserva.
+  - `utilidades/abrirTerminal.ts` (actualizaciones, hibernación, login de Google) **sí sigue el
+    terminal elegido**, y **sin nombrar ningún terminal en el código**: `lanzadorTerminal()`
+    (`appsPredeterminadas.ts`) toma el elegido (o la reserva de `actualTerminal`: kitty, o el primero
+    instalado) y lee de SU `.desktop` el comando (`Exec`) y la sintaxis de la especificación
+    xdg-terminal-exec: `X-TerminalArgExec` (separador antes del comando; `-e` si falta) y
+    `X-TerminalArgHold` (bandera de «no cierres»). Lo ejecuta `scripts/abrir-en-terminal.sh`, que
+    solo aplica esos datos; si el terminal no declara `ArgHold`, mantiene la ventana con un «Pulsa
+    Enter» al final. Un terminal cuyo `.desktop` no declare `ArgExec` y no use `-e` fallará: la
+    solución es añadir la clave a su `.desktop`, no un caso especial en el script. Un terminal que
+    se desprende al lanzarse (servidor) resuelve la promesa antes de cerrarse.

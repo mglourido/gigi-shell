@@ -363,16 +363,51 @@ export function candidatasTerminal(): AppCandidata[] {
 }
 
 /** La guardada si sigue instalada; si no, kitty (lo que ya lanzaba SUPER+Q); si no, la primera. */
-export function actualTerminal(): AppCandidata | null {
+function appTerminalActual(): Gio.AppInfo | null {
   const instaladas = terminalesInstaladas()
   // La memoria va primero porque el JSON se escribe asíncrono: releerlo justo
   // después de `fijarTerminal` devolvería todavía la elección anterior.
   terminalElegida ??= cargarJson<{ terminal?: { id?: string } }>(RUTA, {}, ETIQUETA).terminal?.id ?? null
   const guardada = terminalElegida
-  const app = instaladas.find((a) => a.get_id() === guardada)
+  return instaladas.find((a) => a.get_id() === guardada)
     ?? instaladas.find((a) => a.get_id() === TERMINAL_POR_DEFECTO)
     ?? instaladas[0]
+    ?? null
+}
+
+export function actualTerminal(): AppCandidata | null {
+  const app = appTerminalActual()
   return app ? aCandidata(app) : null
+}
+
+export interface LanzadorTerminal {
+  /** Comando del terminal (`Exec` sin códigos de campo), ya partido en argumentos. */
+  argv: string[]
+  /** `X-TerminalArgExec`: separa el terminal de lo que ejecuta. La especificación fija `-e` por defecto. */
+  argExec: string
+  /** `X-TerminalArgHold`: bandera de «no cierres al terminar», o `""` si el terminal no declara ninguna. */
+  argHold: string
+}
+
+/**
+ * Cómo ejecutar un comando en el terminal elegido (o en el de reserva de `appTerminalActual`), con
+ * la sintaxis que declara SU `.desktop` según xdg-terminal-exec. Así `utilidades/abrirTerminal.ts`
+ * no necesita saber qué terminales existen. `null` si no hay ninguno instalado o su comando no
+ * está en el PATH. Se calcula en cada llamada: abrir un terminal es raro y no se retiene nada.
+ */
+export function lanzadorTerminal(): LanzadorTerminal | null {
+  const app = appTerminalActual()
+  if (!app) return null
+  try {
+    const [ok, argv] = GLib.shell_parse_argv(sanearComando(app.get_commandline() ?? ""))
+    if (!ok || !argv.length || !GLib.find_program_in_path(argv[0])) return null
+    const leer = (clave: string) =>
+      (app as unknown as { get_string?: (k: string) => string | null }).get_string?.(clave)?.trim() ?? ""
+    return { argv, argExec: leer("X-TerminalArgExec") || "-e", argHold: leer("X-TerminalArgHold") }
+  } catch (e) {
+    console.error(`[${ETIQUETA}] no se pudo leer el lanzador del terminal:`, e)
+    return null
+  }
 }
 
 /** Antepone `id` a ~/.config/xdg-terminals.list conservando el resto del orden. */

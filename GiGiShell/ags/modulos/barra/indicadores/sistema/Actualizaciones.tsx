@@ -19,8 +19,8 @@ import { crearControlPopoverAnclado } from "../../componentes/controlPopoverAncl
 import { ESLABON, SensorCadena, type CadenaEstado } from "../../componentes/cadenaEstado"
 import type { ControlVisibilidadBarra } from "../../../../estado/visibilidadBarra"
 
-// Abre la actualización en una terminal (kitty = $terminal del sistema, con fallback).
-// Ver `utilidades/abrirTerminal.ts`: es donde vive el picker, porque este ya no es el
+// Abre la actualización en el terminal elegido en Ajustes > Apps predeterminadas (con fallback).
+// Ver `utilidades/abrirTerminal.ts`: es donde vive el lanzador, porque este ya no es el
 // único sitio que necesita pedir sudo interactivamente (ver también Ajustes > Pantalla
 // > Suspensión, preparar/quitar la hibernación).
 function lanzarActualizacion(cmd: string) {

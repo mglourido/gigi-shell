@@ -19,7 +19,7 @@ const RUTA_AUTH = `${GLib.get_user_config_dir()}/ags/scripts/google-calendar-aut
  * el último en terminar pisa las credenciales del otro.
  *
  * **La guarda NO puede durar lo que dure la terminal, que es lo que hacía antes.**
- * `abrirEnTerminal` abre con `kitty --hold`, así que su promesa no se resuelve cuando el script
+ * `abrirEnTerminal` deja la terminal abierta al terminar (`--hold` o «Pulsa Enter»), así que su promesa no se resuelve cuando el script
  * termina sino cuando el usuario CIERRA la ventana — y `--hold` existe precisamente para dejarla
  * abierta cuando algo falla, que es cuando el usuario la abandona en otro escritorio y no vuelve.
  * Atada a eso, un consentimiento fallido dejaba el botón mudo para el resto de la sesión: el
