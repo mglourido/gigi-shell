@@ -2,7 +2,25 @@
 """
 acento-fondo.py — saca la paleta de acentos del shell a partir de un fondo de escritorio.
 
-    acento-fondo.py <ruta-de-la-imagen>
+    acento-fondo.py <ruta-de-la-imagen> [--fondo-barra=#rrggbb] [--parametros=<json>]
+
+LOS UMBRALES NO ESTÁN EN ESTE FICHERO: los valores de fábrica, con su rango, viven
+en `ags/config/acento-parametros.json`, que es también lo que lee Ajustes >
+Personalización > Enfatizar > Ajustes avanzados para pintar los deslizadores y
+para "Restablecer". Una sola fuente: cambiar un valor de fábrica es editar ese
+JSON, no este script. `--parametros` trae un objeto `{clave: número}` con los que
+el usuario haya cambiado (lo pasa `acento.ts`, desde `~/.config/gigishell/acento.json`);
+cada valor se ACOTA al rango del JSON de fábrica, y una clave desconocida o un
+valor que no es número es un error (rc 1), no se ignora: sería medir con un umbral
+que nadie ha elegido. Qué hace cada clave está explicado junto a `PARAMETROS`.
+
+EL FONDO DE LA BARRA NO ES UNA CONSTANTE. Es el tema "Color de fondo global" de
+Ajustes > Personalización (negro, grafito o gris) y el usuario lo cambia cuando
+quiere; la corrección de legibilidad mide el contraste contra ÉL, así que quien
+llama (`acento.ts`) pasa el vigente en `--fondo-barra`. Sin la opción vale el negro
+de fábrica (`FONDO_BARRA_DEFECTO`), que es lo cómodo para probar el script a mano.
+La corrección SUBE el brillo hasta llegar al contraste, o sea que da por hecho un
+fondo oscuro: vale para los tres temas, y un tema claro habría que tratarlo aparte.
 
 SALIDA: una línea JSON `{"acentos": [3 hex], "brutos": [3 hex]}` por stdout.
 `brutos` son los colores tal cual salieron de la imagen y `acentos` los mismos ya
@@ -59,6 +77,8 @@ from __future__ import annotations
 
 import colorsys
 import json
+import math
+import os
 import sys
 
 # Lo que se escribe en stderr cuando la imagen no tiene acento que sacar. Es
@@ -69,43 +89,87 @@ MARCA_SIN_ACENTO = "sin-acento"
 class SinAcento(Exception):
     """La imagen no tiene ningún color del que sacar un acento."""
 
-# Fondo contra el que se mide el contraste: `$bg-bar` de `estilos/_colores.scss`.
-FONDO_BARRA = (8, 8, 12)
+# Fondo de la barra por defecto (tema "negro"): `$bg-bar` de `estilos/_colores.scss`.
+# Solo vale cuando nadie pasa `--fondo-barra`; los de los otros temas viven en
+# `servicios/apariencia/fondoShellVar.ts`, que es quien los pasa.
+FONDO_BARRA_DEFECTO = (8, 8, 12)
+OPCION_FONDO_BARRA = "--fondo-barra="
+OPCION_PARAMETROS = "--parametros="
 
-# Suelos de la corrección. Son deliberadamente altos: el acento histórico del tema
-# es #89b4fa (s=0.45, v=0.98), así que cualquier cosa por debajo se vería como un
-# color "roto" al lado del resto de la paleta, no como una elección.
-SAT_MIN, SAT_MAX = 0.42, 0.95
-VAL_MIN = 0.72
-CONTRASTE_MIN = 4.5   # AA de WCAG para texto normal
+# Los valores de fábrica: junto al script, en `../config/` (con el symlink de
+# `~/.config/ags` al repo, `realpath` lleva siempre al checkout).
+RUTA_DEFECTOS = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "..", "config", "acento-parametros.json")
 
-# Un candidato tiene que tener color de verdad para que su TONO signifique algo.
-# El primer umbral es el bueno; el segundo es el segundo intento para fondos de
-# paleta apagada (nieblas, sepias) antes de rendirse. Ver la nota del croma arriba.
-CROMA_MIN = 24
-CROMA_MIN_RELAJADO = 10
+# Claves que se usan como entero (cuentan píxeles de croma o colores).
+ENTEROS = {"cromaMin", "cromaMinRelajado", "coloresCuantizacion"}
 
-# ...y el croma tampoco basta SOLO, por el motivo simétrico: es absoluto, así que un
-# beige (#c0b0a7) o una tinta china sobre crema (#f0ebd8) lo pasan de sobra mientras
-# su tono sigue siendo ruido — y como la corrección de abajo sube la saturación hasta
-# 0,42 conservando el tono, el acento salía INVENTADO: naranja de una foto gris de un
-# gato, amarillo de un dibujo a tinta en blanco y negro. Medido sobre la carpeta real.
-# El suelo de saturación RELATIVA (croma/max, o sea la `s` de HSV) es lo que descarta
-# eso sin tocar los colores de verdad apagados. También arregla el caso contrario: en
-# una foto con neones, un cielo lavado que ocupa media imagen le ganaba el acento
-# principal a los neones por cobertura.
-SAT_MIN_CANDIDATO = 0.20
-SAT_MIN_CANDIDATO_RELAJADO = 0.16
-VAL_MIN_CANDIDATO, VAL_MAX_CANDIDATO = 0.12, 0.96
+# PARAMETROS: los umbrales vigentes de esta ejecución, {clave: valor}. Los rellena
+# `cargar_parametros()` desde el JSON de fábrica más lo que llegue en `--parametros`.
+# Qué hace cada uno, y por qué el valor de fábrica es el que es:
+#
+# CORRECCIÓN (`corregir`)
+#   satMin, satMax, valMin — suelos de la corrección. Son deliberadamente altos: el
+#     acento histórico del tema es #89b4fa (s=0.45, v=0.98), así que cualquier cosa
+#     por debajo se vería como un color "roto" al lado del resto de la paleta.
+#   contrasteMin — 4.5 es el AA de WCAG para texto normal.
+#   satMinLavado — hasta dónde se puede lavar la saturación cuando ni con v=1 se
+#     llega al contraste (azules y rojos puros).
+#
+# CANDIDATOS (`candidatos`)
+#   cromaMin, cromaMinRelajado — un candidato tiene que tener color de verdad para
+#     que su TONO signifique algo. El primero es el bueno; el relajado es el segundo
+#     intento para paletas apagadas (nieblas, sepias) antes de rendirse. Ver la nota
+#     del croma arriba.
+#   satMinCandidato, satMinCandidatoRelajado — ...y el croma tampoco basta SOLO, por
+#     el motivo simétrico: es absoluto, así que un beige (#c0b0a7) o una tinta china
+#     sobre crema (#f0ebd8) lo pasan de sobra mientras su tono sigue siendo ruido — y
+#     como la corrección sube la saturación hasta satMin conservando el tono, el
+#     acento salía INVENTADO: naranja de una foto gris de un gato, amarillo de un
+#     dibujo a tinta. Medido sobre la carpeta real. El suelo de saturación RELATIVA
+#     (la `s` de HSV) descarta eso sin tocar los colores de verdad apagados, y arregla
+#     el caso contrario: en una foto con neones, un cielo lavado que ocupa media
+#     imagen le ganaba el acento principal a los neones por cobertura.
+#   valMinCandidato, valMaxCandidato — fuera de ahí el color es casi negro o casi
+#     blanco y su tono vuelve a ser ruido.
+#
+# PALETA (`candidatos` / `paleta`)
+#   coloresCuantizacion — 24 y no 16: con tres acentos que sacar hacen falta más
+#     tonos sobre la mesa para que la separación mínima tenga de dónde elegir.
+#   separacionTono (grados) — sin ella los tres acentos salían del mismo cielo azul
+#     de la foto: el monocromo que tener tres viene a evitar.
+#   giroAnalogo (grados) — giro para inventar los análogos cuando la imagen no da
+#     tonos suficientes. Ver `paleta()`.
+#   pesoCobertura — exponente (< 1) con el que la cobertura entra en la puntuación,
+#     para APLASTAR su ventaja: con 0.45 un color que ocupa el 40 % vale ~2,3 veces
+#     uno que ocupa el 3 %, no 13. Así el cielo de una foto no gana siempre por tamaño.
+PARAMETROS: dict[str, float] = {}
 
-# Separación mínima entre los tonos de la paleta, en vueltas de la rueda de color
-# (0.07 ≈ 25°). Sin ella los tres acentos salían del mismo cielo azul de la foto y
-# el resultado era justo el monocromo que tener tres viene a evitar.
-SEPARACION_TONO = 0.07
 
-# Giro para inventar los análogos cuando la imagen no da tonos suficientes
-# (0.083 = 30°). Ver `paleta()`.
-GIRO_ANALOGO = 0.083
+def cargar_parametros(argv: list[str]) -> None:
+    """Rellena `PARAMETROS`: fábrica, y encima lo de `--parametros`, acotado."""
+    with open(RUTA_DEFECTOS, encoding="utf-8") as f:
+        fabrica = json.load(f)["parametros"]
+
+    usuario: dict = {}
+    for arg in argv:
+        if arg.startswith(OPCION_PARAMETROS):
+            usuario = json.loads(arg[len(OPCION_PARAMETROS):])
+            if not isinstance(usuario, dict):
+                raise ValueError("--parametros espera un objeto JSON")
+
+    desconocidas = set(usuario) - set(fabrica)
+    if desconocidas:
+        raise ValueError(f"--parametros con claves desconocidas: {sorted(desconocidas)}")
+
+    PARAMETROS.clear()
+    for clave, defin in fabrica.items():
+        valor = usuario.get(clave, defin["valor"])
+        # `bool` es subclase de `int` en Python: `true` no es un umbral.
+        if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not math.isfinite(valor):
+            raise ValueError(f"--parametros: {clave} no es un número")
+        valor = min(max(valor, defin["min"]), defin["max"])
+        PARAMETROS[clave] = round(valor) if clave in ENTEROS else float(valor)
 
 
 def luminancia(rgb: tuple[int, int, int]) -> float:
@@ -147,9 +211,8 @@ def candidatos(ruta: str) -> list[tuple[int, int, int]]:
             # 160 px de lado basta: buscamos la paleta, no el detalle, y esto deja el
             # coste por debajo de los 200 ms incluso con un 4K.
             im.thumbnail((160, 160))
-            # 24 colores y no 16: con tres acentos que sacar hacen falta más tonos
-            # sobre la mesa para que la separación mínima tenga de dónde elegir.
-            cuantizada = im.quantize(colors=24, method=Image.Quantize.MEDIANCUT)
+            cuantizada = im.quantize(colors=PARAMETROS["coloresCuantizacion"],
+                                     method=Image.Quantize.MEDIANCUT)
             colores = cuantizada.convert("RGB").getcolors(maxcolors=1 << 16) or []
 
     if not colores:
@@ -165,19 +228,18 @@ def candidatos(ruta: str) -> list[tuple[int, int, int]]:
             _, s, v = colorsys.rgb_to_hsv(*(c / 255 for c in rgb))
             if s < sat_min:
                 continue
-            if not (VAL_MIN_CANDIDATO <= v <= VAL_MAX_CANDIDATO):
+            if not (PARAMETROS["valMinCandidato"] <= v <= PARAMETROS["valMaxCandidato"]):
                 continue
             cobertura = n / total
-            # La cobertura entra con exponente < 1 para APLASTAR su ventaja: un color
-            # que ocupa el 40 % solo vale ~2,3 veces uno que ocupa el 3 %, no 13. Así
-            # el cielo de una foto no gana siempre por tamaño.
-            puntos = (cobertura ** 0.45) * (0.10 + s) * (0.35 + min(v, 0.9))
+            # La cobertura entra con exponente < 1 para APLASTAR su ventaja (ver
+            # `pesoCobertura` en PARAMETROS).
+            puntos = (cobertura ** PARAMETROS["pesoCobertura"]) * (0.10 + s) * (0.35 + min(v, 0.9))
             puntuados.append((puntos, rgb))
         puntuados.sort(key=lambda par: par[0], reverse=True)
         return [rgb for _, rgb in puntuados]
 
-    return (puntuar(CROMA_MIN, SAT_MIN_CANDIDATO)
-            or puntuar(CROMA_MIN_RELAJADO, SAT_MIN_CANDIDATO_RELAJADO))
+    return (puntuar(PARAMETROS["cromaMin"], PARAMETROS["satMinCandidato"])
+            or puntuar(PARAMETROS["cromaMinRelajado"], PARAMETROS["satMinCandidatoRelajado"]))
 
 
 def distancia_tono(a: float, b: float) -> float:
@@ -196,11 +258,15 @@ def paleta(ruta: str, cuantos: int = 3) -> list[tuple[int, int, int]]:
     se repite el mismo color: se GIRA el principal para sacar sus análogos, que da
     una paleta armónica en vez de tres copias del mismo acento.
     """
+    # Los dos ángulos van en grados en el JSON (es lo legible en Ajustes) y aquí en
+    # vueltas de la rueda, que es la unidad de `colorsys`.
+    separacion = PARAMETROS["separacionTono"] / 360
+    giro_analogo = PARAMETROS["giroAnalogo"] / 360
     elegidos: list[tuple[int, int, int]] = []
     tonos: list[float] = []
     for rgb in candidatos(ruta):
         h, _, _ = colorsys.rgb_to_hsv(*(c / 255 for c in rgb))
-        if all(distancia_tono(h, t) >= SEPARACION_TONO for t in tonos):
+        if all(distancia_tono(h, t) >= separacion for t in tonos):
             elegidos.append(rgb)
             tonos.append(h)
             if len(elegidos) == cuantos:
@@ -212,30 +278,31 @@ def paleta(ruta: str, cuantos: int = 3) -> list[tuple[int, int, int]]:
     # El giro alterna de signo para que los derivados caigan a lado y lado del
     # principal en la rueda, en vez de amontonarse todos hacia el mismo sitio.
     h, s, v = colorsys.rgb_to_hsv(*(c / 255 for c in elegidos[0]))
-    giros = [GIRO_ANALOGO, -GIRO_ANALOGO, 2 * GIRO_ANALOGO]
+    giros = [giro_analogo, -giro_analogo, 2 * giro_analogo]
     while len(elegidos) < cuantos:
         giro = giros[len(elegidos) - 1]
         elegidos.append(tuple(round(c * 255) for c in colorsys.hsv_to_rgb((h + giro) % 1.0, s, v)))
     return elegidos
 
 
-def corregir(rgb: tuple[int, int, int]) -> tuple[int, int, int]:
-    """Sube el color hasta que se lea sobre la barra, conservando su TONO."""
+def corregir(rgb: tuple[int, int, int], fondo: tuple[int, int, int]) -> tuple[int, int, int]:
+    """Sube el color hasta que se lea sobre `fondo` (la barra), conservando su TONO."""
     h, s, v = colorsys.rgb_to_hsv(*(c / 255 for c in rgb))
     # El tono es lo único intocable: es lo que ata el acento al fondo. Saturación
     # y luminosidad son negociables porque de ellas depende que se vea.
-    s = min(max(s, SAT_MIN), SAT_MAX)
-    v = max(v, VAL_MIN)
+    s = min(max(s, PARAMETROS["satMin"]), PARAMETROS["satMax"])
+    v = max(v, PARAMETROS["valMin"])
+    contraste_min = PARAMETROS["contrasteMin"]
 
     def a_rgb(h: float, s: float, v: float) -> tuple[int, int, int]:
         return tuple(round(c * 255) for c in colorsys.hsv_to_rgb(h, s, v))
 
     # Primero se sube el brillo, que es lo que menos desvirtúa el tono.
-    while v < 1.0 and contraste(a_rgb(h, s, v), FONDO_BARRA) < CONTRASTE_MIN:
+    while v < 1.0 and contraste(a_rgb(h, s, v), fondo) < contraste_min:
         v = min(1.0, v + 0.02)
     # Y solo si con v=1 sigue sin llegar (azules y rojos puros, que son oscuros por
     # naturaleza) se lava la saturación: mejor un acento pastel que uno ilegible.
-    while s > 0.20 and contraste(a_rgb(h, s, v), FONDO_BARRA) < CONTRASTE_MIN:
+    while s > PARAMETROS["satMinLavado"] and contraste(a_rgb(h, s, v), fondo) < contraste_min:
         s -= 0.02
 
     return a_rgb(h, s, v)
@@ -245,11 +312,29 @@ def hexa(rgb: tuple[int, int, int]) -> str:
     return "#%02x%02x%02x" % rgb
 
 
+def fondo_de_argumentos(argv: list[str]) -> tuple[int, int, int]:
+    """El fondo de la barra de `--fondo-barra=#rrggbb`, o el de fábrica si no viene.
+
+    Un valor MAL FORMADO no cae al de fábrica: es un fallo de quien llama, y medir
+    el contraste contra el fondo equivocado en silencio es justo el bug que esta
+    opción arregla. Sale por el camino de error (rc 1 + motivo en stderr).
+    """
+    for arg in argv:
+        if arg.startswith(OPCION_FONDO_BARRA):
+            valor = arg[len(OPCION_FONDO_BARRA):]
+            if len(valor) != 7 or valor[0] != "#":
+                raise ValueError(f"--fondo-barra espera #rrggbb, no {valor!r}")
+            return (int(valor[1:3], 16), int(valor[3:5], 16), int(valor[5:7], 16))
+    return FONDO_BARRA_DEFECTO
+
+
 def main(argv: list[str]) -> int:
     args = [a for a in argv[1:] if not a.startswith("--")]
     if not args:
         return 1
     try:
+        fondo = fondo_de_argumentos(argv[1:])
+        cargar_parametros(argv[1:])
         brutos = paleta(args[0])
     except SinAcento:
         print(MARCA_SIN_ACENTO, file=sys.stderr)
@@ -263,7 +348,7 @@ def main(argv: list[str]) -> int:
         print(motivo, file=sys.stderr)
         return 1
     print(json.dumps({
-        "acentos": [hexa(corregir(rgb)) for rgb in brutos],
+        "acentos": [hexa(corregir(rgb, fondo)) for rgb in brutos],
         "brutos": [hexa(rgb) for rgb in brutos],
     }))
     return 0

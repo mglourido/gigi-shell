@@ -50,7 +50,46 @@
     },
     "acento": {
       "titulo": "Enfatizar fondo de escritorio",
-      "descripcion": "Saca del fondo de escritorio los colores para el Shell y los cambia con él.\nLos avisos conservan su color: verde correcto, ámbar aviso, rojo error.\nSi el fondo no tiene color del que sacarlos, se conserva la paleta del tema."
+      "descripcion": "Saca del fondo de escritorio los colores para el Shell y los cambia con él.\nLos avisos conservan su color: verde correcto, ámbar aviso, rojo error.\nSi el fondo no tiene color del que sacarlos, se conserva la paleta del tema.",
+      "avanzado": {
+        "titulo": "Ajustes avanzados",
+        "descripcion": "Cómo se eligen y se corrigen los colores. Los cambios se aplican al momento.",
+        "restablecer": "Restablecer valores",
+        "restablecerDescripcion": "Vuelve a los valores de fábrica, incluidos los colores fijados a mano.",
+        "grupos": {
+          "colores": "Colores",
+          "correccion": "Corrección de legibilidad",
+          "candidatos": "Qué cuenta como color",
+          "paleta": "Paleta"
+        },
+        "colores": {
+          "descripcion": "Fija un acento a mano para que no cambie con el fondo.",
+          "nombres": ["Principal", "Secundario", "Terciario"],
+          "papeles": [
+            "Escritorios, reloj y Orion.",
+            "Controles y deslizadores.",
+            "Iconos de la barra y menús."
+          ],
+          "elegir": "Elegir color"
+        },
+        "parametros": {
+          "satMin": { "titulo": "Saturación mínima", "descripcion": "Ningún acento queda más apagado que esto." },
+          "satMax": { "titulo": "Saturación máxima", "descripcion": "Ningún acento queda más intenso que esto." },
+          "valMin": { "titulo": "Brillo mínimo", "descripcion": "Ningún acento queda más oscuro que esto." },
+          "contrasteMin": { "titulo": "Contraste mínimo", "descripcion": "Contraste con el fondo de la barra (WCAG). 4,5 es el mínimo legible para texto." },
+          "satMinLavado": { "titulo": "Saturación al aclarar", "descripcion": "Hasta dónde se puede apagar un color que ni a brillo máximo llega al contraste." },
+          "cromaMin": { "titulo": "Croma mínimo", "descripcion": "Cuánto color tiene que tener un tono de la imagen para tenerse en cuenta." },
+          "cromaMinRelajado": { "titulo": "Croma mínimo (segundo intento)", "descripcion": "El mismo umbral, más laxo, para fondos apagados antes de rendirse." },
+          "satMinCandidato": { "titulo": "Saturación del candidato", "descripcion": "Descarta grises, beiges y tintas cuyo tono es ruido." },
+          "satMinCandidatoRelajado": { "titulo": "Saturación del candidato (segundo intento)", "descripcion": "El mismo umbral, más laxo, para fondos apagados." },
+          "valMinCandidato": { "titulo": "Brillo mínimo del candidato", "descripcion": "Por debajo, el color es casi negro y se ignora." },
+          "valMaxCandidato": { "titulo": "Brillo máximo del candidato", "descripcion": "Por encima, el color es casi blanco y se ignora." },
+          "coloresCuantizacion": { "titulo": "Colores analizados", "descripcion": "En cuántos colores se resume la imagen antes de elegir." },
+          "separacionTono": { "titulo": "Separación entre acentos", "descripcion": "Distancia mínima de tono entre los tres acentos, para que no salgan iguales." },
+          "giroAnalogo": { "titulo": "Giro de los análogos", "descripcion": "Si la imagen no da tres tonos, los que faltan se sacan girando el principal." },
+          "pesoCobertura": { "titulo": "Peso del tamaño", "descripcion": "Cuánto cuenta lo que ocupa un color en la imagen. Más bajo favorece colores vivos aunque sean pequeños." }
+        }
+      }
     }
   },
   "actualizaciones": {

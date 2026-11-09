@@ -333,7 +333,8 @@ fi
 # quede en la ruta vieja; no se pisa lo ya migrado.
 #
 # ags/config/ NO desapareció: sigue siendo la carpeta de datos versionados del
-# shell (app_icons.json, avisos-sistema.json). Solo migran los JSON de usuario, así que KEEP_IN_REPO
+# shell (app_icons.json, avisos-sistema.json, acento-parametros.json — los valores
+# de fábrica del acento adaptativo, que lee también acento-fondo.py). Solo migran los JSON de usuario, así que KEEP_IN_REPO
 # se queda donde está — sin esta lista la migración se lo llevaba a
 # ~/.config/gigishell/ y AGS dejaba de encontrarlo (workspaces sin iconos).
 #
@@ -347,7 +348,7 @@ new_cfg="$HOME/.config/gigishell"
 # avisos-sistema.json es el catálogo de avisos del sistema (modulos/notificaciones/rules/
 # catalogoSistema.ts): migrado, Ajustes > Notificaciones > Sistema saldría vacía y ningún
 # aviso tendría sus efectos de fábrica.
-KEEP_IN_REPO=(app_icons.json avisos-sistema.json)
+KEEP_IN_REPO=(app_icons.json avisos-sistema.json acento-parametros.json)
 if [[ "$mode" != check ]]; then
   mkdir -p "$new_cfg"
 fi

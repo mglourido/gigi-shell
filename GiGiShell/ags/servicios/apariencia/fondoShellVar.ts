@@ -23,12 +23,26 @@ import Gdk from "gi://Gdk"
 import { Gtk } from "ags/gtk4"
 import { fondoShell } from "../../modulos/ajustes/preferences"
 
-// Los hex son los de `estilos/_colores.scss` ($bg-shell-grafito / $bg-shell-gris).
+type Rgb = readonly [number, number, number]
+
+// Los valores son los de `estilos/_colores.scss` ($bg-shell-grafito / $bg-shell-gris).
 // "negro" no está: es la hoja vacía (cae en $bg-bar). Un tema desconocido —
 // preferences.json editado a mano— también cae ahí, que es la degradación segura.
-const COLOR_POR_TEMA: Record<string, string> = {
-  grafito: "rgb(24, 24, 32)",
-  gris: "rgb(32, 32, 32)",
+const RGB_POR_TEMA: Record<string, Rgb> = {
+  grafito: [24, 24, 32],
+  gris: [32, 32, 32],
+}
+
+/** `$bg-bar`, el fondo del tema "negro" y de cualquier tema desconocido. */
+const RGB_NEGRO: Rgb = [8, 8, 12]
+
+/**
+ * El color REAL del fondo de la barra para ese tema, "negro" incluido. Lo usa el
+ * acento adaptativo para medir el contraste contra el fondo que de verdad hay
+ * detrás del texto, no contra uno fijo: el tema se cambia en cualquier momento.
+ */
+export function rgbFondoShell(tema: string): Rgb {
+  return RGB_POR_TEMA[tema] ?? RGB_NEGRO
 }
 
 let provider: Gtk.CssProvider | null = null
@@ -36,8 +50,8 @@ let arrancado = false
 
 function pintar() {
   if (provider === null) return
-  const color = COLOR_POR_TEMA[fondoShell.get()]
-  provider.load_from_string(color ? `:root { --bg-shell: ${color}; }` : "")
+  const rgb = RGB_POR_TEMA[fondoShell.get()]
+  provider.load_from_string(rgb ? `:root { --bg-shell: rgb(${rgb.join(", ")}); }` : "")
 }
 
 /**

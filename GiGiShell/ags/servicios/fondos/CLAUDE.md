@@ -49,6 +49,41 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../CLAUDE.md
     del entorno y dejaría el tema de fábrica clavado hasta vaciar la caché a mano. El extractor los
     distingue escribiendo `sin-acento` en **stderr** — `execAsync` entrega stderr pero **no** el
     código de salida, así que la marca no podía ir en el `rc`.
+  - **⚠️ El fondo de la barra NO es una constante, y el extractor mide el contraste contra el
+    vigente.** Es el tema de Ajustes > Personalización (negro `8,8,12` / grafito `24,24,32` / gris
+    `32,32,32`), que se cambia en cualquier momento. `acento.ts` lo pasa en
+    `--fondo-barra=#rrggbb` (los RGB salen de `rgbFondoShell()` en `servicios/apariencia/fondoShellVar.ts`,
+    única fuente en TS), **se suscribe a `fondoShell`** y recalcula al cambiarlo, y el **sello de la
+    caché lo incluye**: sin eso la paleta guardada, corregida contra otro tema, se serviría con un
+    contraste que ya no es el real (fallo mudo, sin error). Antes estaba fijo a `8,8,12` en el script:
+    con grafito o gris el contraste real quedaba por debajo de 4.5. Un valor mal formado en la opción
+    sale con rc 1 y motivo en stderr, no cae al negro. La corrección sube el brillo, o sea que da por
+    hecho un fondo **oscuro**: un tema claro nuevo exigiría tratarlo aparte. Si se añade un tema,
+    hay que darlo de alta en `fondoShellVar.ts` (y en `_colores.scss`); el script no necesita cambios.
+  - **Ajustes avanzados** (Ajustes > Personalización > Diseño, desplegable bajo «Enfatizar»,
+    `modulos/ajustes/personalizacion/AcentoAvanzado.tsx`): cada umbral del extractor con un
+    deslizador, los tres acentos fijables a mano y «Restablecer valores». **Dos JSON, un dueño
+    cada uno**: `ags/config/acento-parametros.json` (versionado) son los valores **de fábrica** con
+    rango, paso y grupo, y es la **única** fuente: de ahí salen los valores por defecto del propio
+    `acento-fondo.py` y los deslizadores (un parámetro nuevo en ese JSON aparece solo en la UI; le
+    falta solo su texto en `textos/ajustes/personalizacion.json`). `~/.config/gigishell/acento.json`
+    son los del usuario, que escribe solo `acentoPreferencias.ts`; «Restablecer» copia la fábrica
+    encima. Ese JSON de fábrica está en el `KEEP_IN_REPO` de `bin/link.sh`: **sin eso, `link.sh` lo
+    migraría a `~/.config/gigishell/`** como si fuera un dato de usuario y el script dejaría de
+    arrancar (rc 1 «fallo», el tema de fábrica sin explicación visible).
+    - Reglas puras en `acentoAjustes.ts` (hay test): todo valor se acota a rango y paso, una clave
+      desconocida se descarta, y los pares mín/máx (`satMin`/`satMax`, brillo del candidato,
+      relajado ≤ normal) se fuerzan a `mínimo ≤ máximo` — desordenados no dan error pero vacían el
+      rango y **todo** fondo sale sin acento. El script vuelve a acotar contra el mismo JSON y
+      trata una clave desconocida o un no-número como fallo (rc 1), no lo ignora.
+    - **Los parámetros entran en el sello de la caché** y se pasan **todos**, en orden fijo
+      (`--parametros=<json>`): así también un cambio en el JSON de fábrica invalida las paletas
+      viejas. Los **acentos fijados a mano NO** entran: se aplican encima (`paletaEfectiva`) y un
+      cambio de color acierta en caché, sin `python3`. Con un acento fijado y un fondo sin color, los
+      no fijados toman su color de fábrica (`ACENTOS_FABRICA`, que tiene que coincidir con las
+      reservas de `acento*()` en `_colores.scss`).
+    - En vivo pero con **dos retardos**: 350 ms para recalcular (un deslizador emite un valor por
+      píxel y con la caché fría cada uno sería un proceso) y 400 ms para escribir el fichero.
   - **Los colores de la caché se re-normalizan al leer**, no se dan por buenos por venir de "nuestro"
     fichero: acaban concatenados dentro de una hoja de estilo y `~/.cache` es texto que cualquiera
     puede editar. Es la misma frontera de confianza que `normalizarHexAcento` aplica a la salida del

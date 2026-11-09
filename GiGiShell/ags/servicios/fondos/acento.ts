@@ -57,9 +57,13 @@
 import Gdk from "gi://Gdk"
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
+import { createState } from "ags"
 import { Gtk } from "ags/gtk4"
 import { execAsync } from "ags/process"
-import { acentoAdaptativoEnabled } from "../../modulos/ajustes/preferences"
+import { argumentoParametros, paletaEfectiva } from "./acentoAjustes"
+import { ajustesAcento } from "./acentoPreferencias"
+import { acentoAdaptativoEnabled, fondoShell } from "../../modulos/ajustes/preferences"
+import { rgbFondoShell } from "../apariencia/fondoShellVar"
 import { currentWallpaper, releerEstadoFondo } from "../../modulos/orion/data/wallpaperConfig"
 import {
   buscarEntrada, conEntrada, leerEntradas, sello, serializarEntradas,
@@ -79,6 +83,9 @@ const MARCA_SIN_ACENTO = "sin-acento"
  * lo que antes hacía el `setTimeout` de 4 s de `app.ts` para todo el módulo. Ahora
  * solo frena la extracción; la caché se consulta en el acto. */
 const EXTRACCION_NO_ANTES_MS = 3000
+
+/** Pausa tras el último movimiento de un ajuste avanzado antes de recalcular. */
+const RETARDO_AJUSTES_MS = 350
 const ARRANQUE_US = GLib.get_monotonic_time()
 
 let arrancado = false
@@ -105,13 +112,34 @@ function selloDeFichero(ruta: string): string {
   }
 }
 
-/** El sello de la imagen JUNTO CON el del extractor: tocar el script invalida la
- * caché entera, que es lo que evita seguir viendo los colores del algoritmo viejo
- * sin ningún error que lo explique. */
-function selloDe(fondo: string): string {
+/** El fondo de la barra vigente como `#rrggbb`: es contra lo que el extractor corrige
+ * la legibilidad, y lo que entra en el sello de la caché. */
+function hexFondoBarra(): string {
+  return "#" + rgbFondoShell(fondoShell.get()).map((c) => c.toString(16).padStart(2, "0")).join("")
+}
+
+/** El sello de la imagen JUNTO CON el del extractor, el fondo de la barra y los
+ * parámetros avanzados: tocar el script invalida la caché entera, que es lo que evita
+ * seguir viendo los colores del algoritmo viejo sin ningún error que lo explique;
+ * cambiar de tema de fondo también, porque la paleta guardada está corregida contra
+ * OTRO fondo; y mover un umbral en Ajustes, porque esa paleta salió con los de antes.
+ * Los acentos fijados a mano NO entran: se aplican encima, sin volver a extraer. */
+function selloDe(fondo: string, barra: string, parametros: string): string {
   const imagen = selloDeFichero(fondo)
   const script = selloDeFichero(EXTRACTOR)
-  return imagen === "" || script === "" ? "" : sello(imagen, script)
+  return imagen === "" || script === "" ? "" : sello(imagen, script, barra, parametros)
+}
+
+/** La última paleta que salió del fondo (sin los acentos fijados a mano), o `null`.
+ * La lee Ajustes para que, al fijar un acento a mano, el selector empiece en el color
+ * que ya se estaba viendo y no en uno cualquiera. */
+const [acentosExtraidos, setAcentosExtraidos] = createState<string[] | null>(null)
+export { acentosExtraidos }
+
+/** Pinta la paleta extraída con los acentos fijados a mano encima. */
+function pintarPaleta(extraida: string[] | null) {
+  setAcentosExtraidos(extraida)
+  pintar(hojaDePaleta(paletaEfectiva(extraida, ajustesAcento.get().manuales)))
 }
 
 function cargarCache(): EntradaAcento[] {
@@ -230,11 +258,13 @@ async function calcular(token: number) {
   // La caché primero, y SIN pasar por el bucle de eventos: acertar tiene que ser
   // pintar en el acto. Un `await` aquí metería un fotograma con los colores del
   // fondo anterior en el caso normal, que es justo el que hay que dejar fino.
-  const selloActual = selloDe(fondo)
+  const barra = hexFondoBarra()
+  const parametros = argumentoParametros(ajustesAcento.get().parametros)
+  const selloActual = selloDe(fondo, barra, parametros)
   if (selloActual !== "") {
     const guardada = buscarEntrada(cargarCache(), fondo, selloActual)
     if (guardada !== null) {
-      pintar(hojaDePaleta(guardada.acentos))
+      pintarPaleta(guardada.acentos)
       registrar("cache", fondo, 0, guardada.acentos)
       return
     }
@@ -258,7 +288,7 @@ async function calcular(token: number) {
   for (;;) {
     intentos++
     try {
-      paleta = paletaDeSalida(await execAsync(["python3", EXTRACTOR, fondo]))
+      paleta = paletaDeSalida(await execAsync(["python3", EXTRACTOR, fondo, `--fondo-barra=${barra}`, parametros]))
       estado = paleta !== null ? "extraido" : "salida-ilegible"
       detalle = paleta !== null ? "" : "el extractor salió con 0 pero la línea no es una paleta válida"
     } catch (error) {
@@ -286,7 +316,7 @@ async function calcular(token: number) {
   }
 
   if (token !== peticion) return   // llegó tarde: manda una petición posterior
-  pintar(hojaDePaleta(paleta))
+  pintarPaleta(paleta)
   registrar(estado, fondo, intentos, paleta, detalle)
 }
 
@@ -311,11 +341,28 @@ export function initAcentoAdaptativo() {
   })
   Gtk.StyleContext.add_provider_for_display(display, provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
-  // Los dos disparos: cambiar de fondo y encender o apagar el ajuste. El segundo
-  // tiene que recalcular de verdad, no solo repintar, porque al encenderlo el
-  // acento del fondo que ya está puesto todavía no se ha extraído nunca.
+  // Los tres disparos: cambiar de fondo, encender o apagar el ajuste, y cambiar el
+  // tema de fondo del shell. El segundo tiene que recalcular de verdad, no solo
+  // repintar, porque al encenderlo el acento del fondo que ya está puesto todavía no
+  // se ha extraído nunca. El tercero, porque la corrección de legibilidad depende del
+  // fondo de la barra (su sello distinto fuerza una extracción nueva). Los tres son
+  // `createState`, que no notifica si el valor no cambia: sin sondeo ni coste en reposo.
   currentWallpaper.subscribe(() => void recalcular())
   acentoAdaptativoEnabled.subscribe(() => void recalcular())
+  fondoShell.subscribe(() => void recalcular())
+  // El cuarto: los ajustes avanzados. Con retardo, porque un deslizador emite un
+  // valor por píxel y cada uno con la caché fría sería un `python3`: se recalcula
+  // cuando el usuario deja de moverlo. Un acento fijado a mano no cambia el sello,
+  // así que ese caso acierta en caché y se pinta sin proceso.
+  let recalculoPendiente = 0
+  ajustesAcento.subscribe(() => {
+    if (recalculoPendiente !== 0) GLib.source_remove(recalculoPendiente)
+    recalculoPendiente = GLib.timeout_add(GLib.PRIORITY_DEFAULT, RETARDO_AJUSTES_MS, () => {
+      recalculoPendiente = 0
+      void recalcular()
+      return GLib.SOURCE_REMOVE
+    })
+  })
 
   // Cambiar de fondo ANTES de este arranque (el `setTimeout` de 4 s) no avisaba a
   // nadie: aún no había suscripción, y un aviso perdido del monitor de inotify en

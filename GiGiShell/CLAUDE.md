@@ -215,7 +215,8 @@ los `exec-once`; `hyprctl reload full-reset` los reinicia y vuelve a ejecutar
 User/runtime state is **not** versioned. It lives in `~/.config/gigishell/` (`display.json`,
 `system_state.json`, `notifications.json`, `preferences.json`, `almacenamiento.json` —la
 autolimpieza de disco, que además leen `hypr/scripts/limpiar-almacenamiento.sh` y
-`limpieza-arranque.sh` con `jq`—, `apps-inicio.json` —las apps que se abren al iniciar sesión, que
+`limpieza-arranque.sh` con `jq`—, `acento.json` —los ajustes avanzados del acento adaptativo; sus
+valores de fábrica son `ags/config/acento-parametros.json`, versionado—, `apps-inicio.json` —las apps que se abren al iniciar sesión, que
 lee `inicializador/apps-inicio.sh`—, `apps-predeterminadas.json` —el terminal elegido en Ajustes >
 Apps predeterminadas, que lee `hypr/scripts/abrir-terminal.sh` en cada SUPER+Q; el resto de esa
 sección (navegador, PDF, carpetas…) no va aquí sino a `~/.config/mimeapps.list`, el fichero local

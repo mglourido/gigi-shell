@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "parametros": {
+    "satMin":                  { "grupo": "correccion", "valor": 0.42, "min": 0,   "max": 1,   "paso": 0.01 },
+    "satMax":                  { "grupo": "correccion", "valor": 0.95, "min": 0,   "max": 1,   "paso": 0.01 },
+    "valMin":                  { "grupo": "correccion", "valor": 0.72, "min": 0,   "max": 1,   "paso": 0.01 },
+    "contrasteMin":            { "grupo": "correccion", "valor": 4.5,  "min": 1,   "max": 10,  "paso": 0.1  },
+    "satMinLavado":            { "grupo": "correccion", "valor": 0.20, "min": 0,   "max": 1,   "paso": 0.01 },
+    "cromaMin":                { "grupo": "candidatos", "valor": 24,   "min": 0,   "max": 128, "paso": 1    },
+    "cromaMinRelajado":        { "grupo": "candidatos", "valor": 10,   "min": 0,   "max": 128, "paso": 1    },
+    "satMinCandidato":         { "grupo": "candidatos", "valor": 0.20, "min": 0,   "max": 1,   "paso": 0.01 },
+    "satMinCandidatoRelajado": { "grupo": "candidatos", "valor": 0.16, "min": 0,   "max": 1,   "paso": 0.01 },
+    "valMinCandidato":         { "grupo": "candidatos", "valor": 0.12, "min": 0,   "max": 1,   "paso": 0.01 },
+    "valMaxCandidato":         { "grupo": "candidatos", "valor": 0.96, "min": 0,   "max": 1,   "paso": 0.01 },
+    "coloresCuantizacion":     { "grupo": "paleta",     "valor": 24,   "min": 3,   "max": 64,  "paso": 1    },
+    "separacionTono":          { "grupo": "paleta",     "valor": 25,   "min": 0,   "max": 60,  "paso": 1    },
+    "giroAnalogo":             { "grupo": "paleta",     "valor": 30,   "min": 5,   "max": 90,  "paso": 1    },
+    "pesoCobertura":           { "grupo": "paleta",     "valor": 0.45, "min": 0,   "max": 1,   "paso": 0.01 }
+  },
+  "manuales": [null, null, null]
+}
