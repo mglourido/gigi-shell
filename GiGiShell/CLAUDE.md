@@ -48,8 +48,8 @@ XDG paths via **symlinks**, not copies. The three big components are:
 - `hypr/` — Hyprland config, hyprlock/hypridle, GPU profiles, and background monitor
   scripts. Symlinked to `~/.config/hypr`.
 - `inicializador/` — lo que se restaura o se abre al empezar la sesión, llamado desde el autostart
-  de Hyprland. `init.sh` repone el estado del hardware guardado (brillo, luz nocturna, wifi,
-  bluetooth, volumen); `apps-inicio.sh` abre las apps que el usuario haya puesto en la lista de
+  de Hyprland. `init.sh` repone el estado del hardware guardado (brillo, wifi, bluetooth,
+  volumen; la luz nocturna no, esa la repone AGS, único dueño de `hyprsunset`); `apps-inicio.sh` abre las apps que el usuario haya puesto en la lista de
   inicio (`~/.config/gigishell/apps-inicio.json`, escrita desde Ajustes > Apps al inicio). Ninguno de
   los dos corre "antes de Hyprland" pese al nombre del directorio: los dos salen de un `exec-once`,
   porque hasta que el compositor no está en pie no hay `WAYLAND_DISPLAY`. Symlinked to
@@ -303,4 +303,4 @@ Ajustes > Pantalla > Suspensión tiene **un solo** tiempo de hibernación (inact
 
 ## init.sh (hardware state restore)
 
-`inicializador/init.sh` lee `~/.config/gigishell/{display,system_state}.json` y repone brillo, luz nocturna, wifi, bluetooth y volumen/mute, con valores por defecto cuando falta una clave. Es la contraparte de la UI de AGS, que *escribe* esos JSON. Dos fallos silenciosos medidos (el brillo no se restaura en un sobremesa; el volumen espera al sink de PipeWire) están en [`inicializador/CLAUDE.md`](inicializador/CLAUDE.md).
+`inicializador/init.sh` lee `~/.config/gigishell/{display,system_state}.json` y repone brillo, wifi, bluetooth y volumen/mute (la luz nocturna no: la gestiona solo AGS, ver `inicializador/CLAUDE.md`), con valores por defecto cuando falta una clave. Es la contraparte de la UI de AGS, que *escribe* esos JSON. Dos fallos silenciosos medidos (el brillo no se restaura en un sobremesa; el volumen espera al sink de PipeWire) están en [`inicializador/CLAUDE.md`](inicializador/CLAUDE.md).

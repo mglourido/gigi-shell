@@ -344,8 +344,12 @@ export function applyAllowTearing(on: boolean) {
 // a la hora de cada regla escribe ese mismo estado, como si el usuario pulsara el
 // interruptor o moviera el slider, y luego manda el usuario hasta el siguiente disparo.
 // Ver `schedule.ts` para los dos tipos de regla y la sección «Programación horaria» abajo.
-// `lastAppliedTemp === -1` ⇒ hyprsunset apagado.
-let lastAppliedTemp = -1
+// `lastAppliedTemp === -1` ⇒ hyprsunset apagado; `HYPRSUNSET_DESCONOCIDO` ⇒ no sabemos si
+// hay uno corriendo (arranque de AGS). Se empieza en desconocido y NO en apagado: un
+// `hyprsunset` heredado (otra sesión, un AGS reiniciado, o el que lanzaba init.sh) dejaba la
+// pantalla cálida con `nightOn` en false, porque applyNight creía que no había nada que matar.
+const HYPRSUNSET_DESCONOCIDO = -2
+let lastAppliedTemp = HYPRSUNSET_DESCONOCIDO
 
 // Gamma aplicado (0..100). hyprsunset sostiene DOS canales en la misma matriz: temperatura
 // (luz nocturna) y gamma (el tramo software del brillo, ver `atenuacion.ts`). Por eso el
@@ -605,8 +609,8 @@ function applyNight() {
   }
 
   const t = temp ?? TEMP_NEUTRA
-  if (lastAppliedTemp === -1) {
-    // off → on: arrancar ya con los dos canales, para no pintar un fogonazo a brillo pleno
+  if (lastAppliedTemp < 0) {
+    // off/desconocido → on: el pkill previo deja un único proceso, el nuestro. Arrancar ya con los dos canales, para no pintar un fogonazo a brillo pleno
     // entre el arranque del proceso y el ajuste del gamma.
     execAsync(["bash", "-c", `pkill -HUP -x hyprsunset; hyprsunset -t ${t} -g ${gamma} &`]).catch(() => {})
   } else {

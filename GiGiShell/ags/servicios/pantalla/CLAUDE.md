@@ -51,6 +51,15 @@ Parte de la guía de `ags/` (mapa de áreas en [`ags/CLAUDE.md`](../../CLAUDE.md
     hace nada (ni marca `revisado.brightness`) mientras `brightnessSupported` sea falso, e
     `initDisplayService` reintenta al confirmarse. Saldar un apunte de brillo sin backend tampoco se hace:
     la restauración se perdería y borraría el apunte. En la UI las filas de brillo se ocultan igual.
+  - **`hyprsunset` tiene UN dueño, y al arrancar AGS no supone que esté apagado.** Quick Settings
+    llegó a mostrar la luz apagada con la pantalla cálida tras cerrar y abrir sesión: `init.sh`
+    lanzaba su propio `hyprsunset` con el `nightLightActive` guardado, el horario de AGS reaplicaba
+    un «Apagar» y `applyNight()` partía de `lastAppliedTemp = -1` («ya está apagado»), así que no
+    llegaba a ejecutar el `pkill`. Era intermitente porque dependía de si `init.sh` leía
+    `display.json` antes o después del guardado con debounce de AGS. Arreglo doble: `init.sh` ya no
+    toca la luz nocturna, y `lastAppliedTemp` empieza en `HYPRSUNSET_DESCONOCIDO` (-2), de modo que
+    el primer `applyNight()` siempre alinea el proceso con el estado (lo mata si toca apagado, lo
+    relanza si toca encendido). No vuelvas a lanzar `hyprsunset` desde fuera de `service.ts`.
   - **"Apagar" (`temp: 0`) no es "No cambiar" (`temp: null`)**: `0` es un disparo que apaga la luz;
     `null` no dispara nada en ese canal (`ultimoDisparo` lo salta).
   - **Pausa por juego (`pausaLuzNocturnaJuegos`, Ajustes > Juegos > Pantalla; activada por defecto, como congelar tareas).**

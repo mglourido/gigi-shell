@@ -9,8 +9,6 @@ PREFS_CONFIG="$CONFIG_DIR/preferences.json"
 
 # --- Valores por Defecto ---
 DEFAULT_BRIGHTNESS=50        # 0-100%
-DEFAULT_NIGHTLIGHT=false     # true/false
-DEFAULT_NIGHTLIGHT_TEMP=4500 # Temperatura en Kelvin
 DEFAULT_WIFI=true            # true/false
 DEFAULT_BLUETOOTH=true       # true/false
 DEFAULT_VOLUME=50            # 0-100%
@@ -37,23 +35,10 @@ apply_brightness() {
     brightnessctl -c backlight s "${val}%"
 }
 
-apply_nightlight() {
-    local active=$DEFAULT_NIGHTLIGHT
-    local temp=$DEFAULT_NIGHTLIGHT_TEMP
-    
-    if [ -f "$DISPLAY_CONFIG" ]; then
-        local raw_active=$(jq -r '.nightLightActive // empty' "$DISPLAY_CONFIG")
-        local raw_temp=$(jq -r '.nightLightTemp // empty' "$DISPLAY_CONFIG")
-        
-        [ -n "$raw_active" ] && active=$raw_active
-        [ -n "$raw_temp" ] && temp=$raw_temp
-    fi
-    
-    pkill -HUP -x hyprsunset
-    if [ "$active" = "true" ]; then
-        hyprsunset -t "$temp" &
-    fi
-}
+# La luz nocturna NO se restaura aquí: el único dueño de `hyprsunset` es AGS
+# (servicios/pantalla/service.ts), que además aplica el horario, la pausa por juego y el
+# gamma del brillo bajo. Encenderlo desde aquí con el `nightLightActive` guardado chocaba
+# con el horario: AGS decidía "apagada" y este script la encendía igual (ver CLAUDE.md).
 
 apply_wifi() {
     local active=$DEFAULT_WIFI
@@ -156,7 +141,6 @@ apply_microphone_mute() {
 
 # --- Ejecución ---
 apply_brightness
-apply_nightlight
 apply_wifi
 apply_bluetooth
 apply_volume

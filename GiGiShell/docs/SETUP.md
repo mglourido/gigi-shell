@@ -142,8 +142,8 @@ retirarlas. Verifica después con
   sitio en la otra distro, ajusta esa línea.
 - `polkit` proporciona `pkexec`, que usan los ajustes de fecha, idioma e impresoras;
   `util-linux` proporciona `rfkill`, usado por el chequeo de hardware.
-- `hyprsunset` es la luz nocturna (la activa `~/.config/inicializador/init.sh` leyendo
-  `~/.config/gigishell/display.json`). **Nota de `hyprland.lua`**: `render.cm_enabled = false`
+- `hyprsunset` es la luz nocturna (la lanza y la gestiona solo AGS, `servicios/pantalla/service.ts`,
+  con el estado de `~/.config/gigishell/display.json` y el horario). **Nota de `hyprland.lua`**: `render.cm_enabled = false`
   está así a propósito porque el CTM de color management de Hyprland pisa el de
   `hyprsunset` y se ve lavado — no lo actives sin desactivar uno de los dos.
 - `uwsm` gestiona la sesión de Hyprland mediante systemd de usuario.
